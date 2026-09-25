@@ -21,10 +21,22 @@ import type { FactorsResponse } from "@/types";
 export function FactorAssociationChart({
   data,
   isLoading,
+  crop,
 }: {
   data?: FactorsResponse;
   isLoading?: boolean;
+  crop?: string;
 }) {
+  if (!crop) {
+    return (
+      <Card>
+        <CardHeader title="Factors Associated with Yield" />
+        <div className="p-4">
+          <EmptyState title="Select a crop to analyse factors associated with its yield." hint="Comparing yields across unrelated crops would distort the association." />
+        </div>
+      </Card>
+    );
+  }
   if (isLoading) return <ChartSkeleton height={300} />;
 
   const factors = (data?.factors ?? []).filter((f) => f.correlation != null);

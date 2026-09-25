@@ -40,7 +40,9 @@ def _empty(metric: str, f: AnalyticsFilters) -> dict:
     }
 
 
-def district_metrics(f: AnalyticsFilters, metric: str = "gap") -> dict:
+def district_metrics(
+    f: AnalyticsFilters, metric: str = "gap", weights: dict | None = None
+) -> dict:
     if metric not in METRICS:
         raise ValueError(f"unknown metric {metric!r}; expected one of {list(METRICS)}")
 
@@ -50,7 +52,7 @@ def district_metrics(f: AnalyticsFilters, metric: str = "gap") -> dict:
         return _empty(metric, f)
 
     # Priority score needs the full component frame (normalized across districts).
-    prio = priority_frame(df, f.benchmark_strategy)
+    prio = priority_frame(df, f.benchmark_strategy, weights=weights)
     prio_by_district = (
         prio.groupby("district")["priority_score"].mean().to_dict() if not prio.empty else {}
     )

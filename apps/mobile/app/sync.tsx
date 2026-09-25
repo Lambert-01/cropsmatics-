@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
+import { ScreenLayout } from "../src/components/ScreenLayout";
 import { listHarvests, listPendingOutbox } from "../src/database";
 import { strings } from "../src/i18n";
 import { useAppStore } from "../src/store/useAppStore";
@@ -33,7 +34,7 @@ export default function SyncScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+    <ScreenLayout back>
       <View style={{ gap: spacing.xs }}>
         <Text style={{ color: colors.slate }}>
           Connection: {online === null ? "…" : online ? "online" : "offline"}
@@ -64,8 +65,8 @@ export default function SyncScreen() {
       ) : null}
 
       <Text style={{ fontSize: 12, color: colors.slate }}>
-        Saved records are safe offline and sync automatically when connectivity returns.
+        {t.syncOnOpen}
       </Text>
-    </ScrollView>
+    </ScreenLayout>
   );
 }

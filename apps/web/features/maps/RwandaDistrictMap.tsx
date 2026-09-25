@@ -6,7 +6,7 @@ import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { MapSkeleton } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
 import { DistrictChoropleth } from "@/features/maps/DistrictChoropleth";
-import { FacilityLayer } from "@/features/maps/FacilityLayer";
+import { FacilityDistrictMarkers, FacilityLayer } from "@/features/maps/FacilityLayer";
 import { HarvestPressureLayer } from "@/features/maps/HarvestPressureLayer";
 import { MapControls } from "@/features/maps/MapControls";
 import { MapLegend } from "@/features/maps/MapLegend";
@@ -67,9 +67,14 @@ export function RwandaDistrictMap({
 
   const datumByDistrict = useMemo(() => {
     const map = new Map<string, MapMetricsResponse["districts"][number]>();
-    (data?.districts ?? []).forEach((d) => map.set(d.district, d));
+    (data?.districts ?? []).forEach((d) => {
+      if (d.district_code) map.set(d.district_code, d);
+    });
     return map;
   }, [data]);
+  const facilityByDistrict = useMemo(() => new Map(
+    facilities.filter((f) => f.district_code).map((f) => [f.district_code, f]),
+  ), [facilities]);
 
   const scale = useMemo(
     () =>
@@ -85,18 +90,18 @@ export function RwandaDistrictMap({
     const set = new Set<string>();
     (data?.districts ?? []).forEach((d) => {
       const gap = d.details?.gap_index;
-      if (typeof gap === "number" && gap >= PRESSURE_GAP) set.add(d.district);
+      if (d.district_code && typeof gap === "number" && gap >= PRESSURE_GAP) set.add(d.district_code);
     });
     return set;
   }, [data]);
 
-  const colorFor = (district: string) => {
-    const datum = datumByDistrict.get(district);
+  const colorFor = (districtCode: string) => {
+    const datum = datumByDistrict.get(districtCode);
     return scale.color(datum?.value ?? null);
   };
 
-  const labelFor = (district: string) => {
-    const datum = datumByDistrict.get(district);
+  const labelFor = (districtCode: string) => {
+    const datum = datumByDistrict.get(districtCode);
     return datum?.value != null ? `${datum.value}` : "no verified data";
   };
 
@@ -171,12 +176,16 @@ export function RwandaDistrictMap({
             project={project}
             highlighted={pressure}
           />
+          {showFacilities ? (
+            <FacilityDistrictMarkers features={collection.features} project={project} facilities={facilities} />
+          ) : null}
         </DistrictChoropleth>
 
         {hovered ? (
           <MapTooltip
             district={hovered.feature.properties.district}
-            datum={datumByDistrict.get(hovered.feature.properties.district)}
+            datum={datumByDistrict.get(hovered.feature.properties.district_code)}
+            facility={showFacilities ? facilityByDistrict.get(hovered.feature.properties.district_code) : undefined}
             metricLabel={data?.metric_label ?? metric}
             unit={data?.unit ?? null}
             crop={data?.crop ?? null}

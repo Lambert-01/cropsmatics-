@@ -72,4 +72,13 @@ export const rw: Strings = {
   no: "Oya",
   done: "Byarangiye",
   startOver: "Andika irindi",
+  districtDataPeriod: "Igihe giheruka cy'amakuru y'uturere",
+  localRecordNote: "Bishingiye ku nyandiko ziri kuri iki gikoresho",
+  riskNotStored: "Ibisubizo by'ibyago bisaba interineti kandi ntibibikwa kuri iki gikoresho.",
+  noVerifiedContext: "Nta makuru yemejwe kuri gahunda abonetse ubu.",
+  syncOnOpen: "Inyandiko zitaroherezwa zongera kugeragezwa porogaramu ifunguwe.",
+  scheduleToday: "Uyu munsi",
+  scheduleThreeDays: "Mu minsi 3",
+  scheduleWeek: "Mu cyumweru 1",
+  scheduleTwoWeeks: "Mu byumweru 2",
 };

@@ -1,18 +1,22 @@
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 
+import { ScreenLayout } from "../src/components/ScreenLayout";
+import { StepProgress } from "../src/components/StepProgress";
 import { CROPS, DISTRICTS } from "../src/constants/reference";
 import { strings } from "../src/i18n";
-import { api } from "../src/services/api";
 import { useAppStore } from "../src/store/useAppStore";
 import { saveHarvestOffline } from "../src/sync/queue";
 import { colors, radius, shadow, spacing, typography } from "../src/theme";
-import type { PostHarvestRisk } from "../src/types";
 
 type Step = 0 | 1 | 2 | 3 | 4;
 
-const SCHEDULE_OPTIONS = ["Today", "In 3 days", "In 1 week", "In 2 weeks"];
+function dateAfter(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export default function RegisterHarvestScreen() {
   const router = useRouter();
@@ -24,147 +28,40 @@ export default function RegisterHarvestScreen() {
   const [crop, setCrop] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("");
   const [schedule, setSchedule] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [risk, setRisk] = useState<PostHarvestRisk | null>(null);
-  const [riskError, setRiskError] = useState<string | null>(null);
-  const [loadingRisk, setLoadingRisk] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const scheduleOptions = [
+    { label: t.scheduleToday, days: 0 },
+    { label: t.scheduleThreeDays, days: 3 },
+    { label: t.scheduleWeek, days: 7 },
+    { label: t.scheduleTwoWeeks, days: 14 },
+  ];
 
   const steps = useMemo(
     () => [t.stepFarm, t.stepCrop, t.stepQuantity, t.stepSchedule, t.stepReview],
     [t],
   );
 
-  const canAdvance = [Boolean(district), Boolean(crop), Boolean(quantity), Boolean(schedule), true][
+  const validQuantity = Number(quantity) > 0 && Number.isFinite(Number(quantity));
+  const canAdvance = [Boolean(district), Boolean(crop), validQuantity, Boolean(schedule), true][
     step
   ];
 
-  async function onSave() {
-    if (!district || !crop) return;
+  function onSave() {
+    if (!district || !crop || !validQuantity || !schedule || saving) return;
+    setSaving(true);
     saveHarvestOffline({
       district,
       crop,
-      expectedQuantityKg: quantity ? Number(quantity) : null,
+      expectedQuantityKg: Number(quantity),
       expectedHarvestDate: schedule,
     });
-    setSaved(true);
-
-    // Risk is scored by the server (never locally). If we are offline, the
-    // harvest is already safe in SQLite and will be scored after sync.
-    setLoadingRisk(true);
-    setRiskError(null);
-    try {
-      const result = await api.scorePostHarvestRisk({
-        crop,
-        expected_quantity_kg: quantity ? Number(quantity) : null,
-      });
-      setRisk(result);
-    } catch {
-      setRiskError(t.riskUnavailableOffline);
-    } finally {
-      setLoadingRisk(false);
-    }
-  }
-
-  if (saved) {
-    return (
-      <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}>
-        <View style={cardStyle}>
-          <Text style={typography.h2}>✓ {t.savedOffline}</Text>
-          <Text style={typography.caption}>
-            {crop} · {district} · {quantity ? `${quantity} kg` : "—"}
-          </Text>
-        </View>
-
-        <View style={cardStyle}>
-          <Text style={typography.h2}>{t.riskAnalysis}</Text>
-          {loadingRisk ? (
-            <Text style={typography.body}>{t.loadingRisk}</Text>
-          ) : risk ? (
-            <View style={{ gap: spacing.sm }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                <Text
-                  style={{
-                    fontSize: 22,
-                    fontWeight: "700",
-                    color:
-                      risk.band === "HIGH"
-                        ? colors.riskHigh
-                        : risk.band === "MODERATE"
-                          ? colors.riskModerate
-                          : colors.riskLow,
-                  }}
-                >
-                  {risk.band === "HIGH" ? "▲" : risk.band === "MODERATE" ? "!" : "✓"}{" "}
-                  {Math.round(risk.probability * 100)}%
-                </Text>
-                <Text style={typography.body}>
-                  {risk.band === "HIGH" ? t.riskHigh : risk.band === "MODERATE" ? t.riskModerate : t.riskLow}
-                </Text>
-              </View>
-              <Text style={{ fontWeight: "600", color: colors.forest }}>{t.topFactors}</Text>
-              {risk.contributing_factors.map((f) => (
-                <Text key={f} style={typography.caption}>
-                  • {f}
-                </Text>
-              ))}
-              <Text style={{ fontWeight: "600", color: colors.forest }}>{t.recommendations}</Text>
-              {risk.recommended_actions.map((a) => (
-                <Text key={a} style={typography.caption}>
-                  • {a}
-                </Text>
-              ))}
-              <Text style={{ fontWeight: "600", color: colors.forest }}>{t.dataLimitations}</Text>
-              {(risk.provenance?.limitations ?? []).map((l) => (
-                <Text key={l} style={typography.caption}>
-                  • {l}
-                </Text>
-              ))}
-            </View>
-          ) : (
-            <Text style={typography.body}>{riskError ?? t.riskUnavailable}</Text>
-          )}
-        </View>
-
-        <Pressable onPress={() => router.push("/")} style={buttonStyle(true)}>
-          <Text style={buttonTextStyle(true)}>{t.done}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setSaved(false);
-            setRisk(null);
-            setStep(0);
-            setDistrict(null);
-            setCrop(null);
-            setQuantity("");
-            setSchedule(null);
-          }}
-          style={buttonStyle(false)}
-        >
-          <Text style={buttonTextStyle(false)}>{t.startOver}</Text>
-        </Pressable>
-      </ScrollView>
-    );
+    router.replace({ pathname: "/harvest-risk", params: { crop, district, quantity } });
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}>
-      {/* Step indicator */}
-      <View style={{ flexDirection: "row", gap: spacing.xs, alignItems: "center" }}>
-        {steps.map((label, i) => (
-          <View key={label} style={{ flex: 1, gap: spacing.xs }}>
-            <View
-              style={{
-                height: 4,
-                borderRadius: radius.pill,
-                backgroundColor: i <= step ? colors.brandGreen : colors.border,
-              }}
-            />
-            <Text style={{ fontSize: 10, color: i === step ? colors.forest : colors.muted }}>
-              {i + 1}. {label}
-            </Text>
-          </View>
-        ))}
-      </View>
+    <ScreenLayout back>
+      <Text style={typography.h1}>{t.registerHarvest}</Text>
+      <StepProgress labels={steps} current={step} />
 
       <View style={cardStyle}>
         {step === 0 ? (
@@ -194,7 +91,12 @@ export default function RegisterHarvestScreen() {
 
         {step === 3 ? (
           <Field label={t.harvestDate}>
-            <ChipPicker options={SCHEDULE_OPTIONS} value={schedule} onChange={setSchedule} />
+            <ChipPicker
+              options={scheduleOptions.map((option) => option.label)}
+              value={scheduleOptions.find((option) => dateAfter(option.days) === schedule)?.label ?? null}
+              onChange={(label) => setSchedule(dateAfter(scheduleOptions.find((option) => option.label === label)?.days ?? 0))}
+            />
+            {schedule ? <Text style={typography.caption}>{schedule}</Text> : null}
           </Field>
         ) : null}
 
@@ -225,16 +127,14 @@ export default function RegisterHarvestScreen() {
             <Text style={buttonTextStyle(canAdvance)}>{t.next}</Text>
           </Pressable>
         ) : (
-          <Pressable onPress={onSave} disabled={!district || !crop} style={buttonStyle(true)}>
-            <Text style={buttonTextStyle(true)}>{t.confirmSave}</Text>
+          <Pressable onPress={onSave} disabled={!district || !crop || !validQuantity || saving} style={buttonStyle(!saving)}>
+            <Text style={buttonTextStyle(!saving)}>{saving ? t.saving : t.confirmSave}</Text>
           </Pressable>
         )}
       </View>
 
-      <Text style={typography.caption}>
-        Saved locally with a device UUID; sync is idempotent, so nothing is duplicated.
-      </Text>
-    </ScrollView>
+      <Text style={typography.caption}>{t.syncOnOpen}</Text>
+    </ScreenLayout>
   );
 }
 

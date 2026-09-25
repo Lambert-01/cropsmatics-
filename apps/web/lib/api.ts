@@ -64,6 +64,8 @@ export const api = {
     filters: DashboardFilters,
     metric: string,
   ) => get<MapMetricsResponse>("/maps/district-metrics", `${filtersToApiQuery(filters)}&metric=${metric}`),
+  weightedPriorityMap: (filters: DashboardFilters, weights: Record<string, number>) =>
+    post<MapMetricsResponse>("/maps/district-metrics", weights, filtersToApiQuery(filters)),
   trends: (crop?: string) => get<TrendResponse>("/analytics/trends", crop ? `crop=${encodeURIComponent(crop)}` : ""),
   inputAdoption: () => get<TrendResponse>("/analytics/input-adoption"),
   postHarvest: () => get<PostHarvestResponse>("/analytics/post-harvest"),

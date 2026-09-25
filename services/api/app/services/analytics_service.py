@@ -88,7 +88,9 @@ def gapped(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
     return compute_gaps(valid_yield(df), strategy=strategy)
 
 
-def priority_frame(df: pd.DataFrame, strategy: str = "national_crop_median") -> pd.DataFrame:
+def priority_frame(
+    df: pd.DataFrame, strategy: str = "national_crop_median", weights: dict | None = None
+) -> pd.DataFrame:
     """Attach priority components and a normalized priority score/band per row."""
     g = compute_gaps(valid_yield(df), strategy=strategy)
     if g.empty:
@@ -116,6 +118,7 @@ def priority_frame(df: pd.DataFrame, strategy: str = "national_crop_median") -> 
             affected_scale=norm["affected_scale"].get(idx, 0.0),
             readiness=norm["readiness"].get(idx, 0.0),
             cost_constraint=norm["cost_constraint"].get(idx, 0.0),
+            weights=weights,
         )
         scores.append(r.score)
         bands.append(r.band)
@@ -195,6 +198,8 @@ def productivity(f: AnalyticsFilters) -> dict:
 
 
 def factor_associations(f: AnalyticsFilters) -> dict:
+    if not f.crop:
+        return {"crop": None, "district": f.district, "factors": []}
     df = apply_filters(repo.training_dataset(), f)
     df = valid_yield(df)
 
@@ -202,6 +207,8 @@ def factor_associations(f: AnalyticsFilters) -> dict:
     for col in _factor_cols(df):
         sub = df[["yield_kg_ha", col]].dropna()
         corr = sub["yield_kg_ha"].corr(sub[col]) if len(sub) >= 3 else None
+        if corr is not None and pd.isna(corr):
+            corr = None
         n = int(len(sub))
         if corr is None:
             interpretation = "insufficient observations to estimate association"
@@ -255,7 +262,7 @@ def heatmap(f: AnalyticsFilters, metric: str = "gap") -> dict:
         "metric": metric,
         "districts": districts,
         "crops": crops,
-        "cells": cells[: f.limit] if f.limit else cells,
+        "cells": cells,
         "max_value": max(values) if values else None,
         "min_value": min(values) if values else None,
         "unit": unit,
@@ -286,7 +293,7 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
     df = repo.training_dataset()
     if f is not None:
         df = apply_filters(df, f)
-    gapped_df = _threshold_gap(df)
+    gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
     gapped_df = gapped_df[gapped_df["yield_kg_ha"].fillna(0) > 0].copy()
     if gapped_df.empty:
         return {"weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})}, "rows": [],
@@ -344,7 +351,7 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
     }
 
 
-def _threshold_gap(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute gaps on all valid rows using a national crop median benchmark."""
+def _threshold_gap(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
+    """Compute gaps on all valid rows using the selected benchmark."""
     valid = df[df["yield_kg_ha"].fillna(0) > 0].copy()
-    return compute_gaps(valid, strategy="national_crop_median")
+    return compute_gaps(valid, strategy=strategy)

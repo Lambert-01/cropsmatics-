@@ -85,7 +85,7 @@ def factors(f: AnalyticsFilters = Depends(analytics_filters)) -> FactorsResponse
         provenance=Provenance(
             source_id="NISR_SAS_2025B_DISTRICT_FACTORS",
             source_period="2025-B",
-            method="Pearson correlation between district factor adoption and yield",
+            method="Crop-specific Pearson correlation between district factor adoption and yield; a crop selection is required",
             limitations=[
                 "aggregate (ecological) association; not a causal effect",
                 "confounding between practices is expected",
@@ -129,7 +129,9 @@ def trends(crop: str | None = Query(None)) -> TrendResponse:
         points=result["points"],
         provenance=Provenance(
             source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
-            method="national published series; only real periods are returned",
+            method=(
+                "published crop yield for a selected crop; otherwise total production / total harvested area across non-aggregate crops"
+            ),
             limitations=[
                 "national series, not district estimates",
                 "periods available depend on the published releases",

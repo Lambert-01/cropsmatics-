@@ -72,6 +72,22 @@ body {
   background-repeat: no-repeat;
 }
 
+.sidebar-surface {
+  background-image:
+    linear-gradient(to bottom, rgba(3, 45, 35, 0.99) 0%, rgba(3, 45, 35, 0.93) 48%, rgba(3, 45, 35, 0.35) 100%),
+    url("/images/rwanda-farm-landscape.png");
+  background-size: cover;
+  background-position: 65% bottom;
+}
+
+.page-hero {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.92) 37%, rgba(255, 255, 255, 0.08) 72%, rgba(3, 45, 35, 0.48) 100%),
+    url("/images/rwanda-farm-landscape.png");
+  background-size: cover;
+  background-position: center 55%;
+}
+
 .map-district {
   transition: fill 160ms ease, opacity 160ms ease;
 }

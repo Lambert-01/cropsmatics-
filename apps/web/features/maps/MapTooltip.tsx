@@ -1,5 +1,5 @@
 import { fmtNumber, periodLabel } from "@/lib/format";
-import type { MapDistrictMetric } from "@/types";
+import type { FacilityItem, MapDistrictMetric } from "@/types";
 
 export function MapTooltip({
   district,
@@ -9,6 +9,7 @@ export function MapTooltip({
   x,
   y,
   crop,
+  facility,
 }: {
   district: string;
   datum?: MapDistrictMetric;
@@ -17,6 +18,7 @@ export function MapTooltip({
   x: number;
   y: number;
   crop?: string | null;
+  facility?: FacilityItem;
 }) {
   const details = datum?.details ?? {};
   const show = (label: string, value: string | number | null | undefined) =>
@@ -56,6 +58,10 @@ export function MapTooltip({
         )}
         {show("Priority band", details.priority_band as string | null)}
         {show("Period", periodLabel(details.period as string | null))}
+        {facility ? show("Program", facility.initiative ?? "Cold-chain context") : null}
+        {facility ? show("Capacity", "Not verified") : null}
+        {facility ? show("Location", "District context only") : null}
+        {facility ? show("Source", facility.source_id ?? "MINAGRI") : null}
       </dl>
     </div>
   );

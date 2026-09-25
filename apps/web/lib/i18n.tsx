@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 export type Lang = "en" | "rw";
 
@@ -76,7 +77,7 @@ const LanguageContext = createContext<LanguageContextValue>({
   t: (key) => DICT.en[key] ?? key,
 });
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
+export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {

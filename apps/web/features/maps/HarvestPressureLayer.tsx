@@ -16,7 +16,7 @@ export function HarvestPressureLayer({
   highlighted: Set<string>;
   patternId?: string;
 }) {
-  const targets = features.filter((f) => highlighted.has(f.properties.district));
+  const targets = features.filter((f) => highlighted.has(f.properties.district_code));
   if (!targets.length) return null;
 
   return (

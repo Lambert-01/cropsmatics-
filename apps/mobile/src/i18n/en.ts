@@ -68,6 +68,15 @@ export const en = {
   no: "No",
   done: "Done",
   startOver: "Register another",
+  districtDataPeriod: "Latest district data period",
+  localRecordNote: "From records on this device",
+  riskNotStored: "Risk results require a connection and are not saved on this device.",
+  noVerifiedContext: "No verified program context is available right now.",
+  syncOnOpen: "Pending records are retried when the app opens or returns to the foreground.",
+  scheduleToday: "Today",
+  scheduleThreeDays: "In 3 days",
+  scheduleWeek: "In 1 week",
+  scheduleTwoWeeks: "In 2 weeks",
 } as const;
 
 // Equivalent to a mapped type over `typeof en`, but expressed via Record so it

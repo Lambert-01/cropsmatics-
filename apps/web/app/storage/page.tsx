@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { PageHeading } from "@/components/ui/PageHeading";
+import { PageHero } from "@/components/layout/PageHero";
 import { EmptyState, ErrorState, MapSkeleton } from "@/components/ui/States";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import { FacilityStatus } from "@/features/storage/FacilityStatus";
@@ -19,7 +19,7 @@ export default function StoragePage() {
 
   return (
     <div className="space-y-5">
-      <PageHeading
+      <PageHero
         title="Storage & Aggregation"
         subtitle="Verified cold-chain program context, honest capacity reporting, and an OR-Tools allocation demo."
       />

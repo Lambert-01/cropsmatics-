@@ -23,6 +23,10 @@ const ICONS: Record<string, ReactNode> = {
   postharvest_loss: <Package className="h-4 w-4" />,
   total_production: <BarChart3 className="h-4 w-4" />,
   storage_districts: <Warehouse className="h-4 w-4" />,
+  national_production: <BarChart3 className="h-4 w-4" />,
+  national_area: <Wheat className="h-4 w-4" />,
+  national_yield: <Sprout className="h-4 w-4" />,
+  national_seed: <Sprout className="h-4 w-4" />,
 };
 
 const ACCENTS: Record<string, "primary" | "amber" | "danger" | "info" | "success"> = {
@@ -35,7 +39,7 @@ const ACCENTS: Record<string, "primary" | "amber" | "danger" | "info" | "success
 
 export function DashboardKpis({ kpis }: { kpis: KPI[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${kpis.length <= 4 ? "xl:grid-cols-4" : kpis.length === 5 ? "xl:grid-cols-5" : "xl:grid-cols-6"}`}>
       {kpis.map((kpi) => (
         <KpiCard
           key={kpi.id}

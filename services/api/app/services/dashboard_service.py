@@ -11,7 +11,7 @@ import pandas as pd
 
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
-from app.services import meta_service
+from app.services import meta_service, trend_service
 from app.services.analytics_service import FACTOR_COLUMNS, HIGH_GAP_PCT, gapped, period_of
 
 
@@ -24,14 +24,80 @@ def _period_key(f: AnalyticsFilters) -> str | None:
 
 
 def available_periods() -> list[str]:
-    df = repo.training_dataset()
-    if {"year", "season"}.issubset(df.columns):
-        pairs = df[["year", "season"]].dropna().drop_duplicates().sort_values(["year", "season"])
-        return [f"{int(y)}{s}" for y, s in pairs.itertuples(index=False)]
-    return []
+    levels = meta_service.coverage()["coverage"]
+    periods = {period for dataset in levels.values() for period in dataset if len(period) == 5}
+    return sorted(periods)
+
+
+def _coverage_level(f: AnalyticsFilters, coverage: dict[str, str]) -> str | None:
+    selected = [
+        level for period, level in coverage.items()
+        if (f.year is None or period.startswith(str(f.year)))
+        and (f.season is None or period.endswith(f.season.upper()))
+    ]
+    if not selected:
+        return None
+    return "district" if "district" in selected else "national"
+
+
+def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str | None) -> dict:
+    period = _period_key(f)
+    trend_points = [
+        point for point in trend_service.crop_trends(f.crop)["points"]
+        if (f.year is None or point["year"] == f.year)
+        and (f.season is None or point["season"] == f.season.upper())
+    ]
+    input_points = [
+        point for point in trend_service.input_adoption()["points"]
+        if (f.year is None or point["year"] == f.year)
+        and (f.season is None or point["season"] == f.season.upper())
+    ]
+    production = sum(p["values"]["production_mt"] or 0 for p in trend_points)
+    area = sum(p["values"]["harvested_area_ha"] or 0 for p in trend_points)
+    yield_value = production / area if area > 0 else None
+    seed = input_points[0]["values"].get("improved_seed_pct") if len(input_points) == 1 else None
+    source = "NISR_SAS_2024_2026_NATIONAL_TRENDS"
+    kpis = [
+        {"id": "national_production", "label": "National production", "value": round(production, 1) if trend_points else None,
+         "unit": "metric tonnes", "period": period, "source_id": source},
+        {"id": "national_area", "label": "National harvested area", "value": round(area, 1) if trend_points else None,
+         "unit": "ha", "period": period, "source_id": source},
+        {"id": "national_yield", "label": "National yield", "value": round(yield_value, 3) if yield_value is not None else None,
+         "unit": "t/ha", "period": period, "source_id": source,
+         "note": "production / harvested area across reported crops"},
+        {"id": "national_seed", "label": "Improved seed use", "value": seed,
+         "unit": "% of farmers", "period": period,
+         "source_id": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS"},
+    ]
+    return {
+        "filters": {"year": f.year, "season": f.season, "crop": f.crop,
+                    "province": f.province, "district": f.district,
+                    "benchmark_strategy": f.benchmark_strategy},
+        "period": period,
+        "available_periods": available_periods(),
+        "coverage": coverage,
+        "coverage_level": level,
+        "n_observations": 0,
+        "kpis": kpis,
+        "provenance": {
+            "source_id": source, "source_period": period,
+            "method": "published national series; all-crop yield = total production / total harvested area",
+            "limitations": ["national context only; no district estimates for this period"],
+        },
+    }
 
 
 def overview(f: AnalyticsFilters) -> dict:
+    all_coverage = meta_service.coverage()["coverage"]
+    coverage = all_coverage.get("district_crop_productivity", {})
+    level = _coverage_level(f, coverage)
+    if level is None and f.year and f.season:
+        key = _period_key(f)
+        if any(key in periods for periods in all_coverage.values()):
+            level = "national"
+    if level != "district":
+        return _national_overview(f, coverage, level)
+
     df = apply_filters(repo.training_dataset(), f)
     g = gapped(df, f.benchmark_strategy)
     valid = g[g["yield_kg_ha"].fillna(0) > 0]
@@ -91,14 +157,6 @@ def overview(f: AnalyticsFilters) -> dict:
          "note": "capacity not verified"},
     ]
 
-    coverage = meta_service.coverage()
-    key = _period_key(f)
-    cov_map = coverage["coverage"].get("district_crop_productivity", {})
-    selected_level = cov_map.get(key) if key else None
-    if key is None and cov_map:
-        # default period = latest district-covered period
-        selected_level = "district" if "district" in cov_map.values() else None
-
     return {
         "filters": {
             "year": f.year, "season": f.season, "crop": f.crop,
@@ -107,8 +165,8 @@ def overview(f: AnalyticsFilters) -> dict:
         },
         "period": period,
         "available_periods": available_periods(),
-        "coverage": cov_map,
-        "coverage_level": selected_level,
+        "coverage": coverage,
+        "coverage_level": level,
         "n_observations": int(len(valid)),
         "kpis": kpis,
         "provenance": {
@@ -123,4 +181,3 @@ def overview(f: AnalyticsFilters) -> dict:
             ],
         },
     }
-

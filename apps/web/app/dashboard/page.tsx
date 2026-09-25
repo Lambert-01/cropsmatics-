@@ -2,8 +2,8 @@
 
 import { X } from "lucide-react";
 
+import { PageHero } from "@/components/layout/PageHero";
 import { ProvenanceCard } from "@/components/ProvenanceCard";
-import { PageHeading } from "@/components/ui/PageHeading";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { GapHeatmap } from "@/features/dashboard/GapHeatmap";
@@ -25,14 +25,15 @@ export default function DashboardPage() {
   const { filters, setFilters } = useFilters();
 
   const overview = useOverview(filters);
-  const priorities = usePriorities(filters, 16);
+  const districtMode = overview.data?.coverage_level === "district";
+  const priorities = usePriorities(filters, 16, districtMode);
   const trends = useTrends(filters.crop);
   const inputAdoption = useInputAdoption();
-  const heatmap = useHeatmap(filters, "gap");
+  const heatmap = useHeatmap(filters, "gap", districtMode);
 
   return (
     <div className="space-y-5">
-      <PageHeading
+      <PageHero
         title="National Crop Intelligence Overview"
         subtitle="Turning official data into action for a productive and resilient Rwanda."
       />
@@ -70,6 +71,14 @@ export default function DashboardPage() {
         <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
       ) : null}
 
+      {!districtMode && overview.data ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
+          <InputAdoptionChart data={inputAdoption.data} isLoading={inputAdoption.isLoading} />
+        </div>
+      ) : null}
+
+      {districtMode ? <>
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <ProductivityRiskMap
           filters={filters}
@@ -100,6 +109,7 @@ export default function DashboardPage() {
         <InputAdoptionChart data={inputAdoption.data} isLoading={inputAdoption.isLoading} />
         <GapHeatmap data={heatmap.data} isLoading={heatmap.isLoading} />
       </div>
+      </> : null}
 
       {overview.data ? <ProvenanceCard provenance={overview.data.provenance} /> : null}
     </div>

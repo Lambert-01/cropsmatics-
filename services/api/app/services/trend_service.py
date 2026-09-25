@@ -49,9 +49,18 @@ def crop_trends(crop: str | None = None) -> dict:
             m: (None if grp[m].dropna().empty else round(float(grp[m].sum()), 2))
             for m in metrics
         }
-        # Yield is a ratio, never a sum of ratios.
-        y = grp["yield_mt_ha"].dropna()
-        values["yield_mt_ha"] = None if y.empty else round(float(y.mean()), 4)
+        # For all crops, production / harvested area is the only meaningful
+        # combined yield. For one crop, retain its published yield value.
+        if crop:
+            y = grp["yield_mt_ha"].dropna()
+            values["yield_mt_ha"] = None if y.empty else round(float(y.iloc[0]), 4)
+        else:
+            paired = grp.dropna(subset=["production_mt", "harvested_area_ha"])
+            paired = paired[paired["harvested_area_ha"] > 0]
+            area = paired["harvested_area_ha"].sum()
+            values["yield_mt_ha"] = (
+                round(float(paired["production_mt"].sum() / area), 4) if area > 0 else None
+            )
         points.append({
             "period": _period(year, season),
             "year": int(year),

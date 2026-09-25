@@ -15,35 +15,45 @@ export function useOverview(filters: DashboardFilters) {
   });
 }
 
-export function useProductivity(filters: DashboardFilters) {
+export function useProductivity(filters: DashboardFilters, enabled = true) {
   return useQuery({
     queryKey: ["productivity", filters],
     queryFn: () => api.productivity(filters),
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 
-export function useFactors(filters: DashboardFilters) {
+export function useFactors(filters: DashboardFilters, enabled = Boolean(filters.crop)) {
   return useQuery({
     queryKey: ["factors", filters],
     queryFn: () => api.factors(filters),
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 
-export function useHeatmap(filters: DashboardFilters, metric: "gap" | "yield" = "gap") {
+export function useHeatmap(filters: DashboardFilters, metric: "gap" | "yield" = "gap", enabled = true) {
   return useQuery({
     queryKey: ["heatmap", filters, metric],
     queryFn: () => api.heatmap(filters, metric),
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 
-export function useMapMetrics(filters: DashboardFilters, metric: string) {
+export function useMapMetrics(filters: DashboardFilters, metric: string, enabled = true) {
   return useQuery({
     queryKey: ["map-metrics", filters, metric],
     queryFn: () => api.mapDistrictMetrics(filters, metric),
     staleTime: FIVE_MIN,
+    enabled,
+  });
+}
+
+export function useWeightedPriorityMap(filters: DashboardFilters) {
+  return useMutation({
+    mutationFn: (weights: Record<string, number>) => api.weightedPriorityMap(filters, weights),
   });
 }
 
@@ -71,11 +81,12 @@ export function usePostHarvest() {
   });
 }
 
-export function usePriorities(filters: DashboardFilters, limit = 50) {
+export function usePriorities(filters: DashboardFilters, limit = 50, enabled = true) {
   return useQuery({
     queryKey: ["priorities", filters, limit],
     queryFn: () => api.priorities(filters, limit),
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 

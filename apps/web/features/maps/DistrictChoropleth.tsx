@@ -53,18 +53,19 @@ export function DistrictChoropleth({
       <g>
         {features.map((feature) => {
           const district = feature.properties.district;
+          const districtCode = feature.properties.district_code;
           const isSelected = selected === district;
           return (
             <path
               key={feature.properties.district_code}
               d={featureToPath(feature, project)}
               className="map-district cursor-pointer"
-              fill={colorFor(district)}
+              fill={colorFor(districtCode)}
               stroke={isSelected ? "#032D23" : "#ffffff"}
               strokeWidth={isSelected ? 2 : 0.7}
               tabIndex={0}
               role="button"
-              aria-label={`${district}: ${labelFor(district)}`}
+              aria-label={`${district}: ${labelFor(districtCode)}`}
               onMouseMove={(e) => onHover(feature, e)}
               onMouseLeave={onLeave}
               onFocus={(e) => onHover(feature, e as unknown as React.MouseEvent)}

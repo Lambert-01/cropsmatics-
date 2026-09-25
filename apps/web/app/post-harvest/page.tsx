@@ -1,7 +1,7 @@
 "use client";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
-import { PageHeading } from "@/components/ui/PageHeading";
+import { PageHero } from "@/components/layout/PageHero";
 import { ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { LossByCropChart } from "@/features/postharvest/LossByCropChart";
@@ -14,7 +14,7 @@ export default function PostHarvestPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeading
+      <PageHero
         title="Post-Harvest Intelligence"
         subtitle="How crops are sold, consumed, stored and lost — and where storage risk concentrates."
       />

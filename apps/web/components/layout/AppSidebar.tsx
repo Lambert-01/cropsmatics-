@@ -18,7 +18,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useLanguage();
 
   return (
-    <div className="flex h-full flex-col bg-forest-deep text-white/90">
+    <div className="sidebar-surface flex h-full flex-col text-white/90">
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 pb-4 pt-5">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-white/10 text-primary ring-1 ring-white/15">
@@ -50,7 +50,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                       className={cn(
                         "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition",
                         active
-                          ? "bg-white/12 font-medium text-white ring-1 ring-inset ring-white/10"
+                          ? "bg-primary/80 font-medium text-white ring-1 ring-inset ring-white/20"
                           : "text-white/70 hover:bg-white/[0.07] hover:text-white",
                       )}
                     >
@@ -77,7 +77,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Landscape footer */}
-      <div className="sidebar-landscape mt-auto px-5 py-5">
+      <div className="mt-auto px-5 py-5">
         <p className="text-[11px] font-medium leading-relaxed text-white/85">
           {FOOTER_TAGLINE.map((line) => (
             <span key={line} className="block">

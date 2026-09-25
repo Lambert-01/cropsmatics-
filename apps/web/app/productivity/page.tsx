@@ -1,27 +1,32 @@
 "use client";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
-import { PageHeading } from "@/components/ui/PageHeading";
+import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
+import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
+import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { cn } from "@/lib/cn";
 import { BENCHMARK_OPTIONS, DEFAULT_BENCHMARK } from "@/lib/filters";
-import { useFactors, useProductivity } from "@/services/hooks/useAnalytics";
+import { useFactors, useInputAdoption, useOverview, useProductivity, useTrends } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
 export default function ProductivityPage() {
   const { filters, setFilters } = useFilters();
-
-  const productivity = useProductivity(filters);
-  const factors = useFactors(filters);
+  const overview = useOverview(filters);
+  const districtMode = overview.data?.coverage_level === "district";
+  const productivity = useProductivity(filters, districtMode);
+  const factors = useFactors(filters, districtMode && Boolean(filters.crop));
+  const trends = useTrends(filters.crop);
+  const inputs = useInputAdoption();
 
   return (
     <div className="space-y-5">
-      <PageHeading
+      <PageHero
         title="Productivity Intelligence"
         subtitle="Diagnose crop productivity gaps and the factors associated with them across Rwanda."
       />
@@ -53,30 +58,41 @@ export default function ProductivityPage() {
         </div>
       </div>
 
-      {productivity.error ? (
+      {overview.error ? <ErrorState message={(overview.error as Error).message} onRetry={() => overview.refetch()} /> : null}
+      {overview.isLoading ? <KpiRowSkeleton count={5} /> : null}
+      {overview.data && !districtMode ? (
+        <>
+          <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
+          <DashboardKpis kpis={overview.data.kpis} />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
+            <InputAdoptionChart data={inputs.data} isLoading={inputs.isLoading} />
+          </div>
+          <ProvenanceCard provenance={overview.data.provenance} />
+        </>
+      ) : null}
+
+      {districtMode && productivity.error ? (
         <ErrorState
           message={(productivity.error as Error).message}
           onRetry={() => productivity.refetch()}
         />
       ) : null}
 
-      {productivity.isLoading ? (
+      {districtMode && productivity.isLoading ? (
         <KpiRowSkeleton count={5} />
-      ) : productivity.data ? (
+      ) : districtMode && productivity.data ? (
         <DashboardKpis kpis={productivity.data.kpis} />
       ) : null}
 
-      {productivity.data ? (
-        <CoverageNotice level={filters.year || filters.season ? undefined : "district"} period={null} />
-      ) : null}
-
+      {districtMode ? <>
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <ProductivityRiskMap
           filters={filters}
           selectedDistrict={filters.district}
           onSelectDistrict={(d) => setFilters({ district: d })}
         />
-        <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} />
+        <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} crop={filters.crop} />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
@@ -88,6 +104,7 @@ export default function ProductivityPage() {
       </div>
 
       {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
+      </> : null}
     </div>
   );
 }

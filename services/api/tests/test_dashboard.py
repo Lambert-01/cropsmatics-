@@ -5,7 +5,12 @@ These exercise the real processed tables produced by the data pipeline.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
+
+from app.analytics.productivity_gap import compute_gaps
+from app.schemas.filters import AnalyticsFilters
+from app.services import analytics_service, trend_service
 
 
 def _require_data(client) -> None:
@@ -26,6 +31,26 @@ def test_dashboard_overview(client):
     assert {"avg_yield", "districts", "crops", "median_gap", "high_gap"} <= ids
     districts = next(k for k in body["kpis"] if k["id"] == "districts")
     assert districts["value"] == 30
+
+
+def test_national_only_period_has_national_kpis_and_no_district_data(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?year=2024&season=B").json()
+    assert body["coverage_level"] == "national"
+    assert body["n_observations"] == 0
+    assert {k["id"] for k in body["kpis"]} == {
+        "national_production", "national_area", "national_yield", "national_seed"
+    }
+    assert all(k["period"] == "2024B" for k in body["kpis"])
+    assert next(k for k in body["kpis"] if k["id"] == "national_production")["value"] > 0
+
+
+def test_national_input_only_period_preserves_missing_crop_metrics(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?year=2026&season=B").json()
+    assert body["coverage_level"] == "national"
+    assert next(k for k in body["kpis"] if k["id"] == "national_production")["value"] is None
+    assert next(k for k in body["kpis"] if k["id"] == "national_seed")["value"] is not None
 
 
 def test_data_coverage(client):
@@ -104,6 +129,20 @@ def test_map_unknown_metric_rejected(client):
     assert client.get("/api/v1/maps/district-metrics?metric=nope").status_code == 422
 
 
+def test_priority_map_accepts_adjusted_weights(client):
+    _require_data(client)
+    baseline = client.get("/api/v1/maps/district-metrics?metric=priority").json()
+    adjusted = client.post(
+        "/api/v1/maps/district-metrics",
+        json={"gap": 0.8, "vulnerability": 0.05, "affected_scale": 0.05,
+              "readiness": 0.05, "cost": 0.05},
+    )
+    assert adjusted.status_code == 200
+    body = adjusted.json()
+    assert len(body["districts"]) == len(baseline["districts"]) == 30
+    assert any(a["value"] != b["value"] for a, b in zip(body["districts"], baseline["districts"], strict=True))
+
+
 def test_post_harvest(client):
     _require_data(client)
     body = client.get("/api/v1/analytics/post-harvest").json()
@@ -152,3 +191,66 @@ def test_heatmap(client):
     body = client.get("/api/v1/analytics/heatmap?metric=gap").json()
     assert body["districts"] and body["crops"]
     assert all("district" in c and "crop" in c and "value" in c for c in body["cells"])
+
+
+def test_heatmap_ignores_generic_row_limit(client):
+    _require_data(client)
+    body = client.get("/api/v1/analytics/heatmap?limit=1").json()
+    assert len(body["cells"]) == len(body["districts"]) * len(body["crops"])
+    assert len(body["cells"]) > 500
+
+
+def test_factors_require_crop(client):
+    _require_data(client)
+    body = client.get("/api/v1/analytics/factors").json()
+    assert body["crop"] is None
+    assert body["factors"] == []
+    maize = client.get("/api/v1/analytics/factors?crop=Maize").json()
+    assert maize["crop"] == "Maize"
+    assert maize["factors"]
+
+
+@pytest.mark.parametrize("strategy", [
+    "national_crop_median",
+    "national_crop_season_median",
+    "top_quartile_comparable_districts",
+    "agro_ecological_peer_group",
+])
+def test_intervention_respects_selected_benchmark(monkeypatch, strategy):
+    frame = pd.DataFrame([
+        {"district": name, "district_code": code, "canonical_crop_name": "Maize",
+         "year": 2025, "season": season, "agro_ecological_zone": zone,
+         "yield_kg_ha": yield_value, "harvested_area_ha": 10.0,
+         "erosion_protection_farmers_pct": 50.0, "agricultural_land_000ha": 1.0,
+         "perishability": "medium"}
+        for name, code, season, zone, yield_value in [
+            ("A", "01", "A", "East", 100.0),
+            ("B", "02", "A", "East", 200.0),
+            ("C", "03", "B", "West", 300.0),
+            ("D", "04", "B", "West", 400.0),
+        ]
+    ])
+    monkeypatch.setattr(analytics_service.repo, "training_dataset", lambda: frame)
+    result = analytics_service.priorities(
+        f=AnalyticsFilters(benchmark_strategy=strategy), limit=10
+    )
+    expected = compute_gaps(frame, strategy=strategy)
+    for row in result["rows"]:
+        match = expected[expected["district"] == row["district"]].iloc[0]
+        assert row["benchmark_yield_kg_ha"] == round(float(match["benchmark_yield_kg_ha"]), 1)
+
+
+def test_all_crop_yield_uses_production_over_area(monkeypatch):
+    frame = pd.DataFrame([
+        {"year": 2025, "season": "B", "canonical_crop_name": "Maize",
+         "is_aggregate": False, "cultivated_area_ha": 100.0,
+         "harvested_area_ha": 100.0, "production_mt": 100.0, "yield_mt_ha": 1.0},
+        {"year": 2025, "season": "B", "canonical_crop_name": "Beans",
+         "is_aggregate": False, "cultivated_area_ha": 300.0,
+         "harvested_area_ha": 300.0, "production_mt": 900.0, "yield_mt_ha": 3.0},
+    ])
+    monkeypatch.setattr(trend_service.repo, "national_crop_trends", lambda: frame)
+    combined = trend_service.crop_trends()["points"][0]["values"]
+    maize = trend_service.crop_trends("Maize")["points"][0]["values"]
+    assert combined["yield_mt_ha"] == 2.5
+    assert maize["yield_mt_ha"] == 1.0
