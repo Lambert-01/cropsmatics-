@@ -162,7 +162,9 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', name='uq_district_name')
     )
-    op.create_index('idx_district_geometry', 'district', ['geometry'], unique=False, postgresql_using='gist')
+    # Spatial GIST index for district.geometry is created automatically by
+    # GeoAlchemy2 when the geometry column is added; creating it again here
+    # duplicates the index and fails.
     op.create_index(op.f('ix_district_code'), 'district', ['code'], unique=True)
     op.create_index(op.f('ix_district_name'), 'district', ['name'], unique=False)
     op.create_index(op.f('ix_district_province_id'), 'district', ['province_id'], unique=False)
@@ -256,7 +258,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['district_id'], ['district.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_facility_location', 'facility', ['location'], unique=False, postgresql_using='gist')
+    # facility.location GIST index: auto-created by GeoAlchemy2 (see above).
     op.create_index(op.f('ix_facility_district_id'), 'facility', ['district_id'], unique=False)
     op.create_index(op.f('ix_facility_name'), 'facility', ['name'], unique=False)
     op.create_table('intervention_priority',
@@ -387,7 +389,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['district_id'], ['district.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_sector_geometry', 'sector', ['geometry'], unique=False, postgresql_using='gist')
+    # sector.geometry GIST index: auto-created by GeoAlchemy2 (see above).
     op.create_index(op.f('ix_sector_code'), 'sector', ['code'], unique=True)
     op.create_index(op.f('ix_sector_district_id'), 'sector', ['district_id'], unique=False)
     op.create_index(op.f('ix_sector_name'), 'sector', ['name'], unique=False)
@@ -448,7 +450,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['sector_id'], ['sector.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_farm_location', 'farm', ['location'], unique=False, postgresql_using='gist')
+    # farm.location GIST index: auto-created by GeoAlchemy2 (see above).
     op.create_index(op.f('ix_farm_district_id'), 'farm', ['district_id'], unique=False)
     op.create_index(op.f('ix_farm_farmer_id'), 'farm', ['farmer_id'], unique=False)
     op.create_index(op.f('ix_farm_sector_id'), 'farm', ['sector_id'], unique=False)
@@ -546,7 +548,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_farm_sector_id'), table_name='farm')
     op.drop_index(op.f('ix_farm_farmer_id'), table_name='farm')
     op.drop_index(op.f('ix_farm_district_id'), table_name='farm')
-    op.drop_index('idx_farm_location', table_name='farm', postgresql_using='gist')
+    # farm.location GIST index drops with the table (managed by GeoAlchemy2).
     op.drop_table('farm')
     op.drop_index(op.f('ix_farmer_profile_user_id'), table_name='farmer_profile')
     op.drop_index(op.f('ix_farmer_profile_district_id'), table_name='farmer_profile')
@@ -558,7 +560,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sector_name'), table_name='sector')
     op.drop_index(op.f('ix_sector_district_id'), table_name='sector')
     op.drop_index(op.f('ix_sector_code'), table_name='sector')
-    op.drop_index('idx_sector_geometry', table_name='sector', postgresql_using='gist')
+    # sector.geometry GIST index drops with the table.
     op.drop_table('sector')
     op.drop_index(op.f('ix_productivity_metric_year'), table_name='productivity_metric')
     op.drop_index(op.f('ix_productivity_metric_season'), table_name='productivity_metric')
@@ -584,7 +586,7 @@ def downgrade() -> None:
     op.drop_table('intervention_priority')
     op.drop_index(op.f('ix_facility_name'), table_name='facility')
     op.drop_index(op.f('ix_facility_district_id'), table_name='facility')
-    op.drop_index('idx_facility_location', table_name='facility', postgresql_using='gist')
+    # facility.location GIST index drops with the table.
     op.drop_table('facility')
     op.drop_index(op.f('ix_cooperative_name'), table_name='cooperative')
     op.drop_index(op.f('ix_cooperative_district_id'), table_name='cooperative')
@@ -603,7 +605,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_district_province_id'), table_name='district')
     op.drop_index(op.f('ix_district_name'), table_name='district')
     op.drop_index(op.f('ix_district_code'), table_name='district')
-    op.drop_index('idx_district_geometry', table_name='district', postgresql_using='gist')
+    # district.geometry GIST index drops with the table.
     op.drop_table('district')
     op.drop_index(op.f('ix_audit_log_actor_id'), table_name='audit_log')
     op.drop_table('audit_log')

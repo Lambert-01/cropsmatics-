@@ -12,10 +12,18 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 import pandas as pd
 
-from scripts.data.common import PROCESSED_DIR, log
+# Make `python scripts/data/load_database.py` work as well as
+# `python -m scripts.data.load_database`: the package import below needs the
+# repository root on sys.path, and running a file directly does not add it.
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.data.common import PROCESSED_DIR, log  # noqa: E402
 
 # processed file -> target table name
 TABLES = {
@@ -27,16 +35,44 @@ TABLES = {
     "national_crop_trends.csv": "stg_national_crop_trends",
     "national_input_trends.csv": "stg_national_input_trends",
     "cold_chain_context.csv": "stg_cold_chain_context",
+    # MINAGRI national add-on. National/program level only - these staging tables
+    # must never be joined to a district or to a single facility.
+    "national_postharvest_infrastructure.csv": "stg_national_postharvest_infrastructure",
+    "cold_chain_network_summary.csv": "stg_cold_chain_network_summary",
     "training_district_crop.csv": "stg_training_district_crop",
     "dashboard_overview.csv": "stg_dashboard_overview",
     "data_coverage.csv": "stg_data_coverage",
 }
 
 
+def _database_url() -> str | None:
+    """Resolve DATABASE_URL from the environment, then from the project .env.
+
+    The environment always wins, which is what production uses. The .env fallback
+    exists so `make data-load` works from a plain checkout without the caller
+    having to export anything (and without sourcing a URL that contains `&`).
+    """
+    from_env = os.environ.get("DATABASE_URL")
+    if from_env:
+        return from_env
+
+    env_file = ROOT / ".env"
+    if not env_file.exists():
+        return None
+    for raw_line in env_file.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        if key.strip() == "DATABASE_URL":
+            return value.strip().strip('"').strip("'")
+    return None
+
+
 def main() -> int:
-    url = os.environ.get("DATABASE_URL")
+    url = _database_url()
     if not url:
-        log("ERROR: DATABASE_URL is not set; refusing to run.")
+        log("ERROR: DATABASE_URL is not set and no .env was found; refusing to run.")
         return 1
 
     try:
