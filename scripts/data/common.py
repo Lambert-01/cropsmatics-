@@ -53,6 +53,22 @@ SOURCE_IDS = {
     "cold_chain_context": "MINAGRI_ACES_COLDCHAIN_2026",
 }
 
+# Canonical processed output names (docs/DATA_TO_UI_MATRIX.md references these).
+PROCESSED_FILES = {
+    "district_crop_productivity": "district_crop_productivity.csv",
+    "district_factors": "district_productivity_factors.csv",
+    "irrigation_water": "irrigation_water.csv",
+    "erosion_control": "erosion_control.csv",
+    "crop_postharvest_use": "crop_postharvest_use.csv",
+    "national_crop_trends": "national_crop_trends.csv",
+    "national_input_trends": "national_input_trends.csv",
+    "cold_chain_context": "cold_chain_context.csv",
+    "training": "training_district_crop.csv",
+    "dashboard_overview": "dashboard_overview.csv",
+    "data_coverage": "data_coverage.csv",
+    "data_sources": "data_sources.csv",
+}
+
 # Columns that flag official vs synthetic origin on every processed row.
 PROVENANCE_COLUMNS = [
     "source_id",

@@ -12,6 +12,7 @@ Start with the audit and overview, then follow the architecture and policy docs.
 
 ## Data
 - [04_DATA_ARCHITECTURE.md](docs/04_DATA_ARCHITECTURE.md)
+- [FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md) (period × geography coverage)
 - [05_DATASET_CATALOG.md](docs/05_DATASET_CATALOG.md)
 - [DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)
 - [06_DATABASE_SCHEMA.md](docs/06_DATABASE_SCHEMA.md)
@@ -36,6 +37,12 @@ Start with the audit and overview, then follow the architecture and policy docs.
 - [18_MVP_ROADMAP.md](docs/18_MVP_ROADMAP.md)
 - [19_DEMO_STORY.md](docs/19_DEMO_STORY.md)
 - [20_AI_USAGE_DISCLOSURE.md](docs/20_AI_USAGE_DISCLOSURE.md)
+
+## Dashboard work (latest pass)
+- [DASHBOARD_REFINEMENT_REPORT.md](docs/DASHBOARD_REFINEMENT_REPORT.md)
+- [DASHBOARD_IMPLEMENTATION_PROGRESS.md](docs/DASHBOARD_IMPLEMENTATION_PROGRESS.md)
+- [DATA_TO_UI_MATRIX.md](docs/DATA_TO_UI_MATRIX.md)
+- [FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md)
 
 ## Reference (supporting material)
 - [reference/ALGORITHM_DESIGN.md](docs/reference/ALGORITHM_DESIGN.md)

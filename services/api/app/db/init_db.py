@@ -6,11 +6,10 @@ A development convenience. Production schema changes go through Alembic
 
 from __future__ import annotations
 
-from app.db.base import Base
-from app.db.session import engine
-
 # Importing the models package registers all tables on Base.metadata.
 import app.models  # noqa: F401,E402
+from app.db.base import Base
+from app.db.session import engine
 
 
 def main() -> None:

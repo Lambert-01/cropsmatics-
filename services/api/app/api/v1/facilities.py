@@ -1,44 +1,33 @@
 """Facility context endpoints.
 
-No facility capacity is fabricated. Until verified capacity snapshots exist, this
-endpoint returns the public cold-chain **context** and marks capacity as
-``not_verified``.
+No facility capacity is fabricated. Until verified capacity snapshots exist,
+these endpoints return the public cold-chain **context** and mark capacity as
+``not_verified``. Null capacity is preserved as null (never converted to 0).
 """
 
 from __future__ import annotations
 
-import pandas as pd
 from fastapi import APIRouter
 
-from app.core.config import get_settings
+from app.schemas.common import Provenance
+from app.schemas.dashboard import FacilitiesResponse
+from app.services import facility_service
 
 router = APIRouter(prefix="/facilities", tags=["facilities"])
 
-CONTEXT_FILE = "08_verified_cold_chain_context_2026.csv"
-CONTEXT_SUBDIR = "cropmatics_real_data_2024_2026"
+
+@router.get("/context", response_model=FacilitiesResponse)
+def context(district: str | None = None) -> FacilitiesResponse:
+    result = facility_service.context(district=district)
+    return FacilitiesResponse(
+        capacity_not_verified=result["capacity_not_verified"],
+        facilities=result["facilities"],
+        note=result["note"],
+        provenance=Provenance(**result["provenance"]),
+    )
 
 
-@router.get("/nearby")
-def nearby(district: str | None = None) -> dict:
-    path = get_settings().raw_dir / CONTEXT_SUBDIR / CONTEXT_FILE
-    if not path.exists():
-        return {"capacity_not_verified": True, "facilities": [], "note": "context dataset missing"}
-    df = pd.read_csv(path)
-    if district:
-        df = df[df["district"].astype(str).str.lower() == district.lower()]
-    facilities = [
-        {
-            "district": row["district"],
-            "initiative": row.get("initiative"),
-            "context": row.get("verified_context"),
-            "capacity_kg": None,
-            "capacity_status": "not_verified",
-            "capacity_note": row.get("capacity_note") or row.get("capacity") or "not verified",
-        }
-        for _, row in df.iterrows()
-    ]
-    return {
-        "capacity_not_verified": True,
-        "facilities": facilities,
-        "note": "Capacity is intentionally null: public sources do not provide facility-level capacity.",
-    }
+@router.get("/nearby", response_model=FacilitiesResponse)
+def nearby(district: str | None = None) -> FacilitiesResponse:
+    """Backwards-compatible alias for :func:`context`."""
+    return context(district=district)

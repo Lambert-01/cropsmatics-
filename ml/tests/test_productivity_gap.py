@@ -21,7 +21,8 @@ def test_scalar_gap():
 
 def test_crop_median_benchmark():
     target = {"canonical_crop_name": "Maize", "season": "B", "yield_kg_ha": 1000.0}
-    assert benchmark_yield(target, ROWS, "national_crop_median") == 2000.0
+    # national_crop_median pools every year for the crop: median of [500,1000,2000,3000].
+    assert benchmark_yield(target, ROWS, "national_crop_median") == 1500.0
 
 
 def test_crop_season_median_benchmark():
@@ -44,7 +45,8 @@ def test_multi_year_baseline():
 def test_compute_gaps_annotates():
     out = compute_gaps(ROWS, strategy="national_crop_median")
     assert all("gap_index" in r and "benchmark_strategy" in r for r in out)
-    assert out[0]["gap_index"] == pytest.approx(50.0)
+    # benchmark 1500, observed 1000 -> 100*(1500-1000)/1500.
+    assert out[0]["gap_index"] == pytest.approx(33.3333, abs=1e-3)
 
 
 def test_unknown_strategy():

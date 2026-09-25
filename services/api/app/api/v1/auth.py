@@ -7,7 +7,13 @@ import uuid
 from fastapi import APIRouter, Body, HTTPException, status
 
 from app.api.deps import CurrentUser, DbSession
-from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
 from app.models.enums import RoleName
 from app.models.user import Role, User, UserRole
 from app.schemas.auth import TokenPair, UserLogin, UserOut, UserRegister

@@ -10,12 +10,13 @@ import pandas as pd
 from scripts.data.common import (
     INTERIM_DIR,
     PROCESSED_DIR,
+    PROCESSED_FILES,
     add_provenance,
     log,
     raw_path,
 )
 
-OUT = "district_factors_2025B.csv"
+OUT = PROCESSED_FILES["district_factors"]
 SCRIPT = "scripts/data/build_factor_dataset.py"
 
 

@@ -1,36 +1,107 @@
 "use client";
 
-import { ProvenancePanel } from "@/components/ProvenancePanel";
-import { StatCard } from "@/components/StatCard";
-import { GapTable } from "@/features/productivity/GapTable";
-import { useProductivityGap } from "@/services/hooks/useProductivity";
+import { X } from "lucide-react";
+
+import { ProvenanceCard } from "@/components/ProvenanceCard";
+import { PageHeading } from "@/components/ui/PageHeading";
+import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
+import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
+import { GapHeatmap } from "@/features/dashboard/GapHeatmap";
+import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
+import { InsightPanel } from "@/features/dashboard/InsightPanel";
+import { PriorityTable } from "@/features/dashboard/PriorityTable";
+import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
+import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
+import {
+  useHeatmap,
+  useInputAdoption,
+  useOverview,
+  usePriorities,
+  useTrends,
+} from "@/services/hooks/useAnalytics";
+import { useFilters } from "@/services/hooks/useFilters";
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useProductivityGap();
+  const { filters, setFilters } = useFilters();
+
+  const overview = useOverview(filters);
+  const priorities = usePriorities(filters, 16);
+  const trends = useTrends(filters.crop);
+  const inputAdoption = useInputAdoption();
+  const heatmap = useHeatmap(filters, "gap");
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-forest">National Overview</h1>
+    <div className="space-y-5">
+      <PageHeading
+        title="National Crop Intelligence Overview"
+        subtitle="Turning official data into action for a productive and resilient Rwanda."
+      />
 
-      {isLoading && <p className="text-slate-500">Loading productivity gaps…</p>}
-      {error && (
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-          Could not load data. Ensure the API is running (`make api`) and the data pipeline has run
-          (`make data`).
-        </p>
-      )}
+      {filters.district ? (
+        <div className="flex items-center gap-2">
+          <span className="chip">
+            District: <strong className="text-forest">{filters.district}</strong>
+            <button
+              type="button"
+              onClick={() => setFilters({ district: undefined })}
+              aria-label="Clear district filter"
+              className="ml-1 rounded-full p-0.5 hover:bg-forest/10"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        </div>
+      ) : null}
 
-      {data && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard label="Rows returned" value={data.count} />
-            <StatCard label="Benchmark strategy" value={data.strategy} />
-            <StatCard label="Season" value={data.provenance.source_period ?? "—"} />
-          </div>
-          <GapTable rows={data.rows} />
-          <ProvenancePanel provenance={data.provenance} />
-        </>
-      )}
+      {overview.error ? (
+        <ErrorState
+          message={(overview.error as Error).message}
+          onRetry={() => overview.refetch()}
+        />
+      ) : null}
+
+      {overview.isLoading ? (
+        <KpiRowSkeleton count={8} />
+      ) : overview.data ? (
+        <DashboardKpis kpis={overview.data.kpis} />
+      ) : null}
+
+      {overview.data ? (
+        <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
+      ) : null}
+
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
+        <ProductivityRiskMap
+          filters={filters}
+          selectedDistrict={filters.district}
+          onSelectDistrict={(district) =>
+            setFilters({ district: filters.district === district ? undefined : district })
+          }
+        />
+        {overview.data ? (
+          <InsightPanel
+            kpis={overview.data.kpis}
+            priorities={priorities.data?.rows ?? []}
+            period={overview.data.period}
+            coverageLevel={overview.data.coverage_level}
+          />
+        ) : null}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <PriorityTable
+          rows={priorities.data?.rows ?? []}
+          onSelectDistrict={(d) => setFilters({ district: d })}
+        />
+        <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <InputAdoptionChart data={inputAdoption.data} isLoading={inputAdoption.isLoading} />
+        <GapHeatmap data={heatmap.data} isLoading={heatmap.isLoading} />
+      </div>
+
+      {overview.data ? <ProvenanceCard provenance={overview.data.provenance} /> : null}
     </div>
   );
 }

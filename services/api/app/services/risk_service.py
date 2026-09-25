@@ -36,7 +36,7 @@ def _load_postharvest():
     """Load the processed post-harvest table, or None if not built yet."""
     from app.core.config import get_settings
 
-    path = get_settings().processed_dir / "crop_postharvest_use_2025B.csv"
+    path = get_settings().processed_dir / "crop_postharvest_use.csv"
     if not path.exists():
         return None
     import pandas as pd

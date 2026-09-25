@@ -19,6 +19,12 @@ ALPHA = 1.0   # distance
 BETA = 1.0    # storage cost
 GAMMA = 100.0  # post-harvest risk (scaled: risk is 0..1, cost is ~per-kg RWF)
 
+# Leaving a harvest unallocated is costlier than any realistic transport/storage
+# term, so the solver fills verified capacity first and only then minimises cost.
+# Without this the LP would trivially assign nothing (minimise cost under an
+# upper-bound-only constraint).
+UNASSIGNED_PENALTY = 1000.0
+
 
 @dataclass
 class Source:
@@ -99,14 +105,13 @@ def allocate(
         if terms:
             solver.Add(sum(terms) <= f.capacity_kg)
 
-    cost_terms = []
-    for (sid, fid), var in x.items():
-        s = next(s for s in sources if s.id == sid)
+    unit_cost: dict[tuple[str, str], float] = {}
+    for (sid, fid) in x:
         fac = next(f for f in usable if f.id == fid)
-        d = distances.get((sid, fid), 0.0)
-        unit = ALPHA * d + BETA * fac.storage_cost_per_kg
-        cost_terms.append(var * unit)
-    solver.Minimize(sum(cost_terms))
+        unit_cost[(sid, fid)] = ALPHA * distances.get((sid, fid), 0.0) + BETA * fac.storage_cost_per_kg
+
+    penalty = max(unit_cost.values(), default=0.0) + UNASSIGNED_PENALTY
+    solver.Minimize(sum(var * (unit_cost[key] - penalty) for key, var in x.items()))
 
     status = solver.Solve()
     if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
@@ -114,16 +119,22 @@ def allocate(
 
     assignments = []
     assigned_by_source: dict[str, float] = {}
+    total_cost = 0.0
     for (sid, fid), var in x.items():
         qty = var.solution_value()
         if qty > 1e-6:
             assignments.append({"source": sid, "facility": fid, "quantity_kg": round(qty, 3)})
             assigned_by_source[sid] = assigned_by_source.get(sid, 0.0) + qty
+            total_cost += qty * unit_cost[(sid, fid)]
 
     unassigned = [
         {"id": s.id, "quantity_kg": round(s.quantity_kg - assigned_by_source.get(s.id, 0.0), 3)}
         for s in sources
         if s.quantity_kg - assigned_by_source.get(s.id, 0.0) > 1e-6
     ]
-    return AllocationResult(assignments, unassigned, round(solver.Objective().Value(), 3),
+    notes.append(
+        "objective minimises transport+storage cost while penalising any unassigned "
+        f"harvest (penalty {penalty:.0f} per kg); total_cost is the real transport+storage cost"
+    )
+    return AllocationResult(assignments, unassigned, round(total_cost, 3),
                             "OPTIMAL", notes, unverified)

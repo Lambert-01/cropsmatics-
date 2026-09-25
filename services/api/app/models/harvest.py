@@ -40,7 +40,7 @@ class HarvestRegistration(UUIDPrimaryKeyMixin, TimestampMixin, ProvenanceMixin, 
     is_offline_created: Mapped[bool] = mapped_column(Boolean, default=False)
     sync_status: Mapped[str] = mapped_column(String(16), default="SYNCED")
 
-    risks: Mapped[list["RiskScore"]] = relationship(back_populates="harvest")
+    risks: Mapped[list[RiskScore]] = relationship(back_populates="harvest")
 
 
 class RiskScore(UUIDPrimaryKeyMixin, TimestampMixin, ProvenanceMixin, Base):

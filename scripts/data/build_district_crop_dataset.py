@@ -14,12 +14,13 @@ import pandas as pd
 from scripts.data.common import (
     INTERIM_DIR,
     PROCESSED_DIR,
+    PROCESSED_FILES,
     add_provenance,
     log,
     raw_path,
 )
 
-OUT = "district_crop_productivity_2025B.csv"
+OUT = PROCESSED_FILES["district_crop_productivity"]
 SCRIPT = "scripts/data/build_district_crop_dataset.py"
 
 

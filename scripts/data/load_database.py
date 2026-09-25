@@ -19,10 +19,17 @@ from scripts.data.common import PROCESSED_DIR, log
 
 # processed file -> target table name
 TABLES = {
-    "district_crop_productivity_2025B.csv": "stg_district_crop_productivity",
-    "district_factors_2025B.csv": "stg_district_factors",
-    "crop_postharvest_use_2025B.csv": "stg_crop_postharvest_use",
+    "district_crop_productivity.csv": "stg_district_crop_productivity",
+    "district_productivity_factors.csv": "stg_district_factors",
+    "irrigation_water.csv": "stg_irrigation_water",
+    "erosion_control.csv": "stg_erosion_control",
+    "crop_postharvest_use.csv": "stg_crop_postharvest_use",
+    "national_crop_trends.csv": "stg_national_crop_trends",
+    "national_input_trends.csv": "stg_national_input_trends",
+    "cold_chain_context.csv": "stg_cold_chain_context",
     "training_district_crop.csv": "stg_training_district_crop",
+    "dashboard_overview.csv": "stg_dashboard_overview",
+    "data_coverage.csv": "stg_data_coverage",
 }
 
 

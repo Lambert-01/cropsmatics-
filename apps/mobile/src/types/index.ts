@@ -20,6 +20,27 @@ export interface RiskResult {
   recommendedActions: string[];
 }
 
+/** Response from the stateless POST /risk/post-harvest endpoint (snake_case). */
+export interface PostHarvestRisk {
+  probability: number;
+  band: "LOW" | "MODERATE" | "HIGH";
+  contributing_factors: string[];
+  recommended_actions: string[];
+  capacity_context: string;
+  provenance?: {
+    model_version?: string | null;
+    method?: string | null;
+    limitations?: string[];
+  };
+}
+
+export interface FacilityContext {
+  district: string;
+  initiative?: string | null;
+  capacity_kg?: number | null;
+  capacity_status: string;
+}
+
 export interface OutboxItem {
   clientUuid: string;
   entity: "harvest_registration" | "field_observation";

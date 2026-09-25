@@ -17,6 +17,12 @@ ALPHA = 1.0    # distance weight
 BETA = 1.0     # storage cost weight
 GAMMA = 100.0  # post-harvest risk weight
 
+# Leaving a harvest unallocated is costlier than any realistic transport/storage
+# term, so the solver fills verified capacity first and only then minimises cost.
+# Without this the LP assigns nothing (minimise cost under upper-bound-only
+# constraints).
+UNASSIGNED_PENALTY = 1000.0
+
 
 @dataclass
 class Source:
@@ -95,13 +101,15 @@ def allocate(
         if terms:
             solver.Add(sum(terms) <= f.capacity_kg)
 
-    objective = []
-    for (sid, fid), var in x.items():
+    unit_cost: dict[tuple[str, str], float] = {}
+    for (sid, fid) in x:
         fac = next(f for f in usable if f.id == fid)
         d = distances.get((sid, fid), 0.0)
         r = risks.get((sid, fid), 0.0)
-        objective.append(var * (ALPHA * d + BETA * fac.storage_cost_per_kg + GAMMA * r))
-    solver.Minimize(sum(objective))
+        unit_cost[(sid, fid)] = ALPHA * d + BETA * fac.storage_cost_per_kg + GAMMA * r
+
+    penalty = max(unit_cost.values(), default=0.0) + UNASSIGNED_PENALTY
+    solver.Minimize(sum(var * (unit_cost[key] - penalty) for key, var in x.items()))
 
     status = solver.Solve()
     if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
@@ -109,11 +117,13 @@ def allocate(
 
     assignments = []
     assigned: dict[str, float] = {}
+    total_cost = 0.0
     for (sid, fid), var in x.items():
         qty = var.solution_value()
         if qty > 1e-6:
             assignments.append({"source": sid, "facility": fid, "quantity_kg": round(qty, 3)})
             assigned[sid] = assigned.get(sid, 0.0) + qty
+            total_cost += qty * unit_cost[(sid, fid)]
 
     unassigned = [
         {"id": s.id, "quantity_kg": round(s.quantity_kg - assigned.get(s.id, 0.0), 3)}
@@ -121,5 +131,5 @@ def allocate(
         if s.quantity_kg - assigned.get(s.id, 0.0) > 1e-6
     ]
     return AllocationResult(
-        assignments, unassigned, round(solver.Objective().Value(), 3), "OPTIMAL", notes, unverified
+        assignments, unassigned, round(total_cost, 3), "OPTIMAL", notes, unverified
     )

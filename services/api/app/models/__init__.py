@@ -23,7 +23,7 @@ from app.models.enums import (
     VerificationStatus,
 )
 from app.models.facility import Facility, FacilityCapacitySnapshot
-from app.models.farm import Cooperative, FarmerProfile, Farm
+from app.models.farm import Cooperative, Farm, FarmerProfile
 from app.models.geography import District, Province, Sector
 from app.models.harvest import HarvestRegistration, RiskScore
 from app.models.market import MarketPrice, Notification, Recommendation

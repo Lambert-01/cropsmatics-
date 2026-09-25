@@ -53,7 +53,7 @@ export default function SyncScreen() {
         }}
       >
         <Text style={{ textAlign: "center", color: colors.white, fontWeight: "600" }}>
-          Sync now
+          {t.syncStatus}
         </Text>
       </Pressable>
 

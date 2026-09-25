@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Illustration of terraced Rwandan hills at dusk">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a4a37"/>
+      <stop offset="55%" stop-color="#0d5b41"/>
+      <stop offset="100%" stop-color="#062f24"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f4c66a" stop-opacity="0.85"/>
+      <stop offset="60%" stop-color="#e0a24a" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#e0a24a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c7a52"/>
+      <stop offset="100%" stop-color="#0f5638"/>
+    </linearGradient>
+    <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#14603f"/>
+      <stop offset="100%" stop-color="#0a3d29"/>
+    </linearGradient>
+    <linearGradient id="hill3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c4a33"/>
+      <stop offset="100%" stop-color="#06291d"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="900" fill="url(#sky)"/>
+  <circle cx="880" cy="230" r="220" fill="url(#sun)"/>
+
+  <!-- distant ridge -->
+  <path d="M0 420 L140 350 L260 400 L380 320 L520 410 L660 330 L780 400 L900 340 L1040 410 L1200 350 L1200 900 L0 900 Z"
+        fill="url(#hill1)" opacity="0.85"/>
+
+  <!-- mid terraced hill -->
+  <path d="M0 560 L180 470 L340 540 L520 450 L700 545 L880 470 L1060 555 L1200 500 L1200 900 L0 900 Z"
+        fill="url(#hill2)"/>
+  <g stroke="#0a3d29" stroke-width="3" opacity="0.5" fill="none">
+    <path d="M40 620 C 260 585, 520 660, 780 610 S 1120 630, 1200 600"/>
+    <path d="M20 670 C 240 638, 520 706, 800 660 S 1120 682, 1200 652"/>
+    <path d="M0 720 C 220 690, 520 754, 820 712 S 1140 734, 1200 706"/>
+  </g>
+
+  <!-- foreground terraces -->
+  <path d="M0 700 L200 640 L420 700 L640 630 L880 706 L1080 660 L1200 690 L1200 900 L0 900 Z"
+        fill="url(#hill3)"/>
+  <g stroke="#0b3e2b" stroke-width="3" opacity="0.55" fill="none">
+    <path d="M0 768 C 240 738, 520 800, 800 758 S 1140 782, 1200 756"/>
+    <path d="M0 820 C 240 792, 520 852, 800 812 S 1140 834, 1200 810"/>
+    <path d="M0 872 C 240 848, 520 902, 820 866 S 1140 884, 1200 862"/>
+  </g>
+
+  <!-- crop rows on the nearest slope -->
+  <g stroke="#0f6b47" stroke-width="2" opacity="0.35">
+    <path d="M120 760 L520 700"/>
+    <path d="M140 790 L560 728"/>
+    <path d="M170 820 L600 760"/>
+  </g>
+</svg>

@@ -21,7 +21,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     preferred_language: Mapped[str] = mapped_column(String(8), default="en")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    roles: Mapped[list["UserRole"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    roles: Mapped[list[UserRole]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):

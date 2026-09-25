@@ -24,6 +24,7 @@ ALIASES = {
     "Climbing bean": "Beans",
     "Pea": "Beans",
     "Yam & Taro": "Yams & Taro",
+    "Taro &Yams": "Yams & Taro",
 }
 
 

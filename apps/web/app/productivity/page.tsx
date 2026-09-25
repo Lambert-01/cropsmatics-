@@ -1,44 +1,93 @@
 "use client";
 
-import { useState } from "react";
-
-import { GapTable } from "@/features/productivity/GapTable";
-import { useProductivityGap } from "@/services/hooks/useProductivity";
-
-const STRATEGIES = [
-  "national_crop_median",
-  "national_crop_season_median",
-  "top_quartile_comparable_districts",
-];
+import { ProvenanceCard } from "@/components/ProvenanceCard";
+import { PageHeading } from "@/components/ui/PageHeading";
+import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
+import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
+import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
+import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
+import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
+import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
+import { cn } from "@/lib/cn";
+import { BENCHMARK_OPTIONS, DEFAULT_BENCHMARK } from "@/lib/filters";
+import { useFactors, useProductivity } from "@/services/hooks/useAnalytics";
+import { useFilters } from "@/services/hooks/useFilters";
 
 export default function ProductivityPage() {
-  const [strategy, setStrategy] = useState(STRATEGIES[0]);
-  const { data, isLoading } = useProductivityGap(strategy);
+  const { filters, setFilters } = useFilters();
+
+  const productivity = useProductivity(filters);
+  const factors = useFactors(filters);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-forest">Productivity Intelligence</h1>
-      <label className="block text-sm">
-        <span className="mr-2 text-slate-600">Benchmark strategy</span>
-        <select
-          value={strategy}
-          onChange={(e) => setStrategy(e.target.value)}
-          className="rounded border border-slate-300 bg-white px-2 py-1"
-        >
-          {STRATEGIES.map((s) => (
-            <option key={s} value={s}>
-              {s.replaceAll("_", " ")}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="space-y-5">
+      <PageHeading
+        title="Productivity Intelligence"
+        subtitle="Diagnose crop productivity gaps and the factors associated with them across Rwanda."
+      />
 
-      {isLoading ? <p className="text-slate-500">Loading…</p> : <GapTable rows={data?.rows ?? []} />}
+      <div className="card flex flex-wrap items-center gap-3 p-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Benchmark strategy
+        </span>
+        <div role="group" aria-label="Benchmark strategy" className="flex flex-wrap gap-1">
+          {BENCHMARK_OPTIONS.map((option) => {
+            const active = (filters.benchmark ?? DEFAULT_BENCHMARK) === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setFilters({ benchmark: option.value })}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+                  active
+                    ? "bg-primary text-white"
+                    : "border border-forest/15 bg-white text-slate-600 hover:bg-forest/5",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-      <p className="text-xs text-slate-500">
-        Changing the benchmark changes the ranking. The chosen strategy is always shown with the
-        results so comparisons stay honest.
-      </p>
+      {productivity.error ? (
+        <ErrorState
+          message={(productivity.error as Error).message}
+          onRetry={() => productivity.refetch()}
+        />
+      ) : null}
+
+      {productivity.isLoading ? (
+        <KpiRowSkeleton count={5} />
+      ) : productivity.data ? (
+        <DashboardKpis kpis={productivity.data.kpis} />
+      ) : null}
+
+      {productivity.data ? (
+        <CoverageNotice level={filters.year || filters.season ? undefined : "district"} period={null} />
+      ) : null}
+
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
+        <ProductivityRiskMap
+          filters={filters}
+          selectedDistrict={filters.district}
+          onSelectDistrict={(d) => setFilters({ district: d })}
+        />
+        <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
+        <DistrictRankingTable
+          rows={productivity.data?.rows ?? []}
+          onSelectDistrict={(d) => setFilters({ district: d })}
+        />
+        <ModelPerformancePanel />
+      </div>
+
+      {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
     </div>
   );
 }

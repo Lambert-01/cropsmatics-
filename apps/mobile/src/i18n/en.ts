@@ -24,6 +24,52 @@ export const en = {
   riskHigh: "High risk",
   capacityNotVerified: "Capacity not verified",
   language: "Language",
+
+  // Home dashboard
+  greeting: "Welcome back",
+  currentSeason: "Current season",
+  mainCrop: "Main crop",
+  farmSummary: "Your local records",
+  expectedHarvest: "Expected harvest this period",
+  riskStatus: "Risk status",
+  nearbyContext: "Nearby verified context",
+  quickActions: "Quick actions",
+  recentAlerts: "Recent alerts",
+  noRecords: "No harvest registered yet on this device.",
+  noAlerts: "No alerts. Official data updates are announced centrally.",
+  records: "records",
+  pending: "pending sync",
+
+  // Wizard
+  stepFarm: "Farm",
+  stepCrop: "Crop",
+  stepQuantity: "Quantity",
+  stepSchedule: "Schedule",
+  stepReview: "Review",
+  next: "Next",
+  back: "Back",
+  review: "Review",
+  confirmSave: "Save harvest",
+  location: "Location",
+  storageAssistance: "Request storage assistance",
+  notes: "Notes",
+  optional: "optional",
+  riskUnavailableOffline:
+    "Risk scoring needs a connection. Your harvest is saved and will be scored after sync.",
+  riskUnavailable:
+    "Risk scoring is unavailable right now. Your harvest is saved offline and will not be lost.",
+  topFactors: "Top contributing factors",
+  loadingRisk: "Requesting risk score…",
+  dataLimitations: "Data limitations",
+  notVerifiedNote: "Program districts only; facility capacity is not published.",
+  stored: "Stored",
+  notStored: "Not stored",
+  yes: "Yes",
+  no: "No",
+  done: "Done",
+  startOver: "Register another",
 } as const;
 
-export type Strings = { [K in keyof typeof en]: string };
+// Equivalent to a mapped type over `typeof en`, but expressed via Record so it
+// does not trip the older @typescript-eslint mapped-type visitor.
+export type Strings = Record<keyof typeof en, string>;

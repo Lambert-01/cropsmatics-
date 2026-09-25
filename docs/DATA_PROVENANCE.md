@@ -48,10 +48,18 @@ workbook is in `raw_official/`. Machine-readable source registry:
 
 | Processed output | Input(s) | Script |
 |---|---|---|
-| `district_crop_productivity_2025B.csv` | 01 | `build_district_crop_dataset.py` |
-| `district_factors_2025B.csv` | 02 | `build_factor_dataset.py` |
-| `crop_postharvest_use_2025B.csv` | 05 | `build_postharvest_dataset.py` |
+| `district_crop_productivity.csv` | 01 | `build_district_crop_dataset.py` |
+| `district_productivity_factors.csv` | 02 | `build_factor_dataset.py` |
+| `irrigation_water.csv` | 03 | `build_irrigation.py` |
+| `erosion_control.csv` | 04 | `build_erosion.py` |
+| `crop_postharvest_use.csv` | 05 | `build_postharvest_dataset.py` |
+| `national_crop_trends.csv` | 06 | `build_national_trends.py` |
+| `national_input_trends.csv` | 07 | `build_input_trends.py` |
+| `cold_chain_context.csv` | 08 | `build_cold_chain.py` |
 | `training_district_crop.csv` | 01 + 02 | `build_training_dataset.py` |
+| `dashboard_overview.csv` | 01 + 02 | `build_dashboard_summary.py` |
+| `data_coverage.csv` | processed tables | `build_data_coverage.py` |
+| `data_sources.csv` | 09 | `build_sources.py` |
 | `dim_district.csv` | dictionaries | `normalize_geography.py` |
 | `dim_crop.csv`, `crop_alias_map.csv` | dictionaries + 01/05 | `normalize_crops.py` |
 

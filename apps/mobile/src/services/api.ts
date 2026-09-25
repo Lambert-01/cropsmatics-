@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 
-import type { RiskResult } from "../types";
+import type { FacilityContext, PostHarvestRisk, RiskResult } from "../types";
 
 const BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
@@ -31,10 +31,36 @@ export interface HarvestResponse {
   sync_status: string;
 }
 
+export interface RiskPayload {
+  crop: string;
+  expected_quantity_kg?: number | null;
+  rainfall_risk?: string | null;
+  distance_km?: number | null;
+  capacity_available_kg?: number | null;
+}
+
 export const api = {
   baseUrl: BASE_URL,
   createHarvest: (payload: HarvestPayload) =>
     request<HarvestResponse>("/harvests", { method: "POST", body: JSON.stringify(payload) }),
   scoreRisk: (harvestId: string) =>
     request<RiskResult & { harvest_id: string }>(`/harvests/${harvestId}/risk`, { method: "POST" }),
+  /**
+   * Stateless risk scoring: works before sync. The score is always produced by
+   * the server — the app never computes it locally.
+   */
+  scorePostHarvestRisk: (payload: RiskPayload) =>
+    request<PostHarvestRisk>("/risk/post-harvest", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  coverage: () =>
+    request<{
+      coverage: Record<string, Record<string, string>>;
+      notes: string[];
+    }>("/meta/data-coverage"),
+  facilityContext: (district?: string) =>
+    request<{ facilities: FacilityContext[]; capacity_not_verified: boolean; note: string }>(
+      `/facilities/context${district ? `?district=${encodeURIComponent(district)}` : ""}`,
+    ),
 };

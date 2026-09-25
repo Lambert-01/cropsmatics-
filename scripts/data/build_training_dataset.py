@@ -16,9 +16,9 @@ import sys
 
 import pandas as pd
 
-from scripts.data.common import PROCESSED_DIR, add_provenance, log
+from scripts.data.common import PROCESSED_DIR, PROCESSED_FILES, add_provenance, log
 
-OUT = "training_district_crop.csv"
+OUT = PROCESSED_FILES["training"]
 SCRIPT = "scripts/data/build_training_dataset.py"
 
 FACTOR_COLS = [
@@ -37,8 +37,8 @@ KEY = ["year", "season", "district"]
 
 
 def main() -> int:
-    prod = pd.read_csv(PROCESSED_DIR / "district_crop_productivity_2025B.csv")
-    factors = pd.read_csv(PROCESSED_DIR / "district_factors_2025B.csv")
+    prod = pd.read_csv(PROCESSED_DIR / PROCESSED_FILES["district_crop_productivity"])
+    factors = pd.read_csv(PROCESSED_DIR / PROCESSED_FILES["district_factors"])
 
     factor_cols = [c for c in FACTOR_COLS if c in factors.columns]
     missing = sorted(set(FACTOR_COLS) - set(factor_cols))

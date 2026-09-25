@@ -1,5 +1,11 @@
 # 8. Web — Next.js
 
+> **Dashboard pass (2026-09-25).** The web app now uses a sidebar + header shell
+> with a URL-backed filter store, a real Rwanda choropleth, and Python-backed
+> analytics pages. The implemented routes, components and status are recorded in
+> [DASHBOARD_IMPLEMENTATION_PROGRESS.md](DASHBOARD_IMPLEMENTATION_PROGRESS.md)
+> and the data wiring in [DATA_TO_UI_MATRIX.md](DATA_TO_UI_MATRIX.md).
+
 ## Navigation
 1. National Overview
 2. Productivity Intelligence

@@ -1,65 +1,68 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
-import { api, BASE_URL } from "@/lib/api";
-
-interface FacilityContext {
-  district: string;
-  initiative?: string;
-  context?: string;
-  capacity_kg: number | null;
-  capacity_status: string;
-}
+import { PageHeading } from "@/components/ui/PageHeading";
+import { EmptyState, ErrorState, MapSkeleton } from "@/components/ui/States";
+import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
+import { FacilityStatus } from "@/features/storage/FacilityStatus";
+import { OptimizationDemo } from "@/features/storage/OptimizationDemo";
+import type { MapMetricId } from "@/lib/constants";
+import { useFacilities, useMapMetrics } from "@/services/hooks/useAnalytics";
+import { useFilters } from "@/services/hooks/useFilters";
 
 export default function StoragePage() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["facilities"],
-    queryFn: async (): Promise<{ facilities: FacilityContext[]; note: string }> => {
-      const res = await fetch(`${BASE_URL}/facilities/nearby`);
-      if (!res.ok) throw new Error(`failed: ${res.status}`);
-      return res.json();
-    },
-  });
+  const { filters } = useFilters();
+  const [metric, setMetric] = useState<MapMetricId>("input_adoption");
+  const mapMetrics = useMapMetrics(filters, metric);
+  const facilities = useFacilities(filters.district);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-brand-forest">Storage &amp; Aggregation</h1>
-      <p className="text-sm text-slate-600">
-        Facility context from public sources. Where capacity is not published, it is shown as
-        <strong> not verified</strong> rather than estimated.
-      </p>
+    <div className="space-y-5">
+      <PageHeading
+        title="Storage & Aggregation"
+        subtitle="Verified cold-chain program context, honest capacity reporting, and an OR-Tools allocation demo."
+      />
 
-      {isLoading ? (
-        <p className="text-slate-500">Loading facilities…</p>
-      ) : (
-        <div className="overflow-x-auto rounded border border-slate-200 bg-white">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
-              <tr>
-                <th className="px-3 py-2">District</th>
-                <th className="px-3 py-2">Initiative</th>
-                <th className="px-3 py-2">Capacity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.facilities ?? []).map((f) => (
-                <tr key={f.district} className="border-t border-slate-100">
-                  <td className="px-3 py-2">{f.district}</td>
-                  <td className="px-3 py-2">{f.initiative ?? "—"}</td>
-                  <td className="px-3 py-2">
-                    {f.capacity_kg === null ? (
-                      <span className="text-slate-500">Capacity not verified</span>
-                    ) : (
-                      f.capacity_kg
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="card border-amber/25 bg-amber/[0.05] p-4">
+        <h2 className="text-sm font-semibold text-amber">No verified capacity is assumed</h2>
+        <p className="mt-1 text-xs text-slate-700">
+          The public cold-chain announcement names program districts but publishes neither facility
+          coordinates nor capacities. Cropmatics therefore shows <strong>Capacity not verified</strong>{" "}
+          rather than inventing a number, and excludes such facilities from optimization.
+        </p>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
+        {mapMetrics.isLoading ? (
+          <MapSkeleton />
+        ) : (
+          <RwandaDistrictMap
+            data={mapMetrics.data}
+            metric={metric}
+            onMetricChange={setMetric}
+            facilities={facilities.data?.facilities ?? []}
+          />
+        )}
+        <div className="space-y-5">
+          {facilities.error ? (
+            <ErrorState
+              message={(facilities.error as Error).message}
+              onRetry={() => facilities.refetch()}
+            />
+          ) : (
+            <FacilityStatus data={facilities.data} />
+          )}
+          {(facilities.data?.facilities ?? []).length === 0 && !facilities.isLoading ? (
+            <EmptyState
+              title="No verified program districts for this selection."
+              hint="Clear the district filter to see all program districts."
+            />
+          ) : null}
         </div>
-      )}
+      </div>
+
+      <OptimizationDemo />
     </div>
   );
 }

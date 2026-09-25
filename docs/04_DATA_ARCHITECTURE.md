@@ -15,9 +15,13 @@ data/
 │   ├── dim_district.csv, dim_crop.csv, crop_alias_map.csv
 │   └── validation_report.json
 ├── processed/           model-ready tables (regenerable)
-│   ├── district_crop_productivity_2025B.csv
-│   ├── district_factors_2025B.csv
-│   ├── crop_postharvest_use_2025B.csv
+│   ├── district_crop_productivity.csv
+│   ├── district_productivity_factors.csv
+│   ├── irrigation_water.csv, erosion_control.csv
+│   ├── crop_postharvest_use.csv
+│   ├── national_crop_trends.csv, national_input_trends.csv
+│   ├── cold_chain_context.csv
+│   ├── dashboard_overview.csv, data_coverage.csv, data_sources.csv
 │   └── training_district_crop.csv          ← primary analytical table
 ├── dictionaries/        canonical geography + crop code lists
 ├── source_registry/     where data comes from + access terms

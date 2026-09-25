@@ -17,7 +17,7 @@ class Province(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(64), unique=True)
 
-    districts: Mapped[list["District"]] = relationship(back_populates="province")
+    districts: Mapped[list[District]] = relationship(back_populates="province")
 
 
 class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -34,7 +34,7 @@ class District(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     province: Mapped[Province] = relationship(back_populates="districts")
-    sectors: Mapped[list["Sector"]] = relationship(back_populates="district")
+    sectors: Mapped[list[Sector]] = relationship(back_populates="district")
 
 
 class Sector(UUIDPrimaryKeyMixin, TimestampMixin, Base):

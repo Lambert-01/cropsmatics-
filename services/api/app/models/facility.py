@@ -27,7 +27,7 @@ class Facility(UUIDPrimaryKeyMixin, TimestampMixin, ProvenanceMixin, Base):
     verification_status: Mapped[str] = mapped_column(String(16), default="UNVERIFIED")
     cold_chain: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    capacity_snapshots: Mapped[list["FacilityCapacitySnapshot"]] = relationship(
+    capacity_snapshots: Mapped[list[FacilityCapacitySnapshot]] = relationship(
         back_populates="facility"
     )
 
