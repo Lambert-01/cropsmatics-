@@ -1,6 +1,17 @@
 """Typed application settings.
 
-Values are loaded from environment variables (and a local ``.env`` if present).
+Values are loaded from environment variables and from ``.env`` files.
+
+Three sources are consulted, in increasing order of precedence:
+
+1. ``<repo root>/.env`` - the single project-wide environment file
+2. ``<current working directory>/.env`` - an optional service-local override
+3. real environment variables - always win (this is what production uses)
+
+Reading the repo-root file matters: the API is normally started from
+``services/api``, so a CWD-relative lookup would silently miss the project
+``.env`` and fall back to the localhost defaults.
+
 See ``.env.example`` at the repository root for every supported key.
 """
 
@@ -17,7 +28,14 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        # Later entries take precedence, so a service-local .env can override the
+        # project one during development. Real environment variables still win
+        # over every file (that is pydantic-settings' default source order).
+        env_file=(REPO_ROOT / ".env", ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # --- app ---
     project_name: str = "Cropmatics Rwanda"
