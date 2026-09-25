@@ -85,6 +85,8 @@ class TrendPoint(BaseModel):
 
 class TrendResponse(BaseModel):
     crop: str | None = None
+    # Populated only for the optional compare view (2-5 crops).
+    compared_crops: list[str] | None = None
     kind: str
     metric_units: dict[str, str] = Field(default_factory=dict)
     points: list[TrendPoint] = Field(default_factory=list)

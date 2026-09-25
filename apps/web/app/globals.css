@@ -51,14 +51,65 @@ body {
   .table-base {
     @apply w-full border-collapse text-sm;
   }
+  /* Headers may wrap to two lines: the unit sits on its own line. This replaces
+     the old forced whitespace-nowrap that produced excessively wide tables. */
   .table-base thead th {
-    @apply sticky top-0 z-10 whitespace-nowrap border-b border-forest/10 bg-forest/[0.04] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink;
+    @apply sticky top-0 z-10 border-b border-forest/10 bg-forest/[0.04] px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink;
   }
   .table-base tbody td {
     @apply border-b border-forest/5 px-3 py-2 align-top text-slate-700;
   }
   .table-base tbody tr:hover {
     @apply bg-primary/[0.04];
+  }
+
+  /* ---- Responsive table system (components/table/ResponsiveTable.tsx) ---- */
+  .responsive-table-wrap {
+    @apply thin-scroll overflow-x-auto;
+    /* Scroll only when the content genuinely needs it; otherwise tables fit. */
+    overscroll-behavior-x: contain;
+  }
+  .responsive-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .responsive-table .rt-th {
+    @apply sticky top-0 z-10 border-b border-forest/10 bg-forest/[0.04] px-3 py-2 text-left align-bottom text-xs font-semibold uppercase tracking-wide text-ink;
+    white-space: normal; /* headers may wrap to two lines */
+  }
+  .responsive-table .rt-header-text {
+    @apply flex flex-col gap-0.5; /* label on line 1, unit on line 2 */
+  }
+  .responsive-table .rt-unit {
+    @apply text-[10px] font-medium normal-case tracking-normal text-slate-500;
+  }
+  .responsive-table .rt-sort-btn {
+    @apply flex w-full items-end justify-between gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40;
+  }
+  .responsive-table .rt-td {
+    @apply border-b border-forest/5 px-3 py-2 align-top text-slate-700;
+  }
+  .responsive-table .rt-th-right,
+  .responsive-table .rt-td-right {
+    @apply text-right;
+  }
+  .responsive-table .rt-th-center,
+  .responsive-table .rt-td-center {
+    @apply text-center;
+  }
+  /* Numeric cells: never wrap, digits align in a true tabular grid. */
+  .responsive-table .rt-numeric {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .responsive-table .rt-sticky-col {
+    @apply sticky z-20 bg-surface;
+    /* Header cells of the sticky column need to sit above the sticky header. */
+  }
+  .responsive-table thead .rt-sticky-col {
+    z-index: 30;
+  }
+  .responsive-table .rt-empty {
+    @apply px-3 py-8 text-center text-sm text-slate-400;
   }
 }
 

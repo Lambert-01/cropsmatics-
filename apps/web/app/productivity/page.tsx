@@ -1,6 +1,8 @@
 "use client";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
+import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
+import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
 import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
@@ -21,7 +23,7 @@ export default function ProductivityPage() {
   const districtMode = overview.data?.coverage_level === "district";
   const productivity = useProductivity(filters, districtMode);
   const factors = useFactors(filters, districtMode && Boolean(filters.crop));
-  const trends = useTrends(filters.crop);
+  const trends = useTrends(filters.crop, filters.compare);
   const inputs = useInputAdoption();
 
   return (
@@ -30,6 +32,12 @@ export default function ProductivityPage() {
         title="Productivity Intelligence"
         subtitle="Diagnose crop productivity gaps and the factors associated with them across Rwanda."
       />
+
+      <AnalyticsFilterBar supported={["year", "season", "crop", "province", "district", "benchmark"]} />
+
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <CompareCropsControl />
+      </div>
 
       <div className="card flex flex-wrap items-center gap-3 p-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">

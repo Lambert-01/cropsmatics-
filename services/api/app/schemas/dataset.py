@@ -24,3 +24,7 @@ class DatasetResponse(BaseModel):
     count: int = 0
     offset: int = 0
     limit: int = 100
+    # Echoes the whitelisted filters/sort actually applied, so the UI can show
+    # the effective scope. None when the request was unfiltered.
+    sort: dict | None = None
+    filters: dict | None = None

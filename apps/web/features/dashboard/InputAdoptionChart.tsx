@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
+import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
 import { periodLabel } from "@/lib/format";
@@ -50,6 +51,7 @@ export function InputAdoptionChart({
       <CardHeader
         title="Input & practice adoption (national)"
         subtitle="Share of farmers reporting each practice, by published period"
+        action={<NationalContextBadge note="crop & district filters not applicable" />}
       />
       {points.length === 0 ? (
         <div className="p-4">

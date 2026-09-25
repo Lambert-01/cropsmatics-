@@ -18,11 +18,43 @@ local checks listed in [DASHBOARD_REFINEMENT_REPORT.md](DASHBOARD_REFINEMENT_REP
 | **CI VERIFIED** | A green GitHub Actions run exists for the commit |
 | **DEVICE VERIFIED** | Confirmed on a physical Android/iOS device |
 
-**As of 2026-09-25 nothing in this repository is CI VERIFIED or DEVICE VERIFIED.**
-No GitHub Actions run has been observed for these changes, and no device test has
-been performed. Local results are in
-[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md), which records the exact
-commands and their outcomes.
+**CI status before this pass:** Web = CI VERIFIED · Data pipeline = CI VERIFIED ·
+ML = CI VERIFIED · **API = FAILING** · **Mobile = FAILING**. This pass fixes both
+failing jobs (mobile `useState` import + unused vars; API job now builds the
+analytical tables before pytest) but **no GitHub Actions run has been observed
+for this commit yet — nothing here is CI VERIFIED until one single commit has
+all five jobs green.** Local results are in
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+---
+
+## Phase 0.5 — UX + CI hardening pass (2026-09-25)
+
+Scope: fix the two failing CI jobs, add a professional analytics filter bar,
+replace the nowrap table CSS with a reusable responsive table system, make
+post-harvest crop filtering real, keep national modules honest, add an optional
+2–5 crop comparison, upgrade the Data Explorer, and document filter granularity
+per dataset.
+
+| Item | Where | Status |
+|---|---|---|
+| Mobile CI fix: `useState` import + unused vars removed in share screen | `apps/mobile/app/share.tsx` | LOCAL VERIFIED (lint/typecheck/test/expo config all pass) |
+| API CI fix: job now runs `python scripts/data/run_all.py` before pytest so tests exercise real tables | `.github/workflows/ci.yml` | LOCAL VERIFIED (59 tests pass after pipeline run) |
+| AnalyticsFilterBar: URL-backed, searchable crop/district, province→district cascade, active chips, scope summary, mobile drawer with active-count badge | `components/filters/AnalyticsFilterBar.tsx` | LOCAL VERIFIED |
+| Post-harvest crop filtering (API + hook + client) with unknown-crop 404 | `postharvest_service.summary(crop)`, `analytics.py`, `useAnalytics.ts`, `api.ts` | LOCAL VERIFIED (6 new tests) |
+| District/province/year/season are explicit no-ops on post-harvest — never fabricated | `tests/test_postharvest_filter.py` | LOCAL VERIFIED |
+| NATIONAL CONTEXT badge with per-filter applicability notes | `ui/NationalContextBadge.tsx`, `InputAdoptionChart`, `NationalInfrastructureSummary` | LOCAL VERIFIED |
+| Optional Compare Crops (2–5 crops) for national trends — yield deliberately excluded | `trend_service.crop_trends(compare_crops)`, `CompareCropsControl.tsx`, `YieldTrendChart` | LOCAL VERIFIED (3 new tests) |
+| ResponsiveTable system: wrapping headers with unit lines, tabular numeric cells, sticky header/column, sorting with aria-sort | `components/table/ResponsiveTable.tsx`, `globals.css` | LOCAL VERIFIED |
+| TableToolbar: search, sort selector, reset, filtered row count | `components/table/TableToolbar.tsx` | LOCAL VERIFIED |
+| PriorityTable: Rank/District/Crop/Yield/Benchmark/Gap/Priority + expandable Details (components, area, benchmark strategy) | `features/dashboard/PriorityTable.tsx` | LOCAL VERIFIED |
+| DistrictRankingTable: sortable yield/benchmark/gap/area/production, sticky district, unit headers | `features/productivity/DistrictRankingTable.tsx` | LOCAL VERIFIED |
+| PriorityRanking (interventions): sortable Gap/Score/District/Crop + expandable component details | `features/interventions/PriorityRanking.tsx` | LOCAL VERIFIED |
+| RiskClassificationTable: crop search + sortable Loss/Stored/Sold/Risk Band with % units | `features/postharvest/RiskClassificationTable.tsx` | LOCAL VERIFIED |
+| Data Explorer: server-side sort, page size, column visibility, provenance toggle, whitelisted filters, reset, filtered count | `features/data-explorer/DataTable.tsx` | LOCAL VERIFIED |
+| `/meta/dataset/{key}`: whitelisted exact-match filters + safe sorting (400 on unsupported; no arbitrary expressions) | `dataset_service.py`, `api/v1/data.py` | LOCAL VERIFIED (6 new tests) |
+| Filter granularity documented per dataset; national datasets say which filters do not apply | `AnalyticsFilterBar` `supported`/`datasetNote` props | LOCAL VERIFIED |
+| Responsive: filters in a drawer below 768px with active-filter count badge | `AnalyticsFilterBar` | LOCAL VERIFIED (breakpoint layout, not pixel-tested) |
 
 ---
 

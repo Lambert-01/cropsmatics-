@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
+import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { PageHero } from "@/components/layout/PageHero";
 import { DataBadge } from "@/components/ui/DataBadge";
 import { ErrorState, KpiRowSkeleton } from "@/components/ui/States";
@@ -13,6 +14,7 @@ import { StorageVsSoldChart } from "@/features/postharvest/StorageVsSoldChart";
 import { UseCompositionChart } from "@/features/postharvest/UseCompositionChart";
 import { NationalInfrastructureSummary } from "@/features/storage/NationalInfrastructureSummary";
 import { fmtNumber, fmtPct } from "@/lib/format";
+import { useFilters } from "@/services/hooks/useFilters";
 import { usePostHarvest, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
 import type { PostHarvestCrop } from "@/types";
 
@@ -28,7 +30,10 @@ function extreme(crops: PostHarvestCrop[], key: keyof PostHarvestCrop) {
 }
 
 export default function PostHarvestPage() {
-  const postHarvest = usePostHarvest();
+  const { filters } = useFilters();
+  // The post-harvest dataset supports the crop filter only; the filter bar
+  // below says so explicitly instead of silently dropping the rest.
+  const postHarvest = usePostHarvest(filters);
   const infrastructure = useStorageInfrastructure();
   const crops = postHarvest.data?.crops ?? [];
 
@@ -48,6 +53,11 @@ export default function PostHarvestPage() {
       <PageHero
         title="Post-Harvest Intelligence"
         subtitle="How crops are sold, consumed, stored and lost — and where storage risk concentrates."
+      />
+
+      <AnalyticsFilterBar
+        supported={"crop"}
+        datasetNote="National crop-level dataset (2025-B): year, season and district filters do not apply to this data."
       />
 
       {postHarvest.error ? (

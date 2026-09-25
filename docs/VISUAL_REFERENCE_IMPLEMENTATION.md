@@ -4,6 +4,12 @@
 **Purpose:** map every supplied design reference to the route and components that
 implement it, and state plainly where the implementation deliberately differs.
 
+> **Status after the UX + CI hardening pass:** the analytical screens (5–8) now
+> carry a professional filter bar and the responsive table system, so their
+> layout is FUNCTIONALLY MATCHED — VISUAL REFINEMENT REQUIRED. Table headers,
+> filter placement and density still need a human review against the reference
+> images before this can be called MATCHED.
+
 ## Source images
 
 The eight references are stored in the repository at
@@ -137,6 +143,12 @@ before any network call.
 
 | Change | File | Why |
 |---|---|---|
+| AnalyticsFilterBar below PageHero on analytical pages | `components/filters/AnalyticsFilterBar.tsx` | The header filters were small and easy to miss; the bar exposes year/season/crop/province/district/benchmark with searchable selectors, active chips and a scope summary |
+| Responsive table system replaces forced nowrap | `components/table/ResponsiveTable.tsx`, `TableToolbar.tsx`, `globals.css` | `thead th { whitespace-nowrap }` produced excessively wide tables; headers now wrap with units on their own line, numeric cells stay nowrap with tabular-nums, district columns are sticky |
+| NATIONAL CONTEXT badges on national modules | `ui/NationalContextBadge.tsx` | Input adoption and MINAGRI infrastructure are national; the badge names which filters do not apply instead of silently ignoring them |
+| Compare Crops control (2–5 crops) | `components/filters/CompareCropsControl.tsx` | Optional comparison of area/production across crops; raw yield is excluded because different crops do not share a natural yield scale |
+| Priority/DistrictRanking/PriorityRanking/RiskClassification tables rebuilt | `features/dashboard/PriorityTable.tsx`, `features/productivity/DistrictRankingTable.tsx`, `features/interventions/PriorityRanking.tsx`, `features/postharvest/RiskClassificationTable.tsx` | Units in headers, sortable columns, expandable Details rows instead of overloading permanent columns |
+| Data Explorer upgraded | `features/data-explorer/DataTable.tsx` | Server-side sorting, page-size selector, column visibility with a provenance toggle, reset, filtered row count |
 | Active sidebar item: white icon on a teal surface | `apps/web/components/layout/AppSidebar.tsx` | The active icon and its background were both primary green, so the active item was hard to read against the dark sidebar (brief §42) |
 | Provenance badges as a component | `apps/web/components/ui/DataBadge.tsx`, `apps/mobile/src/components/DataBadge.tsx` | The official / program / scenario / not-verified distinction is a product requirement, not decoration |
 | Brand mark + initials avatar | `apps/mobile/src/components/BrandMark.tsx` | The header used a generic leaf icon. The mark is rendered from design tokens (no new binary asset); the avatar is initials because there is no user profile or auth yet, and a stock photo would misrepresent who is using the app. |

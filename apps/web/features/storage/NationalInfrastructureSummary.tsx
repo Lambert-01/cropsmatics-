@@ -14,6 +14,7 @@ import {
 
 import { DataBadge } from "@/components/ui/DataBadge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
+import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
 import { fmtNumber } from "@/lib/format";
@@ -44,7 +45,12 @@ export function NationalInfrastructureSummary({
         <CardHeader
           title="National post-harvest infrastructure"
           subtitle="Published MINAGRI national totals by infrastructure type"
-          action={<DataBadge kind="official_national" />}
+          action={
+            <>
+              <NationalContextBadge note="district filter not applicable" />
+              <DataBadge kind="official_national" />
+            </>
+          }
         />
         <div className="p-4">
           <EmptyState
@@ -74,7 +80,12 @@ export function NationalInfrastructureSummary({
             ? `MINAGRI Annual Report ${totals.period} — national totals across Rwanda`
             : "MINAGRI national totals across Rwanda"
         }
-        action={<DataBadge kind="official_national" />}
+        action={
+          <>
+            <NationalContextBadge note="district filter not applicable" />
+            <DataBadge kind="official_national" />
+          </>
+        }
       />
 
       <div className="flex items-start gap-2 border-t border-forest/10 bg-primary/[0.04] px-4 py-2 text-[11px] text-slate-600">

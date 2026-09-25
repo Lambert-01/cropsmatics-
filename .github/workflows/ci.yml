@@ -59,6 +59,11 @@ jobs:
         run: |
           pip install -r services/api/requirements-dev.txt
           pip install -r services/api/requirements-ml.txt
+      # data/processed is gitignored, so every fresh checkout must rebuild the
+      # analytical tables before the API tests can exercise real data paths.
+      # Without this the tests that need them either fail or skip vacuously.
+      - name: Build analytical tables
+        run: python scripts/data/run_all.py
       - name: Ruff
         run: ruff check services/api/app services/api/tests
       - name: Pytest

@@ -69,9 +69,21 @@ export const api = {
   ) => get<MapMetricsResponse>("/maps/district-metrics", `${filtersToApiQuery(filters)}&metric=${metric}`),
   weightedPriorityMap: (filters: DashboardFilters, weights: Record<string, number>) =>
     post<MapMetricsResponse>("/maps/district-metrics", weights, filtersToApiQuery(filters)),
-  trends: (crop?: string) => get<TrendResponse>("/analytics/trends", crop ? `crop=${encodeURIComponent(crop)}` : ""),
+  trends: (crop?: string, compare?: string) => {
+    const params = new URLSearchParams();
+    if (crop) params.set("crop", crop);
+    if (compare) params.set("compare", compare);
+    return get<TrendResponse>("/analytics/trends", params.toString());
+  },
   inputAdoption: () => get<TrendResponse>("/analytics/input-adoption"),
-  postHarvest: () => get<PostHarvestResponse>("/analytics/post-harvest"),
+  // The backend only applies `crop` here (national crop-level dataset);
+  // district/province travel along as explicit no-ops so the page can state
+  // that the dataset does not support district granularity.
+  postHarvest: (filters?: DashboardFilters) => {
+    const params = new URLSearchParams();
+    if (filters?.crop) params.set("crop", filters.crop);
+    return get<PostHarvestResponse>("/analytics/post-harvest", params.toString());
+  },
   storageInfrastructure: () =>
     get<StorageInfrastructureResponse>("/analytics/storage-infrastructure"),
   priorities: (filters: DashboardFilters, limit = 50) =>
@@ -106,9 +118,24 @@ export const api = {
     }>("/meta/algorithms"),
 
   datasets: () => get<{ datasets: DatasetInfo[] }>("/meta/dataset"),
-  dataset: (key: string, limit = 100, offset = 0, search = "") => {
+  dataset: (
+    key: string,
+    limit = 100,
+    offset = 0,
+    search = "",
+    filters?: Record<string, string>,
+    sortBy?: string | null,
+    sortDir: "asc" | "desc" = "asc",
+  ) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (search) params.set("search", search);
+    Object.entries(filters ?? {}).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+    if (sortBy) {
+      params.set("sort_by", sortBy);
+      params.set("sort_dir", sortDir);
+    }
     return get<DatasetResponse>(`/meta/dataset/${key}`, params.toString());
   },
   districtSummary: (district: string) =>

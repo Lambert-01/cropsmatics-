@@ -43,6 +43,9 @@ Verification levels used below:
 | New: `GET /facilities/program-context` | READY | `test_program_membership_endpoint_answers_membership_only` |
 | New: `GET /health/readiness` | READY | `tests/test_readiness.py` — required datasets, row counts, dictionaries, optional DB, model availability |
 | New: `GET /meta/data-version` | READY | Safe manifest projection, no hashes/paths |
+| `GET /analytics/post-harvest?crop=` | READY (LOCAL VERIFIED) | `postharvest_service.summary(crop)`; `test_postharvest_filter.py` — 6 tests incl. no-op district and 404 unknown crop |
+| `GET /analytics/trends?compare=` (2–5 crops) | READY (LOCAL VERIFIED) | `trend_service.crop_trends(compare_crops)`; `test_trends_compare.py` |
+| `GET /meta/dataset/{key}` whitelisted filters + sort | READY (LOCAL VERIFIED) | `dataset_service.fetch(filters, sort_by)`; `test_dataset_filters.py` — 400 on unsupported, 400 on unknown sort column, 422 on bad direction |
 | Structured risk output | READY | `risk_service.RiskFactor` / `RiskAction`; `tests/test_risk.py` |
 | Consistent error contract | PARTIAL | `DatasetUnavailable` → 503 with hints; no global exception envelope for unexpected errors |
 | Rate limiting | **BLOCKED** | Not implemented |
@@ -64,8 +67,13 @@ Verification levels used below:
 |---|---|---|
 | Typecheck | READY | `pnpm --filter cropmatics-web typecheck` — clean (**LOCAL VERIFIED**) |
 | Lint | READY | `pnpm --filter cropmatics-web lint` — no warnings (**LOCAL VERIFIED**) |
-| Unit tests | READY | `pnpm --filter cropmatics-web test` — 13 passed |
-| Production build | READY | `pnpm --filter cropmatics-web build` — 17 routes (**LOCAL VERIFIED**) |
+| Unit tests | READY | `pnpm --filter cropmatics-web test` — 26 passed |
+| Production build | READY | `pnpm --filter cropmatics-web build` (**LOCAL VERIFIED**) |
+| AnalyticsFilterBar (URL-backed, cascading, chips, drawer) | READY | `components/filters/AnalyticsFilterBar.tsx` |
+| Responsive table system replaces nowrap CSS | READY | `components/table/`, `globals.css` `.responsive-table*` |
+| Post-harvest crop filter end-to-end | READY | API tests `test_postharvest_filter.py` + `usePostHarvest(filters)` |
+| Compare Crops (2–5) national trends | READY | `CompareCropsControl.tsx`; yield excluded by design |
+| Data Explorer filters/sort/columns | READY | `features/data-explorer/DataTable.tsx`; `test_dataset_filters.py` |
 | Storage page separated into official / program / scenario sections | READY | `apps/web/app/storage/page.tsx`, `DataBadge` |
 | Active sidebar contrast | READY | White icon + white text on the teal active surface, `AppSidebar.tsx` |
 | Data-quality panel on transparency | READY | `apps/web/app/transparency/page.tsx` |
@@ -136,10 +144,11 @@ Verification levels used below:
 |---|---|---|
 | pnpm dual-version conflict fixed | READY | `pnpm/action-setup@v4` no longer passes `version:`, so `packageManager: pnpm@9.12.0` is authoritative |
 | Web CI runs lint, typecheck, test **and build** | READY | `.github/workflows/ci.yml` |
-| Mobile CI runs lint, typecheck, test **and** `expo config` | READY | `.github/workflows/ci.yml` |
+| Mobile CI: lint, typecheck, test **and** `expo config` — previous `useState` failure fixed | READY (LOCAL VERIFIED) | `apps/mobile/app/share.tsx`; all four mobile commands pass locally |
+| API CI builds analytical tables before pytest — previous missing-processed-data failure fixed | READY (LOCAL VERIFIED) | `.github/workflows/ci.yml` api job runs `python scripts/data/run_all.py`; full API suite passes locally after a pipeline run |
 | Data CI lints `scripts/data`, runs the pipeline, asserts outputs, runs pipeline tests | READY | `.github/workflows/ci.yml` (`data-pipeline` job) |
-| `--frozen-lockfile` install | PARTIAL | Switched from `--frozen-lockfile=false`. The lockfile was updated locally by `pnpm add`, so it should install cleanly — **not confirmed by a CI run** |
-| GitHub Actions green | **BLOCKED** | No push was made and no Actions run was observed. Treat every job as **LOCAL VERIFIED** only |
+| `--frozen-lockfile` install | PARTIAL | Lockfile updated locally by `pnpm add` for new table/filter dependencies; should install cleanly — **not confirmed by a CI run** |
+| GitHub Actions green | **BLOCKED** | No push was made and no Actions run was observed. Treat every job as **LOCAL VERIFIED** only. The project must not be called CI verified until one single commit has Web+Mobile+API+ML+Data all green |
 
 ## Observability
 

@@ -2,6 +2,8 @@
 
 import { X } from "lucide-react";
 
+import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
+import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
 import { PageHero } from "@/components/layout/PageHero";
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
@@ -27,7 +29,7 @@ export default function DashboardPage() {
   const overview = useOverview(filters);
   const districtMode = overview.data?.coverage_level === "district";
   const priorities = usePriorities(filters, 16, districtMode);
-  const trends = useTrends(filters.crop);
+  const trends = useTrends(filters.crop, filters.compare);
   const inputAdoption = useInputAdoption();
   const heatmap = useHeatmap(filters, "gap", districtMode);
 
@@ -37,6 +39,12 @@ export default function DashboardPage() {
         title="National Crop Intelligence Overview"
         subtitle="Turning official data into action for a productive and resilient Rwanda."
       />
+
+      <AnalyticsFilterBar />
+
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <CompareCropsControl />
+      </div>
 
       {filters.district ? (
         <div className="flex items-center gap-2">

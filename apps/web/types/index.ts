@@ -85,6 +85,8 @@ export interface TrendPoint {
 
 export interface TrendResponse {
   crop?: string | null;
+  /** Populated only for the optional compare view (2-5 crops). */
+  compared_crops?: string[] | null;
   kind: string;
   metric_units: Record<string, string>;
   points: TrendPoint[];

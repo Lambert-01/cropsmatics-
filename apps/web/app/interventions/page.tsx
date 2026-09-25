@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 
+import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { PageHero } from "@/components/layout/PageHero";
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
@@ -85,6 +86,8 @@ export default function InterventionsPage() {
         title="Intervention Planner"
         subtitle="Adjust transparent weights and see how investigation priorities change across Rwanda."
       />
+
+      <AnalyticsFilterBar supported={["year", "season", "crop", "province", "district", "benchmark"]} />
 
       {overview.error ? <ErrorState message={(overview.error as Error).message} onRetry={() => overview.refetch()} /> : null}
       {overview.isLoading ? <KpiRowSkeleton count={4} /> : null}

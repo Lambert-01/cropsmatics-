@@ -10,6 +10,8 @@ export interface DashboardFilters {
   province?: string;
   district?: string;
   benchmark?: string;
+  /** Optional 2-5 crop comparison for national trends (comma-joined in URL). */
+  compare?: string;
 }
 
 export const BENCHMARK_OPTIONS = [
@@ -31,6 +33,7 @@ export function parseFilters(params: URLSearchParams | { get(key: string): strin
     province: params.get("province") ?? undefined,
     district: params.get("district") ?? undefined,
     benchmark: params.get("benchmark") ?? DEFAULT_BENCHMARK,
+    compare: params.get("compare") ?? undefined,
   };
 }
 
@@ -57,6 +60,7 @@ export function filtersToQuery(filters: DashboardFilters): string {
   if (filters.benchmark && filters.benchmark !== DEFAULT_BENCHMARK) {
     params.set("benchmark", filters.benchmark);
   }
+  if (filters.compare) params.set("compare", filters.compare);
   return params.toString();
 }
 

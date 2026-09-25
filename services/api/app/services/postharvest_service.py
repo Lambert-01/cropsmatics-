@@ -44,8 +44,21 @@ def _val(value) -> float | None:
         return None
 
 
-def summary() -> dict:
+def summary(crop: str | None = None) -> dict:
+    """National crop-level post-harvest use/loss summary.
+
+    Crop filtering is supported because the source table is crop-level.
+    Year/season are NOT filterable: the published table is a single
+    2025-B period. District filtering is deliberately NOT fabricated: the
+    dataset is national crop-level and has no district dimension at all.
+    """
     df = repo.postharvest_use().replace({np.nan: None})
+
+    if crop:
+        mask = df["crop"].astype(str).str.lower() == crop.strip().lower()
+        if not mask.any():
+            raise KeyError(f"unknown crop: {crop}")
+        df = df[mask]
 
     crops = []
     for _, row in df.iterrows():
@@ -63,6 +76,8 @@ def summary() -> dict:
         })
 
     def _extreme(key: str, highest: bool = True) -> dict | None:
+        if df.empty:
+            return None
         frame = df.dropna(subset=[key])
         if frame.empty:
             return None

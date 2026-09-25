@@ -57,10 +57,10 @@ export function useWeightedPriorityMap(filters: DashboardFilters) {
   });
 }
 
-export function useTrends(crop?: string) {
+export function useTrends(crop?: string, compare?: string) {
   return useQuery({
-    queryKey: ["trends", crop ?? "national"],
-    queryFn: () => api.trends(crop),
+    queryKey: ["trends", crop ?? "national", compare ?? ""],
+    queryFn: () => api.trends(crop, compare),
     staleTime: FIVE_MIN,
   });
 }
@@ -73,10 +73,15 @@ export function useInputAdoption() {
   });
 }
 
-export function usePostHarvest() {
+/**
+ * National crop-level post-harvest shares. Only `crop` has an effect on the
+ * API; district/province are deliberately sent as no-ops — the endpoint never
+ * fabricates district granularity, and the page must say so explicitly.
+ */
+export function usePostHarvest(filters: DashboardFilters) {
   return useQuery({
-    queryKey: ["post-harvest"],
-    queryFn: () => api.postHarvest(),
+    queryKey: ["post-harvest", filters],
+    queryFn: () => api.postHarvest(filters),
     staleTime: FIVE_MIN,
   });
 }

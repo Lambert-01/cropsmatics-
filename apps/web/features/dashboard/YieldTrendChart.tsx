@@ -14,10 +14,13 @@ import {
 } from "recharts";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
+import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
 import { fmtCompact, fmtNumber, periodLabel } from "@/lib/format";
 import type { TrendResponse } from "@/types";
+
+const COMPARE_COLORS = [CHART.primary, CHART.amber, CHART.blue, CHART.green, "#7c3aed"];
 
 export function YieldTrendChart({
   data,
@@ -28,23 +31,50 @@ export function YieldTrendChart({
   isLoading?: boolean;
   crop?: string;
 }) {
+  const isCompare = data?.kind === "crop_trends_compare";
+
   const points = useMemo(
     () =>
       (data?.points ?? []).map((p) => ({
         period: periodLabel(p.period),
-        production_mt: p.values.production_mt ?? null,
-        yield_t_ha: p.values.yield_mt_ha ?? null,
+        ...(isCompare ? p.values : {
+          production_mt: p.values.production_mt ?? null,
+          yield_t_ha: p.values.yield_mt_ha ?? null,
+        }),
       })),
-    [data],
+    [data, isCompare],
   );
+
+  const compareSeries = useMemo(() => {
+    if (!isCompare || !data || data.points.length === 0) return [];
+    return Object.keys(data.metric_units)
+      .filter((k) => k.endsWith(":harvested_area_ha") || k.endsWith(":production_mt"))
+      .map((k) => ({
+        key: k,
+        label: k.split(":")[1] + (k.endsWith("production_mt") ? " — production (MT)" : " — harvested area (ha)"),
+      }));
+  }, [isCompare, data]);
 
   if (isLoading) return <ChartSkeleton />;
 
   return (
     <Card>
       <CardHeader
-        title={crop ? `${crop} national trend` : "National crop trend"}
-        subtitle="Production and yield by published period — only real periods are shown"
+        title={
+          isCompare
+            ? `Crop comparison (${data?.compared_crops?.length ?? 0} crops)`
+            : crop
+              ? `${crop} national trend`
+              : "National crop trend"
+        }
+        subtitle={
+          isCompare
+            ? "Harvested area and production per crop — yield is not compared across crops (incomparable natural scales)"
+            : "Production and yield by published period — only real periods are shown"
+        }
+        action={
+          isCompare ? <NationalContextBadge note="district filter not applicable" /> : undefined
+        }
       />
       {points.length === 0 ? (
         <div className="p-4">
@@ -69,23 +99,40 @@ export function YieldTrendChart({
               />
               <Tooltip {...TOOLTIP_STYLE} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar
-                yAxisId="left"
-                dataKey="production_mt"
-                name="Production (metric tonnes)"
-                fill={CHART.primary}
-                radius={[4, 4, 0, 0]}
-                maxBarSize={38}
-              />
-              <Line
-                yAxisId="right"
-                dataKey="yield_t_ha"
-                name="Yield (t/ha)"
-                stroke={CHART.amber}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                connectNulls
-              />
+              {isCompare
+                ? compareSeries.map((s, i) => (
+                    <Line
+                      key={s.key}
+                      yAxisId="left"
+                      dataKey={s.key}
+                      name={s.label}
+                      stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 2.5 }}
+                      connectNulls={false}
+                    />
+                  ))
+                : (
+                  <>
+                    <Bar
+                      yAxisId="left"
+                      dataKey="production_mt"
+                      name="Production (metric tonnes)"
+                      fill={CHART.primary}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={38}
+                    />
+                    <Line
+                      yAxisId="right"
+                      dataKey="yield_t_ha"
+                      name="Yield (t/ha)"
+                      stroke={CHART.amber}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                      connectNulls
+                    />
+                  </>
+                )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>

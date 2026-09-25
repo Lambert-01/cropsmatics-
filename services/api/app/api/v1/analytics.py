@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.analytics.productivity_gap import STRATEGIES
 from app.schemas.analytics import (
@@ -126,21 +126,43 @@ def heatmap(
 
 
 @router.get("/trends", response_model=TrendResponse)
-def trends(crop: str | None = Query(None)) -> TrendResponse:
-    result = trend_service.crop_trends(crop=crop)
+def trends(
+    crop: str | None = Query(None),
+    compare: str | None = Query(
+        None,
+        description=(
+            "Comma-separated 2-5 crop names for an optional comparison view, e.g. "
+            "Maize,Beans,Irish Potato. Absolute metrics only — yield is not compared "
+            "across crops because different crops do not share a natural yield scale."
+        ),
+    ),
+) -> TrendResponse:
+    compare_crops: list[str] | None = None
+    if compare:
+        compare_crops = [c.strip() for c in compare.split(",") if c.strip()]
+        if not (2 <= len(compare_crops) <= 5):
+            raise HTTPException(
+                status_code=422,
+                detail="compare accepts 2 to 5 comma-separated crop names",
+            )
+    result = trend_service.crop_trends(crop=crop, compare_crops=compare_crops)
     return TrendResponse(
-        crop=result["crop"],
+        crop=result.get("crop"),
+        compared_crops=result.get("compared_crops"),
         kind=result["kind"],
         metric_units=result["metric_units"],
         points=result["points"],
         provenance=Provenance(
             source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
             method=(
-                "published crop yield for a selected crop; otherwise total production / total harvested area across non-aggregate crops"
+                "per-crop published series for the compare view; otherwise published crop yield "
+                "for a selected crop; otherwise total production / total harvested area across "
+                "non-aggregate crops"
             ),
             limitations=[
                 "national series, not district estimates",
                 "periods available depend on the published releases",
+                "compare view excludes yield: raw yields are not comparable across crop species",
             ],
         ),
     )
@@ -165,8 +187,22 @@ def input_adoption() -> TrendResponse:
 
 
 @router.get("/post-harvest", response_model=PostHarvestResponse)
-def post_harvest() -> PostHarvestResponse:
-    result = postharvest_service.summary()
+def post_harvest(
+    f: AnalyticsFilters = Depends(analytics_filters),
+) -> PostHarvestResponse:
+    """National crop-level post-harvest use/loss shares.
+
+    Only ``crop`` meaningfully filters this dataset: the published table is a
+    single national 2025-B period with no district dimension, so year/season
+    and district are ignored rather than silently pretended to apply.
+    """
+    try:
+        result = postharvest_service.summary(crop=f.crop)
+    except KeyError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc).strip("'") + " — see /api/v1/crops for supported names",
+        ) from exc
     return PostHarvestResponse(**result)
 
 
