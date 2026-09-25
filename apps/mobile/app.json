@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Cropmatics",
+    "slug": "cropmatics-rwanda",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cropmatics",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cropmatics.rwanda"
+    },
+    "android": {
+      "package": "com.cropmatics.rwanda"
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8000/api/v1"
+    }
+  }
+}

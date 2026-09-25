@@ -1,0 +1,46 @@
+# Documentation Index
+
+Start with the audit and overview, then follow the architecture and policy docs.
+
+## Foundations
+- [00_REPOSITORY_AUDIT.md](docs/00_REPOSITORY_AUDIT.md)
+- [REPOSITORY_REFINEMENT_REPORT.md](docs/REPOSITORY_REFINEMENT_REPORT.md)
+- [PROJECT_RENAME_REPORT.md](docs/PROJECT_RENAME_REPORT.md)
+- [01_PROJECT_OVERVIEW.md](docs/01_PROJECT_OVERVIEW.md)
+- [02_PROBLEM_STATEMENT.md](docs/02_PROBLEM_STATEMENT.md)
+- [03_SYSTEM_ARCHITECTURE.md](docs/03_SYSTEM_ARCHITECTURE.md)
+
+## Data
+- [04_DATA_ARCHITECTURE.md](docs/04_DATA_ARCHITECTURE.md)
+- [05_DATASET_CATALOG.md](docs/05_DATASET_CATALOG.md)
+- [DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)
+- [06_DATABASE_SCHEMA.md](docs/06_DATABASE_SCHEMA.md)
+
+## Applications
+- [07_API_ARCHITECTURE.md](docs/07_API_ARCHITECTURE.md)
+- [08_WEB_APPLICATION.md](docs/08_WEB_APPLICATION.md)
+- [09_MOBILE_APPLICATION.md](docs/09_MOBILE_APPLICATION.md)
+
+## Analytics & models
+- [10_ML_METHODOLOGY.md](docs/10_ML_METHODOLOGY.md)
+- [11_INTERVENTION_ENGINE.md](docs/11_INTERVENTION_ENGINE.md)
+- [12_POST_HARVEST_MODEL.md](docs/12_POST_HARVEST_MODEL.md)
+- [13_OPTIMIZATION_ENGINE.md](docs/13_OPTIMIZATION_ENGINE.md)
+- [14_AI_ASSISTANT.md](docs/14_AI_ASSISTANT.md)
+- [MODEL_INTERPRETATION_POLICY.md](docs/MODEL_INTERPRETATION_POLICY.md)
+
+## Operations
+- [15_SECURITY_PRIVACY.md](docs/15_SECURITY_PRIVACY.md)
+- [16_TESTING.md](docs/16_TESTING.md)
+- [17_DEPLOYMENT.md](docs/17_DEPLOYMENT.md)
+- [18_MVP_ROADMAP.md](docs/18_MVP_ROADMAP.md)
+- [19_DEMO_STORY.md](docs/19_DEMO_STORY.md)
+- [20_AI_USAGE_DISCLOSURE.md](docs/20_AI_USAGE_DISCLOSURE.md)
+
+## Reference (supporting material)
+- [reference/ALGORITHM_DESIGN.md](docs/reference/ALGORITHM_DESIGN.md)
+- [reference/BACKEND_FASTAPI.md](docs/reference/BACKEND_FASTAPI.md)
+- [reference/DEVELOPER_SETUP.md](docs/reference/DEVELOPER_SETUP.md)
+- [reference/JUDGING_ALIGNMENT.md](docs/reference/JUDGING_ALIGNMENT.md)
+- [reference/RISK_REGISTER.md](docs/reference/RISK_REGISTER.md)
+- [reference/TEAM_PLAN.md](docs/reference/TEAM_PLAN.md)

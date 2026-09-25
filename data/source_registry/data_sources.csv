@@ -1,0 +1,11 @@
+source,owner,type,access_status,recommended_use,url,redistribution_note
+NISR SAS 2026 Season A,NISR,official aggregate,public page + downloadable Excel/PDF,latest 2026A baseline,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026,check terms before republishing originals
+NISR SAS 2026 Season B,NISR,official aggregate,public page + downloadable Excel/PDF,latest 2026B baseline,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-b-2026,check terms before republishing originals
+NISR SAS 2025 Annual,NISR,official aggregate,public page + downloadable Excel/PDF,historical comparison,https://statistics.gov.rw/data-sources/surveys/Seasonal-Agricultural-Survey/Seasonal-Agricultural-Survey/seasonal-agricultural-survey-2025-,check terms before republishing originals
+NISR SAS 2024 Microdata,NISR,respondent/plot microdata,catalogued; use NISR access workflow,yield/storage/loss modeling,https://www.microdata.statistics.gov.rw/index.php/catalog/113,do not redistribute without verifying license
+PSTA5,MINAGRI,strategy,public PDF,policy/problem alignment,https://www.minagri.gov.rw/publications/policies-and-strategies,cite source
+MINAGRI–ACES cold chain 2026,MINAGRI,public program info,public page,facility program context,https://www.minagri.gov.rw/updates/news-details/rwanda-strengthens-agricultural-value-chains-through-minagri-aces-cold-chain-partnership,do not invent capacities
+Meteo Rwanda,Rwanda Meteorology Agency,weather/climate,verify product/API availability,rainfall/forecast features,https://www.meteorwanda.gov.rw/,check terms
+CHIRPS,Climate Hazards Center,gridded rainfall,public research data,historical rainfall,https://www.chc.ucsb.edu/data/chirps,preserve attribution/version
+SoilGrids,ISRIC,soil grids,public products/API,soil covariates,https://soilgrids.org/,do not call grid values lab measurements
+OpenStreetMap,OSM contributors,roads/geodata,ODbL,routing/distance,https://www.openstreetmap.org/,follow ODbL

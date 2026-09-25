@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --filter cropmatics-web lint
+      - run: pnpm --filter cropmatics-web typecheck
+      - run: pnpm --filter cropmatics-web test
+
+  mobile:
+    name: Mobile (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --filter cropmatics-mobile lint
+      - run: pnpm --filter cropmatics-mobile typecheck
+      - run: pnpm --filter cropmatics-mobile test
+
+  api:
+    name: API (lint, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r services/api/requirements-dev.txt
+          pip install -r services/api/requirements-ml.txt
+      - name: Ruff
+        run: ruff check services/api/app services/api/tests
+      - name: Pytest
+        env:
+          JWT_SECRET: test-secret
+        run: pytest services/api/tests -q
+
+  ml:
+    name: ML (lint, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -r services/api/requirements.txt
+          pip install -r services/api/requirements-ml.txt
+          pip install -r services/api/requirements-dev.txt
+      - name: Ruff
+        run: ruff check ml/src ml/tests
+      - name: Pytest
+        run: pytest ml -q
+
+  data-pipeline:
+    name: Data pipeline (validate + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install pandas
+      - run: python scripts/data/run_all.py
+      - name: Ensure expected outputs exist
+        run: |
+          test -f data/processed/training_district_crop.csv
+          test -f data/interim/validation_report.json

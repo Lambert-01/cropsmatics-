@@ -1,0 +1,4 @@
+record_id,district,crop,expected_harvest_date,expected_quantity_kg,rainfall_risk,distance_to_demo_facility_km,demo_available_capacity_kg,post_harvest_risk,label
+SYN-001,Ngoma,Maize,2026-10-18,650,high,12,150000,0.81,SYNTHETIC
+SYN-002,Rwamagana,Tomato,2026-10-20,420,moderate,9,90000,0.64,SYNTHETIC
+SYN-003,Gatsibo,Beans,2026-10-23,800,low,18,220000,0.34,SYNTHETIC

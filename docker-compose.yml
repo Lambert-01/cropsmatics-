@@ -1,0 +1,36 @@
+# Local development services for Cropmatics Rwanda.
+# `docker compose up -d db` starts a PostGIS database matching .env.example.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: cropmatics-db
+    environment:
+      POSTGRES_USER: cropmatics
+      POSTGRES_PASSWORD: cropmatics
+      POSTGRES_DB: cropmatics
+    ports:
+      - "5432:5432"
+    volumes:
+      - cropmatics_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cropmatics -d cropmatics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./services/api
+    container_name: cropmatics-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://cropmatics:cropmatics@db:5432/cropmatics
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["full"]
+
+volumes:
+  cropmatics_pgdata:

@@ -1,0 +1,19 @@
+{
+  "package": "Cropmatics Real Data Pack 2024-2026",
+  "created": "2026-09-25",
+  "original_uploaded_workbook_included": true,
+  "synthetic_records_included": false,
+  "files": [
+    "01_district_crop_productivity_2025B.csv",
+    "02_district_productivity_factors_2025B.csv",
+    "03_irrigation_water_2025B.csv",
+    "04_erosion_control_2025B.csv",
+    "05_crop_postharvest_use_2025B.csv",
+    "06_national_crop_trends_2024_2026.csv",
+    "07_national_input_practice_trends_2024_2026.csv",
+    "08_verified_cold_chain_context_2026.csv",
+    "09_source_registry.csv",
+    "Cropmatics_Core_Real_Data_2024_2026.xlsx",
+    "README_DATA.md"
+  ]
+}

@@ -1,0 +1,12 @@
+period,indicator,value,unit,notes,source_url
+2026A,agricultural_land,1.376,million hectares,~58% total land,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,seasonal_crop_area,1.043,million hectares,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,permanent_crop_area,0.501,million hectares,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,improved_seed_use,37.0,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,organic_fertilizer_use,90.2,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,inorganic_fertilizer_use,67.2,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,pesticide_use,46.9,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,irrigation,14.4,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,anti_erosion_measure,92.4,percent farmers,at least one measure,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,agroforestry,53.4,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026
+2026A,mechanical_equipment,1.7,percent farmers,,https://statistics.gov.rw/statistical-publications/agriculture-environment/seasonal-agricultural-survey-season-2026

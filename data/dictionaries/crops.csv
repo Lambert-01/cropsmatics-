@@ -1,0 +1,18 @@
+crop_code,crop_name,category,kinyarwanda_name,perishability,cold_chain_recommended,notes
+CROP-MAI,Maize,Cereal,Ibigori,low,false,
+CROP-SOR,Sorghum,Cereal,Amasaka,low,false,
+CROP-PAD,Paddy rice,Cereal,Umuceri,low,false,paddy before milling
+CROP-WHE,Wheat,Cereal,Ingano,low,false,
+CROP-OCE,Other cereals,Cereal,Ibinyampeke,low,false,millet/barley/rice blends reported together
+CROP-CAS,Cassava,Root & tuber,Imyumbati,medium,false,processed quickly after harvest
+CROP-SPO,Sweet potato,Root & tuber,Ibijumba,medium,false,
+CROP-IPO,Irish potato,Root & tuber,Ibirayi,medium,true,seed and ware potato
+CROP-YTA,Yams & Taro,Root & tuber,Ibijumbu,medium,false,reported together as one NISR category
+CROP-BEA,Beans,Pulse,Ibishyimbo,low,false,
+CROP-GRN,Groundnut,Pulse,Ubunyobwa,low,false,
+CROP-SOY,Soybean,Pulse,Soya,low,false,
+CROP-BAN,Banana,Banana,Ibitoki,medium,true,cooking/dessert/beer sub-types reported separately
+CROP-VEG,Vegetables,Vegetable,Imboga,high,true,
+CROP-FRU,Fruits,Fruit,Imbuto,high,true,
+CROP-FOD,Fodder crops,Fodder,Ibiryo by'amatungo,low,false,
+CROP-OTH,Other crops,Other,Ibindi bihingwa,medium,false,residual category in NISR tables

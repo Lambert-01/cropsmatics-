@@ -1,0 +1,5 @@
+# Heavy analytics/optimization extras. Install only where needed.
+-r requirements.txt
+scikit-learn==1.5.2
+ortools==9.11.4210
+shap==0.46.0

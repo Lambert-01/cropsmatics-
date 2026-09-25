@@ -1,0 +1,56 @@
+[project]
+name = "cropmatics-rwanda"
+version = "0.1.0"
+description = "Cropmatics Rwanda — agricultural decision-intelligence platform (NISR 2026 Track 1)."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  ".venv",
+  "data",
+  "node_modules",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"**/tests/**" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "ml", "scripts"]
+
+# FastAPI dependency factories are used as argument defaults by design.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+  "fastapi.Body",
+  "fastapi.Depends",
+  "fastapi.File",
+  "fastapi.Form",
+  "fastapi.Header",
+  "fastapi.Path",
+  "fastapi.Query",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '/(\.venv|data|node_modules)/'
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["services/api/tests", "ml/tests"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true

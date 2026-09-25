@@ -1,0 +1,23 @@
+{
+  "project": "Cropmatics Rwanda",
+  "short_name": "Cropmatics",
+  "meaning": "Crop + Informatics",
+  "tagline": "Crop Intelligence from Data to Action",
+  "created_on": "2026-09-24",
+  "refined_on": "2026-09-25",
+  "purpose": "NISR 2026 Big Data Hackathon Track 1 — agricultural productivity",
+  "data_policy": "Official NISR/MINAGRI statistics are kept separate from voluntary app data; respondent-level NISR microdata is not redistributed.",
+  "layout": {
+    "raw": "data/raw (immutable official sources; original NISR workbook included)",
+    "external": "data/external (third-party open data; not populated)",
+    "interim": "data/interim (regenerable transforms)",
+    "processed": "data/processed (model-ready tables; regenerable via `make data`)",
+    "dictionaries": "data/dictionaries (geography + crop code lists)",
+    "source_registry": "data/source_registry",
+    "dev_fixtures": "data/dev_fixtures (SYNTHETIC / TEST ONLY)"
+  },
+  "official_real_data_included": true,
+  "synthetic_records_included": true,
+  "synthetic_records_location": "data/dev_fixtures/synthetic",
+  "synthetic_records_note": "Fabricated for demo/testing only; never cited as official statistics."
+}

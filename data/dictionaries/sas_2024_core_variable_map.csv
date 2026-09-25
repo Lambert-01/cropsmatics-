@@ -1,0 +1,37 @@
+variable,official_label,module,analysis_use,source_url
+s1q1,Province,geography,Spatial aggregation,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s1q2,District name & code,geography,Spatial aggregation,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s1q7,Farmer/LSF type,profile,Segment analysis,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s1q8,Gender,profile,Equity/error analysis,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s1q9,Age,profile,Descriptive analysis,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q2,Plot area (sqm),production,Yield/area features,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q4,Crop name,production,Crop key,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q7,Sowing date,timing,Season timing,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q8,Expected period for crop harvesting,timing,Harvest pressure,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q9,Used improved seed,inputs,Productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q19_3,Quantity already harvested (kg),production,Harvest progress,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q20_2,Remaining quantity to be harvested (kg),production,Upcoming volume,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q21,Total quantity harvest for season (kg),production,Yield target,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q25,Quantity transformed (kg),value_add,Processing,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q26,Quantity sold/to be sold (kg),market,Marketable surplus,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q27,Market where crop was sold,market,Market channel,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q28,Selling price per kg,market,Price outcome,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q36,Quantity stored/to be stored (kg),storage,Storage demand,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q37,Storage facility used,storage,Storage practice,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q38,Quantity stored in public storage (kg),storage,Public storage use,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q39,Quantity lost,loss,Loss label,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q42,Damaged by insects/pests (kg),loss,Loss mechanism,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q45,Lost during harvesting (kg),loss,Harvest loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q46,Lost during transport (kg),loss,Transport loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q47,Lost during storage (kg),loss,Storage loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q48,Lost during processing (kg),loss,Processing loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q49,Lost during packaging (kg),loss,Packaging loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s2q50,Lost at sales (kg),loss,Sales loss,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s3q1,Used organic fertilizer,inputs,Productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s3q7,Used inorganic fertilizer,inputs,Productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s3q18,Used pesticide/fungicide,inputs,Productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s4q1,Degree of erosion,land,Risk/productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s4q2,Anti-erosion activity,land,Intervention factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s4q14,Practiced irrigation,water,Productivity factor,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+s4q15,Plot irrigated,water,Plot irrigation,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3
+plot_weight,Plot survey weight,survey_design,Weighted estimation,https://www.microdata.statistics.gov.rw/index.php/catalog/113/datafile/F3

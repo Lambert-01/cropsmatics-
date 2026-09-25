@@ -1,0 +1,511 @@
+year,season,district,crop,cultivated_area_ha,harvested_area_ha,production_mt,yield_kg_ha,source
+2025,B,Nyarugenge,Maize,428.9898,428.9898,402.76475264742,938.8679,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Sorghum,304.8989,304.8989,259.34081489233006,850.5797000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Cassava,670.5609,234.00144702375005,2617.6759072469417,11186.58,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Sweet potato,180.9858,170.9219,1078.7898094305,6311.595,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Irish potato,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Yams & Taro,87.18665,87.18665,770.43142485434,8836.57560938905,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Banana,1662.8441,694.55631573914,8030.1931112764905,11561.615565659118,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Beans,1564.49736,1564.497359,911.7428202347902,582.7704438041114,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Soybean,178.9243,178.9243,69.67487587814,389.4098,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Vegetables,125.8221,125.82208700000001,938.6391342184822,7460.050588880171,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Fruits,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Fodder crops,77.35442,77.35442,1506.3566566047998,19473.439999999995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyarugenge,Other crops,1762.2928299999999,768.45945,9201.068703192119,11973.395217134906,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Maize,1224.411,1223.97789,1542.4220175199998,1260.171470515697,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Sorghum,3015.836,3015.8357809999998,2993.501258027,992.5942509490374,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Paddy rice,283.3376,283.3376,1074.107,3790.90879572637,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Cassava,2732.289,586.12672749237,6728.031479539417,11478.8,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Sweet potato,1604.46,1503.5517434,10018.218156292998,6663.035176720076,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Irish potato,386.7196,386.71957560000004,1396.060564275,3610.0074895587977,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Yams & Taro,172.5678,134.4889955,481.58046825509996,3580.8169022654347,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Banana,4285.073,1431.3636205905,17896.371982844554,12503.022799658354,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Beans,4210.3319,4210.965843999999,2764.84059806593,656.5811028853195,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Groundnut,124.3813,124.3813,54.00455693115,434.1855,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Soybean,340.8231,340.8231,129.32917659603,379.4613,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Vegetables,783.9207,744.684979,6575.76233486664,8830.260472954484,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Fruits,186.0964,37.4739242,330.57670963492006,8821.513003832144,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Fodder crops,398.3786,398.289671,2440.96512571,6128.617695712224,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gasabo,Other crops,935.4421,376.29710284606,2838.0889717995665,7542.149408895675,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Maize,491.1594,491.1594,368.21768351352,749.6908,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Sorghum,682.2796,682.2796,764.9630178851999,1121.187,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Paddy rice,77.51251,77.51251,410,5289.468758010803,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Cassava,244.9629,141.59089603473,1671.523004958798,11805.3,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Sweet potato,224.0971,118.0061,857.3103042926,7264.965999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Irish potato,2.108075,2.108075,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Yams & Taro,225.7278,225.727835,1227.232809388085,5436.781021658605,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Banana,848.0799,405.00120684376003,5105.778516533511,12606.822968068835,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Beans,1542.3876,1544.922102,966.77691114624,625.7771248755428,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Groundnut,42.91438,42.91438,11.534591427970001,268.7815,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Soybean,75.28839,75.28839,35.37092982350101,469.80590000000007,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Vegetables,142.1067,142.106728,1256.53802829037,8842.213496678145,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Fruits,98.4711,6.6522104,30.411,4571.5631604195805,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Fodder crops,48.61145,45.17303,233.57085580346,5170.582,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kicukiro,Other crops,425.6274,38.549824062629,110.41752638385589,2864.280942098953,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Maize,2673.187,2673.187,3364.801960201,1258.723,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Sorghum,5051.757,5051.757,4871.843726201999,964.3859999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Paddy rice,658.9877299999999,658.9877299999999,2588.6212728287,3928.178257323092,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Other cereals,89.03039,89.03039,80.45308648789299,903.6587,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Cassava,8699.624,2248.1259502744,34121.808379410315,15177.89,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Sweet potato,2025.031,1978.4347719,15887.003467861,8030.087063524382,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Irish potato,246.3671,246.3671,977.4129349313,3967.3030000000003,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Yams & Taro,678.5688,609.7601,3748.7605823126996,6147.927000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Banana,5519.718000000001,1840.1823998118998,17381.619671598808,9445.596085135652,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Beans,13053.796,13054.2834518,7744.0530531634,593.219312400912,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Groundnut,978.8114,978.8114,418.85131030862,427.9183,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Soybean,2236.812,2236.812,828.9003438264,370.5722,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Vegetables,448.2808,449.5450276000001,3093.5645210118,6881.545409427635,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Fruits,104.3953,11.46812,16.95189974912,1478.1759999999997,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Fodder crops,229.9901,229.3624,2247.2719232216,9797.909,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyanza,Other crops,1347.841,1036.2878039900002,2546.9676927698883,2457.780244989225,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Maize,2396.847,2397.0703,2342.5420882060002,977.2521432542051,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Sorghum,3461.877,3461.877,3531.059149968,1019.984,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Paddy rice,3218.1578600000003,3218.1578600000003,11250.29400532376,3495.880094994395,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Other cereals,405.0344,405.0344,397.63405698104,981.7290999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Cassava,13177.77,4353.232821516,64677.851919376466,14857.430000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Sweet potato,2894.615,2727.707,21121.568176793997,7743.342,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Irish potato,136.2475,136.2475,519.7197674325,3814.527,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Yams & Taro,512.9693,462.6785,4396.1356036435,9501.491,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Banana,7189.812,2119.0565315793,23007.27691810861,10857.320970555535,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Beans,13718.473999999998,13718.494998999999,8695.013948795893,633.8168982406387,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Groundnut,697.2698,697.2698,278.12167857352006,398.8724000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Soybean,3146.448,3146.448,1216.5571283808001,386.6446000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Vegetables,498.8373,439.5064939999999,3153.41273980171,7174.894530231243,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Fruits,192.4741,88.53913194097,1779.6781654055094,20100.47,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Fodder crops,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gisagara,Other crops,989.6143,537.76775617076,881.8853433444294,1639.9000000000003,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Maize,247.8005,238.080522,270.2267356486,1135.0224427372518,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Sorghum,3046.061,3046.061,2459.7996512106,807.5346,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Paddy rice,42.1813,42.1813,115.55,2739.365548240571,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Wheat,298.2396,298.2396,181.35210441792,608.0752,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Other cereals,25.91978,25.91978,23.642068964588,912.1246,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Cassava,5798.118,1779.4307438172,23528.1849182816,13222.31,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Sweet potato,5451.511,4435.884,40935.344497668004,9228.227,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Irish potato,1967.326,1967.4059,14786.200679017,7515.582157711838,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Yams & Taro,539.9692,461.4538,3836.5518117052,8314.054,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Banana,3302.0776,967.5681790666999,9157.80345629116,9464.762953577725,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Beans,7756.1511,7756.177178,5924.962493234831,763.9024170361507,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Groundnut,12.95988,12.95988,4.752470939232,366.70640000000003,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Soybean,1131.223,1131.223016,460.4602266764,407.0463738481785,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Vegetables,582.1882,582.188343,4964.396699483475,8527.131742113006,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Fruits,140.5066,84.94394,300.05155657112,3532.348,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Fodder crops,500.989,500.98894800000005,5395.709704524041,10770.117237245004,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyaruguru,Other crops,3856.6859,739.20500337887,1887.2149311749113,2553.0332215671488,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Maize,1028.759,1028.87765,1112.24172513714,1081.0242842160487,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Sorghum,4095.601,4095.601,4220.242425233,1030.433,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Paddy rice,1046.72874,1046.72874,4596.15414374782,4390.969663972177,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Other cereals,326.8244,326.8244,194.12362740848002,593.9692,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Cassava,5690.301,1504.3782895864,25467.40945144762,16928.86,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Sweet potato,2792.725,2746.209,22906.008435803997,8340.955999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Irish potato,167.775,167.775,663.09277035,3952.274,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Yams & Taro,135.9908,117.8184,1546.10729952,13122.8,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Banana,4964.943,1455.8192641234,14304.370369907554,9825.649874554118,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Beans,9294.663,9294.6629982,5656.275858452134,608.5509350417036,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Groundnut,133.9638,133.9638,64.66906857852,482.7354,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Soybean,2189.017,2189.017,822.3674986412999,375.6789,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Vegetables,717.8916,717.8915199999999,5804.581403310631,8085.59683684609,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Fruits,738.7951,466.87882143144003,2398.0808522291636,5136.409582419484,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Fodder crops,48.8515,48.851499999999994,354.94263910499996,7265.7469904711215,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Huye,Other crops,1256.442,674.11886040232,1056.7557268186372,1567.610385782644,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Maize,1014.842,1008.941,1172.887858854,1162.494,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Sorghum,4155.057,4155.0572882999995,3855.7483774891994,927.9651542582559,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Paddy rice,29.61677,29.61677,42.6,1438.374272413906,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Wheat,2248.30179,2248.30179,3165.8223820375,1408.0949435340262,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Cassava,6591.376,1513.896648396,19883.624552798454,13134.070000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Sweet potato,7289.476,6385.328,52343.189912448,8197.416,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Irish potato,1704.67,1704.74916,13264.778907670001,7781.073731498422,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Yams & Taro,1113.106,1000.293,7418.335935759,7416.1630000000005,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Banana,5508.6268,2070.35752562917,13847.649889792796,6688.530709489209,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Beans,7408.5696,7408.5698409999995,4736.46995110006,639.3231153586233,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Soybean,869.8528,869.8528,403.25575543424,463.59079999999994,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Vegetables,472.1761,472.17611,3670.0381367952505,7772.604456407696,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Fruits,87.81177,60.98038,363.75400375762,5965.099,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Fodder crops,225.6276,231.52838200000002,1122.74466943703,4849.274459305944,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamagabe,Other crops,5383.972,2198.2506614919002,3136.7673197290883,1426.9379623888021,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Maize,946.2968,946.2968,830.0343966332799,877.1395999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Sorghum,2087.115,2087.115,2227.534010085,1067.279,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Paddy rice,878.1947,878.1947,3947.544,4495.066982299028,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Other cereals,55.10042,55.10042,38.651462428702004,701.4731,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Cassava,19773.61,5371.0758605773,95084.38233184359,17703.042146499047,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Sweet potato,3170.027,3082.725,20107.767425625,6522.725,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Irish potato,70.76056,70.76056,209.71370851703998,2963.709,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Yams & Taro,854.7177,623.4696299999999,4822.044752671899,7734.20952785126,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Banana,6054.6605,2241.5678625315995,20922.07307793799,9333.678193578691,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Beans,11596.49,11596.508843999998,6714.6222521728,579.0210090381578,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Groundnut,1917.039,1917.038512,801.6074280456,418.1488389658392,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Soybean,3700.54,3700.54,1458.153750574,394.0381,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Vegetables,396.87131999999997,357.2377400000001,2565.43660019977,7181.314606345257,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Fruits,16.98901,16.98901,80.82968318463,4757.763,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Fodder crops,518.4064,518.4063856,4176.7988225631,8056.997248845423,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ruhango,Other crops,1778.021,873.72509398416,2347.148463512418,2686.369522488466,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Maize,913.8115,913.81152,944.6466623657001,1033.7434379966014,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Sorghum,72.68424,72.68424,86.39466819120001,1188.63,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Paddy rice,121.4961,121.4961,326,2683.213699863617,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Wheat,127.8738,127.85888,141.23732018824,1104.6344234224484,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Cassava,14085.84,2478.828124514,41075.6197435092,16570.579999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Sweet potato,4539.581,4353.035,35734.05560893,8208.998000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Irish potato,196.9586,196.95853,801.857725244,4071.2008017322228,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Yams & Taro,2623.214,2499.65445,17738.896793174197,7096.539600973325,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Banana,15643.280999999999,7008.081573241099,72048.4698332207,10280.769291887638,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Beans,6550.382,6550.382517,4251.16419478,648.9948004940304,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Groundnut,51.64202,51.64202,19.84001199067,384.1835,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Soybean,2179.955,2179.955,1031.7528639095,473.2909000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Vegetables,411.25433,364.61779,2727.7483370852897,7481.116972063513,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Fruits,267.6195,209.3239,1467.5367897238,7010.842,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Fodder crops,640.6713,640.67127,9090.0982437662,14188.396872808422,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Muhanga,Other crops,1069.732,766.3374827950299,3600.005693430245,4697.676642802461,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Maize,2019.925,2020.00885,2355.775336416,1166.220304636784,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Sorghum,3183.298,3183.298,3390.9158788579994,1065.221,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Paddy rice,267.91096,267.91096,861.25458174424,3214.704548646461,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Other cereals,11.46921,11.46921,5.532788193156,482.4035999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Cassava,13964.7,2726.7397288634,39299.872561970544,14412.769999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Sweet potato,3166.045,3166.045,22186.73787113,7007.714,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Irish potato,360.0523,360.0523,2006.3550764677,5572.398999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Yams & Taro,875.0326,837.7576,6979.859623841301,8331.598094533909,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Banana,11776.308,5163.4810972945,54404.61812780492,10536.422444987977,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Beans,10612.51,10612.509670000001,5725.181759861201,539.4748214972605,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Groundnut,856.6671,856.6671,465.89951600223003,543.8513,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Soybean,3853.33,3853.33,1286.0230701889998,333.7433,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Vegetables,938.3758,938.375727,5092.055714641341,5426.4571941995055,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Fruits,270.9815,59.845264099999994,408.53041447865087,6826.445176948445,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Fodder crops,80.28467,80.28467,1431.9477399596,17835.88,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kamonyi,Other crops,2645.187,1705.5746498656,10144.251253038603,5947.70287764184,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Maize,690.702,690.702,742.5460921199999,1075.06,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Sorghum,2127.817,2127.817,2310.8369236209996,1086.013,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Wheat,60.04307,60.04307,35.39496946351,589.493,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Cassava,6760.603,2410.043320713,35319.570471980325,14655.159999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Sweet potato,5047.145,3818.431,31432.071546632003,8231.672000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Irish potato,192.5799,192.5799,682.4598351225001,3543.775,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Yams & Taro,1055.601,947.5233,8516.4862865115,8988.154999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Banana,9978.504,4176.3252673994,49366.791587558255,11820.629004382836,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Beans,7862.814,7862.814,7443.849723030699,946.7157334550581,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Groundnut,156.7125,156.7125,99.87550902,637.3168,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Soybean,1691.398,1691.398,701.5347211476,414.76619999999997,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Vegetables,867.9747,867.97461,8126.68593467555,9362.815272529171,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Fruits,158.9025,158.26409,865.19498164017,5466.780124538484,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Fodder crops,302.2266,296.22228,3833.76466707232,12942.188774835979,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Karongi,Other crops,2387.234,749.2968934855601,1202.0111021566559,1604.1853537723498,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Maize,1574.971,1574.971,1762.1122041619997,1118.8219999999997,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Sorghum,153.8792,153.8792,118.87589829007999,772.5274,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Cassava,2016.804,920.3875634479,13756.250581426832,14946.150000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Sweet potato,2749.162,2547.638,19603.952123376002,7694.952000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Irish potato,3482.393,3482.393,16784.274108929,4819.753,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Yams & Taro,545.7774,424.9677,3695.7107796326995,8696.451,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Banana,6716.847,2601.32692739911,31159.624500218866,11978.357726598117,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Beans,5614.5799,5614.5799,4748.8949116227395,845.8148242974937,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Soybean,1113.636,1113.636,467.8372586004,420.0989,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Vegetables,315.1112,214.61062,1791.7736024878902,8348.951242431014,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Fruits,240.9736504,96.1114579,293.4725981705167,3053.461102170178,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Fodder crops,383.3741,383.3741,2834.4238860983,7393.363,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rutsiro,Other crops,3635.805,1591.9606322159998,11612.248239853572,7294.306156107259,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Maize,1769.746,1765.6129649999998,2495.2963878600003,1413.27484410492,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Sorghum,149.9755,149.9755,118.90404083405,792.8230999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Cassava,389.7715,263.96455388884,3363.787418508271,12743.329999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Sweet potato,1605.949,1559.802,12430.235276021998,7969.110999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Irish potato,6133.44,6133.43974,52841.203886648,8615.264211701215,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Yams & Taro,162.6562,137.5958,805.1141669442,5851.299,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Banana,2519.8949000000002,1038.58493397762,12604.125003448878,12135.863511111243,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Beans,5222.0291,5222.0291,4096.89210992225,784.5402680583013,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Soybean,567.495,567.495,314.3964862125,554.0074999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Vegetables,2646.536,2606.3959439999994,31948.753709927514,12257.828202761937,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Fruits,19.32561,19.32561,140.12605568556,7250.796,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Fodder crops,233.9672,233.96725400000003,4230.042492967999,18079.634737979184,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rubavu,Other crops,1722.384,1434.2048614843402,7538.375436220091,5256.135743688805,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Maize,4217.603,4203.351,5612.9405544989995,1335.349,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Sorghum,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Wheat,1375.254,1375.254,1767.396676068,1285.142,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Cassava,476.0027,97.36554182446001,979.5226657949421,10060.26,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Sweet potato,2839.372,1954.459,14771.963342096999,7558.082999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Irish potato,7807.961,7809.5532,66982.57614939999,8577.004911036394,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Yams & Taro,38.00615,28.5046,230.3601814414,8081.508999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Banana,1133.9358,348.47314948429005,3477.0785716343307,9978.038700485546,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Beans,2958.6701900000003,2932.5411900000004,2996.449641540556,1021.7928572524348,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Soybean,47.50774,47.50774,29.301643347787998,616.7762,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Vegetables,798.8758,798.8757899999999,12706.930103191202,15906.01475504872,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Fruits,451.3234,371.70436729601,2194.3954884946666,5903.6042660944595,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Fodder crops,152.0249,109.26795000000001,1346.9556484726,12327.088121197477,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyabihu,Other crops,2558.846,214.90729,243.79844739121995,1134.4354460531326,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Maize,3721.33,3721.33,4321.12652674,1161.178,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Sorghum,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Wheat,1424.5365000000002,1424.5365000000002,1607.7489883380003,1128.612,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Cassava,5181.977,721.5003800444999,7440.169639049287,10312.08,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Sweet potato,5860.518,5563.79,40380.50228807,7257.733,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Irish potato,1268.902,1268.902,6706.56580766,5285.33,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Yams & Taro,2081.341,1826.401,15905.720847978002,8708.778,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Banana,9708.298200000001,4062.90859345616,44357.2164436896,10917.601374328882,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Beans,5726.3122,5726.3122,5521.66978526896,964.2627912025056,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Soybean,1559.434,1559.434,626.7321581847999,401.89719999999994,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Vegetables,381.8876,331.68931999999995,3248.580234756401,9794.045327586675,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Fruits,254.472,199.152,628.3614031199999,3155.1849999999995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Fodder crops,387.6426,331.8667,4359.264905853,13135.589999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngororero,Other crops,1742.209,643.1995419688001,5425.351773861472,8434.94346599619,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Maize,1040.832,1040.832528,1023.0689787914,982.9333262261382,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Sorghum,63.86591,64.1765297,52.831785331249996,823.2259609271143,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Paddy rice,1452.919526,1452.919526,7060.125,4859.267752727552,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Cassava,17762.18,10978.936068826,123703.8327437095,11267.378912512184,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Sweet potato,2151.98,2026.7506283,17535.121747185003,8651.839798314571,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Irish potato,60.21713,60.21713,434.7402195887199,7219.543999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Yams & Taro,429.2964,429.2964,4032.0239105952,9392.168,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Banana,4719.4029,1668.6131753252603,21003.86000148919,12587.614860103773,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Beans,11174.444,11174.81773,8704.038423135698,778.8975742994689,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Groundnut,286.4592,286.4592,178.45975606608002,622.9849,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Soybean,1028.634,1028.634,387.2473732584,376.46759999999995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Vegetables,714.7633,649.42605,5130.60511684941,7900.214530737425,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Fruits,1715.003,241.13684057655001,1586.5417951475358,6579.425156911603,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Fodder crops,231.6484,231.64841,2802.7911012200198,12099.332351212857,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rusizi,Other crops,2726.476,1978.6253161895,5352.12484288605,2704.971375375578,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Maize,521.4745,521.4745,546.0818387060001,1047.1880000000003,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Sorghum,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Paddy rice,384.0568,384.0568,1693.144,4408.577064642522,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Cassava,10495.48,4669.861619513999,60682.79700647183,12994.56,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Sweet potato,3972.03,3912.606,33004.294924644004,8435.374000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Irish potato,9.964632,9.964632,45.22308728352,4538.36,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Yams & Taro,945.9737,945.97373,6562.05937077411,6936.830445359312,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Banana,5454.4473,1859.20070690055,20551.643450470285,11054.020888756906,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Beans,7273.0599999999995,7273.0599999999995,5692.7803839789,782.721493288781,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Groundnut,876.1399,876.1399,401.73967006463,458.5337,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Soybean,1545.952,1545.952,607.5886636832,393.01910000000004,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Vegetables,656.493,656.4930099999999,6041.98974286507,9203.433472757113,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Fruits,447.4347,258.29456019466,1266.604925292649,4903.722805227065,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Fodder crops,112.3128,112.3128,246.2044828896,2192.132,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyamasheke,Other crops,5479.105,3311.1494893374006,6780.956240855696,2047.916067423656,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Maize,1196.602,1196.602,1210.182236098,1011.3489999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Sorghum,4238.904,4239.057256,4501.2415591,1061.849672525395,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Paddy rice,18.23817,18.23817,82.25,4509.772636180055,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Wheat,73.121,73.75024,81.10476942599999,1099.7221083755117,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Cassava,5088.826,1004.4149993021999,16400.52000705602,16328.43,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Sweet potato,3233.218,2782.212,24995.57345178,8984.065,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Irish potato,1235.955,1232.508853,5467.130629603,4435.773922674614,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Yams & Taro,147.3846,126.9557,631.9496730925999,4977.718,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Banana,6695.439,2670.2254203904004,32250.95423681225,12077.989367690536,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Beans,8905.623,8905.653028,7613.5435730702,854.911318589741,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Soybean,154.3582,154.3582,63.674733284960006,412.5128,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Vegetables,1224.587,1058.2372531,9624.967551074722,9095.283239065098,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Fruits,203.511,54.297675999999996,544.54060056186,10028.801243019314,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Fodder crops,91.95071,91.95071,845.9428539715999,9199.96,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rulindo,Other crops,4522.588390000001,763.4167540187599,4708.644766466354,6167.856209179614,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Maize,1467.058,1467.058,1420.2810023758,968.1151,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Sorghum,313.7291,313.7291,403.7574299942,1286.962,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Paddy rice,17.18772,17.18772,72.455,4215.50967783976,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Wheat,235.0881,235.0881,256.02998303609996,1089.081,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Cassava,6591.786,1524.7509504568,23822.815582503576,15624.070000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Sweet potato,6296.055,5138.312,52340.18199312,10186.26,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Irish potato,932.5454,932.5454,5249.563832039,5629.285000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Yams & Taro,1468.247,1288,10928.182831999999,8484.614,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Banana,15107.034,6383.050282295901,73665.09186545675,11540.735010309269,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Beans,11527.278,11527.278,9989.7353961888,866.6170275574858,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Soybean,686.2609,686.2609,303.67758536336,442.51039999999995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Vegetables,582.7612,400.79695999999996,3702.5074819503798,9237.863186263638,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Fruits,521.9904,377.464764,2456.51312684736,6507.926993809044,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Fodder crops,124.9305,124.9305,651.3993704669999,5214.093999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gakenke,Other crops,1908.464,1325.6415591935001,15455.070988551866,11658.55949624459,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Maize,2427.169,2427.169,3647.369962694,1502.7260000000003,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Sorghum,1908.529,1908.529,2463.256313553,1290.657,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Wheat,1370.88598,1370.88598,1942.4553657011902,1416.934299452964,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Cassava,198.5306,38.016224082772,453.84338553374454,11938.15,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Sweet potato,2149.056,2036.5,17966.9418265,8822.461,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Irish potato,4536.642,4536.81481,41102.52891532901,9059.77665756408,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Yams & Taro,164.8758,150.1945,1447.689639987,9638.765999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Banana,2049.1915,777.36119382939,7687.149724906811,9888.774723933459,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Beans,7702.6629,7702.387900000001,8316.779290153168,1079.766352737593,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Soybean,25.96658,25.96658,13.238448001712001,509.82640000000004,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Vegetables,1175.141,1175.14149,11981.787136967729,10196.037871973807,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Fruits,142.3315,116.7438407,277.70418376050003,2378.748052962592,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Fodder crops,69.1324,68.5485671,274.04702948825997,3997.8520497514523,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Musanze,Other crops,1838.196,492.57667,5394.636295339709,10951.871300237806,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Maize,2429.937,2429.937,3171.0556353149996,1304.995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Sorghum,5832.99,5832.99,7754.95437201,1329.499,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Wheat,631.4078,631.4078,958.502296712,1518.04,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Other cereals,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Cassava,70.876683590066,38.9821759745363,487.73640971468376,12511.78,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Sweet potato,3920.101,3359.542,27314.007053134,8130.276999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Irish potato,4707.645,4707.645,34212.12272133,7267.353999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Yams & Taro,85.29472,35.18193,256.12490776509,7280.012999999998,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Banana,2061.4557,759.6908749768199,9816.936010883137,12922.277118548616,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Beans,10604.332199999999,10604.332199999999,11778.4673946216,1110.7222192286283,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Groundnut,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Soybean,46.06362,46.06362,12.925147752108,280.5934,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Vegetables,604.2496,556.4995399999999,5081.599472907601,9131.363294402006,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Fruits,241.46745865480568,116.51911615480569,558.8612866893346,4796.305577419926,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Fodder crops,528.2106,528.2106,7140.514636086,13518.31,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Burera,Other crops,660.3267000000001,213.6495,2024.561890455,9476.09,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Maize,2248.389,2248.389,2392.7513125230003,1064.207,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Sorghum,9829.666,9829.666709,13936.151954911997,1417.7644438495681,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Paddy rice,0,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Wheat,1020.426,1019.97845,1303.6545709795,1278.1197200583013,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Other cereals,77.99521,77.99520000000001,30.775559783276,394.58274077476557,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Cassava,3169.75,847.0934395569,12548.723620514378,14813.86,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Sweet potato,4754.205,4712.876,39056.018145088005,8287.088000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Irish potato,2360.52,2360.7561499999997,14631.160052180001,6197.658344416471,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Yams & Taro,165.742,149.4181,946.8043760591,6336.611,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Banana,6761.339,2560.4512573097,30892.390795081705,12065.213390369614,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Beans,14979.377,14979.369971,12960.113921173901,865.1975314225251,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Groundnut,127.1642,127.1642,34.603934820419994,272.1201,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Soybean,232.0556,232.0556,134.91698660664002,581.3994000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Vegetables,680.6831,680.6418278000001,5755.96267005204,8456.669036425092,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Fruits,203.621,77.926312,239.25220589280002,3070.236480494548,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Fodder crops,565.7015,565.7164680000001,5992.628497425,10592.989308957149,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gicumbi,Other crops,1782.935,644.21836789856,3484.3057254513747,5408.5786731247335,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Maize,4245.361,4241.613189,3488.2843474723995,822.3956763711392,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Sorghum,6424.662,6424.74053,6891.12953833,1072.592660536596,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Paddy rice,511.797882,511.797882,2072.728497877096,4049.896591555445,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Other cereals,28.46517,28.46517,10.133290249647,355.9891,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Cassava,5418.817,1883.5778166323998,31634.91545967915,16795.119999999995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Sweet potato,1821.309,1516.5851069999999,10712.812775831999,7063.772897666995,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Irish potato,660.146,660.146071,2554.0194295413,3868.8701512264242,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Yams & Taro,388.5704,179.5636,939.7678277956,5233.621,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Banana,11504.360999999999,4813.4681253372,71697.15584080874,14895.113870892437,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Beans,12640.2937,12634.983660000002,6869.8596237048305,543.7173334425056,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Groundnut,1551.07,1551.07,575.915703354,371.3022,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Soybean,616.7763,616.7383517999999,382.17949675882005,619.6785000371694,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Vegetables,1024.85,974.5163012,7749.358568175918,7952.0050702420385,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Fruits,578.2698,435.53691349999997,2410.24142684034,5533.954418401645,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Fodder crops,785.0697,784.196083,16395.318104422997,20907.166536335524,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Rwamagana,Other crops,1282.212,932.0558726987799,1803.1834433476745,1934.630204224274,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Maize,25702.32,25716.861699999998,39346.58628794,1529.9917519850412,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Sorghum,4724.248,4724.248149999999,6217.456553871999,1316.0732367269911,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Paddy rice,2198.4847390000004,2198.4847390000004,9426.423164222913,4287.690970513901,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Wheat,81.0336,81.0336,26.71753153248,329.7093,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Other cereals,15.63095,15.63095,5.551255300845001,355.14510000000007,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Cassava,3375.293,966.5728221472998,16982.43387034258,17569.740718154146,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Sweet potato,1459.613,1459.612624,8259.4656941,5658.669675975617,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Irish potato,661.3066,661.30664,3040.276874598,4597.378418275069,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Yams & Taro,120.3664,39.33281,282.56041712635,7183.834999999999,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Banana,11230.971000000001,5271.670861847901,78075.93777915361,14810.472775188648,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Beans,29777.611,29776.1034,22202.5812653254,745.6509996309793,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Groundnut,1644.285,1644.285,781.9770570195001,475.5727,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Soybean,2214.407,2214.6665000000003,1150.7343511006002,519.5971271975261,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Vegetables,744.2151,744.217489,7867.1559281843,10571.044142963296,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Fruits,249.0449,53.1597829,94.672089665414,1780.896845337079,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Fodder crops,564.2671,563.375439,8278.87401621995,14695.127694801671,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Nyagatare,Other crops,828.346,489.0924317272499,847.949574490834,1733.7204983856843,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Maize,9350.443,9349.9523,11353.24502209,1214.2569991603057,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Sorghum,7655.481,7655.4804699999995,10622.22516391,1387.5321353814388,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Paddy rice,1698.23918,1698.23918,6604.04178986966,3888.758349026937,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Wheat,351.3905,351.3905,199.68619041415002,568.2743000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Other cereals,271.1966,271.19659,166.41685694885396,613.6391941685328,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Cassava,1821.094,764.9534326280001,12884.753226636814,16843.84,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Sweet potato,2886.014,2886.0146454,26503.70149675,9183.495149268932,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Irish potato,2138.539,2138.5391910000003,10331.352546801001,4831.032599393218,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Yams & Taro,517.8293,302.0027,1971.1190744302,6526.826,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Banana,21070.615999999998,7067.387725358599,101028.50252199992,14295.02758982616,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Beans,19138.426,19138.116255999998,12417.623069857525,648.8424933652742,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Groundnut,1825.379,1825.379,643.5302474719,352.5461,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Soybean,1877.364,1875.4279000000001,912.126972344,486.3567254939526,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Vegetables,770.2828,771.9772309000001,6260.19277854751,8109.29717609565,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Fruits,73.88359,73.77653,352.19565311501,4773.817,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Fodder crops,452.2617,446.02229300000005,5427.03153465,12167.623950245015,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Gatsibo,Other crops,2602.765,1222.9939590607999,2143.060560006709,1752.3067420974635,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Maize,6412.962,6412.8292,7072.066742769999,1102.7997974388588,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Sorghum,12919.41,12919.408246,18201.688855200005,1408.8639749297697,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Paddy rice,1754.12283,1754.12283,5246.1,2990.7255696569437,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Other cereals,680.2858,680.2858257,491.94247200629206,723.1408525969116,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Cassava,12018.65,3172.3908101868,50904.62896764881,16046.14059660934,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Sweet potato,1544.297,1438.14982,9783.782533110001,6803.034285475209,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Irish potato,2138.496,2128.024909,8865.837877848,4166.228431045117,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Yams & Taro,490.3894,354.04629,1878.1314206232303,5304.762325353643,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Banana,11491.4,4260.2196270116,68076.02402307349,15979.463497947996,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Beans,20996.9443,20994.10893,12053.258349278129,574.1257411527648,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Groundnut,442.9859,443.944142,155.21130598992002,349.61899776553423,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Soybean,553.427,553.427,225.296811138,407.094,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Vegetables,663.0264,578.0169841999999,3892.6239563923,6734.445635330002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Fruits,2169.288,562.61326014484,1538.0169481715766,2733.7019176825434,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Fodder crops,783.6693,782.418152,3194.6375556763996,4083.030982231608,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kayonza,Other crops,1184.76803,625.47830167448,2741.323658632912,4382.763800589184,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Maize,2339.115,2336.6302,5443.1356723852,2329.4810074718716,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Sorghum,10205.04,10205.04,10714.087805280002,1049.882,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Paddy rice,920.995883,920.995883,4738.31829478119,5144.776846718206,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Other cereals,518.4227,518.511441,288.26705978339,555.9512037524934,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Cassava,7328.111,2002.7658368592001,29642.296266285226,14800.68,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Sweet potato,1262.458,1134.889,7577.943249694999,6677.255,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Irish potato,1352.716,1352.716,5396.8809747079995,3989.6629999999996,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Yams & Taro,1306.167,959.5296,4029.0254496863995,4198.959,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Banana,17591.586,6277.8478988935,95811.77632059112,15261.882394041178,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Beans,23626.242000000002,23629.62141,15483.5292262971,655.2593017738535,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Groundnut,1032.936,1032.936,371.33770307279997,359.4973,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Soybean,1237.549,1238.192,1222.77324813426,987.5473659450715,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Vegetables,442.5076,439.78693300000003,2113.481142374132,4805.693356910474,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Fruits,137.8998,98.35149657873902,215.56599172340103,2191.7916780333026,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Fodder crops,267.224752,72.51325200000001,248.18522534539778,3422.61888,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Kirehe,Other crops,5099.05,2893.2055428365,4220.836458689104,1458.8788788752954,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Maize,1827.125,1827.9484850000001,1473.0144711634,805.8293126151199,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Sorghum,7868.953,7868.967363000001,9069.685195676999,1152.5889964066685,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Paddy rice,949.895,949.895,3408.564,3588.358713331473,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Other cereals,1165.902,1165.9024,638.42851528554,547.5831555759213,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Cassava,7540.114,1841.5228423968003,28058.197051123036,15236.410000000002,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Sweet potato,1295.525,1185.5581621000001,8248.295761016001,6957.310087938367,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Irish potato,657.5034,657.5034,3123.8926763862005,4751.143000000001,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Yams & Taro,247.4559,164.67526660000001,608.1629525175,3693.1044052580264,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Banana,15774.185000000001,6792.286966263399,97315.97001300349,14327.423222305248,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Beans,19954.608,19919.07355,14594.442749491198,732.6868246586297,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Groundnut,1243.815,1243.8152229999998,558.2465941045999,448.81794641341196,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Soybean,1382.612,1382.4041878,556.6254112062,402.65026402446784,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Vegetables,325.946,307.53669110000004,2093.31652958365,6806.721247133982,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Fruits,1340.409,1157.6098795999999,6759.2722899584005,5838.989809152283,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Fodder crops,206.2274,206.349149,4313.46698964,20903.730451730626,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Ngoma,Other crops,1736.876,915.7903147,1527.8641190299638,1668.3558392190146,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Maize,6435.815,6435.1663,6482.9137648684,1007.4197717110122,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Sorghum,3620.981,3620.980977,3617.1639112512,998.945847610621,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Paddy rice,1439.504365,1439.504365,7359.799071946471,5112.7313337090645,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Wheat,,0,0,0,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Other cereals,85.51787,85.51787,65.351584659181,764.1863,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Cassava,9747.556,1968.3461872282999,29318.45740837991,14894.97,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Sweet potato,1492.727,1342.9267260000001,7422.270972332,5526.936673931381,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Irish potato,363.0865,363.0902091,1015.536187962,2796.925288840018,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Yams & Taro,393.3199,289.94260399999996,1307.75242038559,4510.38378749468,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Banana,9794.859,5016.7209671151995,61302.2262824957,12219.580615372903,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Beans,22058.2176,22058.430699999997,13145.011904594421,595.917818605039,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Groundnut,3800.552,3800.552004,1826.3491322616,480.54838621847733,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Soybean,1669.128,1669.33451,533.7410720626,319.7328449542447,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Vegetables,561.7252,527.2642578999998,6311.13890317052,11969.593630917956,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Fruits,691.65093,61.33623310699999,199.78860823906768,3257.268960265948,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Fodder crops,981.7576,844.429994,11149.910594446,13204.067446289693,NISR SAS 2025 Season B - uploaded official table workbook
+2025,B,Bugesera,Other crops,1224.024,382.51386859552997,345.63082942139715,903.577249866637,NISR SAS 2025 Season B - uploaded official table workbook
