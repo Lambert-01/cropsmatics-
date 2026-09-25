@@ -8,8 +8,17 @@
     "node": ">=20"
   },
   "scripts": {
+    "setup": "bash scripts/dev.sh setup",
+    "dev": "bash scripts/dev.sh all",
+    "dev:api": "bash scripts/dev.sh api",
     "dev:web": "pnpm --filter cropmatics-web dev",
-    "dev:mobile": "pnpm --filter cropmatics-mobile start",
+    "dev:mobile": "bash scripts/dev.sh mobile",
+    "dev:mobile:emulator": "bash scripts/dev.sh mobile --emulator",
+    "dev:stop": "bash scripts/dev.sh stop",
+    "dev:status": "bash scripts/dev.sh status",
+    "dev:verify": "bash scripts/dev.sh verify",
+    "migrate": "bash scripts/dev.sh migrate",
+    "load:db": "bash scripts/dev.sh load",
     "build:web": "pnpm --filter cropmatics-web build",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",

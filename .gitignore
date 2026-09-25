@@ -57,5 +57,8 @@ ml/reports/*
 !ml/reports/.gitkeep
 data/**/*.tmp
 
+# ---- Local dev runner (scripts/dev.sh) ----
+.dev-run/
+
 # ---- Misc ----
 *.log

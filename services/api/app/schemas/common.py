@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HealthOut(BaseModel):
@@ -51,6 +51,11 @@ class DataVersionOut(BaseModel):
 
 class Provenance(BaseModel):
     """Every analytical result exposes this so it can be traced and qualified."""
+
+    # `model_version` is part of the public contract and is reported, not
+    # computed, so opt out of pydantic's `model_` protected namespace instead of
+    # renaming the field (renaming would break existing API clients).
+    model_config = ConfigDict(protected_namespaces=())
 
     source_id: str | None = None
     source_period: str | None = None

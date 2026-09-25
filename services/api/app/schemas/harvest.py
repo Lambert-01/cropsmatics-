@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.common import Provenance
 
@@ -29,6 +29,9 @@ class HarvestOut(BaseModel):
 
 
 class RiskOut(BaseModel):
+    # Same reason as Provenance: `model_version` is a documented response field.
+    model_config = ConfigDict(protected_namespaces=())
+
     harvest_id: str
     probability: float | None = None
     band: str

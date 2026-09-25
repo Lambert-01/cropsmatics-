@@ -31,17 +31,43 @@ $(VENV)/bin/activate:
 	$(PIP) install -r $(API_DIR)/requirements.txt -r $(API_DIR)/requirements-dev.txt
 
 # ---------- run ----------
+# The runner script handles env-file checks, the LAN IP for the phone, and
+# process management. `make api` etc. stay as thin wrappers around it.
+.PHONY: setup
+setup: ## One-shot local setup: deps, migrations, table load, app env files
+	bash scripts/dev.sh setup
+
+.PHONY: dev
+dev: ## Run API + web (prints the mobile command)
+	bash scripts/dev.sh all
+
 .PHONY: api
-api: ## Run FastAPI (reload)
-	cd $(API_DIR) && .venv/bin/uvicorn app.main:app --reload --port 8000
+api: ## Run FastAPI on 0.0.0.0:8000 (reload)
+	bash scripts/dev.sh api
 
 .PHONY: web
-web: ## Run Next.js
-	pnpm --filter cropmatics-web dev
+web: ## Run Next.js on :3000
+	bash scripts/dev.sh web
 
 .PHONY: mobile
-mobile: ## Run Expo
-	pnpm --filter cropmatics-mobile start
+mobile: ## Run Expo pointed at this machine's LAN IP
+	bash scripts/dev.sh mobile
+
+.PHONY: mobile-emulator
+mobile-emulator: ## Run Expo pointed at the Android emulator
+	bash scripts/dev.sh mobile --emulator
+
+.PHONY: stop
+stop: ## Stop processes started by scripts/dev.sh
+	bash scripts/dev.sh stop
+
+.PHONY: status
+status: ## Show what is running and the resolved config
+	bash scripts/dev.sh status
+
+.PHONY: verify
+verify: ## End-to-end smoke test against the running API
+	bash scripts/dev.sh verify
 
 # ---------- database ----------
 .PHONY: db-up
@@ -59,6 +85,10 @@ migrate: ## Apply Alembic migrations
 .PHONY: db-init
 db-init: ## Create the database schema from models (dev convenience)
 	cd $(API_DIR) && .venv/bin/python -m app.db.init_db
+
+.PHONY: load
+load: ## Load processed CSVs into PostgreSQL
+	bash scripts/dev.sh load
 
 # ---------- quality ----------
 .PHONY: lint

@@ -8,7 +8,7 @@ the contributions and provenance so the app can explain *why*.
 from __future__ import annotations
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.repositories import dataset_repository as repo
 from app.schemas.common import Provenance
@@ -40,6 +40,10 @@ class RiskActionOut(BaseModel):
 
 
 class RiskResponse(BaseModel):
+    # `model_version` is a documented response field, so opt out of pydantic's
+    # `model_` protected namespace rather than renaming it and breaking clients.
+    model_config = ConfigDict(protected_namespaces=())
+
     probability: float
     band: str
     # A documented rule score, NOT a calibrated model probability.
