@@ -1,19 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import * as Sharing from "expo-sharing";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, Share, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 import { ScreenLayout } from "../src/components/ScreenLayout";
-import {
-  apiBaseUrl,
-  apiIsLan,
-  apiIsLocal,
-  shareUrl,
-  shareUrlText,
-} from "../src/config/share";
+import { apiBaseUrl, apiIsLan, apiIsLocal, shareUrl, shareUrlText } from "../src/config/share";
 import { strings } from "../src/i18n";
 import { useAppStore } from "../src/store/useAppStore";
 import { colors, radius, spacing, typography } from "../src/theme";
@@ -25,17 +16,10 @@ import { colors, radius, spacing, typography } from "../src/theme";
  * carries instructions and works for both an EAS APK install and Expo Go.
  */
 export default function ShareScreen() {
-  const router = useRouter();
   const language = useAppStore((state) => state.language);
   const t = strings(language);
 
-  const [canShare, setCanShare] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (shareUrl) void Sharing.isAvailableAsync().then(setCanShare).catch(() => setCanShare(false));
-    else setCanShare(false);
-  }, []);
 
   const openLink = () => {
     if (shareUrl) void Linking.openURL(shareUrl);
@@ -48,12 +32,9 @@ export default function ShareScreen() {
   };
 
   const share = async () => {
-    if (!shareUrl || canShare !== true) return;
+    if (!shareUrl) return;
     try {
-      await Sharing.shareAsync(shareUrl, {
-        dialogTitle: t.shareVia,
-        mimeType: "text/plain",
-      });
+      await Share.share({ message: shareUrl, url: shareUrl, title: t.shareVia });
     } catch {
       // User cancelled or no target app; the link is on screen regardless.
     }
@@ -108,18 +89,9 @@ export default function ShareScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={share}
-              disabled={canShare !== true}
-              style={({ pressed }) => [
-                secondaryButton,
-                canShare !== true && disabledButton,
-                pressed && canShare === true && { opacity: 0.7 },
-              ]}
+              style={({ pressed }) => [secondaryButton, pressed && { opacity: 0.7 }]}
             >
-              {canShare === null ? (
-                <ActivityIndicator size="small" color={colors.forest} />
-              ) : (
-                <Ionicons name="share-social-outline" size={16} color={colors.forest} />
-              )}
+              <Ionicons name="share-social-outline" size={16} color={colors.forest} />
               <Text style={{ color: colors.forest, fontSize: 13 }}>{t.sendToSomeone}</Text>
             </Pressable>
 
