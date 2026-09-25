@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { ActivityIndicator, Linking, Pressable, Share, Text, View } from "react-native";
+import { useState } from "react";
+import { Linking, Pressable, Share, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 import { ScreenLayout } from "../src/components/ScreenLayout";
@@ -184,8 +185,6 @@ const secondaryButton = {
   borderWidth: 1,
   borderColor: colors.border,
 } as const;
-
-const disabledButton = { opacity: 0.5 } as const;
 
 const actionRow = {
   flexDirection: "row" as const,

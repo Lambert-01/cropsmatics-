@@ -7,9 +7,18 @@ Thumbs.db
 !.vscode/extensions.json
 
 # ---- Secrets / env ----
+# Every real env file is ignored, in the repo root and in every app.
 .env
 .env.*
+.env.local
+.env.development
+.env.production
+.env.build
 !.env.example
+
+# ---- EAS / Expo build artifacts ----
+eas-credentials/
+.eas/
 
 # ---- Node ----
 node_modules/

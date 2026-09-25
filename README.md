@@ -148,6 +148,22 @@ make migrate                 # apply Alembic migrations
 make db-init                 # or create tables directly from models (dev)
 ```
 
+### Share the mobile app (QR / link install)
+
+The app reaches other phones through a shared QR code or link, not the Play Store:
+
+```bash
+./scripts/build-apk.sh       # EAS Build -> APK; API = this machine's LAN IP
+./scripts/build-apk.sh --api https://api.example.com/api/v1   # deployed API
+```
+
+Requires a free Expo account (`npm i -g eas-cli && eas login`). The script bakes
+the API URL and install-page URL into the APK; when the build finishes EAS hosts
+the .apk at a public link. The in-app **Profile → Share app** screen shows the
+QR + link to forward, and the web app exposes **/install** — a landing page with
+the QR code, install steps and which API the build talks to. Put `/install` on
+the big screen at a demo: attendees scan it and install.
+
 ### Data pipeline
 
 ```bash

@@ -7,6 +7,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBasket,
+  Smartphone,
   Table2,
   TrendingUp,
   Warehouse,
@@ -59,6 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Workspace",
     items: [
       { href: "/assistant", label: "AI Assistant", icon: Bot },
+      { href: "/install", label: "Get the app", icon: Smartphone },
       { href: "/settings", label: "Settings", icon: Settings, comingSoon: true },
     ],
   },
