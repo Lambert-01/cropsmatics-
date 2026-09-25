@@ -7,8 +7,52 @@ analytics pages, and a mobile visual refresh — without inventing any statistic
 
 Statuses: `NOT STARTED` · `IN PROGRESS` · `FUNCTIONAL` · `VERIFIED`
 
-`VERIFIED` = implemented **and** exercised by the local checks listed in
-[DASHBOARD_REFINEMENT_REPORT.md](DASHBOARD_REFINEMENT_REPORT.md).
+`VERIFIED` in the phase tables below means implemented and exercised by the
+local checks listed in [DASHBOARD_REFINEMENT_REPORT.md](DASHBOARD_REFINEMENT_REPORT.md).
+
+### Verification levels (read this before trusting a status)
+
+| Level | Meaning |
+|---|---|
+| **LOCAL VERIFIED** | The command was run and passed on the development machine |
+| **CI VERIFIED** | A green GitHub Actions run exists for the commit |
+| **DEVICE VERIFIED** | Confirmed on a physical Android/iOS device |
+
+**As of 2026-09-25 nothing in this repository is CI VERIFIED or DEVICE VERIFIED.**
+No GitHub Actions run has been observed for these changes, and no device test has
+been performed. Local results are in
+[PRODUCTION_READINESS.md](PRODUCTION_READINESS.md), which records the exact
+commands and their outcomes.
+
+---
+
+## Phase 0 — Production hardening pass (2026-09-25)
+
+Scope: fix CI, strengthen raw-data validation, ingest the official MINAGRI
+storage-context add-on, and finish the mobile implementation.
+
+| Item | Where | Status |
+|---|---|---|
+| CI pnpm double-version conflict removed | `.github/workflows/ci.yml` | LOCAL VERIFIED |
+| Web CI gains `build`; mobile CI gains `expo config` smoke check | `.github/workflows/ci.yml` | LOCAL VERIFIED |
+| Data CI lints `scripts/data`, asserts new outputs, runs pipeline tests | `.github/workflows/ci.yml` | LOCAL VERIFIED |
+| Per-source raw validation (irrigation, erosion, post-harvest sums, national trends, inputs, cold chain, MINAGRI add-on) | `scripts/data/validate_raw.py` | LOCAL VERIFIED |
+| Area discrepancy report (ROUNDING_TOLERANCE / REVIEW / SEVERE) without touching raw values | `data/interim/area_consistency_report.csv` | LOCAL VERIFIED |
+| MINAGRI add-on ingested (national infrastructure + cold-chain program) | `data/raw/external/minagri/`, `scripts/data/build_postharvest_infrastructure.py`, `build_cold_chain_network_summary.py` | LOCAL VERIFIED |
+| `GET /analytics/storage-infrastructure` | `services/api/app/services/storage_service.py` | LOCAL VERIFIED |
+| `GET /health/readiness` | `app/services/meta_service.py` | LOCAL VERIFIED |
+| `GET /meta/data-version` + data manifest | `scripts/data/build_manifest.py` | LOCAL VERIFIED |
+| Structured risk factors/actions with a rule-score label | `app/services/risk_service.py` | LOCAL VERIFIED |
+| Storage page split into official / program / scenario sections with badges | `apps/web/app/storage/page.tsx`, `ui/DataBadge.tsx` | LOCAL VERIFIED |
+| Post-harvest page: stored-vs-sold chart, headline crops, national context | `apps/web/app/post-harvest/page.tsx` | LOCAL VERIFIED |
+| Transparency page: pipeline status, warnings, build identity | `apps/web/app/transparency/page.tsx` | LOCAL VERIFIED |
+| Active sidebar item contrast fixed | `components/layout/AppSidebar.tsx` | LOCAL VERIFIED |
+| Mobile: additive SQLite migrations (farm, risk, attachments, expanded harvest) | `src/database/schema.ts` | LOCAL VERIFIED |
+| Mobile: real farm model + expanded harvest wizard (dates, GPS, notes, storage, files) | `app/register-harvest.tsx` | LOCAL VERIFIED |
+| Mobile: risk persistence, structured factors, storage CTA | `app/harvest-risk.tsx` | LOCAL VERIFIED |
+| Mobile: storage options, insights, profile, harvest history, alerts, home rebuilt on real data | `apps/mobile/app/*` | LOCAL VERIFIED |
+| Mobile: brand mark, initials avatar, real notification badge | `src/components/BrandMark.tsx`, `AppHeader.tsx` | LOCAL VERIFIED |
+| Docker image builds processed data at build time; readiness healthcheck | `services/api/Dockerfile`, `docker-compose.yml` | CODE READY — image not built here |
 
 ---
 
@@ -106,9 +150,18 @@ Statuses: `NOT STARTED` · `IN PROGRESS` · `FUNCTIONAL` · `VERIFIED`
 
 | Item | Status |
 |---|---|
-| Mobile photo attachment (needs `expo-image-picker` + schema column) | NOT STARTED |
-| Mobile farm-name / notes persistence (needs SQLite schema migration) | NOT STARTED |
+| Mobile photo/document attachment → **done this pass** (local storage; server upload still absent) | DONE (LOCAL VERIFIED) |
+| Mobile farm-name / notes persistence → **done this pass** (`local_farm`, `notes`, additive migration) | DONE (LOCAL VERIFIED) |
+| GitHub Actions green run | BLOCKED — not observed |
+| First Alembic revision + upgrade/downgrade round trip | BLOCKED — `alembic/versions/` is empty |
+| Server-side attachment upload with size/type validation | BLOCKED — not implemented |
+| CHIRPS rainfall pipeline | BLOCKED — not implemented |
+| Market price provider/repository/service interfaces | BLOCKED — not scaffolded |
+| Database-backed auth, harvest ownership, PostGIS distance | NOT STARTED (unchanged from prior state) |
+| Server-side conflict versioning for harvest edits | PARTIAL — client records CONFLICT, server has no version guard |
+| Rate limiting, metrics, tracing | BLOCKED — not implemented |
+| EAS preview build + physical device test | BLOCKED — not run |
 | PDF report export (CSV implemented) | NOT STARTED |
-| Database-backed auth, harvest sync, PostGIS distance | NOT STARTED (unchanged from prior state) |
 | Component-render tests (jsdom/Testing Library) | NOT STARTED |
 | MapLibre/Map Tiles basemap (SVG choropleth used instead) | NOT STARTED (deliberate) |
+| Pixel comparison against the 8 reference images | BLOCKED — needs a human reviewer |

@@ -62,9 +62,10 @@ db-init: ## Create the database schema from models (dev convenience)
 
 # ---------- quality ----------
 .PHONY: lint
-lint: ## Lint JS + Python
+lint: ## Lint JS + Python (including the data pipeline)
 	pnpm -r --if-present lint
 	cd $(API_DIR) && .venv/bin/ruff check app tests
+	$(VENV)/bin/ruff check scripts/data scripts/tests
 
 .PHONY: format
 format: ## Format Python
@@ -75,11 +76,15 @@ typecheck: ## Typecheck JS/TS
 	pnpm -r --if-present typecheck
 
 .PHONY: test
-test: test-api test-ml ## Run backend + ML tests
+test: test-api test-data test-ml ## Run backend + data pipeline + ML tests
 
 .PHONY: test-api
 test-api: ## Run API tests
 	$(VENV)/bin/pytest services/api/tests -q
+
+.PHONY: test-data
+test-data: ## Run data pipeline tests (requires `make data` first)
+	$(VENV)/bin/pytest scripts/tests -q
 
 .PHONY: test-ml
 test-ml: ## Run ML tests

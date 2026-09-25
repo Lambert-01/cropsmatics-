@@ -9,3 +9,4 @@ Meteo Rwanda,Rwanda Meteorology Agency,weather/climate,verify product/API availa
 CHIRPS,Climate Hazards Center,gridded rainfall,public research data,historical rainfall,https://www.chc.ucsb.edu/data/chirps,preserve attribution/version
 SoilGrids,ISRIC,soil grids,public products/API,soil covariates,https://soilgrids.org/,do not call grid values lab measurements
 OpenStreetMap,OSM contributors,roads/geodata,ODbL,routing/distance,https://www.openstreetmap.org/,follow ODbL
+MINAGRI Annual Report 2024/2025 - Post-Harvest Infrastructure Table 15,MINAGRI,official aggregate,public PDF; national storage/infrastructure context (national totals only),https://www.minagri.gov.rw/fileadmin/user_upload/Minagri/Publications/Annual_Reports/Annual_report_2024-2025_Final.pdf,do not assign national capacity to districts or single facilities

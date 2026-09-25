@@ -40,6 +40,9 @@ def _period(df: pd.DataFrame) -> pd.Series:
         return df["year"].astype(str) + df["season"].astype(str)
     if "year" in df.columns:
         return df["year"].astype(str)
+    if "period" in df.columns:
+        # National add-on tables use a free-text reporting period (e.g. 2024/2025).
+        return df["period"].astype(str)
     return pd.Series(["" for _ in range(len(df))], index=df.index)
 
 
@@ -81,6 +84,8 @@ def main() -> int:
         "national_crop_trends",
         "national_input_trends",
         "cold_chain_context",
+        "postharvest_infrastructure",
+        "cold_chain_network_summary",
     ]:
         path = PROCESSED_DIR / PROCESSED_FILES[name]
         if path.exists():

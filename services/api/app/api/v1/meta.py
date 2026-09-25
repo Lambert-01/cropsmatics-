@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.analytics.productivity_gap import STRATEGIES
-from app.schemas.common import Provenance
+from app.schemas.common import DataVersionOut, Provenance
 from app.schemas.dashboard import (
     CoverageResponse,
     ModelInfo,
@@ -33,6 +33,12 @@ def sources() -> SourcesResponse:
             limitations=["official source pages are external and may change"],
         ),
     )
+
+
+@router.get("/data-version", response_model=DataVersionOut)
+def data_version() -> DataVersionOut:
+    """Identify the processed-data build serving this API (no hashes/paths)."""
+    return DataVersionOut(**meta_service.data_version())
 
 
 @router.get("/models", response_model=ModelsResponse)

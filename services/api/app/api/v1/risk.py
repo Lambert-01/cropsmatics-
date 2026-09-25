@@ -26,9 +26,27 @@ class RiskRequest(BaseModel):
     capacity_available_kg: float | None = Field(default=None, ge=0)
 
 
+class RiskFactorOut(BaseModel):
+    factor: str
+    factor_value: str | None = None
+    impact: float
+    reason: str
+
+
+class RiskActionOut(BaseModel):
+    action: str
+    reason: str
+    priority: str = "MEDIUM"
+
+
 class RiskResponse(BaseModel):
     probability: float
     band: str
+    # A documented rule score, NOT a calibrated model probability.
+    score_label: str = "Risk score"
+    model_version: str = risk_service.MODEL_VERSION
+    factors: list[RiskFactorOut] = Field(default_factory=list)
+    actions: list[RiskActionOut] = Field(default_factory=list)
     contributing_factors: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
     capacity_context: str
@@ -55,16 +73,21 @@ def post_harvest_risk(payload: RiskRequest) -> RiskResponse:
     return RiskResponse(
         probability=result.probability,
         band=result.band,
+        score_label=result.score_label,
+        model_version=result.model_version,
+        factors=[RiskFactorOut(**factor.as_dict()) for factor in result.factors],
+        actions=[RiskActionOut(**action.as_dict()) for action in result.actions],
         contributing_factors=result.contributing_factors,
         recommended_actions=result.recommended_actions,
         capacity_context=(
             "capacity_not_verified" if payload.capacity_available_kg is None else "capacity_provided"
         ),
         provenance=Provenance(
-            model_version="rule-based-risk-0.1.0",
+            model_version=result.model_version,
             method="documented additive rule model (not a calibrated classifier)",
             limitations=[
                 "rule weights are expert-set, not calibrated on local outcomes yet",
+                "the score is a rule-based risk score, not a probability of loss",
                 "capacity is treated conservatively when unverified",
             ],
         ),

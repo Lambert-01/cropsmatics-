@@ -13,7 +13,7 @@ export const en = {
   profile: "Profile",
   crop: "Crop",
   district: "District",
-  quantity: "Expected quantity (kg)",
+  quantity: "Expected quantity",
   harvestDate: "Expected harvest date",
   save: "Save",
   saving: "Saving…",
@@ -39,12 +39,14 @@ export const en = {
   noAlerts: "No alerts. Official data updates are announced centrally.",
   records: "records",
   pending: "pending sync",
+  latestRisk: "Latest risk result",
+  latestRiskNone: "No risk result stored yet. Register a harvest while online to get one.",
 
   // Wizard
   stepFarm: "Farm",
   stepCrop: "Crop",
   stepQuantity: "Quantity",
-  stepSchedule: "Schedule",
+  stepSchedule: "Dates",
   stepReview: "Review",
   next: "Next",
   back: "Back",
@@ -58,7 +60,7 @@ export const en = {
     "Risk scoring needs a connection. Your harvest is saved and will be scored after sync.",
   riskUnavailable:
     "Risk scoring is unavailable right now. Your harvest is saved offline and will not be lost.",
-  topFactors: "Top contributing factors",
+  topFactors: "Top contributing risk factors",
   loadingRisk: "Requesting risk score…",
   dataLimitations: "Data limitations",
   notVerifiedNote: "Program districts only; facility capacity is not published.",
@@ -70,13 +72,144 @@ export const en = {
   startOver: "Register another",
   districtDataPeriod: "Latest district data period",
   localRecordNote: "From records on this device",
-  riskNotStored: "Risk results require a connection and are not saved on this device.",
+  riskNotStored: "Risk results are produced by the server, not calculated on this device.",
   noVerifiedContext: "No verified program context is available right now.",
   syncOnOpen: "Pending records are retried when the app opens or returns to the foreground.",
   scheduleToday: "Today",
   scheduleThreeDays: "In 3 days",
   scheduleWeek: "In 1 week",
   scheduleTwoWeeks: "In 2 weeks",
+
+  // --- farm profile -------------------------------------------------------
+  farm: "Farm",
+  selectedFarm: "Selected farm",
+  selectFarm: "Select farm",
+  newFarm: "New farm",
+  farmName: "Farm name",
+  farmSize: "Farm size",
+  farmSizeHa: "Farm size (ha)",
+  sector: "Sector",
+  noFarms: "No farm saved yet. Add your farm to register harvests against it.",
+  addFarm: "Add farm",
+  saveFarm: "Save farm",
+  farmNotFound: "The selected farm was not found on this device.",
+
+  // --- dates --------------------------------------------------------------
+  harvestStartDate: "Harvest start date",
+  harvestEndDate: "Harvest end date",
+  pickDate: "Pick a date",
+  clearDate: "Clear",
+  endBeforeStart: "End date must be on or after the start date.",
+  startTooOld: "Start date looks wrong — please check the year.",
+
+  // --- quantity -----------------------------------------------------------
+  unit: "Unit",
+  kilograms: "Kilograms (kg)",
+  tonnes: "Tonnes (t)",
+  quantityInvalid: "Enter a quantity greater than zero.",
+
+  // --- location -----------------------------------------------------------
+  useCurrentLocation: "Use current location",
+  useDistrictOnly: "District only",
+  locationOptional: "Location is optional — you can still save offline without GPS.",
+  locationPermissionDenied:
+    "Location permission was denied. You can continue with the district only.",
+  locationUnavailable: "Location is unavailable on this device right now.",
+  captureLocation: "Capture GPS location",
+  locationCaptured: "Location captured",
+
+  // --- notes / storage ----------------------------------------------------
+  notesPlaceholder: "Anything the field officer should know",
+  needsStorageAssistance: "Needs storage assistance",
+  notAReservation: "This records a preference. It is not a storage reservation.",
+
+  // --- attachments --------------------------------------------------------
+  stepAttachments: "Attachments",
+  attachments: "Attachments",
+  addPhoto: "Add photo",
+  addDocument: "Add document",
+  removeAttachment: "Remove",
+  attachmentTooLarge: "That file is larger than the allowed size.",
+  attachmentLimitReached: "You have reached the maximum number of attachments.",
+  attachmentPermissionDenied: "Permission was denied, so no file was added.",
+  noAttachments: "No attachments added.",
+
+  // --- risk ---------------------------------------------------------------
+  riskScore: "Risk score",
+  modelVersion: "Rule/model version",
+  factor: "Factor",
+  impact: "Impact",
+  reason: "Reason",
+  priority: "Priority",
+  action: "Recommended action",
+  whyRecommendation: "Why this recommendation?",
+  modelAndRules: "Model / rule information",
+  ruleBasedNote:
+    "This is a documented rule-based risk score, not a calibrated probability of loss.",
+  scoreUnavailable: "Risk score unavailable",
+  viewStorageOptions: "View storage options",
+  submittedHarvest: "Submitted harvest",
+
+  // --- insights -----------------------------------------------------------
+  insightsSubtitle: "Your latest risk results and recommendations, from this device.",
+  noInsightsYet: "No stored risk results yet. Risk is scored by the server after sync.",
+  recentRecommendations: "Recent recommendations",
+  harvestSummary: "Harvest summary",
+  dataPeriodInformation: "Data period information",
+
+  // --- alerts -------------------------------------------------------------
+  alertsSubtitle: "Only real signals — nothing is invented.",
+  alertsSyncFailure: "records could not be synced",
+  alertsNewRisk: "New risk result available",
+  alertsHarvestApproaching: "Harvest date approaching",
+  alertsDataUpdate: "Data or model update available",
+  alertsConflict: "A record needs your review before it can sync",
+  noAlertsYet: "No alerts right now.",
+
+  // --- profile ------------------------------------------------------------
+  offlineStatus: "Local / offline status",
+  localRecords: "Local records",
+  farmProfiles: "Farm profiles",
+  privacyConsent: "Privacy and consent",
+  privacyText:
+    "Your GPS coordinates and farm notes are private. They are never published in public analytics.",
+  appVersion: "App version",
+  aboutDataSources: "Data sources and about",
+  aboutText:
+    "Official NISR/MINAGRI statistics are kept separate from your field records. Risk results are produced by the server.",
+  signOut: "Sign out",
+  authNotEnabled: "Sign-in is not enabled in this build.",
+
+  // --- sync ---------------------------------------------------------------
+  syncNow: "Sync now",
+  syncSummary: "Attempted {attempted}, synced {synced}, failed {failed}.",
+  syncConflicts: "Conflicts needing review",
+  offlineBanner: "You are offline. Records are saved on this device and sync automatically.",
+
+  // --- harvest history ----------------------------------------------------
+  dateRange: "Date range",
+  riskBand: "Risk",
+  storageAssistanceRequested: "Storage assistance requested",
+  noRiskBandYet: "No risk result yet",
+  tapForDetails: "Tap for details",
+
+  // --- storage options ----------------------------------------------------
+  storageAndMarketOptions: "Storage & Market Options",
+  activeHarvest: "Active harvest",
+  districtContext: "Rwanda / district context",
+  programDistrictCards: "Program district cards",
+  nationalInfrastructure: "National post-harvest infrastructure (MINAGRI)",
+  coldChainProgram: "Cold-chain program context",
+  programDistricts: "Program districts",
+  nationalTotals: "National totals — not facility-level capacity",
+  officialNationalData: "OFFICIAL NATIONAL DATA",
+  verifiedProgramContext: "VERIFIED PROGRAM CONTEXT",
+  facilityDataNotAvailable: "FACILITY-LEVEL DATA: NOT AVAILABLE",
+  exactLocationNotPublished: "Exact facility location: not published",
+  storageOptimizationScenario: "Storage optimization scenario",
+  marketIntelligence: "Market intelligence",
+  verifiedSourceNotConnected: "Verified market-price source not connected yet.",
+  noActiveHarvest: "No harvest selected. Register a harvest to see its storage context.",
 } as const;
 
 // Equivalent to a mapped type over `typeof en`, but expressed via Record so it

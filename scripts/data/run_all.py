@@ -4,8 +4,11 @@
     validate_raw -> normalize_geography -> normalize_crops
                  -> build_district_crop -> build_factor -> build_irrigation
                  -> build_erosion -> build_postharvest -> build_national_trends
-                 -> build_input_trends -> build_cold_chain -> build_training
+                 -> build_input_trends -> build_cold_chain
+                 -> build_postharvest_infrastructure -> build_cold_chain_network_summary
+                 -> build_training
                  -> build_dashboard_summary -> build_data_coverage -> build_sources
+                 -> build_manifest
 
 Stops immediately if validation fails. Safe to re-run; outputs are overwritten.
 """
@@ -30,10 +33,13 @@ STEPS = [
     "scripts.data.build_national_trends",
     "scripts.data.build_input_trends",
     "scripts.data.build_cold_chain",
+    "scripts.data.build_postharvest_infrastructure",
+    "scripts.data.build_cold_chain_network_summary",
     "scripts.data.build_training_dataset",
     "scripts.data.build_dashboard_summary",
     "scripts.data.build_data_coverage",
     "scripts.data.build_sources",
+    "scripts.data.build_manifest",
 ]
 
 

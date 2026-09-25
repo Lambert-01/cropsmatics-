@@ -25,7 +25,13 @@ from app.schemas.dashboard import (
     TrendResponse,
 )
 from app.schemas.filters import AnalyticsFilters, analytics_filters
-from app.services import analytics_service, postharvest_service, trend_service
+from app.schemas.storage import StorageInfrastructureResponse
+from app.services import (
+    analytics_service,
+    postharvest_service,
+    storage_service,
+    trend_service,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -162,6 +168,16 @@ def input_adoption() -> TrendResponse:
 def post_harvest() -> PostHarvestResponse:
     result = postharvest_service.summary()
     return PostHarvestResponse(**result)
+
+
+@router.get("/storage-infrastructure", response_model=StorageInfrastructureResponse)
+def storage_infrastructure() -> StorageInfrastructureResponse:
+    """National MINAGRI post-harvest infrastructure plus cold-chain program context.
+
+    National/program level only: these are not facility capacities and are not
+    joined to districts.
+    """
+    return StorageInfrastructureResponse(**storage_service.infrastructure_summary())
 
 
 @router.get("/irrigation")

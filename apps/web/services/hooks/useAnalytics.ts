@@ -81,6 +81,18 @@ export function usePostHarvest() {
   });
 }
 
+/**
+ * National MINAGRI infrastructure totals + cold-chain program context.
+ * National/program level only, so it is not filter-dependent.
+ */
+export function useStorageInfrastructure() {
+  return useQuery({
+    queryKey: ["storage-infrastructure"],
+    queryFn: () => api.storageInfrastructure(),
+    staleTime: FIVE_MIN,
+  });
+}
+
 export function usePriorities(filters: DashboardFilters, limit = 50, enabled = true) {
   return useQuery({
     queryKey: ["priorities", filters, limit],

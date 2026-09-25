@@ -7,13 +7,28 @@
     "scheme": "cropmatics",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cropmatics attaches a photo to a harvest you register. Photos stay on your device until you sync."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Cropmatics can record where a harvest was made. Location is optional and is never published in public analytics."
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cropmatics.rwanda"
     },
     "android": {
-      "package": "com.cropmatics.rwanda"
+      "package": "com.cropmatics.rwanda",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "extra": {
       "apiBaseUrl": "http://localhost:8000/api/v1"

@@ -1,0 +1,29 @@
+# Keep the build context small and the image reproducible.
+# data/processed and ml/reports are regenerated inside the image on purpose.
+.git
+.github
+.kilo
+.pytest_cache
+.ruff_cache
+.pnpm-store
+node_modules
+**/node_modules
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+
+data/processed
+data/interim
+data/external
+data/dev_fixtures
+ml/reports
+ml/artifacts
+ml/notebooks
+
+apps
+VISUAL IMAGE
+.DS_Store
+**/.DS_Store
+*.log
+.env

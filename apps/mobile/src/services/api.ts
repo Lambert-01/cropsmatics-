@@ -1,6 +1,12 @@
 import Constants from "expo-constants";
 
-import type { FacilityContext, PostHarvestRisk, RiskResult } from "../types";
+import type {
+  FacilityContext,
+  FacilityContextResponse,
+  PostHarvestRisk,
+  RiskResult,
+  StorageInfrastructure,
+} from "../types";
 
 const BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
@@ -21,8 +27,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface HarvestPayload {
   district: string;
   crop: string;
-  expected_harvest_date?: string | null;
+  /** Canonical unit is kilograms. */
   expected_quantity_kg?: number | null;
+  harvest_start_date?: string | null;
+  harvest_end_date?: string | null;
+  expected_harvest_date?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  notes?: string | null;
+  needs_storage_assistance?: boolean;
+  farm_client_uuid?: string | null;
   client_uuid: string;
 }
 
@@ -46,8 +60,9 @@ export const api = {
   scoreRisk: (harvestId: string) =>
     request<RiskResult & { harvest_id: string }>(`/harvests/${harvestId}/risk`, { method: "POST" }),
   /**
-   * Stateless risk scoring: works before sync. The score is always produced by
-   * the server — the app never computes it locally.
+   * Stateless risk scoring: works before sync, and also for a harvest that has
+   * no server id yet. The score is always produced by the server — the app never
+   * computes it locally.
    */
   scorePostHarvestRisk: (payload: RiskPayload) =>
     request<PostHarvestRisk>("/risk/post-harvest", {
@@ -59,8 +74,22 @@ export const api = {
       coverage: Record<string, Record<string, string>>;
       notes: string[];
     }>("/meta/data-coverage"),
+  dataVersion: () =>
+    request<{
+      available: boolean;
+      pipeline_version?: string | null;
+      build_timestamp?: string | null;
+      validation?: { status?: string; errors?: number; warnings?: number };
+    }>("/meta/data-version"),
   facilityContext: (district?: string) =>
     request<{ facilities: FacilityContext[]; capacity_not_verified: boolean; note: string }>(
       `/facilities/context${district ? `?district=${encodeURIComponent(district)}` : ""}`,
     ),
+  /** Program membership only — no capacity and no coordinates are published. */
+  programContext: (district?: string) =>
+    request<FacilityContextResponse>(
+      `/facilities/program-context${district ? `?district=${encodeURIComponent(district)}` : ""}`,
+    ),
+  /** National MINAGRI infrastructure totals — never joined to a district. */
+  storageInfrastructure: () => request<StorageInfrastructure>("/analytics/storage-infrastructure"),
 };

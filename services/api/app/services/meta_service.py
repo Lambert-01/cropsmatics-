@@ -11,10 +11,32 @@ import json
 
 import numpy as np
 
-from app.core.config import REPO_ROOT
+from app.core.config import REPO_ROOT, get_settings
 from app.repositories import dataset_repository as repo
 
 MODELS_DIR = REPO_ROOT / "ml" / "reports"
+
+# Processed tables the public analytical endpoints depend on.
+# Keyed by the same logical dataset names the data manifest uses, so readiness
+# and the manifest can be compared directly.
+REQUIRED_DATASETS: dict[str, str] = {
+    "training": "training_district_crop.csv",
+    "district_crop_productivity": "district_crop_productivity.csv",
+    "district_factors": "district_productivity_factors.csv",
+    "irrigation_water": "irrigation_water.csv",
+    "erosion_control": "erosion_control.csv",
+    "crop_postharvest_use": "crop_postharvest_use.csv",
+    "national_crop_trends": "national_crop_trends.csv",
+    "national_input_trends": "national_input_trends.csv",
+    "cold_chain_context": "cold_chain_context.csv",
+    "postharvest_infrastructure": "national_postharvest_infrastructure.csv",
+    "cold_chain_network_summary": "cold_chain_network_summary.csv",
+    "dashboard_overview": "dashboard_overview.csv",
+    "data_coverage": "data_coverage.csv",
+    "data_sources": "data_sources.csv",
+}
+
+REQUIRED_DICTIONARIES = ["districts.csv", "crops.csv"]
 
 COVERAGE_NOTES = [
     "District-level productivity, factors, irrigation and erosion are only available for 2025 Season B.",
@@ -89,6 +111,109 @@ def sources() -> list[dict]:
         pass
 
     return list(items.values())
+
+
+def _database_status() -> str:
+    """Report DB connectivity without making readiness depend on it.
+
+    The public analytical endpoints read processed CSVs, so the service is
+    usable without a database. A missing database is therefore reported as
+    ``optional/unavailable``, never as a failure.
+    """
+    try:
+        from sqlalchemy import create_engine, text
+
+        from app.core.config import get_settings
+
+        engine = create_engine(
+            get_settings().database_url, connect_args={"connect_timeout": 2}
+        )
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return "connected"
+    except Exception:
+        return "optional/unavailable"
+
+
+def readiness() -> dict:
+    """Data-readiness probe used by deployment health checks."""
+    processed = get_settings().processed_dir
+    dictionaries = REPO_ROOT / "data" / "dictionaries"
+
+    datasets: dict[str, bool] = {}
+    row_counts: dict[str, int | None] = {}
+    checks: list[dict] = []
+
+    for key, filename in REQUIRED_DATASETS.items():
+        path = processed / filename
+        exists = path.exists()
+        datasets[key] = exists
+        rows: int | None = None
+        if exists:
+            try:
+                with open(path, "rb") as fh:
+                    rows = max(sum(1 for _ in fh) - 1, 0)
+            except OSError:
+                rows = None
+        row_counts[key] = rows
+        if not exists:
+            checks.append({"check": f"dataset:{key}", "status": "missing"})
+        elif rows == 0:
+            checks.append({"check": f"dataset:{key}", "status": "empty"})
+
+    dict_ok = all((dictionaries / name).exists() for name in REQUIRED_DICTIONARIES)
+    if not dict_ok:
+        checks.append({"check": "dictionaries", "status": "missing"})
+
+    model_cards = models()
+    model_status = "available" if model_cards else "unavailable"
+    if not model_cards:
+        checks.append({"check": "model_card", "status": "unavailable"})
+
+    database = _database_status()
+
+    hard_missing = [c for c in checks if c["status"] in ("missing", "empty")]
+    status = "ready" if not hard_missing else "degraded"
+    return {
+        "status": status,
+        "version": get_settings().version,
+        "datasets": datasets,
+        "row_counts": row_counts,
+        "dictionaries": dict_ok,
+        "database": database,
+        "model": model_status,
+        "checks": checks,
+    }
+
+
+def data_version() -> dict:
+    """Safe projection of the processed-data manifest.
+
+    Deliberately excludes file hashes and filesystem paths: the endpoint is
+    public and only needs to answer "which build of the data is serving this?"
+    """
+    try:
+        manifest = repo.data_manifest()
+    except Exception:
+        return {"available": False}
+
+    validation = manifest.get("validation") or {}
+    return {
+        "available": True,
+        "pipeline_version": manifest.get("pipeline_version"),
+        "git_sha": manifest.get("git_sha"),
+        "build_timestamp": manifest.get("build_timestamp"),
+        "row_counts": {
+            str(k): int(v) for k, v in (manifest.get("row_counts") or {}).items()
+        },
+        "validation": {
+            "status": validation.get("status"),
+            "errors": validation.get("errors", 0),
+            "warnings": validation.get("warnings", 0),
+            "issues": validation.get("issues", []),
+        },
+        "dataset_count": len(manifest.get("outputs") or {}),
+    }
 
 
 def _metric(metrics: dict, name: str) -> float | None:

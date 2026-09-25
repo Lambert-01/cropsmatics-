@@ -70,6 +70,8 @@ def summary() -> dict:
         return {"crop": str(frame.loc[idx, "crop"]), "value": _val(frame.loc[idx, key])}
 
     loss_series = df["post_harvest_losses_pct"].dropna()
+    stored_series = df["stored_pct"].dropna()
+    sold_series = df["sold_pct"].dropna()
     kpis = [
         {"id": "highest_loss", "label": "Highest observed loss share",
          "value": None if _extreme("post_harvest_losses_pct") is None else _extreme("post_harvest_losses_pct")["value"],
@@ -86,6 +88,19 @@ def summary() -> dict:
          "value": None if _extreme("sold_pct") is None else _extreme("sold_pct")["value"],
          "unit": "% sold", "period": "2025-B",
          "note": None if _extreme("sold_pct") is None else _extreme("sold_pct")["crop"]},
+        # Unweighted means across the reported crops. Deliberately NOT tonnage
+        # weighted: the two tables use different crop vocabularies, so weighting
+        # them would silently invent a match.
+        {"id": "mean_stored_share", "label": "Mean stored share",
+         "value": None if stored_series.empty else round(float(stored_series.mean()), 3),
+         "unit": "% stored", "period": "2025-B",
+         "source_id": "NISR_SAS_2025B_POSTHARVEST_USE",
+         "note": f"unweighted mean across {len(stored_series)} crops"},
+        {"id": "mean_sold_share", "label": "Mean sold share",
+         "value": None if sold_series.empty else round(float(sold_series.mean()), 3),
+         "unit": "% sold", "period": "2025-B",
+         "source_id": "NISR_SAS_2025B_POSTHARVEST_USE",
+         "note": f"unweighted mean across {len(sold_series)} crops"},
     ]
 
     return {

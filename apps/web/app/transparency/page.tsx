@@ -8,7 +8,7 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { EmptyState, TableSkeleton } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { benchmarkLabel, periodLabel } from "@/lib/format";
-import { useCoverage, useModels, useSources } from "@/services/hooks/useReference";
+import { useCoverage, useDataVersion, useModels, useSources } from "@/services/hooks/useReference";
 
 const AI_USAGE = [
   "Assistive tooling was used for code scaffolding and documentation; all data-derived values come from the Python pipeline.",
@@ -27,6 +27,7 @@ export default function TransparencyPage() {
   const coverage = useCoverage();
   const sources = useSources();
   const models = useModels();
+  const dataVersion = useDataVersion();
   const algorithms = useQuery({ queryKey: ["algorithms"], queryFn: api.algorithms });
 
   return (
@@ -141,6 +142,100 @@ export default function TransparencyPage() {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Data quality + pipeline build identity */}
+      <Card className="overflow-hidden">
+        <CardHeader
+          title="Data pipeline and quality"
+          subtitle="The exact build serving this API, and every warning it raised"
+        />
+        <div className="px-4 pb-4 pt-3">
+          {dataVersion.isLoading ? (
+            <TableSkeleton rows={3} />
+          ) : !dataVersion.data?.available ? (
+            <EmptyState
+              title="No data manifest is present."
+              hint="Run the data pipeline (make data) to generate the manifest and validation report."
+            />
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span
+                  className={`rounded-full px-2 py-0.5 font-medium ${
+                    dataVersion.data.validation?.status === "passed"
+                      ? "bg-success/10 text-success"
+                      : "bg-danger/10 text-danger"
+                  }`}
+                >
+                  pipeline {dataVersion.data.validation?.status ?? "unknown"}
+                </span>
+                <span className="chip">pipeline v{dataVersion.data.pipeline_version ?? "—"}</span>
+                <span className="chip">
+                  build {(dataVersion.data.git_sha ?? "unknown").slice(0, 8)}
+                </span>
+                <span className="chip">
+                  {dataVersion.data.build_timestamp
+                    ? new Date(dataVersion.data.build_timestamp).toLocaleString()
+                    : "unknown build time"}
+                </span>
+                <span className="chip">
+                  errors <strong>{dataVersion.data.validation?.errors ?? 0}</strong>
+                </span>
+                <span className="chip">
+                  warnings <strong>{dataVersion.data.validation?.warnings ?? 0}</strong>
+                </span>
+                <span className="chip">{dataVersion.data.dataset_count} datasets built</span>
+              </div>
+
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Warnings are published, not suppressed. Two of them are expected and are never
+                &quot;cleaned&quot; away: 49 district/crop rows report no cultivated area because the crop
+                was not grown in that district, and 62 rows report a harvested area slightly above
+                the cultivated area. Official raw values are left exactly as published; the
+                discrepancies are categorised into rounding tolerance, review and severe in
+                <code className="ml-1">data/interim/area_consistency_report.csv</code>.
+              </p>
+
+              {(dataVersion.data.validation?.issues ?? []).length > 0 ? (
+                <div className="thin-scroll mt-3 max-h-[20rem] overflow-auto">
+                  <table className="table-base">
+                    <thead>
+                      <tr>
+                        <th>Level</th>
+                        <th>Dataset</th>
+                        <th>Finding</th>
+                        <th className="text-right">Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(dataVersion.data.validation?.issues ?? []).map((i, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                i.level === "error"
+                                  ? "bg-danger/10 text-danger"
+                                  : i.level === "warn"
+                                    ? "bg-amber/10 text-amber"
+                                    : "bg-slate-500/10 text-slate-600"
+                              }`}
+                            >
+                              {i.level}
+                            </span>
+                          </td>
+                          <td className="text-xs text-slate-600">{i.dataset}</td>
+                          <td className="text-xs text-slate-700">{i.message}</td>
+                          <td className="text-right tabular-nums">{i.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </Card>
 
       {/* Algorithms + benchmark strategies */}

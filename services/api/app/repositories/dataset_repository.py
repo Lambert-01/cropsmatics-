@@ -80,6 +80,22 @@ def cold_chain_context() -> pd.DataFrame:
     return _load("cold_chain_context.csv")
 
 
+def postharvest_infrastructure() -> pd.DataFrame:
+    """NATIONAL MINAGRI post-harvest infrastructure totals (add-on table 10).
+
+    National level only - never joined to districts or facility markers.
+    """
+    return _load("national_postharvest_infrastructure.csv")
+
+
+def cold_chain_network_summary() -> pd.DataFrame:
+    """2026 MINAGRI-ACES cold-chain program summary (add-on table 11).
+
+    Program-level context; facility capacity and coordinates are not published.
+    """
+    return _load("cold_chain_network_summary.csv")
+
+
 def dashboard_overview() -> pd.DataFrame:
     return _load("dashboard_overview.csv")
 
@@ -90,6 +106,16 @@ def data_coverage() -> pd.DataFrame:
 
 def data_sources() -> pd.DataFrame:
     return _load("data_sources.csv")
+
+
+def data_manifest() -> dict:
+    """The processed-data manifest (pipeline version, hashes, row counts)."""
+    import json
+
+    path = get_settings().processed_dir / "manifest.json"
+    if not path.exists():
+        raise DatasetUnavailable("manifest.json not found. Run `make data` to build it.")
+    return json.loads(path.read_text())
 
 
 # --- reference dictionaries ------------------------------------------------

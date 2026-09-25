@@ -6,6 +6,7 @@ import type {
   Crop,
   DatasetInfo,
   DatasetResponse,
+  DataVersionResponse,
   District,
   FacilitiesResponse,
   FactorsResponse,
@@ -16,7 +17,9 @@ import type {
   PostHarvestResponse,
   PriorityResponse,
   ProductivityResponse,
+  ReadinessResponse,
   SourcesResponse,
+  StorageInfrastructureResponse,
   TrendResponse,
 } from "@/types";
 
@@ -69,6 +72,8 @@ export const api = {
   trends: (crop?: string) => get<TrendResponse>("/analytics/trends", crop ? `crop=${encodeURIComponent(crop)}` : ""),
   inputAdoption: () => get<TrendResponse>("/analytics/input-adoption"),
   postHarvest: () => get<PostHarvestResponse>("/analytics/post-harvest"),
+  storageInfrastructure: () =>
+    get<StorageInfrastructureResponse>("/analytics/storage-infrastructure"),
   priorities: (filters: DashboardFilters, limit = 50) =>
     get<PriorityResponse>(
       "/analytics/intervention-priorities",
@@ -89,6 +94,8 @@ export const api = {
   coverage: () => get<CoverageResponse>("/meta/data-coverage"),
   sources: () => get<SourcesResponse>("/meta/sources"),
   models: () => get<ModelsResponse>("/meta/models"),
+  dataVersion: () => get<DataVersionResponse>("/meta/data-version"),
+  readiness: () => get<ReadinessResponse>("/health/readiness"),
 
   algorithms: () =>
     get<{

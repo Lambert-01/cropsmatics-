@@ -205,6 +205,87 @@ export interface FacilitiesResponse {
   provenance: Provenance;
 }
 
+// --- national storage infrastructure (MINAGRI add-on) ----------------------
+
+export interface InfrastructureItem {
+  infrastructure_type?: string | null;
+  existing_number?: number | null;
+  existing_capacity_mt?: number | null;
+  new_number?: number | null;
+  new_capacity_mt?: number | null;
+  total_number?: number | null;
+  total_capacity_mt?: number | null;
+  period?: string | null;
+  source_url?: string | null;
+}
+
+export interface InfrastructureTotals {
+  existing_number?: number | null;
+  existing_capacity_mt?: number | null;
+  new_number?: number | null;
+  new_capacity_mt?: number | null;
+  total_number?: number | null;
+  total_capacity_mt?: number | null;
+  capacity_unit: string;
+  period?: string | null;
+  note?: string | null;
+}
+
+export interface ProgramIndicator {
+  indicator?: string | null;
+  value?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+  period?: string | null;
+  source_url?: string | null;
+}
+
+export interface ColdChainProgram {
+  indicators: ProgramIndicator[];
+  program_districts: string[];
+  facility_capacity: null;
+  facility_capacity_status: string;
+  facility_location_status: string;
+  note?: string | null;
+}
+
+export interface StorageInfrastructureResponse {
+  level_of_analysis: string;
+  label: string;
+  items: InfrastructureItem[];
+  totals?: InfrastructureTotals | null;
+  program: ColdChainProgram;
+  provenance: Provenance;
+}
+
+// --- data readiness / version ----------------------------------------------
+
+export interface ReadinessResponse {
+  status: string;
+  version: string;
+  datasets: Record<string, boolean>;
+  row_counts: Record<string, number | null>;
+  dictionaries: boolean;
+  database: string;
+  model: string;
+  checks: { check: string; status: string }[];
+}
+
+export interface DataVersionResponse {
+  available: boolean;
+  pipeline_version?: string | null;
+  git_sha?: string | null;
+  build_timestamp?: string | null;
+  row_counts: Record<string, number>;
+  validation: {
+    status?: string | null;
+    errors?: number;
+    warnings?: number;
+    issues?: { level: string; dataset: string; message: string; count: number }[];
+  };
+  dataset_count: number;
+}
+
 export interface PriorityRow {
   id: string;
   district: string;

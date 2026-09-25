@@ -11,38 +11,40 @@ concurrency:
 
 jobs:
   web:
-    name: Web (lint, typecheck, test)
+    name: Web (lint, typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The pnpm version is taken from package.json > packageManager.
+      # Do NOT also pass `with: version:` here - declaring it twice is what
+      # made the action fail before the install step ran.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter cropmatics-web lint
       - run: pnpm --filter cropmatics-web typecheck
       - run: pnpm --filter cropmatics-web test
+      - run: pnpm --filter cropmatics-web build
 
   mobile:
-    name: Mobile (lint, typecheck, test)
+    name: Mobile (lint, typecheck, test, expo config)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter cropmatics-mobile lint
       - run: pnpm --filter cropmatics-mobile typecheck
       - run: pnpm --filter cropmatics-mobile test
+      - name: Expo configuration smoke check
+        run: pnpm --filter cropmatics-mobile exec expo config --type public
 
   api:
     name: API (lint, test)
@@ -92,9 +94,17 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install pandas
+      - run: pip install -r services/api/requirements-dev.txt
+      - name: Ruff (data pipeline)
+        run: ruff check scripts/data scripts/tests
       - run: python scripts/data/run_all.py
       - name: Ensure expected outputs exist
         run: |
           test -f data/processed/training_district_crop.csv
+          test -f data/processed/national_postharvest_infrastructure.csv
+          test -f data/processed/cold_chain_network_summary.csv
+          test -f data/processed/manifest.json
           test -f data/interim/validation_report.json
+          test -f data/interim/area_consistency_report.csv
+      - name: Pytest (data pipeline)
+        run: pytest scripts/tests -q

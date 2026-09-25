@@ -46,6 +46,16 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "cold_chain_context",
         "MINAGRI_ACES_COLDCHAIN_2026",
     ),
+    "postharvest_infrastructure": (
+        "National Post-Harvest Infrastructure (MINAGRI)",
+        "postharvest_infrastructure",
+        "MINAGRI_ANNUAL_REPORT_2024_2025_POSTHARVEST_INFRA",
+    ),
+    "cold_chain_network_summary": (
+        "Cold-Chain Network Summary 2026 (MINAGRI-ACES)",
+        "cold_chain_network_summary",
+        "MINAGRI_ACES_COLDCHAIN_2026_NETWORK",
+    ),
     "districts": ("District Dictionary", "districts", "REFERENCE_DICTIONARY"),
     "crops": ("Crop Dictionary", "crops", "REFERENCE_DICTIONARY"),
 }

@@ -11,7 +11,8 @@ from fastapi import APIRouter
 
 from app.schemas.common import Provenance
 from app.schemas.dashboard import FacilitiesResponse
-from app.services import facility_service
+from app.schemas.storage import FacilityContextResponse
+from app.services import facility_service, storage_service
 
 router = APIRouter(prefix="/facilities", tags=["facilities"])
 
@@ -31,3 +32,13 @@ def context(district: str | None = None) -> FacilitiesResponse:
 def nearby(district: str | None = None) -> FacilitiesResponse:
     """Backwards-compatible alias for :func:`context`."""
     return context(district=district)
+
+
+@router.get("/program-context", response_model=FacilityContextResponse)
+def program_context(district: str | None = None) -> FacilityContextResponse:
+    """Whether a district is part of the verified cold-chain program.
+
+    Answers program *membership* only. Capacity and coordinates stay null because
+    the official source does not publish them.
+    """
+    return FacilityContextResponse(**storage_service.facility_context(district))

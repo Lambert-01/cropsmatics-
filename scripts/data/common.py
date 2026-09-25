@@ -18,6 +18,9 @@ if str(ROOT) not in sys.path:
 DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 RAW_PACK = RAW_DIR / "cropmatics_real_data_2024_2026"
+# Official third-party / ministry add-on packages that are committed as raw
+# sources but live outside the primary NISR pack.
+RAW_MINAGRI = RAW_DIR / "external" / "minagri"
 EXTERNAL_DIR = DATA_DIR / "external"
 INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
@@ -41,6 +44,14 @@ RAW_FILES = {
     "source_registry": "09_source_registry.csv",
 }
 
+# --- MINAGRI add-on sources (data/raw/external/minagri/) -------------------
+# National-level only. Never joined to districts or facilities.
+RAW_EXTERNAL_FILES = {
+    "postharvest_infrastructure": "10_national_postharvest_infrastructure_2024_2025.csv",
+    "cold_chain_network_summary": "11_cold_chain_network_summary_2026.csv",
+    "source_registry_additions": "source_registry_additions.csv",
+}
+
 # Source identifiers used for provenance (align with source_registry/).
 SOURCE_IDS = {
     "district_crop_productivity": "NISR_SAS_2025B_DISTRICT_CROP",
@@ -51,6 +62,8 @@ SOURCE_IDS = {
     "national_crop_trends": "NISR_SAS_2024_2026_NATIONAL_TRENDS",
     "national_input_trends": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS",
     "cold_chain_context": "MINAGRI_ACES_COLDCHAIN_2026",
+    "postharvest_infrastructure": "MINAGRI_ANNUAL_REPORT_2024_2025_POSTHARVEST_INFRA",
+    "cold_chain_network_summary": "MINAGRI_ACES_COLDCHAIN_2026_NETWORK",
 }
 
 # Canonical processed output names (docs/DATA_TO_UI_MATRIX.md references these).
@@ -63,6 +76,8 @@ PROCESSED_FILES = {
     "national_crop_trends": "national_crop_trends.csv",
     "national_input_trends": "national_input_trends.csv",
     "cold_chain_context": "cold_chain_context.csv",
+    "postharvest_infrastructure": "national_postharvest_infrastructure.csv",
+    "cold_chain_network_summary": "cold_chain_network_summary.csv",
     "training": "training_district_crop.csv",
     "dashboard_overview": "dashboard_overview.csv",
     "data_coverage": "data_coverage.csv",
@@ -80,8 +95,15 @@ PROVENANCE_COLUMNS = [
 
 
 def raw_path(key: str) -> Path:
-    """Absolute path to a raw source file by logical key."""
-    return RAW_PACK / RAW_FILES[key]
+    """Absolute path to a raw source file by logical key.
+
+    Resolves the primary NISR pack first, then the committed MINAGRI add-on.
+    """
+    if key in RAW_FILES:
+        return RAW_PACK / RAW_FILES[key]
+    if key in RAW_EXTERNAL_FILES:
+        return RAW_MINAGRI / RAW_EXTERNAL_FILES[key]
+    raise KeyError(f"unknown raw source key: {key!r}")
 
 
 def processed_path(name: str) -> Path:
@@ -101,6 +123,9 @@ def add_provenance(df, source_key: str, script: str):
         df["source_period"] = df["year"].astype(str) + "-" + df["season"].astype(str)
     elif "year" in df.columns:
         df["source_period"] = df["year"].astype(str)
+    elif "period" in df.columns:
+        # National add-on tables carry a free-text reporting period.
+        df["source_period"] = df["period"].astype(str)
     else:
         df["source_period"] = ""
     df["processing_script"] = script

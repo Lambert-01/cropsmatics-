@@ -26,6 +26,11 @@ export function useModels() {
   return useQuery({ queryKey: ["models"], queryFn: api.models, staleTime: ONE_HOUR });
 }
 
+/** Processed-data build identity (pipeline version, git SHA, row counts). */
+export function useDataVersion() {
+  return useQuery({ queryKey: ["data-version"], queryFn: api.dataVersion, staleTime: ONE_HOUR });
+}
+
 export function useAssistant() {
   return useMutation({
     mutationFn: (question: string) => api.assistant(question),

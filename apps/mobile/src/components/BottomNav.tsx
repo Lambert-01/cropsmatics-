@@ -13,7 +13,7 @@ const ITEMS = [
   { id: "insights", label: "recommendations", href: "/insights" as const, icon: "bar-chart-outline" as const },
   { id: "alerts", label: "alerts", href: "/alerts" as const, icon: "notifications-outline" as const },
   { id: "profile", label: "profile", href: "/profile" as const, icon: "person-outline" as const },
-] satisfies Array<{ id: string; label: keyof Strings; href: string; icon: keyof typeof Ionicons.glyphMap }>;
+] satisfies { id: string; label: keyof Strings; href: string; icon: keyof typeof Ionicons.glyphMap }[];
 
 export function BottomNav({ active }: { active: string }) {
   const router = useRouter();

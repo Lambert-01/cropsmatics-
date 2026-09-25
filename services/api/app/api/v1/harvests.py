@@ -97,7 +97,7 @@ def score_risk(harvest_id: str, db: DbSession) -> RiskOut:
         band=result.band,
         contributing_factors="; ".join(result.contributing_factors),
         recommended_actions="; ".join(result.recommended_actions),
-        model_version="rule-based-risk-0.1.0",
+        model_version=result.model_version,
         source_id="MOBILE_OPERATIONAL",
     ))
     db.commit()
@@ -108,9 +108,13 @@ def score_risk(harvest_id: str, db: DbSession) -> RiskOut:
         band=result.band,
         contributing_factors=result.contributing_factors,
         recommended_actions=result.recommended_actions,
+        score_label=result.score_label,
+        model_version=result.model_version,
+        factors=[factor.as_dict() for factor in result.factors],
+        actions=[action.as_dict() for action in result.actions],
         capacity_context="capacity_not_verified",
         provenance=Provenance(
-            model_version="rule-based-risk-0.1.0",
+            model_version=result.model_version,
             method="documented additive rule model",
             limitations=["rule weights are expert-set, not calibrated on local outcomes yet"],
         ),

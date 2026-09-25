@@ -19,7 +19,7 @@ export const rw: Strings = {
   profile: "Umwirondoro",
   crop: "Igihingwa",
   district: "Akarere",
-  quantity: "Ingano iteganyijwe (kg)",
+  quantity: "Ingano iteganyijwe",
   harvestDate: "Itariki y'isarura",
   save: "Bika",
   saving: "Birabikwa…",
@@ -44,11 +44,13 @@ export const rw: Strings = {
   noAlerts: "Nta matangazo. Amakuru y'ibanze atangazwa ku rwego rw'igihugu.",
   records: "inyandiko",
   pending: "bitegereje koherezwa",
+  latestRisk: "Igisubizo giheruka cy'ibyago",
+  latestRiskNone: "Nta gisubizo cy'ibyago kibitswe. Andika isarura uri kuri interineti.",
 
   stepFarm: "Umurima",
   stepCrop: "Igihingwa",
   stepQuantity: "Ingano",
-  stepSchedule: "Igihe",
+  stepSchedule: "Amatariki",
   stepReview: "Isubirwamo",
   next: "Komeza",
   back: "Subira inyuma",
@@ -74,11 +76,142 @@ export const rw: Strings = {
   startOver: "Andika irindi",
   districtDataPeriod: "Igihe giheruka cy'amakuru y'uturere",
   localRecordNote: "Bishingiye ku nyandiko ziri kuri iki gikoresho",
-  riskNotStored: "Ibisubizo by'ibyago bisaba interineti kandi ntibibikwa kuri iki gikoresho.",
+  riskNotStored: "Ibisubizo by'ibyago bitangwa na seriveri, ntibibarwa kuri iki gikoresho.",
   noVerifiedContext: "Nta makuru yemejwe kuri gahunda abonetse ubu.",
   syncOnOpen: "Inyandiko zitaroherezwa zongera kugeragezwa porogaramu ifunguwe.",
   scheduleToday: "Uyu munsi",
   scheduleThreeDays: "Mu minsi 3",
   scheduleWeek: "Mu cyumweru 1",
   scheduleTwoWeeks: "Mu byumweru 2",
+
+  // --- umurima ------------------------------------------------------------
+  farm: "Umurima",
+  selectedFarm: "Umurima watoranyijwe",
+  selectFarm: "Hitamo umurima",
+  newFarm: "Umurima mushya",
+  farmName: "Izina ry'umurima",
+  farmSize: "Ingano y'umurima",
+  farmSizeHa: "Ingano y'umurima (ha)",
+  sector: "Umurenge",
+  noFarms: "Nta murima wabitswe. Ongeraho umurima wawe mbere.",
+  addFarm: "Ongeraho umurima",
+  saveFarm: "Bika umurima",
+  farmNotFound: "Umurima watoranyijwe ntabonetse kuri iki gikoresho.",
+
+  // --- amatariki ----------------------------------------------------------
+  harvestStartDate: "Itariki yo gutangira isarura",
+  harvestEndDate: "Itariki yo kurangiza isarura",
+  pickDate: "Hitamo itariki",
+  clearDate: "Siba",
+  endBeforeStart: "Itariki yo kurangiza igomba kuba nyuma y'iyo gutangira.",
+  startTooOld: "Itariki yo gutangira isa n'itari yo — reba umwaka.",
+
+  // --- ingano -------------------------------------------------------------
+  unit: "Igipimo",
+  kilograms: "Kilogarama (kg)",
+  tonnes: "Toni (t)",
+  quantityInvalid: "Andika ingano irenze zeru.",
+
+  // --- ahantu -------------------------------------------------------------
+  useCurrentLocation: "Koresha aho uri ubu",
+  useDistrictOnly: "Akarere gusa",
+  locationOptional: "Ahantu ni ubushake — ushobora kubika nta GPS.",
+  locationPermissionDenied: "Uruhusa rw'ahantu rwanze. Komeza n'akarere gusa.",
+  locationUnavailable: "Ahantu ntibubonetse kuri iki gikoresho ubu.",
+  captureLocation: "Fata ahantu (GPS)",
+  locationCaptured: "Ahantu hafashwe",
+
+  // --- ibyanditse / kubika ------------------------------------------------
+  notesPlaceholder: "Ikintu umukozi w'umurima akwiye kumenya",
+  needsStorageAssistance: "Akeneye ubufasha mu kubika",
+  notAReservation: "Iki gikoresho kigaragaza icyifuzo. Ntabwo ari ubwishingizi bw'ububiko.",
+
+  // --- ibyometseho --------------------------------------------------------
+  stepAttachments: "Ibyometseho",
+  attachments: "Ibyometseho",
+  addPhoto: "Ongeraho ifoto",
+  addDocument: "Ongeraho inyandiko",
+  removeAttachment: "Kuraho",
+  attachmentTooLarge: "Iyo dosiye irenze ingano yemewe.",
+  attachmentLimitReached: "Wageze ku mubare ntarengwa w'ibyometseho.",
+  attachmentPermissionDenied: "Uruhusa rwanze, nta dosiye yongeweho.",
+  noAttachments: "Nta byometseho byongeweho.",
+
+  // --- ibyago -------------------------------------------------------------
+  riskScore: "Amanota y'ibyago",
+  modelVersion: "Verisiyo y'ubwenge bw'amategeko",
+  factor: "Impamvu",
+  impact: "Ingaruka",
+  reason: "Impamvu",
+  priority: "Ibyihutirwa",
+  action: "Igikorwa gisabwa",
+  whyRecommendation: "Kuki iki cyifuzo?",
+  modelAndRules: "Amakuru y'ubwenge n'amategeko",
+  ruleBasedNote:
+    "Aya ni amanota ashingiye ku mategeko yanditse, ntabwo ari amahirwe yagenzurwa y'igihombo.",
+  scoreUnavailable: "Amanota y'ibyago ntibonetse",
+  viewStorageOptions: "Reba aho kubika",
+  submittedHarvest: "Isarura ryoherejwe",
+
+  // --- ibyifuzo -----------------------------------------------------------
+  insightsSubtitle: "Ibisubizo by'ibyago n'ibyifuzo biheruka, biva kuri iki gikoresho.",
+  noInsightsYet: "Nta bisubizo by'ibyago bibitswe. Bisesengurwa na seriveri nyuma yo koherezwa.",
+  recentRecommendations: "Ibyifuzo biheruka",
+  harvestSummary: "Incamake y'isarura",
+  dataPeriodInformation: "Amakuru y'igihe cy'amakuru",
+
+  // --- amatangazo ---------------------------------------------------------
+  alertsSubtitle: "Ibimenyetso nyakuri gusa — nta na kimwe gihimbwe.",
+  alertsSyncFailure: "inyandiko ntizashoboye koherezwa",
+  alertsNewRisk: "Igisubizo gishya cy'ibyago kiraboneka",
+  alertsHarvestApproaching: "Itariki y'isarura iri hafi",
+  alertsDataUpdate: "Amakuru cyangwa verisiyo nshya iraboneka",
+  alertsConflict: "Inyandiko isaba isubirwamo mbere yo koherezwa",
+  noAlertsYet: "Nta matangazo ubu.",
+
+  // --- umwirondoro --------------------------------------------------------
+  offlineStatus: "Imimerere ya mudasobwa/interineti",
+  localRecords: "Inyandiko zo kuri iki gikoresho",
+  farmProfiles: "Umurima/imirima",
+  privacyConsent: "Ibanga n'ubwemeranyiriza",
+  privacyText:
+    "Ahantu uri na byanditse ku murima ni ibanga. Ntibigaragara mu mibare rusange.",
+  appVersion: "Verisiyo ya porogaramu",
+  aboutDataSources: "Inkomoko y'amakuru n'ibisobanuro",
+  aboutText:
+    "Imibare y'ibanze ya NISR/MINAGRI itandukanyijwe n'inyandiko zawe. Ibyago bibarwa na seriveri.",
+  signOut: "Sohoka",
+  authNotEnabled: "Kwinjira ntibishyizweho muri iyi verisiyo.",
+
+  // --- kohereza -----------------------------------------------------------
+  syncNow: "Ohereza ubu",
+  syncSummary: "Byageragejwe {attempted}, byoherejwe {synced}, byanze {failed}.",
+  syncConflicts: "Impaka zisaba isubirwamo",
+  offlineBanner:
+    "Nta interineti. Inyandiko zibitswe kuri iki gikoresho kandi zizoherezwa zikiyongera.",
+
+  // --- amateka y'isarura --------------------------------------------------
+  dateRange: "Igihe",
+  riskBand: "Ibyago",
+  storageAssistanceRequested: "Yasabye ubufasha mu kubika",
+  noRiskBandYet: "Nta manota y'ibyago",
+  tapForDetails: "Kanda urebe ibisobanuro",
+
+  // --- aho kubika ---------------------------------------------------------
+  storageAndMarketOptions: "Aho kubika n'amasoko",
+  activeHarvest: "Isarura rikoreshwa",
+  districtContext: "U Rwanda / akarere",
+  programDistrictCards: "Uturere twa gahunda",
+  nationalInfrastructure: "Ibikorwa by'igihugu nyuma y'isarura (MINAGRI)",
+  coldChainProgram: "Amakuru ya gahunda y'ububiko buciriritse",
+  programDistricts: "Uturere twa gahunda",
+  nationalTotals: "Imibare y'igihugu — ntabwo ari ubushobozi bw'ikigo kimwe",
+  officialNationalData: "IMIBARE Y'IGIHUGU YEMEWE",
+  verifiedProgramContext: "AMAKURU YA GAHUNDA YEMEJWE",
+  facilityDataNotAvailable: "AMAKURU Y'IKIGO: NTABONEKA",
+  exactLocationNotPublished: "Ahantu nyaho h'ikigo: ntabwatanzwe",
+  storageOptimizationScenario: "Igerageza ry'ububiko (scenario)",
+  marketIntelligence: "Amakuru y'isoko",
+  verifiedSourceNotConnected: "Inkomoko y'ibiciro yemejwe ntirahuza.",
+  noActiveHarvest: "Nta sarura ryatoranyijwe. Andika isarura urebe amakuru y'ububiko.",
 };

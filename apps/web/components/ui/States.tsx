@@ -2,6 +2,7 @@ import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
+import { coverageMode, coverageNotice } from "@/lib/coverage";
 
 export function Skeleton({ className }: { className?: string }) {
   return (
@@ -128,14 +129,12 @@ export function ErrorState({
 }
 
 export function CoverageNotice({ level, period }: { level?: string | null; period?: string | null }) {
-  if (!level || level === "district") return null;
+  const message = level ? coverageNotice(coverageMode(level), period) : null;
+  if (!message) return null;
   return (
     <div className="flex items-start gap-2 rounded-xl border border-amber/25 bg-amber/[0.06] px-3 py-2 text-xs text-slate-700">
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden="true" />
-      <p>
-        District-level data are not available for {period ?? "this period"}. Showing national
-        statistics only — no district estimates are fabricated.
-      </p>
+      <p>{message}</p>
     </div>
   );
 }

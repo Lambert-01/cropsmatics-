@@ -34,5 +34,9 @@ class RiskOut(BaseModel):
     band: str
     contributing_factors: list[str] = []
     recommended_actions: list[str] = []
+    score_label: str = "Risk score"
+    model_version: str | None = None
+    factors: list[dict] = []
+    actions: list[dict] = []
     capacity_context: str | None = None
     provenance: Provenance

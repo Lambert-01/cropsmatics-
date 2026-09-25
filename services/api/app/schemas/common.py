@@ -24,6 +24,31 @@ class MetaOut(BaseModel):
     )
 
 
+class ReadinessOut(BaseModel):
+    """Data-readiness probe. Contains no secrets and no filesystem paths."""
+
+    status: str = "ready"
+    version: str = "0.1.0"
+    datasets: dict[str, bool] = Field(default_factory=dict)
+    row_counts: dict[str, int | None] = Field(default_factory=dict)
+    dictionaries: bool = False
+    database: str = "optional/unavailable"
+    model: str = "unavailable"
+    checks: list[dict] = Field(default_factory=list)
+
+
+class DataVersionOut(BaseModel):
+    """Safe projection of the processed-data manifest (no hashes, no paths)."""
+
+    available: bool = False
+    pipeline_version: str | None = None
+    git_sha: str | None = None
+    build_timestamp: str | None = None
+    row_counts: dict[str, int] = Field(default_factory=dict)
+    validation: dict = Field(default_factory=dict)
+    dataset_count: int = 0
+
+
 class Provenance(BaseModel):
     """Every analytical result exposes this so it can be traced and qualified."""
 

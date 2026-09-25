@@ -13,6 +13,28 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * Classes for a nav item and its icon.
+ *
+ * Extracted so the contrast rule can be unit-tested: the active item sits on a
+ * primary-green surface, so BOTH its text and its icon must be white. An active
+ * primary-green icon on a primary-green background is unreadable.
+ */
+export function navItemClasses(active: boolean): { link: string; icon: string } {
+  return {
+    link: cn(
+      "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition",
+      active
+        ? "bg-primary font-semibold text-white shadow-sm ring-1 ring-inset ring-white/25"
+        : "text-white/70 hover:bg-white/[0.07] hover:text-white",
+    ),
+    icon: cn(
+      "h-4 w-4 shrink-0",
+      active ? "text-white" : "text-white/50 group-hover:text-white/80",
+    ),
+  };
+}
+
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { t } = useLanguage();
@@ -41,26 +63,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {group.items.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = item.icon;
+                const styles = navItemClasses(active);
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition",
-                        active
-                          ? "bg-primary/80 font-medium text-white ring-1 ring-inset ring-white/20"
-                          : "text-white/70 hover:bg-white/[0.07] hover:text-white",
-                      )}
+                      className={styles.link}
                     >
-                      <Icon
-                        className={cn(
-                          "h-4 w-4 shrink-0",
-                          active ? "text-primary" : "text-white/50 group-hover:text-white/80",
-                        )}
-                        aria-hidden="true"
-                      />
+                      <Icon className={styles.icon} aria-hidden="true" />
                       <span className="truncate">{t(`nav.${item.href.replace(/^\//, "")}`)}</span>
                       {item.comingSoon ? (
                         <span className="ml-auto rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/50">

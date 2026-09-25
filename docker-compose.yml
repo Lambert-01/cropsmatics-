@@ -19,8 +19,11 @@ services:
       retries: 10
 
   api:
+    # Repo root context: the image runs the data pipeline at build time, so it
+    # needs the raw sources and scripts, not only services/api.
     build:
-      context: ./services/api
+      context: .
+      dockerfile: services/api/Dockerfile
     container_name: cropmatics-api
     environment:
       DATABASE_URL: postgresql+psycopg://cropmatics:cropmatics@db:5432/cropmatics
