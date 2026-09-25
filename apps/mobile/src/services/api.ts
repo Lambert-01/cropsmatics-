@@ -8,10 +8,25 @@ import type {
   StorageInfrastructure,
 } from "../types";
 
-const BASE_URL =
-  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ??
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  "http://localhost:8000/api/v1";
+/**
+ * Resolve the API base URL.
+ *
+ * Precedence matters: a local `apps/mobile/.env` (EXPO_PUBLIC_API_BASE_URL) must
+ * be able to override the static value baked into app.json, otherwise a physical
+ * device can never be pointed at the developer's machine. Empty strings are
+ * treated as "unset" so a blank env var cannot silently win.
+ */
+function resolveBaseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (fromEnv) return fromEnv;
+
+  const fromConfig = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim();
+  if (fromConfig) return fromConfig;
+
+  return "http://localhost:8000/api/v1";
+}
+
+const BASE_URL = resolveBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
