@@ -63,6 +63,20 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Share app — QR / link so the app can be installed on another phone */}
+      <View style={panel}>
+        <Text style={typography.h2}>{t.shareApp}</Text>
+        <Text style={typography.caption}>{t.shareSubtitle}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/share")}
+          style={secondaryButton}
+        >
+          <Ionicons name="qr-code-outline" size={16} color={colors.forest} />
+          <Text style={{ color: colors.forest, fontSize: 13 }}>{t.shareApp}</Text>
+        </Pressable>
+      </View>
+
       {/* Local / offline status + sync */}
       <View style={panel}>
         <Text style={typography.h2}>{t.offlineStatus}</Text>

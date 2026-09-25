@@ -27,6 +27,7 @@ export default function RootLayout() {
         <Stack.Screen name="insights" />
         <Stack.Screen name="alerts" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="share" />
         <Stack.Screen name="sync" />
       </Stack>
     </QueryClientProvider>
