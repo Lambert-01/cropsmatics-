@@ -214,4 +214,23 @@ export const rw: Strings = {
   marketIntelligence: "Amakuru y'isoko",
   verifiedSourceNotConnected: "Inkomoko y'ibiciro yemejwe ntirahuza.",
   noActiveHarvest: "Nta sarura ryatoranyijwe. Andika isarura urebe amakuru y'ububiko.",
+
+  // --- kohereza porogaramu -------------------------------------------------
+  shareApp: "Sangiza porogaramu",
+  shareSubtitle: "Shyira Cropmatics kuri irindi telefoni — koresha kode cyangwa urubuga.",
+  scanToInstall: "Scan kugira ngo uyikoreho",
+  scanHint: "Fungura kamera, yereke kode. Urupapuro rwo kuyikoresha rizafunguka muri browser.",
+  orOpenLink: "Cyangwa fungura uru rubuga",
+  copyLink: "Koporora urubuga",
+  linkCopied: "Urubuga rwaropororwe",
+  sendToSomeone: "Ohereza ku wundi",
+  shareVia: "Sangiza binyuze…",
+  installSteps: "Ingingo zo kuyikoresha",
+  stepOne: "Fungura urubuga cyangwa scan kode kuri irindi telefoni.",
+  stepTwo: "Emere kuyikoresha iva aho (source) Android ibaza.",
+  stepThree: "Fungura porogaramu — inyandiko zawe zibikwa kuri telefoni kugeza ubwo uzohereza.",
+  needExpoGo: "Nta APK irahari? Koresha Expo Go uvuye muri Play Store, hanyuma ufungure uru rubuga muri yo.",
+  shareNotConfigured: "Nta rubuga rwo kuyikoresha ruhwije muri iyi verisiyo.",
+  apiNoteDemo: "Iyi verisiyo ivuga na seriveri iri ku muraba waho (local network). Uyikorehe ufite Wi-Fi imwe.",
+  apiNotePublic: "Iyi verisiyo ivuga na seriveri rusange ya Cropmatics — ikora aho hari interineti.",
 };
