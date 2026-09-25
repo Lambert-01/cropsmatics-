@@ -210,6 +210,25 @@ export const en = {
   marketIntelligence: "Market intelligence",
   verifiedSourceNotConnected: "Verified market-price source not connected yet.",
   noActiveHarvest: "No harvest selected. Register a harvest to see its storage context.",
+
+  // --- share / install ----------------------------------------------------
+  shareApp: "Share app",
+  shareSubtitle: "Get Cropmatics onto another phone — scan the code or open the link.",
+  scanToInstall: "Scan to install",
+  scanHint: "Open the camera app and point it at this code. The install page opens in the browser.",
+  orOpenLink: "Or open this link",
+  copyLink: "Copy link",
+  linkCopied: "Link copied",
+  sendToSomeone: "Send to someone",
+  shareVia: "Share via…",
+  installSteps: "Install steps",
+  stepOne: "Open the link or scan the code on the other phone.",
+  stepTwo: "Allow installing from that source when Android asks.",
+  stepThree: "Open the app — your records stay on the device until you sync.",
+  needExpoGo: "No APK configured yet? Install Expo Go from the Play Store, then open this link inside it.",
+  shareNotConfigured: "No install link is configured for this build yet.",
+  apiNoteDemo: "This build talks to a demo machine on the local network. Install it while you are on the same Wi-Fi.",
+  apiNotePublic: "This build talks to the public Cropmatics API — it works on any internet connection.",
 } as const;
 
 // Equivalent to a mapped type over `typeof en`, but expressed via Record so it
