@@ -95,6 +95,42 @@ wait_for_http() {
   return 1
 }
 
+# Start a long-running process detached from this script.
+#
+# Output MUST go to a log file rather than to our stdout: an inherited pipe is
+# never closed by the child, so any shell pipeline reading our output would hang
+# forever waiting for EOF. `disown` keeps this script's exit from signalling the
+# child. The pid file is used by `stop`.
+start_bg() {
+  local name="$1" workdir="$2"; shift 2
+  mkdir -p "$RUN_DIR"
+  local log="$RUN_DIR/$name.log"
+  ( cd "$workdir" && exec "$@" ) > "$log" 2>&1 &
+  local pid=$!
+  echo "$pid" > "$RUN_DIR/$name.pid"
+  disown "$pid" 2>/dev/null || true
+  printf '%s' "$pid"
+}
+
+# Stop one background process, including any children it spawned (uvicorn
+# --reload, next dev and expo all fork a worker).
+stop_pid() {
+  local pid="$1"
+  [ -n "$pid" ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  pkill -TERM -P "$pid" 2>/dev/null || true
+  kill -TERM "$pid" 2>/dev/null || true
+  for _ in $(seq 1 10); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.3
+  done
+  pkill -KILL -P "$pid" 2>/dev/null || true
+  kill -KILL "$pid" 2>/dev/null || true
+  return 0
+}
+
+is_running() { [ -f "$RUN_DIR/$1.pid" ] && kill -0 "$(cat "$RUN_DIR/$1.pid")" 2>/dev/null; }
+
 # ------------------------------------------------------------- subcommands ----
 cmd_setup() {
   need_env_file
@@ -157,22 +193,22 @@ cmd_load() {
 
 cmd_api() {
   need_env_file; need_venv
-  mkdir -p "$RUN_DIR"
+  if is_running api; then warn "API already running (pid $(cat "$RUN_DIR/api.pid"))"; return 0; fi
+
   info "starting FastAPI on 0.0.0.0:$API_PORT"
   # Bound to 0.0.0.0 (not 127.0.0.1) so a phone on the same Wi-Fi can reach it.
-  ( cd "$API_DIR" && exec .venv/bin/python -m uvicorn app.main:app \
-      --host 0.0.0.0 --port "$API_PORT" --reload ) &
-  echo $! > "$RUN_DIR/api.pid"
+  start_bg api "$API_DIR" .venv/bin/python -m uvicorn app.main:app \
+    --host 0.0.0.0 --port "$API_PORT" --reload > /dev/null
   wait_for_http "http://127.0.0.1:$API_PORT/api/v1/health" "API"
   printf '  docs: %shttp://127.0.0.1:%s/docs%s\n' "$BOLD" "$API_PORT" "$RESET"
 }
 
 cmd_web() {
   need_env_file; need_node_modules
-  mkdir -p "$RUN_DIR"
+  if is_running web; then warn "web already running (pid $(cat "$RUN_DIR/web.pid"))"; return 0; fi
+
   info "starting Next.js on :$WEB_PORT"
-  ( cd "$ROOT/apps/web" && exec corepack pnpm exec next dev -p "$WEB_PORT" ) &
-  echo $! > "$RUN_DIR/web.pid"
+  start_bg web "$ROOT/apps/web" corepack pnpm exec next dev -p "$WEB_PORT" > /dev/null
   wait_for_http "http://127.0.0.1:$WEB_PORT" "web" 90
 }
 
@@ -230,18 +266,21 @@ cmd_all() {
 }
 
 cmd_stop() {
-  local stopped=0 pid
+  local stopped=0 pid f
   for f in "$RUN_DIR"/*.pid; do
     [ -f "$f" ] || continue
     pid="$(cat "$f" 2>/dev/null || true)"
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      # Negative pid kills the whole process group started by this script.
-      kill -TERM "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    if stop_pid "$pid"; then
+      ok "stopped $(basename "$f" .pid) (pid $pid)"
       stopped=$((stopped + 1))
     fi
     rm -f "$f"
   done
-  [ "$stopped" -gt 0 ] && ok "stopped $stopped process group(s)" || info "nothing to stop"
+  if [ "$stopped" -gt 0 ]; then
+    ok "stopped $stopped process(es)"
+  else
+    info "nothing to stop"
+  fi
 }
 
 cmd_status() {
@@ -273,12 +312,15 @@ cmd_status() {
 
 cmd_verify() {
   need_env_file; need_venv
-  local started_api=0 pid
+  local started_api=0
   if ! curl -sf -o /dev/null "http://127.0.0.1:$API_PORT/api/v1/health"; then
     cmd_api
     started_api=1
   fi
-  trap '[ "$started_api" = "1" ] && { kill "$(cat "$RUN_DIR/api.pid" 2>/dev/null)" 2>/dev/null || true; }' EXIT
+  # Only shut down the API if this command is the thing that started it.
+  if [ "$started_api" = "1" ]; then
+    trap 'stop_pid "$(cat "$RUN_DIR/api.pid" 2>/dev/null)" >/dev/null 2>&1; rm -f "$RUN_DIR/api.pid"' EXIT
+  fi
 
   local base="http://127.0.0.1:$API_PORT/api/v1"
   echo
