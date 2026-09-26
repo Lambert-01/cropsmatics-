@@ -1,3 +1,10 @@
+# apps/mobile is intentionally NOT a workspace package.
+#
+# Metro (Expo) resolves the app's entry point relative to apps/mobile and the
+# client requests it as `/node_modules/expo-router/entry.bundle`. When the deps
+# live only in the hoisted workspace root, that relative path does not resolve
+# and the device fails with:
+#   "Unable to resolve module ./node_modules/expo-router/entry"
+# apps/mobile therefore keeps its own flat node_modules (installed with npm).
 packages:
   - "apps/web"
-  - "apps/mobile"
