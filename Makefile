@@ -94,6 +94,7 @@ load: ## Load processed CSVs into PostgreSQL
 .PHONY: lint
 lint: ## Lint JS + Python (including the data pipeline)
 	pnpm -r --if-present lint
+	npm --prefix apps/mobile run lint
 	cd $(API_DIR) && .venv/bin/ruff check app tests
 	$(VENV)/bin/ruff check scripts/data scripts/tests
 
@@ -104,6 +105,7 @@ format: ## Format Python
 .PHONY: typecheck
 typecheck: ## Typecheck JS/TS
 	pnpm -r --if-present typecheck
+	npm --prefix apps/mobile run typecheck
 
 .PHONY: test
 test: test-api test-data test-ml ## Run backend + data pipeline + ML tests

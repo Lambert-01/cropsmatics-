@@ -32,19 +32,25 @@ jobs:
   mobile:
     name: Mobile (lint, typecheck, test, expo config)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      # apps/mobile is intentionally outside the pnpm workspace: Metro resolves
+      # the app entry relative to apps/mobile, so it needs its own flat
+      # node_modules. It is therefore installed with npm here.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter cropmatics-mobile lint
-      - run: pnpm --filter cropmatics-mobile typecheck
-      - run: pnpm --filter cropmatics-mobile test
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
       - name: Expo configuration smoke check
-        run: pnpm --filter cropmatics-mobile exec expo config --type public
+        run: npx expo config --type public
 
   api:
     name: API (lint, test)

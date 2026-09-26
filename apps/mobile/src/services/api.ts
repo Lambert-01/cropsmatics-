@@ -1,3 +1,7 @@
+/**
+ * Main API service — re-exports all sub-clients and preserves the legacy `api`
+ * object so existing field-operations code continues to work unchanged.
+ */
 import Constants from "expo-constants";
 
 import type {
@@ -8,41 +12,36 @@ import type {
   StorageInfrastructure,
 } from "../types";
 
-/**
- * Resolve the API base URL.
- *
- * Precedence matters: a local `apps/mobile/.env` (EXPO_PUBLIC_API_BASE_URL) must
- * be able to override the static value baked into app.json, otherwise a physical
- * device can never be pointed at the developer's machine. Empty strings are
- * treated as "unset" so a blank env var cannot silently win.
- */
+export { cropsApi } from "./api/crops";
+export { districtsApi } from "./api/districts";
+export { askApi } from "./api/ask";
+export { inquiryApi } from "./api/inquiry";
+export { metaApi } from "./api/meta";
+export { analyticsApi } from "./api/analytics";
+export { BASE_URL } from "./api/client";
+
 function resolveBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
   if (fromEnv) return fromEnv;
-
   const fromConfig = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim();
   if (fromConfig) return fromConfig;
-
   return "http://localhost:8000/api/v1";
 }
 
-const BASE_URL = resolveBaseUrl();
+const BASE = resolveBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     ...init,
   });
-  if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
   return (await res.json()) as T;
 }
 
 export interface HarvestPayload {
   district: string;
   crop: string;
-  /** Canonical unit is kilograms. */
   expected_quantity_kg?: number | null;
   harvest_start_date?: string | null;
   harvest_end_date?: string | null;
@@ -68,27 +67,22 @@ export interface RiskPayload {
   capacity_available_kg?: number | null;
 }
 
+/** Legacy api object — preserved for field-operations screens. */
 export const api = {
-  baseUrl: BASE_URL,
+  baseUrl: BASE,
   createHarvest: (payload: HarvestPayload) =>
     request<HarvestResponse>("/harvests", { method: "POST", body: JSON.stringify(payload) }),
   scoreRisk: (harvestId: string) =>
     request<RiskResult & { harvest_id: string }>(`/harvests/${harvestId}/risk`, { method: "POST" }),
-  /**
-   * Stateless risk scoring: works before sync, and also for a harvest that has
-   * no server id yet. The score is always produced by the server — the app never
-   * computes it locally.
-   */
   scorePostHarvestRisk: (payload: RiskPayload) =>
     request<PostHarvestRisk>("/risk/post-harvest", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
   coverage: () =>
-    request<{
-      coverage: Record<string, Record<string, string>>;
-      notes: string[];
-    }>("/meta/data-coverage"),
+    request<{ coverage: Record<string, Record<string, string>>; notes: string[] }>(
+      "/meta/data-coverage",
+    ),
   dataVersion: () =>
     request<{
       available: boolean;
@@ -100,11 +94,9 @@ export const api = {
     request<{ facilities: FacilityContext[]; capacity_not_verified: boolean; note: string }>(
       `/facilities/context${district ? `?district=${encodeURIComponent(district)}` : ""}`,
     ),
-  /** Program membership only — no capacity and no coordinates are published. */
   programContext: (district?: string) =>
     request<FacilityContextResponse>(
       `/facilities/program-context${district ? `?district=${encodeURIComponent(district)}` : ""}`,
     ),
-  /** National MINAGRI infrastructure totals — never joined to a district. */
   storageInfrastructure: () => request<StorageInfrastructure>("/analytics/storage-infrastructure"),
 };

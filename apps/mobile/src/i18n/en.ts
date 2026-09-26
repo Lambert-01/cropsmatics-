@@ -1,11 +1,242 @@
 export const en = {
+  // ---- Brand ---------------------------------------------------------------
   appName: "Cropmatics Rwanda",
   tagline: "Crop Intelligence from Data to Action",
+
+  // ---- Navigation ----------------------------------------------------------
   home: "Home",
+  explore: "Explore",
+  maps: "Maps",
+  ask: "Ask",
+  more: "More",
+
+  // ---- Home ----------------------------------------------------------------
+  greeting: "Welcome back",
+  heroTitle: "Discover Rwanda's Agricultural Intelligence",
+  heroSubtitle: "Explore official agricultural data, interactive maps, trends and insights.",
+  latestData: "Latest Data",
+  latestDataPeriod: "Latest available period",
+  viewDetails: "View Details",
+  exploreData: "Explore Data",
+  crops: "Crops",
+  districts: "Districts",
+  indicators: "Indicators",
+  sources: "Sources",
+  popularQuestions: "Popular Questions",
+  postHarvest: "Post-Harvest",
+  trends: "Trends",
+  compare: "Compare",
+  askCropmatics: "Ask Cropmatics",
+
+  // ---- Explore -------------------------------------------------------------
+  exploreTitle: "Explore",
+  exploreSubtitle: "Search crops, districts and indicators.",
+  searchPlaceholder: "Search crops, districts and indicators...",
+  cropList: "Crops",
+  cropListSubtitle: "Explore agricultural information by crop.",
+  searchCrops: "Search crops...",
+  allCategories: "All",
+  cereals: "Cereals",
+  pulses: "Pulses",
+  rootsTubers: "Roots & Tubers",
+  vegetables: "Vegetables",
+  fruits: "Fruits",
+  other: "Other",
+  districtList: "Districts",
+  districtListSubtitle: "Explore agricultural information by district.",
+  searchDistricts: "Search districts...",
+  indicatorsTitle: "Indicators",
+  indicatorsSubtitle: "Inspect and compare agricultural indicators.",
+  compareTitle: "Compare",
+  compareSubtitle: "Compare crops or districts side by side.",
+  postHarvestTitle: "Post-Harvest",
+  postHarvestSubtitle: "Understand how production is used after harvest.",
+  dataSources: "Data Sources",
+
+  // ---- Crop detail ---------------------------------------------------------
+  overview: "Overview",
+  production: "Production",
+  productivity: "Productivity",
+  usage: "Usage",
+  yieldTrend: "Yield Trend",
+  harvestedArea: "Harvested Area",
+  period: "Period",
+  source: "Source",
+  coverage: "Coverage",
+  limitations: "Limitations",
+  viewDataSource: "View data source",
+  noDataAvailable: "No data available for this selection.",
+
+  // ---- District detail -----------------------------------------------------
+  province: "Province",
+  topCrops: "Top Crops",
+  inputs: "Inputs",
+  soilErosion: "Soil & Erosion",
+  compareDistrict: "Compare District",
+  yieldKgHa: "Yield (kg/ha)",
+  improvedSeed: "Improved Seed",
+  organicFertilizer: "Organic Fertilizer",
+  inorganicFertilizer: "Inorganic Fertilizer",
+  irrigation: "Irrigation",
+  pesticide: "Pesticide",
+  erosionProtection: "Erosion Protection",
+  agroforestry: "Agroforestry",
+
+  // ---- Maps ----------------------------------------------------------------
+  mapsTitle: "District Map",
+  mapsSubtitle: "Explore Rwanda's agricultural data by district.",
+  selectIndicator: "Select Indicator",
+  selectCrop: "Select Crop",
+  selectPeriod: "Select Period",
+  tapDistrictHint: "Tap a district to see details",
+  viewDistrictDetails: "View District Details",
+  nationalDataOnly: "National data only for this period.",
+  districtDataAvailable: "District data available.",
+  mapLegend: "Legend",
+
+  // ---- Post-harvest --------------------------------------------------------
+  useOfProduction: "Use of Production",
+  sold: "Sold",
+  stored: "Stored",
+  homeConsumption: "Home Consumption",
+  seed: "Seed",
+  losses: "Losses",
+  howToReadChart: "How to read this chart",
+  nationalContext: "National Post-Harvest Infrastructure",
+  nationalContextLabel: "NATIONAL CONTEXT",
+  programCoverage: "Program Coverage",
+
+  // ---- Ask -----------------------------------------------------------------
+  askTitle: "Ask Cropmatics",
+  askSubtitle: "Get clear answers from verified data about Rwanda's agriculture.",
+  askPlaceholder: "Ask a question...",
+  askSend: "Send",
+  askHistory: "Question History",
+  askSuggestedQuestions: "Suggested Questions",
+  askAnswerSource: "Source",
+  askAnswerPeriod: "Period",
+  askAnswerCoverage: "Coverage",
+  askAnswerLimitations: "Limitations",
+  askSaveAnswer: "Save Answer",
+  askOpenDistrict: "Open District",
+  askOpenCrop: "Open Crop",
+  askViewSource: "View Source",
+  askNotGrounded: "Cropmatics does not currently have verified data to answer this question.",
+  askNoHistory: "No questions yet.",
+  askDeleteHistory: "Delete History",
+
+  // ---- Saved ---------------------------------------------------------------
+  savedTitle: "Saved Items",
+  savedEmpty: "You haven't saved anything yet.",
+  savedCrop: "Crop",
+  savedDistrict: "District",
+  savedQuestion: "Question",
+  savedIndicator: "Indicator",
+  saveItem: "Save",
+  unsaveItem: "Remove",
+
+  // ---- Inquiry -------------------------------------------------------------
+  inquiryTitle: "Submit Inquiry",
+  inquirySubtitle: "Request additional information about Rwanda's agriculture.",
+  inquiryTopic: "Topic",
+  inquiryCrop: "Crop (optional)",
+  inquiryProvince: "Province (optional)",
+  inquiryDistrict: "District (optional)",
+  inquiryMessage: "Question / requested information",
+  inquiryName: "Name (optional)",
+  inquiryEmail: "Email (optional)",
+  inquiryOrganization: "Organization (optional)",
+  inquirySubmit: "Submit Inquiry",
+  inquirySubmitting: "Submitting...",
+  inquirySuccess: "Inquiry submitted successfully.",
+  inquiryError: "Could not submit inquiry. Please try again.",
+  inquiryHistory: "My Inquiries",
+  inquiryNoHistory: "No inquiries submitted.",
+  inquiryPrivacyNote: "Contact details are optional. You may submit anonymously.",
+  inquiryStatusReceived: "Received",
+  inquiryStatusReviewing: "Reviewing",
+  inquiryStatusAnswered: "Answered",
+  inquiryStatusClosed: "Closed",
+
+  // ---- More ----------------------------------------------------------------
+  moreTitle: "More",
+  settings: "Settings",
+  aboutCropmatics: "About Cropmatics",
+  help: "Help",
+  privacy: "Privacy",
+  myInquiries: "My Inquiries",
+  savedItems: "Saved Items",
+
+  // ---- Settings ------------------------------------------------------------
+  settingsTitle: "Settings",
+  language: "Language",
+  appearance: "Appearance",
+  appearanceSystem: "System",
+  appearanceLight: "Light",
+  appearanceDark: "Dark",
+  dataSettings: "Data",
+  offlineCache: "Offline cache",
+  clearCachedData: "Clear cached data",
+  notifications: "Notifications",
+  notificationsInfo: "Information updates",
+  notificationsInquiry: "Inquiry responses",
+  accessibility: "Accessibility",
+  largerText: "Larger text",
+  reducedMotion: "Reduced motion",
+  about: "About",
+  appVersion: "App version",
+  buildNumber: "Build number",
+
+  // ---- About ---------------------------------------------------------------
+  aboutTitle: "About Cropmatics",
+  aboutDescription:
+    "Cropmatics presents statistical and analytical information for decision support. Observed associations do not automatically imply causation.",
+  aboutWhatItIs: "What Cropmatics is",
+  aboutWhoItIsFor: "Who it is for",
+  aboutWhatDataItUses: "What data it uses",
+  aboutWhatItDoesNotClaim: "What it does not claim",
+  aboutAIUsage: "AI usage",
+  aboutInterpretationPolicy: "Data interpretation policy",
+
+  // ---- Data sources --------------------------------------------------------
+  dataSourcesTitle: "Data Sources",
+  dataSourcesSubtitle: "Official sources powering Cropmatics analytics.",
+  lastUpdate: "Last update",
+  viewSource: "View source",
+
+  // ---- Onboarding ----------------------------------------------------------
+  onboardingTitle: "Discover Rwanda's\nAgricultural Intelligence",
+  onboardingDescription:
+    "Explore official agricultural data, interactive maps, trends and insights to better understand Rwanda's agriculture.",
+  getStarted: "Get Started",
+  skip: "Skip",
+
+  // ---- Language selection --------------------------------------------------
+  chooseLanguage: "Choose Your Language",
+  english: "English",
+  kinyarwanda: "Kinyarwanda",
+  continueButton: "Continue",
+
+  // ---- Errors & empty states -----------------------------------------------
+  errorGeneric: "We couldn't load this information right now.",
+  errorNoDistrictData: "No district-level data are available for this period.",
+  errorViewNational: "View national data",
+  tryAgain: "Try Again",
+  noResults: "No results found.",
+  loading: "Loading...",
+  offline: "Offline",
+  offlineCached: "Showing cached information",
+  offlineBanner: "You are offline. Records are saved on this device and sync automatically.",
+
+  // ---- Data coverage badges ------------------------------------------------
+  nationalData: "NATIONAL DATA",
+  districtData: "DISTRICT DATA AVAILABLE",
+  verifiedSource: "VERIFIED SOURCE",
+
+  // ---- Field operations (preserved, not shown in primary nav) --------------
   registerHarvest: "Register Harvest",
   harvestHistory: "Harvest History",
   riskAnalysis: "Risk Analysis",
-  recommendations: "Recommendations",
   storageOptions: "Storage Options",
   marketInfo: "Market Information",
   alerts: "Alerts",
@@ -23,10 +254,6 @@ export const en = {
   riskModerate: "Moderate risk",
   riskHigh: "High risk",
   capacityNotVerified: "Capacity not verified",
-  language: "Language",
-
-  // Home dashboard
-  greeting: "Welcome back",
   currentSeason: "Current season",
   mainCrop: "Main crop",
   farmSummary: "Your local records",
@@ -41,8 +268,6 @@ export const en = {
   pending: "pending sync",
   latestRisk: "Latest risk result",
   latestRiskNone: "No risk result stored yet. Register a harvest while online to get one.",
-
-  // Wizard
   stepFarm: "Farm",
   stepCrop: "Crop",
   stepQuantity: "Quantity",
@@ -64,7 +289,6 @@ export const en = {
   loadingRisk: "Requesting risk score…",
   dataLimitations: "Data limitations",
   notVerifiedNote: "Program districts only; facility capacity is not published.",
-  stored: "Stored",
   notStored: "Not stored",
   yes: "Yes",
   no: "No",
@@ -79,8 +303,6 @@ export const en = {
   scheduleThreeDays: "In 3 days",
   scheduleWeek: "In 1 week",
   scheduleTwoWeeks: "In 2 weeks",
-
-  // --- farm profile -------------------------------------------------------
   farm: "Farm",
   selectedFarm: "Selected farm",
   selectFarm: "Select farm",
@@ -93,22 +315,16 @@ export const en = {
   addFarm: "Add farm",
   saveFarm: "Save farm",
   farmNotFound: "The selected farm was not found on this device.",
-
-  // --- dates --------------------------------------------------------------
   harvestStartDate: "Harvest start date",
   harvestEndDate: "Harvest end date",
   pickDate: "Pick a date",
   clearDate: "Clear",
   endBeforeStart: "End date must be on or after the start date.",
   startTooOld: "Start date looks wrong — please check the year.",
-
-  // --- quantity -----------------------------------------------------------
   unit: "Unit",
   kilograms: "Kilograms (kg)",
   tonnes: "Tonnes (t)",
   quantityInvalid: "Enter a quantity greater than zero.",
-
-  // --- location -----------------------------------------------------------
   useCurrentLocation: "Use current location",
   useDistrictOnly: "District only",
   locationOptional: "Location is optional — you can still save offline without GPS.",
@@ -117,13 +333,9 @@ export const en = {
   locationUnavailable: "Location is unavailable on this device right now.",
   captureLocation: "Capture GPS location",
   locationCaptured: "Location captured",
-
-  // --- notes / storage ----------------------------------------------------
   notesPlaceholder: "Anything the field officer should know",
   needsStorageAssistance: "Needs storage assistance",
   notAReservation: "This records a preference. It is not a storage reservation.",
-
-  // --- attachments --------------------------------------------------------
   stepAttachments: "Attachments",
   attachments: "Attachments",
   addPhoto: "Add photo",
@@ -133,8 +345,6 @@ export const en = {
   attachmentLimitReached: "You have reached the maximum number of attachments.",
   attachmentPermissionDenied: "Permission was denied, so no file was added.",
   noAttachments: "No attachments added.",
-
-  // --- risk ---------------------------------------------------------------
   riskScore: "Risk score",
   modelVersion: "Rule/model version",
   factor: "Factor",
@@ -149,15 +359,11 @@ export const en = {
   scoreUnavailable: "Risk score unavailable",
   viewStorageOptions: "View storage options",
   submittedHarvest: "Submitted harvest",
-
-  // --- insights -----------------------------------------------------------
   insightsSubtitle: "Your latest risk results and recommendations, from this device.",
   noInsightsYet: "No stored risk results yet. Risk is scored by the server after sync.",
   recentRecommendations: "Recent recommendations",
   harvestSummary: "Harvest summary",
   dataPeriodInformation: "Data period information",
-
-  // --- alerts -------------------------------------------------------------
   alertsSubtitle: "Only real signals — nothing is invented.",
   alertsSyncFailure: "records could not be synced",
   alertsNewRisk: "New risk result available",
@@ -165,35 +371,25 @@ export const en = {
   alertsDataUpdate: "Data or model update available",
   alertsConflict: "A record needs your review before it can sync",
   noAlertsYet: "No alerts right now.",
-
-  // --- profile ------------------------------------------------------------
   offlineStatus: "Local / offline status",
   localRecords: "Local records",
   farmProfiles: "Farm profiles",
   privacyConsent: "Privacy and consent",
   privacyText:
     "Your GPS coordinates and farm notes are private. They are never published in public analytics.",
-  appVersion: "App version",
   aboutDataSources: "Data sources and about",
   aboutText:
     "Official NISR/MINAGRI statistics are kept separate from your field records. Risk results are produced by the server.",
   signOut: "Sign out",
   authNotEnabled: "Sign-in is not enabled in this build.",
-
-  // --- sync ---------------------------------------------------------------
   syncNow: "Sync now",
   syncSummary: "Attempted {attempted}, synced {synced}, failed {failed}.",
   syncConflicts: "Conflicts needing review",
-  offlineBanner: "You are offline. Records are saved on this device and sync automatically.",
-
-  // --- harvest history ----------------------------------------------------
   dateRange: "Date range",
   riskBand: "Risk",
   storageAssistanceRequested: "Storage assistance requested",
   noRiskBandYet: "No risk result yet",
   tapForDetails: "Tap for details",
-
-  // --- storage options ----------------------------------------------------
   storageAndMarketOptions: "Storage & Market Options",
   activeHarvest: "Active harvest",
   districtContext: "Rwanda / district context",
@@ -210,8 +406,6 @@ export const en = {
   marketIntelligence: "Market intelligence",
   verifiedSourceNotConnected: "Verified market-price source not connected yet.",
   noActiveHarvest: "No harvest selected. Register a harvest to see its storage context.",
-
-  // --- share / install ----------------------------------------------------
   shareApp: "Share app",
   shareSubtitle: "Get Cropmatics onto another phone — scan the code or open the link.",
   scanToInstall: "Scan to install",
@@ -225,12 +419,13 @@ export const en = {
   stepOne: "Open the link or scan the code on the other phone.",
   stepTwo: "Allow installing from that source when Android asks.",
   stepThree: "Open the app — your records stay on the device until you sync.",
-  needExpoGo: "No APK configured yet? Install Expo Go from the Play Store, then open this link inside it.",
+  needExpoGo:
+    "No APK configured yet? Install Expo Go from the Play Store, then open this link inside it.",
   shareNotConfigured: "No install link is configured for this build yet.",
-  apiNoteDemo: "This build talks to a demo machine on the local network. Install it while you are on the same Wi-Fi.",
-  apiNotePublic: "This build talks to the public Cropmatics API — it works on any internet connection.",
+  apiNoteDemo:
+    "This build talks to a demo machine on the local network. Install it while you are on the same Wi-Fi.",
+  apiNotePublic:
+    "This build talks to the public Cropmatics API — it works on any internet connection.",
 } as const;
 
-// Equivalent to a mapped type over `typeof en`, but expressed via Record so it
-// does not trip the older @typescript-eslint mapped-type visitor.
 export type Strings = Record<keyof typeof en, string>;
