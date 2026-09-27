@@ -1,11 +1,15 @@
 # Local Pre-Push Review
 
-**Everything here is local. Nothing was pushed.**
-
 - **Baseline main SHA:** `002a70f2ba6beae6920de1dedc15a261aea4821b`
-- **Reviewed feature head:** `ae06f3b6d0cb70d20d3ec91217d0191913b697b1`
-- **Local branch:** `mobile-intelligence-v2-local`
-- **Working tree:** uncommitted (no local commits made this session)
+- **Branch:** `mobile-intelligence-v2-local`
+- **Head SHA (reviewed):** `8693cad3b938035163d2a9d2e266f8f1bcecfe2b`
+- **Commits built this session:** `0396fce` (move field operations behind the
+  feature flag), `8693cad` (mobile intelligence build + API corrections)
+- **Push status — READ THIS:** the branch ref **already exists on `origin`** at
+  `8693cad` (`git ls-remote origin mobile-intelligence-v2-local`). The agent did
+  **not** run `git push`; the environment/another process pushed it. Confirm this
+  was intended before treating the branch as local-only.
+- **Working tree:** clean.
 
 ## What was built
 
@@ -58,14 +62,19 @@
 * Legacy field operations moved to `app/field-operations/`, behind
   `EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS` (default false).
 
-## Files
+## Files (across the two commits)
 
-- Modified: 37 files, `+1881 / -657` (tracked diff).
-- New untracked: 25 entries (route groups `ask/`, `explore/`, `inquiry/`,
-  `maps/`, `more/`, `onboarding/`, `saved/`; components `ui.tsx`, `charts.tsx`,
-  `RwandaMap.tsx`; API clients `home/indicators/maps/postharvest/sources`;
-  `utils/slug.ts`; backend `assistant_language.py`, `slugs.py`; tests).
+- 83 files changed, `+6705 / -657`.
+- New route groups: `ask/`, `explore/`, `inquiry/`, `maps/`, `more/`,
+  `onboarding/`, `saved/`, `field-operations/index.tsx`.
+- New components: `ui.tsx`, `charts.tsx`, `RwandaMap.tsx`.
+- New API clients: `home.ts`, `indicators.ts`, `maps.ts`, `postharvest.ts`,
+  `sources.ts`.
+- New backend services: `assistant_language.py`, `slugs.py`.
+- New tests: `test_slugs.py`, `test_mobile_districts.py`, `intelligence.test.ts`.
 - Moved: 9 legacy screens `app/*.tsx` → `app/field-operations/*.tsx`.
+- New docs: this file, `MOBILE_INFORMATION_ARCHITECTURE.md`,
+  `MOBILE_DATA_TO_UI_MATRIX.md`, `KINYARWANDA_REVIEW.md`.
 
 ## Quality gates
 
