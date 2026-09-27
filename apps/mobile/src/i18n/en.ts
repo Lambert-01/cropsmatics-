@@ -362,6 +362,7 @@ export const en = {
   insightsSubtitle: "Your latest risk results and recommendations, from this device.",
   noInsightsYet: "No stored risk results yet. Risk is scored by the server after sync.",
   recentRecommendations: "Recent recommendations",
+  recommendations: "Recommendations",
   harvestSummary: "Harvest summary",
   dataPeriodInformation: "Data period information",
   alertsSubtitle: "Only real signals — nothing is invented.",

@@ -11,6 +11,13 @@ export const metadata: Metadata = {
   title: "Cropmatics Rwanda",
   description:
     "Crop Intelligence from Data to Action. An agricultural informatics and decision-intelligence platform for Cropmatics Rwanda.",
+  icons: {
+    icon: [
+      { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/branding/favicon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: [{ url: "/branding/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

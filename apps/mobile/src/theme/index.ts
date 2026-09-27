@@ -8,6 +8,10 @@ export const colors = {
   mint: "#DDF5EB",
   mintLight: "#EFFAF5",
 
+  mintSoft: "#EFFAF5",
+  primaryDark: "#056A4A",
+  slate300: "#CBD5E1",
+
   // Aliases kept for backward compat
   brandGreen: "#087F5B",
   success: "#16a34a",

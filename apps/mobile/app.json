@@ -1,11 +1,18 @@
 {
   "expo": {
-    "name": "Cropmatics",
+    "name": "Cropmatics Rwanda",
     "slug": "cropmatics-rwanda",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/branding/app-icon-1024.png",
     "scheme": "cropmatics",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#F7FAF8",
+    "splash": {
+      "image": "./assets/branding/splash-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#032D23"
+    },
     "newArchEnabled": false,
     "plugins": [
       "expo-router",
@@ -24,10 +31,16 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cropmatics.rwanda"
+      "bundleIdentifier": "com.cropmatics.rwanda",
+      "icon": "./assets/branding/app-icon-1024.png"
     },
     "android": {
       "package": "com.cropmatics.rwanda",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/adaptive-icon-foreground.png",
+        "backgroundColor": "#032D23",
+        "monochromeImage": "./assets/branding/android-monochrome-icon.png"
+      },
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "extra": {
@@ -35,3 +48,4 @@
     }
   }
 }
+

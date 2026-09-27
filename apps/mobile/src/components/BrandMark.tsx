@@ -1,30 +1,112 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Text, View } from "react-native";
+import React, { useState } from "react";
+import { Image, ImageSourcePropType, Text, View } from "react-native";
 
 import { colors, radius } from "../theme";
 
+const BRAND_MARK_ASSET = require("../../assets/branding/cropmatics-logo-mark.png");
+const BRAND_HEADER_ASSET = require("../../assets/branding/cropmatics-logo-header.png");
+
+export type BrandMarkSize = "small" | "medium" | "large" | "hero";
+export type BrandMarkVariant = "mark-only" | "horizontal-brand";
+
+interface BrandMarkProps {
+  size?: number | BrandMarkSize;
+  variant?: BrandMarkVariant;
+}
+
+const SIZE_MAP: Record<BrandMarkSize, number> = {
+  small: 28,
+  medium: 38,
+  large: 56,
+  hero: 96,
+};
+
 /**
- * Cropmatics brand mark.
+ * Cropmatics brand mark component.
  *
- * Rendered from design tokens rather than shipped as a bitmap: react-native-svg
- * is not a dependency, and a PNG would need a new binary asset in the repo for a
- * purely decorative element. It scales cleanly and stays in the brand palette.
+ * Renders the approved canonical Cropmatics logo mark from cropmaticlogo.png derivatives.
+ * Provides fallback to brand-colored stylized leaf icon only if image asset fails.
  */
-export function BrandMark({ size = 36 }: { size?: number }) {
+export function BrandMark({ size = "medium", variant = "mark-only" }: BrandMarkProps) {
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const numericSize = typeof size === "number" ? size : SIZE_MAP[size] ?? 38;
+
+  if (variant === "horizontal-brand") {
+    const h = numericSize;
+    const w = Math.round(h * 3.2);
+
+    return (
+      <View
+        accessibilityRole="image"
+        accessibilityLabel="Cropmatics Rwanda"
+        style={{ width: w, height: h, justifyContent: "center" }}
+      >
+        {!loadFailed ? (
+          <Image
+            source={BRAND_HEADER_ASSET as ImageSourcePropType}
+            style={{ width: w, height: h }}
+            resizeMode="contain"
+            onError={() => setLoadFailed(true)}
+          />
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                width: h * 0.8,
+                height: h * 0.8,
+                borderRadius: radius.md,
+                backgroundColor: colors.forest,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name="leaf" size={Math.round(h * 0.45)} color={colors.white} />
+            </View>
+            <Text style={{ fontWeight: "700", color: colors.forestDeep, fontSize: h * 0.45 }}>
+              Cropmatics
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel="Cropmatics Rwanda"
+      accessibilityLabel="Cropmatics Rwanda logo mark"
       style={{
-        width: size,
-        height: size,
+        width: numericSize,
+        height: numericSize,
         borderRadius: radius.md,
-        backgroundColor: colors.forest,
         alignItems: "center",
         justifyContent: "center",
+        overflow: "hidden",
       }}
     >
-      <Ionicons name="leaf" size={Math.round(size * 0.55)} color={colors.white} />
+      {!loadFailed ? (
+        <Image
+          source={BRAND_MARK_ASSET as ImageSourcePropType}
+          style={{ width: numericSize, height: numericSize }}
+          resizeMode="contain"
+          onError={() => setLoadFailed(true)}
+        />
+      ) : (
+        <View
+          style={{
+            width: numericSize,
+            height: numericSize,
+            borderRadius: radius.md,
+            backgroundColor: colors.forest,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="leaf" size={Math.round(numericSize * 0.55)} color={colors.white} />
+        </View>
+      )}
     </View>
   );
 }
@@ -32,9 +114,7 @@ export function BrandMark({ size = 36 }: { size?: number }) {
 /**
  * Neutral identity placeholder.
  *
- * Deliberately initials, not a stock photograph: there is no user profile or
- * auth in this build, and inventing a person's face would misrepresent who is
- * using the app.
+ * App is anonymous-first. Deliberately neutral initials/icon rather than a fake portrait.
  */
 export function InitialsAvatar({ name, size = 30 }: { name?: string | null; size?: number }) {
   const initials = (name ?? "")
@@ -43,6 +123,7 @@ export function InitialsAvatar({ name, size = 30 }: { name?: string | null; size
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+
   return (
     <View
       accessibilityRole="image"
@@ -51,16 +132,21 @@ export function InitialsAvatar({ name, size = 30 }: { name?: string | null; size
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colors.tint,
+        backgroundColor: colors.mintSoft,
         borderWidth: 1,
         borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={{ fontSize: size * 0.4, fontWeight: "700", color: colors.forest }}>
-        {initials || "—"}
-      </Text>
+      {initials ? (
+        <Text style={{ fontSize: size * 0.38, fontWeight: "700", color: colors.forestDeep }}>
+          {initials}
+        </Text>
+      ) : (
+        <Ionicons name="person-outline" size={size * 0.5} color={colors.slate700} />
+      )}
     </View>
   );
 }
+
