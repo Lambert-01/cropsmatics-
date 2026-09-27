@@ -5,14 +5,21 @@
   },
   "build": {
     "preview": {
-      "description": "Shareable Android APK — installs directly on any phone from a link, no Play Store needed. API URL is read from apps/mobile/.env (EXPO_PUBLIC_API_BASE_URL).",
+      "environment": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "release-apk": {
+      "environment": "production",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "description": "Play Store build (.aab).",
+      "environment": "production",
       "android": {
         "buildType": "app-bundle"
       }
