@@ -2,6 +2,16 @@
 
 Anonymous-first: every contact field is optional, and a submission with no contact
 details is a first-class, supported case.
+
+Privacy contract
+----------------
+
+* ``InquiryReceipt`` is returned exactly once, at creation. It contains the
+  secret ``receipt_token`` the submitter uses to read their own inquiry back.
+* ``InquiryStatusOut`` is the *only* public read model. It never carries the
+  message, the contact name, the email or the organisation.
+* There is no public list model — an anonymous visitor cannot enumerate other
+  people's inquiries.
 """
 
 from __future__ import annotations
@@ -55,20 +65,21 @@ class InquiryIn(BaseModel):
         return value.strip()
 
 
-class InquiryOut(BaseModel):
+class InquiryReceipt(BaseModel):
+    """Returned once at creation. The caller must store ``receipt_token``."""
+
     id: str
-    topic: str
-    crop: str | None = None
-    province: str | None = None
-    district: str | None = None
-    message: str
-    contact_name: str | None = None
-    contact_email: str | None = None
-    organization: str | None = None
+    receipt_token: str
     status: InquiryStatus = "RECEIVED"
     created_at: str
+    # A short human-friendly reference derived from the id (no PII).
+    reference: str
 
 
-class InquiryListOut(BaseModel):
-    count: int = 0
-    inquiries: list[InquiryOut] = Field(default_factory=list)
+class InquiryStatusOut(BaseModel):
+    """Public, sanitized status projection — no message and no contact details."""
+
+    id: str
+    status: InquiryStatus = "RECEIVED"
+    created_at: str
+    updated_at: str | None = None

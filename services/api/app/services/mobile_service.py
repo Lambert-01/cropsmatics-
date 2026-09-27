@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pandas as pd
+
 from app.repositories import dataset_repository as repo
-from app.services import meta_service
+from app.services import meta_service, slugs
 from app.services.analytics_service import gapped
 
 SEASON_WORDS = {"A": "Season A", "B": "Season B", "C": "Season C"}
@@ -194,10 +196,69 @@ INDICATORS: tuple[dict, ...] = (
         "label": "National post-harvest infrastructure",
         "category": "Infrastructure",
         "dataset": "postharvest_infrastructure",
-        "column": "indicator",
-        "unit": None,
+        # The processed table keys rows by ``infrastructure_type`` (warehouses,
+        # silos, drying shelters, grain dryers). The previous registry used a
+        # non-existent ``indicator`` column, which silently marked this
+        # indicator unavailable. See regression test test_mobile_indicators.
+        "column": "infrastructure_type",
+        "unit": "facilities",
     },
 )
+
+# --- aggregation policy ----------------------------------------------------
+# Every indicator declares *how it may validly be aggregated*. A statistic is
+# never computed merely because Pandas offers ``mean()``:
+#
+#   crop_required  -> averaging across crops is meaningless (different natural
+#                     yield scales); a crop must be named first
+#   mean           -> an unweighted mean of published district rows is valid
+#   count          -> a count of distinct entities (districts, facilities)
+#   specialized    -> only its own bespoke logic may aggregate it
+AGGREGATION_BY_ID: dict[str, str] = {
+    "yield": "crop_required",
+    "production": "crop_required",
+    "harvested_area": "crop_required",
+    "improved_seed": "mean",
+    "organic_fertilizer": "mean",
+    "inorganic_fertilizer": "mean",
+    "pesticide": "mean",
+    "mechanization": "mean",
+    "agroforestry": "mean",
+    "irrigation_farmers": "mean",
+    "irrigation_drip": "mean",
+    "irrigation_surface": "mean",
+    "water_source_rainwater": "mean",
+    "erosion_bench_terraces": "mean",
+    "erosion_progressive_terraces": "mean",
+    "erosion_severe": "mean",
+    "postharvest_stored": "crop_required",
+    "postharvest_loss": "crop_required",
+    "postharvest_own_consumption": "crop_required",
+    "cold_chain_program": "count",
+    "postharvest_infrastructure": "specialized",
+}
+
+# Indicator-specific provenance: a question about irrigation must never cite the
+# crop-productivity source table, so every indicator carries its own source.
+SOURCE_BY_DATASET: dict[str, str] = {
+    "district_crop_productivity": "NISR_SAS_2025B_DISTRICT_CROP",
+    "district_factors": "NISR_SAS_2025B_DISTRICT_FACTORS",
+    "irrigation_water": "NISR_SAS_2025B_IRRIGATION_WATER",
+    "erosion_control": "NISR_SAS_2025B_EROSION",
+    "crop_postharvest_use": "NISR_SAS_2025B_POSTHARVEST_USE",
+    "cold_chain_context": "MINAGRI_ACES_COLDCHAIN_2026",
+    "postharvest_infrastructure": "MINAGRI_ANNUAL_REPORT_2024_2025_POSTHARVEST_INFRA",
+}
+
+SOURCE_LABEL_BY_DATASET: dict[str, str] = {
+    "district_crop_productivity": "NISR SAS 2025 Season B - district crop productivity",
+    "district_factors": "NISR SAS 2025 Season B - district productivity factors",
+    "irrigation_water": "NISR SAS 2025 Season B - irrigation and water sources",
+    "erosion_control": "NISR SAS 2025 Season B - erosion control",
+    "crop_postharvest_use": "NISR SAS 2025 Season B - post-harvest use",
+    "cold_chain_context": "MINAGRI-ACES cold-chain programme context 2026",
+    "postharvest_infrastructure": "MINAGRI Annual Report 2024/2025 - post-harvest infrastructure",
+}
 
 _LOADERS = {
     "district_crop_productivity": repo.productivity_dataset,
@@ -213,6 +274,16 @@ _LOADERS = {
 def loader_for(dataset: str):
     """Public accessor for the loaders behind the indicator registry."""
     return _LOADERS.get(dataset)
+
+
+def aggregation_for(indicator_id: str) -> str:
+    """How an indicator may validly be aggregated (see ``AGGREGATION_BY_ID``)."""
+    return AGGREGATION_BY_ID.get(indicator_id, "specialized")
+
+
+def source_for(dataset: str) -> str | None:
+    """Indicator-specific source id, so provenance never bleeds across tables."""
+    return SOURCE_BY_DATASET.get(dataset)
 
 
 def format_period(period: str | None) -> str | None:
@@ -273,6 +344,10 @@ def indicator_catalog() -> list[dict]:
                 "dataset": spec["dataset"],
                 "column": spec["column"],
                 "unit": spec["unit"],
+                "aggregation": AGGREGATION_BY_ID.get(spec["id"], "specialized"),
+                "source_id": SOURCE_BY_DATASET.get(spec["dataset"]),
+                "source_label": SOURCE_LABEL_BY_DATASET.get(spec["dataset"]),
+                "source_period": period,
                 "period": period,
                 "coverage_level": level,
                 "available": bool(period)
@@ -389,7 +464,9 @@ def featured_topics() -> list[dict]:
                     f"{leader['gap_index']:.0f}% below the national {leader['crop']} median "
                     f"of {leader['benchmark_yield_kg_ha']:.0f} kg/ha ({period_label})."
                 ),
-                "route": "/explore/crop/" + str(leader["crop"]),
+                # Route by stable crop_code, never by raw name (spaces/case).
+                "route": "/explore/crop/"
+                + (slugs.crop_code_for_name(str(leader["crop"])) or slugs.slugify_entity(str(leader["crop"]))),
                 "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
                 "period": period,
             }
@@ -405,7 +482,11 @@ def featured_topics() -> list[dict]:
                     f"{adoption['district']} reports the lowest average improved-seed use "
                     f"at {adoption['value']:.1f}% of farmers."
                 ),
-                "route": "/explore/district/" + str(adoption["district"]),
+                "route": "/explore/district/"
+                + (
+                    slugs.district_code_for_name(str(adoption["district"]))
+                    or slugs.slugify_entity(str(adoption["district"]))
+                ),
                 "source_id": "NISR_SAS_2025B_DISTRICT_FACTORS",
                 "period": period,
             }
@@ -468,6 +549,168 @@ def suggested_questions(limit: int = 6) -> list[str]:
             pass
     return questions[:limit]
 
+
+
+# --- district profile ------------------------------------------------------
+
+# Adoption/land indicators read directly from the cleaned district factor table.
+_FACTOR_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("improved_seed_farmers_pct", "Improved seed", "% of farmers"),
+    ("organic_fertilizer_farmers_pct", "Organic fertilizer", "% of farmers"),
+    ("inorganic_fertilizer_farmers_pct", "Inorganic fertilizer", "% of farmers"),
+    ("pesticide_farmers_pct", "Pesticide", "% of farmers"),
+    ("mechanization_farmers_pct", "Mechanization", "% of farmers"),
+    ("agroforestry_farmers_pct", "Agroforestry", "% of farmers"),
+    ("erosion_protection_farmers_pct", "Erosion protection", "% of farmers"),
+)
+
+_LAND_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("agricultural_land_000ha", "Agricultural land", "000 ha"),
+    ("modern_irrigated_area_ha", "Modern irrigated area", "ha"),
+    ("erosion_control_area_ha", "Erosion-control area", "ha"),
+    ("agroforestry_area_ha", "Agroforestry area", "ha"),
+)
+
+_IRRIGATION_FIELDS: tuple[tuple[str, str], ...] = (
+    ("surface_irrigation_pct", "Surface irrigation"),
+    ("drip_irrigation_pct", "Drip irrigation"),
+    ("flood_irrigation_pct", "Flood irrigation"),
+    ("sprinkler_irrigation_pct", "Sprinkler irrigation"),
+    ("traditional_irrigation_pct", "Traditional irrigation"),
+)
+
+_WATER_FIELDS: tuple[tuple[str, str], ...] = (
+    ("rainwater_source_pct", "Rainwater"),
+    ("underground_source_pct", "Underground"),
+    ("lake_stream_source_pct", "Lake / stream"),
+    ("water_catchment_source_pct", "Catchment"),
+    ("water_treatment_source_pct", "Treated water"),
+)
+
+_EROSION_FIELDS: tuple[tuple[str, str], ...] = (
+    ("bench_terraces_pct", "Bench terraces"),
+    ("progressive_terraces_pct", "Progressive terraces"),
+    ("ditches_pct", "Ditches"),
+    ("trees_windbreak_pct", "Trees / windbreak"),
+    ("cover_plants_pct", "Cover plants"),
+    ("mulching_pct", "Mulching"),
+    ("erosion_severe_pct", "Severe erosion"),
+    ("erosion_moderate_pct", "Moderate erosion"),
+)
+
+
+def _metric_list(row, fields: tuple[tuple[str, str], ...]) -> list[dict]:
+    out: list[dict] = []
+    for key, label in fields:
+        value = row.get(key) if row is not None else None
+        out.append(
+            {
+                "id": key,
+                "label": label,
+                "value": None if value is None or (isinstance(value, float) and value != value) else round(float(value), 3),
+            }
+        )
+    return out
+
+
+def _first_row(df, district: str):
+    if df is None or df.empty or "district" not in df.columns:
+        return None
+    rows = df[df["district"] == district]
+    return rows.iloc[0] if not rows.empty else None
+
+
+def district_profile(slug: str) -> dict | None:
+    """Real district read model: crops, practice adoption, land, water and erosion.
+
+    Never reports a cross-crop mean yield — different crops do not share a
+    natural yield scale. A crop-specific yield is only returned per crop row.
+    """
+    row = slugs.resolve_district_slug(slug)
+    if row is None:
+        return None
+    district = str(row["district"])
+    period = latest_district_period()
+
+    try:
+        productive = repo.productivity_dataset()
+        rows = productive[productive["district"] == district]
+    except Exception:
+        rows = None
+
+    crops: list[dict] = []
+    if rows is not None and not rows.empty:
+        for _, r in rows.sort_values("production_mt", ascending=False, na_position="last").iterrows():
+            crops.append(
+                {
+                    "crop": str(r["canonical_crop_name"]),
+                    "crop_code": r.get("crop_code"),
+                    "production_mt": None if pd.isna(r.get("production_mt")) else float(r.get("production_mt")),
+                    "harvested_area_ha": None if pd.isna(r.get("harvested_area_ha")) else float(r.get("harvested_area_ha")),
+                    "yield_kg_ha": None if pd.isna(r.get("yield_kg_ha")) else float(r.get("yield_kg_ha")),
+                }
+            )
+
+    try:
+        factors = _first_row(repo.factors_dataset(), district)
+    except Exception:
+        factors = None
+    try:
+        irrigation = _first_row(repo.irrigation_water(), district)
+    except Exception:
+        irrigation = None
+    try:
+        erosion = _first_row(repo.erosion_control(), district)
+    except Exception:
+        erosion = None
+
+    factor_values = _metric_list(factors, tuple((k, lbl) for k, lbl, _ in _FACTOR_FIELDS))
+    factor_units = {k: unit for k, _, unit in _FACTOR_FIELDS}
+    for item in factor_values:
+        item["unit"] = factor_units.get(item["id"])
+
+    return {
+        "district": district,
+        "district_code": row["district_code"],
+        "province": row.get("province"),
+        "agro_ecological_zone": row.get("agro_ecological_zone"),
+        "period": period,
+        "period_label": format_period(period),
+        "n_crops_with_data": len(crops),
+        "largest_production_crops": crops[:3],
+        "crops": crops,
+        "factors": factor_values,
+        "land": [
+            {
+                "id": key,
+                "label": label,
+                "unit": unit,
+                "value": None
+                if factors is None
+                or factors.get(key) is None
+                or pd.isna(factors.get(key))
+                else round(float(factors.get(key)), 3),
+            }
+            for key, label, unit in _LAND_FIELDS
+        ],
+        "irrigation": {
+            "methods": _metric_list(irrigation, _IRRIGATION_FIELDS),
+            "sources": _metric_list(irrigation, _WATER_FIELDS),
+        },
+        "erosion": _metric_list(erosion, _EROSION_FIELDS),
+        # Explicitly absent: no cross-crop yield mean is meaningful.
+        "cross_crop_yield_mean": None,
+        "provenance": {
+            "source_id": "NISR_SAS_2025B_DISTRICT_FACTORS",
+            "source_period": period,
+            "method": "district x crop productivity joined to district factor, irrigation and erosion tables",
+            "limitations": [
+                "district aggregates only for 2025 Season B",
+                "practice adoption is a share of farmers, not of area",
+                "no cross-crop average yield is computed",
+            ],
+        },
+    }
 
 
 # --- home ------------------------------------------------------------------

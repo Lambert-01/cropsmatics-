@@ -1,35 +1,58 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { flushOutbox } from "../src/sync/queue";
+import { useAppStore } from "../src/store/useAppStore";
+import { colors } from "../src/theme";
 
 export default function RootLayout() {
-  const [client] = useState(() => new QueryClient());
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            // Public intelligence changes slowly; cache aggressively and keep
+            // the last good data visible while refetching.
+            staleTime: 5 * 60 * 1000,
+            gcTime: 24 * 60 * 60 * 1000,
+            retry: 2,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
+
+  const router = useRouter();
+  const segments = useSegments();
+  const { hydrated, onboardingComplete, hydrate } = useAppStore();
+
   useEffect(() => {
-    void flushOutbox();
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void flushOutbox();
-    });
-    return () => subscription.remove();
-  }, []);
+    void hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const inOnboarding = segments[0] === "onboarding";
+    if (!onboardingComplete && !inOnboarding) {
+      router.replace("/onboarding");
+    }
+  }, [hydrated, onboardingComplete, segments, router]);
+
+  if (!hydrated) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <QueryClientProvider client={client}>
-      <Stack
-        screenOptions={{ headerShown: false }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="register-harvest" />
-        <Stack.Screen name="harvest-risk" />
-        <Stack.Screen name="storage-options" />
-        <Stack.Screen name="harvests" />
-        <Stack.Screen name="insights" />
-        <Stack.Screen name="alerts" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="share" />
-        <Stack.Screen name="sync" />
-      </Stack>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={client}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

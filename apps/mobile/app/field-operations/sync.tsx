@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { listHarvests, listPendingOutbox } from "../src/database";
-import { strings } from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import { flushOutbox, isOnline, type FlushSummary } from "../src/sync/queue";
-import { colors, radius, spacing, typography } from "../src/theme";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { listHarvests, listPendingOutbox } from "../../src/database";
+import { strings } from "../../src/i18n";
+import { useAppStore } from "../../src/store/useAppStore";
+import { flushOutbox, isOnline, type FlushSummary } from "../../src/sync/queue";
+import { colors, radius, spacing, typography } from "../../src/theme";
 
 export default function SyncScreen() {
   const language = useAppStore((s) => s.language);

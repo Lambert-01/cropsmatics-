@@ -1,34 +1,24 @@
-import { request } from "./client";
+import type { ProductivityResponse, TrendResponse } from "../../types";
+import { qs, request } from "./client";
 
 export const analyticsApi = {
-  productivity: (params?: { crop?: string; district?: string; period?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.crop) q.set("crop", params.crop);
-    if (params?.district) q.set("district", params.district);
-    if (params?.period) q.set("period", params.period);
-    const qs = q.toString();
-    return request<unknown>(`/analytics/productivity${qs ? `?${qs}` : ""}`);
-  },
-  postHarvest: (params?: { crop?: string; period?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.crop) q.set("crop", params.crop);
-    if (params?.period) q.set("period", params.period);
-    const qs = q.toString();
-    return request<unknown>(`/analytics/post-harvest${qs ? `?${qs}` : ""}`);
-  },
-  trends: (params?: { crop?: string; district?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.crop) q.set("crop", params.crop);
-    if (params?.district) q.set("district", params.district);
-    const qs = q.toString();
-    return request<unknown>(`/analytics/trends${qs ? `?${qs}` : ""}`);
-  },
-  inputAdoption: (params?: { crop?: string; district?: string; period?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.crop) q.set("crop", params.crop);
-    if (params?.district) q.set("district", params.district);
-    if (params?.period) q.set("period", params.period);
-    const qs = q.toString();
-    return request<unknown>(`/analytics/input-adoption${qs ? `?${qs}` : ""}`);
-  },
+  productivity: (params?: { crop?: string; district?: string; period?: string }) =>
+    request<ProductivityResponse>(
+      `/analytics/productivity${qs({
+        crop: params?.crop,
+        district: params?.district,
+        period: params?.period,
+      })}`,
+    ),
+  postHarvest: (params?: { crop?: string }) =>
+    request<Record<string, unknown>>(`/analytics/post-harvest${qs({ crop: params?.crop })}`),
+  trends: (params?: { crop?: string; district?: string; compare?: string }) =>
+    request<TrendResponse>(
+      `/analytics/trends${qs({
+        crop: params?.crop,
+        district: params?.district,
+        compare: params?.compare,
+      })}`,
+    ),
+  inputAdoption: () => request<TrendResponse>("/analytics/input-adoption"),
 };

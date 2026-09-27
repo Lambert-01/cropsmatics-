@@ -10,13 +10,17 @@
 import * as SQLite from "expo-sqlite";
 
 import type {
+  AskHistoryItem,
   HarvestAttachment,
   HarvestRegistration,
   HarvestRisk,
+  InquiryReceipt,
   LocalFarm,
   OutboxItem,
+  SavedItem,
 } from "../types";
 import {
+  ASK_HISTORY_SELECT,
   ATTACHMENT_SELECT,
   CREATE_INDEXES,
   CREATE_META,
@@ -24,7 +28,9 @@ import {
   FARM_SELECT,
   HARVEST_ADDED_COLUMNS,
   HARVEST_SELECT,
+  INQUIRY_RECEIPT_SELECT,
   RISK_SELECT,
+  SAVED_SELECT,
   SCHEMA_VERSION,
 } from "./schema";
 
@@ -239,6 +245,142 @@ export function listAttachments(harvestClientUuid: string): HarvestAttachment[] 
 
 export function deleteAttachment(clientUuid: string): void {
   getDb().runSync("DELETE FROM harvest_attachment WHERE client_uuid = ?", clientUuid);
+}
+
+// ---- saved intelligence items ---------------------------------------------
+function randomId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function saveItem(input: {
+  type: SavedItem["type"];
+  entityKey: string;
+  title: string;
+  subtitle?: string | null;
+  metadata?: Record<string, unknown>;
+}): SavedItem {
+  const id = randomId();
+  getDb().runSync(
+    `INSERT INTO saved_item (id, type, entity_key, title, subtitle, metadata_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(type, entity_key) DO UPDATE SET title = excluded.title,
+       subtitle = excluded.subtitle, metadata_json = excluded.metadata_json`,
+    id,
+    input.type,
+    input.entityKey,
+    input.title,
+    input.subtitle ?? null,
+    JSON.stringify(input.metadata ?? {}),
+    new Date().toISOString(),
+  );
+  return getSavedItem(input.type, input.entityKey) as SavedItem;
+}
+
+export function listSaved(type?: SavedItem["type"]): SavedItem[] {
+  const db = getDb();
+  const rows = type
+    ? db.getAllSync<SavedItem>(`${SAVED_SELECT} WHERE type = ? ORDER BY created_at DESC`, type)
+    : db.getAllSync<SavedItem>(`${SAVED_SELECT} ORDER BY created_at DESC`);
+  return rows;
+}
+
+export function getSavedItem(type: SavedItem["type"], entityKey: string): SavedItem | null {
+  const row = getDb().getFirstSync<SavedItem>(
+    `${SAVED_SELECT} WHERE type = ? AND entity_key = ?`,
+    type,
+    entityKey,
+  );
+  return row ?? null;
+}
+
+export function removeSavedItem(type: SavedItem["type"], entityKey: string): void {
+  getDb().runSync("DELETE FROM saved_item WHERE type = ? AND entity_key = ?", type, entityKey);
+}
+
+export function clearSavedItems(): void {
+  getDb().runSync("DELETE FROM saved_item");
+}
+
+// ---- grounded Ask history -------------------------------------------------
+export function addAskHistory(item: Omit<AskHistoryItem, "id" | "created_at">): AskHistoryItem {
+  const record: AskHistoryItem = {
+    ...item,
+    id: randomId(),
+    created_at: new Date().toISOString(),
+  };
+  getDb().runSync(
+    `INSERT INTO ask_history (id, question, answer, grounded, intent, source, period, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    record.id,
+    record.question,
+    record.answer,
+    record.grounded ? 1 : 0,
+    record.intent ?? null,
+    record.source ?? null,
+    record.period ?? null,
+    record.created_at,
+  );
+  return record;
+}
+
+export function listAskHistory(limit = 50): AskHistoryItem[] {
+  type Row = Omit<AskHistoryItem, "grounded"> & { grounded: number };
+  return getDb()
+    .getAllSync<Row>(`${ASK_HISTORY_SELECT} ORDER BY created_at DESC LIMIT ?`, limit)
+    .map((row) => ({ ...row, grounded: Boolean(row.grounded) }));
+}
+
+export function clearAskHistory(): void {
+  getDb().runSync("DELETE FROM ask_history");
+}
+
+// ---- inquiry receipts (private status tracking) ---------------------------
+export function saveInquiryReceipt(receipt: InquiryReceipt & { reference: string }): void {
+  getDb().runSync(
+    `INSERT OR REPLACE INTO inquiry_receipt (id, receipt_token, reference, status, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    receipt.id,
+    receipt.receipt_token,
+    receipt.reference,
+    receipt.status,
+    receipt.created_at,
+  );
+}
+
+export function listInquiryReceipts(): InquiryReceipt[] {
+  return getDb().getAllSync<InquiryReceipt>(`${INQUIRY_RECEIPT_SELECT} ORDER BY created_at DESC`);
+}
+
+export function updateInquiryReceiptStatus(id: string, status: string): void {
+  getDb().runSync("UPDATE inquiry_receipt SET status = ? WHERE id = ?", status, id);
+}
+
+// ---- inquiry offline drafts ----------------------------------------------
+export function saveInquiryDraft(clientUuid: string, payload: Record<string, unknown>): void {
+  getDb().runSync(
+    `INSERT OR REPLACE INTO inquiry_draft (client_uuid, payload, created_at) VALUES (?, ?, ?)`,
+    clientUuid,
+    JSON.stringify(payload),
+    new Date().toISOString(),
+  );
+}
+
+export function listInquiryDrafts(): { clientUuid: string; payload: string; createdAt: string }[] {
+  return getDb().getAllSync<{ clientUuid: string; payload: string; createdAt: string }>(
+    "SELECT client_uuid AS clientUuid, payload, created_at AS createdAt FROM inquiry_draft ORDER BY created_at ASC",
+  );
+}
+
+export function removeInquiryDraft(clientUuid: string): void {
+  getDb().runSync("DELETE FROM inquiry_draft WHERE client_uuid = ?", clientUuid);
+}
+
+// ---- offline cache maintenance -------------------------------------------
+export function clearCachedData(): void {
+  // Ask history and saved items are user data and are deliberately preserved.
+  // Only the inquiry draft queue is cleared here; server cache lives in
+  // AsyncStorage and is cleared by the settings screen directly.
+  getDb().runSync("DELETE FROM inquiry_draft");
 }
 
 // ---- outbox / sync queue --------------------------------------------------

@@ -4,20 +4,20 @@ import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 
-import { AttachmentFields, toAttachmentRows, type PendingAttachment } from "../src/components/AttachmentFields";
-import { DateField } from "../src/components/DateField";
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { StepProgress } from "../src/components/StepProgress";
-import { CROPS, DISTRICTS } from "../src/constants/reference";
-import { insertAttachment, listFarms } from "../src/database";
-import { strings } from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import { saveFarmOffline, saveHarvestOffline } from "../src/sync/queue";
-import { colors, radius, shadow, spacing, typography } from "../src/theme";
-import type { LocalFarm, QuantityUnit } from "../src/types";
-import { todayIso, validateHarvestDates } from "../src/utils/dates";
-import { QUANTITY_UNITS, formatQuantity, parseQuantity, toKilograms } from "../src/utils/units";
-import { uuidv4 } from "../src/utils/uuid";
+import { AttachmentFields, toAttachmentRows, type PendingAttachment } from "../../src/components/AttachmentFields";
+import { DateField } from "../../src/components/DateField";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { StepProgress } from "../../src/components/StepProgress";
+import { CROPS, DISTRICTS } from "../../src/constants/reference";
+import { insertAttachment, listFarms } from "../../src/database";
+import { strings } from "../../src/i18n";
+import { useAppStore } from "../../src/store/useAppStore";
+import { saveFarmOffline, saveHarvestOffline } from "../../src/sync/queue";
+import { colors, radius, shadow, spacing, typography } from "../../src/theme";
+import type { LocalFarm, QuantityUnit } from "../../src/types";
+import { todayIso, validateHarvestDates } from "../../src/utils/dates";
+import { QUANTITY_UNITS, formatQuantity, parseQuantity, toKilograms } from "../../src/utils/units";
+import { uuidv4 } from "../../src/utils/uuid";
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -160,7 +160,7 @@ export default function RegisterHarvestScreen() {
     }
 
     router.replace({
-      pathname: "/harvest-risk",
+      pathname: "/field-operations/harvest-risk",
       params: {
         harvestClientUuid: record.clientUuid,
         crop,

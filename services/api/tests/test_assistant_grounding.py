@@ -95,3 +95,74 @@ def test_kinyarwanda_crop_name_is_understood(client):
     # "ibigori" is the Kinyarwanda name for maize.
     assert answer["grounded"] is True
     assert answer["evidence"]["crop"] == "Maize"
+
+
+def test_every_returned_intent_is_advertised(client):
+    """An intent that can be returned must appear in the advertised registry."""
+    advertised = set(client.get("/api/v1/assistant/suggestions").json()["intents"])
+    assert "national_indicator" in advertised
+    for question in (
+        "Why is maize yield low in Gisagara?",
+        "Tell me about Musanze",
+        "How is maize used after harvest?",
+        "How many farmers use irrigation?",
+        "What is the meaning of life?",
+    ):
+        assert ask(client, question)["intent"] in advertised, question
+
+
+def test_no_cross_crop_average_yield_is_reported(client):
+    """A district summary must never average yields across unrelated crops."""
+    answer = ask(client, "Tell me about Musanze")
+    evidence = answer["evidence"]
+    assert evidence["cross_crop_yield_mean"] is None
+    assert "mean_yield_kg_ha" not in evidence
+    assert "average yield" not in answer["answer"].lower()
+    assert evidence["n_crops_with_data"] > 0
+    assert evidence["largest_production_crops"]
+
+
+def test_crop_required_indicator_is_not_averaged_nationally(client):
+    """Yield across different crops has no meaningful national mean."""
+    # A crop-specific yield question must still resolve as a crop context, not an
+    # invented cross-crop national average.
+    answer = ask(client, "What is the national yield?")
+    if answer["grounded"]:
+        for item in answer["evidence"].get("indicators", []):
+            assert item["id"] != "yield", "yield must never be mean-aggregated"
+
+
+def test_kinyarwanda_answer_uses_identical_evidence(client):
+    """Language changes the prose only; numbers, source and period are equal."""
+    question = "Tell me about Musanze"
+    english = client.post(
+        "/api/v1/assistant/query", json={"question": question, "language": "en"}
+    ).json()
+    kinyarwanda = client.post(
+        "/api/v1/assistant/query", json={"question": question, "language": "rw"}
+    ).json()
+
+    assert english["language"] == "en"
+    assert english["translation_status"] is None
+    assert kinyarwanda["language"] == "rw"
+    # The evidence is byte-for-byte identical across languages.
+    assert english["evidence"] == kinyarwanda["evidence"]
+    assert english["key_figures"] == kinyarwanda["key_figures"]
+    assert english["source"] == kinyarwanda["source"]
+    assert english["period"] == kinyarwanda["period"]
+    # Kinyarwanda text differs and is honest about its review status.
+    assert kinyarwanda["answer"] != english["answer"]
+    assert kinyarwanda["translation_status"] in (
+        "TRANSLATED",
+        "TEMPORARY_ENGLISH_FALLBACK",
+    )
+
+
+def test_kinyarwanda_refusal_is_reviewed(client):
+    answer = client.post(
+        "/api/v1/assistant/query",
+        json={"question": "What is the meaning of life?", "language": "rw"},
+    ).json()
+    assert answer["grounded"] is False
+    assert answer["translation_status"] == "TRANSLATED"
+    assert answer["answer"].startswith("Cropmatics nta makuru")

@@ -11,7 +11,7 @@ the processed official tables by ``app.services.mobile_service``.
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.common import Provenance
 from app.schemas.mobile import MobileHomeResponse, MobileIndicatorsResponse
@@ -30,6 +30,19 @@ INDICATOR_LIMITATIONS = [
 def home() -> MobileHomeResponse:
     """Home-screen read model: latest period, counts, topics and questions."""
     return MobileHomeResponse(**mobile_service.home())
+
+
+@router.get("/districts/{slug}")
+def district_profile(slug: str) -> dict:
+    """Real district read model for the mobile District Detail screen.
+
+    Addressable by ``district_code`` (``RW-NO-RUL``) or slug (``rulindo``).
+    Deliberately carries no cross-crop average yield.
+    """
+    profile = mobile_service.district_profile(slug)
+    if profile is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "district not found")
+    return profile
 
 
 @router.get("/indicators", response_model=MobileIndicatorsResponse)

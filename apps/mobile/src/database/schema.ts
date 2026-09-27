@@ -64,6 +64,50 @@ export const CREATE_TABLES: readonly string[] = [
     sync_status TEXT NOT NULL DEFAULT 'SYNCED'
   )`,
 
+  // --- saved intelligence items -------------------------------------------
+  // Public-intelligence saves (crops, districts, answers, indicators). Stored
+  // on device; never synced unless the user explicitly opts in.
+  `CREATE TABLE IF NOT EXISTS saved_item (
+    id TEXT PRIMARY KEY NOT NULL,
+    type TEXT NOT NULL,
+    entity_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    UNIQUE (type, entity_key)
+  )`,
+
+  // --- grounded Ask history -----------------------------------------------
+  `CREATE TABLE IF NOT EXISTS ask_history (
+    id TEXT PRIMARY KEY NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    grounded INTEGER NOT NULL DEFAULT 0,
+    intent TEXT,
+    source TEXT,
+    period TEXT,
+    created_at TEXT NOT NULL
+  )`,
+
+  // --- inquiry receipts ---------------------------------------------------
+  // The device keeps its own receipt token so the user can check status later.
+  // There is no public listing endpoint; the token is the only access path.
+  `CREATE TABLE IF NOT EXISTS inquiry_receipt (
+    id TEXT PRIMARY KEY NOT NULL,
+    receipt_token TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'RECEIVED',
+    created_at TEXT NOT NULL
+  )`,
+
+  // --- inquiry offline drafts ---------------------------------------------
+  `CREATE TABLE IF NOT EXISTS inquiry_draft (
+    client_uuid TEXT PRIMARY KEY NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`,
+
   // --- attachments --------------------------------------------------------
   `CREATE TABLE IF NOT EXISTS harvest_attachment (
     client_uuid TEXT PRIMARY KEY NOT NULL,
@@ -84,6 +128,8 @@ export const CREATE_INDEXES: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS idx_harvest_sync_status ON harvest_registration (sync_status)`,
   `CREATE INDEX IF NOT EXISTS idx_risk_harvest ON harvest_risk (harvest_client_uuid)`,
   `CREATE INDEX IF NOT EXISTS idx_attachment_harvest ON harvest_attachment (harvest_client_uuid)`,
+  `CREATE INDEX IF NOT EXISTS idx_saved_type ON saved_item (type)`,
+  `CREATE INDEX IF NOT EXISTS idx_ask_history_created ON ask_history (created_at)`,
 ];
 
 /**
@@ -147,6 +193,22 @@ export const RISK_SELECT = `
          model_version AS modelVersion, calculated_at AS calculatedAt,
          sync_status AS syncStatus
   FROM harvest_risk
+`;
+
+export const SAVED_SELECT = `
+  SELECT id, type, entity_key AS entityKey, title, subtitle,
+         metadata_json AS metadataJson, created_at AS createdAt
+  FROM saved_item
+`;
+
+export const ASK_HISTORY_SELECT = `
+  SELECT id, question, answer, grounded, intent, source, period, created_at AS createdAt
+  FROM ask_history
+`;
+
+export const INQUIRY_RECEIPT_SELECT = `
+  SELECT id, receipt_token AS receiptToken, reference, status, created_at AS createdAt
+  FROM inquiry_receipt
 `;
 
 export const ATTACHMENT_SELECT = `

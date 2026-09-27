@@ -18,7 +18,21 @@ export { askApi } from "./api/ask";
 export { inquiryApi } from "./api/inquiry";
 export { metaApi } from "./api/meta";
 export { analyticsApi } from "./api/analytics";
+export { homeApi } from "./api/home";
+export { indicatorsApi } from "./api/indicators";
+export { mapsApi } from "./api/maps";
+export { postHarvestApi } from "./api/postharvest";
+export { sourcesApi } from "./api/sources";
 export { BASE_URL } from "./api/client";
+export {
+  ApiError,
+  NetworkError,
+  TimeoutError,
+  NotFoundError,
+  ValidationError,
+  UnsupportedDataError,
+  ServerError,
+} from "./api/client";
 
 function resolveBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();

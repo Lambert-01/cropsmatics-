@@ -4,12 +4,12 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { listFarms, listHarvests, listPendingOutbox } from "../src/database";
-import { SUPPORTED_LANGUAGES, strings } from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../src/theme";
-import type { LocalFarm } from "../src/types";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { listFarms, listHarvests, listPendingOutbox } from "../../src/database";
+import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
+import { useAppStore } from "../../src/store/useAppStore";
+import { colors, radius, spacing, typography } from "../../src/theme";
+import type { LocalFarm } from "../../src/types";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -69,7 +69,7 @@ export default function ProfileScreen() {
         <Text style={typography.caption}>{t.shareSubtitle}</Text>
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push("/share")}
+          onPress={() => router.push("/field-operations/share")}
           style={secondaryButton}
         >
           <Ionicons name="qr-code-outline" size={16} color={colors.forest} />
@@ -84,7 +84,7 @@ export default function ProfileScreen() {
         <Row label={t.pending} value={`${pending}`} />
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push("/sync")}
+          onPress={() => router.push("/field-operations/sync")}
           style={secondaryButton}
         >
           <Ionicons name="sync-outline" size={16} color={colors.forest} />

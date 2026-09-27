@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Linking, Pressable, Share, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { apiBaseUrl, apiIsLan, apiIsLocal, shareUrl, shareUrlText } from "../src/config/share";
-import { strings } from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../src/theme";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { apiBaseUrl, apiIsLan, apiIsLocal, shareUrl, shareUrlText } from "../../src/config/share";
+import { strings } from "../../src/i18n";
+import { useAppStore } from "../../src/store/useAppStore";
+import { colors, radius, spacing, typography } from "../../src/theme";
 
 /**
  * Share screen — how this app reaches other people's phones.

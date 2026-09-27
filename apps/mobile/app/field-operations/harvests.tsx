@@ -3,13 +3,13 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { getFarm, listHarvests, listRisks } from "../src/database";
-import { strings } from "../src/i18n";
-import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography, riskFor } from "../src/theme";
-import type { HarvestRegistration, HarvestRisk } from "../src/types";
-import { formatQuantity } from "../src/utils/units";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { getFarm, listHarvests, listRisks } from "../../src/database";
+import { strings } from "../../src/i18n";
+import { useAppStore } from "../../src/store/useAppStore";
+import { colors, radius, spacing, typography, riskFor } from "../../src/theme";
+import type { HarvestRegistration, HarvestRisk } from "../../src/types";
+import { formatQuantity } from "../../src/utils/units";
 
 interface Card {
   harvest: HarvestRegistration;
@@ -54,7 +54,7 @@ export default function HarvestsScreen() {
             accessibilityLabel={`${harvest.crop} ${harvest.district}`}
             onPress={() =>
               router.push({
-                pathname: "/harvest-risk",
+                pathname: "/field-operations/harvest-risk",
                 params: {
                   harvestClientUuid: harvest.clientUuid,
                   crop: harvest.crop,

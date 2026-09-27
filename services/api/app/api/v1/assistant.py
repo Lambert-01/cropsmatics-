@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import re
 
+import pandas as pd
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.analytics.productivity_gap import compute_gaps
 from app.repositories import dataset_repository as repo
-from app.services import mobile_service, postharvest_service, trend_service
+from app.services import assistant_language, mobile_service, postharvest_service, trend_service
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -32,10 +33,13 @@ NOT_GROUNDED = "Cropmatics does not currently have verified data to answer this 
 NOT_AVAILABLE = "Not available"
 
 # Intents the extractor can resolve. Kept explicit so a client can branch on it.
+# Every intent that can be returned MUST be advertised here (guarded by
+# test_assistant_grounding.test_every_returned_intent_is_advertised).
 INTENTS = (
     "district_crop_gap",
     "crop_national_context",
     "district_context",
+    "national_indicator",
     "unsupported",
 )
 
@@ -101,11 +105,54 @@ class QueryOut(BaseModel):
     grounded: bool
     intent: str = "unsupported"
     evidence: dict = Field(default_factory=dict)
+    # Normalized figures for the answer, so the mobile client can render "key
+    # figures" without parsing prose. Identical across languages.
+    key_figures: list[dict] = Field(default_factory=list)
+    # --- language metadata --------------------------------------------------
+    language: str = "en"
+    # None on English; otherwise how the Kinyarwanda text was produced.
+    translation_status: str | None = None
     # --- grounding metadata (always present on a grounded answer) -----------
     source: str | None = None
     period: str | None = None
     coverage: str | None = None
     limitations: list[str] = Field(default_factory=list)
+
+
+def _key_figures(intent: str, evidence: dict) -> list[dict]:
+    """Flatten the headline numbers of an answer into a language-neutral list."""
+    figures: list[dict] = []
+    if intent == "district_crop_gap":
+        if evidence.get("observed_yield_kg_ha") is not None:
+            figures.append(
+                {"label": "observed yield", "value": evidence["observed_yield_kg_ha"],
+                 "unit": "kg/ha"}
+            )
+        if evidence.get("benchmark_yield_kg_ha") is not None:
+            figures.append(
+                {"label": "national crop median",
+                 "value": evidence["benchmark_yield_kg_ha"], "unit": "kg/ha"}
+            )
+    elif intent == "crop_national_context":
+        for key, label, unit in (
+            ("production_mt", "production", "metric tonnes"),
+            ("harvested_area_ha", "harvested area", "ha"),
+            ("yield_mt_ha", "yield", "t/ha"),
+        ):
+            if evidence.get(key) is not None:
+                figures.append({"label": label, "value": evidence[key], "unit": unit})
+    elif intent == "national_indicator":
+        for item in evidence.get("indicators", []):
+            figures.append(
+                {"label": item.get("label"), "value": item.get("mean"),
+                 "unit": item.get("unit")}
+            )
+    elif intent == "district_context":
+        figures.append(
+            {"label": "crops with published data", "value": evidence.get("n_crops_with_data"),
+             "unit": "crops"}
+        )
+    return [f for f in figures if f.get("value") is not None]
 
 
 def _find_entity(question: str, vocabulary: list[str]) -> str | None:
@@ -391,28 +438,46 @@ def _crop_context(crop: str) -> QueryOut:
 
 
 def _district_context(district: str) -> QueryOut:
-    """District-level productivity and practice-adoption summary."""
+    """District-level productivity and practice-adoption summary.
+
+    Deliberately does **not** compute a mean yield across crops. Maize, beans,
+    cassava, banana and potato have fundamentally different natural yield
+    scales, so an "average district yield" would be a meaningless number dressed
+    up as a statistic. The summary reports how many crops have data, which crop
+    has the largest reported production, and the district's practice adoption;
+    a crop-specific yield is only given when a crop is named.
+    """
     try:
         productive = repo.productivity_dataset()
     except Exception:
         return _unsupported("district_context", district=district)
 
     rows = productive[productive["district"] == district]
-    valid = rows[rows["yield_kg_ha"].fillna(0) > 0]
-    if valid.empty:
+    # A crop counts as having data when it carries production or harvested area.
+    has_data = rows[
+        rows[["production_mt", "harvested_area_ha"]].fillna(0).sum(axis=1) > 0
+    ]
+    if has_data.empty:
         return _unsupported("district_context", district=district)
 
-    top = valid.sort_values("production_mt", ascending=False).iloc[0]
-    parts = [
-        f"{valid['canonical_crop_name'].nunique()} crops with published yield figures",
-        f"an average yield of {valid['yield_kg_ha'].mean():,.0f} kg/ha",
-    ]
-    if top["production_mt"] is not None:
-        parts.append(
-            f"the largest reported production for {top['canonical_crop_name']} "
-            f"({top['production_mt']:,.0f} metric tonnes)"
+    n_crops = int(has_data["canonical_crop_name"].nunique())
+    period = mobile_service.latest_district_period()
+    period_label = mobile_service.format_period(period) or "the latest period"
+
+    by_crop = (
+        has_data.dropna(subset=["production_mt"])
+        .sort_values("production_mt", ascending=False)
+        .head(3)
+    )
+    top = by_crop.iloc[0] if not by_crop.empty else None
+
+    answer = f"{district} has published observations for {n_crops} crops in {period_label}."
+    if top is not None:
+        answer += (
+            f" {top['canonical_crop_name']} has the largest reported production "
+            f"({top['production_mt']:,.0f} metric tonnes)."
         )
-    answer = f"{district} reports {_list_phrase(parts)}."
+    answer += " Choose a crop to inspect crop-specific yield."
 
     try:
         matches = repo.factors_dataset()
@@ -423,12 +488,19 @@ def _district_context(district: str) -> QueryOut:
 
     evidence: dict = {
         "district": district,
-        "n_crops": int(valid["canonical_crop_name"].nunique()),
-        "mean_yield_kg_ha": round(float(valid["yield_kg_ha"].mean()), 1),
-        "top_crop": str(top["canonical_crop_name"]),
-        "top_crop_production_mt": (
-            None if top["production_mt"] is None else float(top["production_mt"])
-        ),
+        "n_crops_with_data": n_crops,
+        "period": period,
+        # Explicit: no cross-crop yield mean is available or meaningful.
+        "cross_crop_yield_mean": None,
+        "largest_production_crops": [
+            {
+                "crop": str(row["canonical_crop_name"]),
+                "production_mt": (
+                    None if row["production_mt"] is None else float(row["production_mt"])
+                ),
+            }
+            for _, row in by_crop.iterrows()
+        ],
     }
 
     if factors is not None:
@@ -460,17 +532,28 @@ def _district_context(district: str) -> QueryOut:
         intent="district_context",
         evidence=evidence,
         source="NISR_SAS_2025B_DISTRICT_CROP",
-        period=mobile_service.latest_district_period(),
+        period=period,
         coverage="district",
         limitations=_limitations(
             "district aggregates only; practice adoption is a share of farmers, not of area",
+            "no cross-crop average yield is computed because crops have different natural scales",
             "a district spans several agro-ecological conditions",
         ),
     )
 
 
 def _indicator_aggregate(spec: dict) -> dict | None:
-    """National distribution of one indicator, from its published district rows."""
+    """National distribution of one indicator, from its published district rows.
+
+    Honors the indicator aggregation policy: only indicators declared ``mean``
+    (an unweighted mean of published district shares) are averaged. Anything
+    declared ``crop_required`` is refused here — averaging yield across maize,
+    beans, cassava and banana would produce a number that means nothing.
+    """
+    aggregation = spec.get("aggregation") or mobile_service.aggregation_for(spec["id"])
+    if aggregation != "mean":
+        return None
+
     loader = mobile_service.loader_for(spec["dataset"])
     if loader is None:
         return None
@@ -482,7 +565,7 @@ def _indicator_aggregate(spec: dict) -> dict | None:
     if frame.empty or column not in frame.columns:
         return None
 
-    series = frame[column].dropna()
+    series = pd.to_numeric(frame[column], errors="coerce").dropna()
     if series.empty:
         return None
 
@@ -497,7 +580,8 @@ def _indicator_aggregate(spec: dict) -> dict | None:
     }
 
     if "district" in frame.columns:
-        means = frame.groupby("district")[column].mean().dropna()
+        numeric = frame.assign(_v=pd.to_numeric(frame[column], errors="coerce"))
+        means = numeric.dropna(subset=["_v"]).groupby("district")["_v"].mean().dropna()
         if not means.empty:
             aggregate["lowest_district"] = str(means.idxmin())
             aggregate["lowest_value"] = round(float(means.min()), 2)
@@ -570,9 +654,8 @@ def suggestions(limit: int = 6) -> dict:
     }
 
 
-@router.post("/query", response_model=QueryOut)
-def query(payload: QueryIn) -> QueryOut:
-    """Answer a question strictly from validated Cropmatics data."""
+def _resolve(payload: QueryIn) -> QueryOut:
+    """Resolve an intent to structured evidence. Language-independent."""
     question = payload.question.lower()
 
     # Refuse topics the published statistics cannot support *before* looking for
@@ -596,4 +679,25 @@ def query(payload: QueryIn) -> QueryOut:
         return _national_indicator(indicator_ids)
 
     return _unsupported("unsupported")
+
+
+@router.post("/query", response_model=QueryOut)
+def query(payload: QueryIn) -> QueryOut:
+    """Answer a question strictly from validated Cropmatics data.
+
+    Intent resolution and numeric computation happen once; the requested
+    language only changes the rendered prose (never the evidence).
+    """
+    result = _resolve(payload)
+    language = assistant_language.normalize_language(payload.language)
+    answer, translation_status = assistant_language.render(
+        answer_en=result.answer,
+        grounded=result.grounded,
+        language=language,
+    )
+    result.answer = answer
+    result.language = language
+    result.translation_status = translation_status
+    result.key_figures = _key_figures(result.intent, result.evidence)
+    return result
 

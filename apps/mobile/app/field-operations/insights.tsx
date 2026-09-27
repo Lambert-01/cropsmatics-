@@ -3,14 +3,14 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { listHarvests, listRisks } from "../src/database";
-import { strings } from "../src/i18n";
-import { api } from "../src/services/api";
-import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography, riskFor } from "../src/theme";
-import type { HarvestRegistration, HarvestRisk } from "../src/types";
-import { formatQuantity } from "../src/utils/units";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { listHarvests, listRisks } from "../../src/database";
+import { strings } from "../../src/i18n";
+import { api } from "../../src/services/api";
+import { useAppStore } from "../../src/store/useAppStore";
+import { colors, radius, spacing, typography, riskFor } from "../../src/theme";
+import type { HarvestRegistration, HarvestRisk } from "../../src/types";
+import { formatQuantity } from "../../src/utils/units";
 
 export default function InsightsScreen() {
   const t = strings(useAppStore((state) => state.language));

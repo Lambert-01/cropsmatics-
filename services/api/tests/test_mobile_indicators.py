@@ -56,12 +56,38 @@ def test_district_level_indicators_report_district_coverage(client):
             assert indicator["coverage_level"] == "district", indicator
 
 
-def test_indicator_with_no_matching_column_is_not_offered(client):
-    """Guards the rule: never offer a filter the processed tables cannot answer.
-
-    ``postharvest_infrastructure`` is registered against a column name that the
-    processed table does not carry, so it must be reported unavailable.
+def test_postharvest_infrastructure_registry_uses_the_real_column(client):
+    """Regression: the registry previously keyed infrastructure on a column
+    named ``indicator`` that the processed table does not carry, which silently
+    marked the indicator unavailable. The real key is ``infrastructure_type``.
     """
     body = client.get("/api/v1/mobile/indicators").json()
     infra = next(item for item in body["indicators"] if item["id"] == "postharvest_infrastructure")
-    assert infra["available"] is False
+    assert infra["column"] == "infrastructure_type"
+    assert infra["available"] is True
+    assert infra["coverage_level"] == "national"
+    assert infra["aggregation"] == "specialized"
+
+
+def test_indicators_declare_an_aggregation_policy(client):
+    body = client.get("/api/v1/mobile/indicators").json()
+    policy = {item["id"]: item["aggregation"] for item in body["indicators"]}
+    # Crops have different natural yield scales: never averaged across crops.
+    assert policy["yield"] == "crop_required"
+    assert policy["production"] == "crop_required"
+    assert policy["postharvest_loss"] == "crop_required"
+    # Shares of farmers are a valid unweighted mean.
+    assert policy["improved_seed"] == "mean"
+    assert policy["irrigation_farmers"] == "mean"
+    assert policy["postharvest_infrastructure"] == "specialized"
+
+
+def test_each_indicator_carries_its_own_source(client):
+    """Indicator-specific provenance: irrigation must not cite the crop table."""
+    body = client.get("/api/v1/mobile/indicators").json()
+    by_id = {item["id"]: item for item in body["indicators"]}
+    assert by_id["yield"]["source_id"] == "NISR_SAS_2025B_DISTRICT_CROP"
+    assert by_id["irrigation_farmers"]["source_id"] == "NISR_SAS_2025B_DISTRICT_FACTORS"
+    assert by_id["erosion_severe"]["source_id"] == "NISR_SAS_2025B_EROSION"
+    assert by_id["postharvest_loss"]["source_id"] == "NISR_SAS_2025B_POSTHARVEST_USE"
+    assert by_id["cold_chain_program"]["source_id"] == "MINAGRI_ACES_COLDCHAIN_2026"

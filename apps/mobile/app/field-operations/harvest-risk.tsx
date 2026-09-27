@@ -3,14 +3,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { ScreenLayout } from "../src/components/ScreenLayout";
-import { latestRiskFor, saveRisk } from "../src/database";
-import { strings } from "../src/i18n";
-import { api } from "../src/services/api";
-import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../src/theme";
-import type { PostHarvestRisk } from "../src/types";
-import { formatQuantity } from "../src/utils/units";
+import { ScreenLayout } from "../../src/components/ScreenLayout";
+import { latestRiskFor, saveRisk } from "../../src/database";
+import { strings } from "../../src/i18n";
+import { api } from "../../src/services/api";
+import { useAppStore } from "../../src/store/useAppStore";
+import { colors, radius, spacing, typography } from "../../src/theme";
+import type { PostHarvestRisk } from "../../src/types";
+import { formatQuantity } from "../../src/utils/units";
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: colors.riskHigh,
@@ -264,7 +264,7 @@ export default function HarvestRiskScreen() {
             accessibilityRole="button"
             onPress={() =>
               router.push({
-                pathname: "/storage-options",
+                pathname: "/field-operations/storage-options",
                 params: {
                   harvestClientUuid: harvestClientUuid ?? "",
                   crop: crop ?? "",

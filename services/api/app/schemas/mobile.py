@@ -53,7 +53,12 @@ class MobileHomeResponse(BaseModel):
 
 
 class MobileIndicator(BaseModel):
-    """One indicator in the catalogue, annotated with real data availability."""
+    """One indicator in the catalogue, annotated with real data availability.
+
+    ``aggregation`` declares how the indicator may validly be combined (see the
+    module docstring in ``app.services.mobile_service``): a ``crop_required``
+    indicator must never be averaged across crops.
+    """
 
     id: str
     label: str
@@ -61,6 +66,10 @@ class MobileIndicator(BaseModel):
     dataset: str
     column: str
     unit: str | None = None
+    aggregation: str = "specialized"
+    source_id: str | None = None
+    source_label: str | None = None
+    source_period: str | None = None
     period: str | None = None
     coverage_level: str | None = None
     available: bool = False
