@@ -15,8 +15,10 @@ from app.api.v1 import (
     geography,
     harvests,
     health,
+    inquiries,
     maps,
     meta,
+    mobile,
     optimization,
     reports,
     risk,
@@ -26,6 +28,8 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(meta.router)
 api_router.include_router(data.router)
+api_router.include_router(mobile.router)
+api_router.include_router(inquiries.router)
 api_router.include_router(auth.router)
 api_router.include_router(geography.router)
 api_router.include_router(crops.router)
