@@ -63,10 +63,11 @@ export default function CompareScreen() {
     const points = compareTrends.data?.points ?? [];
     const latest = points[points.length - 1];
     if (!latest) return [];
-    const unitKey = cropMetric;
+    // The compare series keys each value as "<metric>:<crop>", e.g.
+    // "production_mt:Maize" (see trend_service.crop_trends).
     return (compareTrends.data?.compared_crops ?? []).map((crop) => ({
       label: crop ?? "—",
-      value: latest.values?.[`${crop}.${unitKey}`] ?? latest.values?.[unitKey] ?? null,
+      value: latest.values?.[`${cropMetric}:${crop}`] ?? null,
     }));
   })();
 
@@ -110,7 +111,11 @@ export default function CompareScreen() {
             <ErrorState message={t.errorGeneric} onRetry={() => void compareTrends.refetch()} />
           ) : (
             <Card>
-              <HorizontalBarChart values={cropBars} unit={cropBars[0]?.value != null ? "" : ""} />
+              <HorizontalBarChart values={cropBars} unit={cropMetric === "production_mt" ? "t" : "ha"} />
+              <Text style={typography.micro}>
+                Absolute metrics only. Raw yield is deliberately not compared across crops: they do not share a
+                natural yield scale.
+              </Text>
               <SourceCard sourceLabel={compareTrends.data?.provenance?.source_id ?? undefined} coverage="national" limitations={compareTrends.data?.provenance?.limitations} />
             </Card>
           )}

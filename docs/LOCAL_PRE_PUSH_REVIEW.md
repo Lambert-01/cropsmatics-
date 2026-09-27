@@ -143,8 +143,10 @@
 3. Location/photo Android permissions remain declared in the static manifest.
    Prompts only occur inside Field Operations, but the manifest still exposes the
    permissions globally — investigate conditional build config.
-4. Compare-crops chart depends on the exact `values` key shape returned by
-   `/analytics/trends?compare=`; verify against live API.
+4. ~~Compare-crops chart `values` key shape~~ **RESOLVED**: verified against
+   `trend_service.crop_trends` that compare values are keyed
+   `"<metric>:<crop>"` (e.g. `"production_mt:Maize"`); the client now uses that
+   key and a unit-aware axis.
 5. `offlineCacheEnabled` persists but the AsyncStorage response cache is not yet
    wired; React Query already keeps last-good data in memory.
 6. Field Operations screens are legacy and only lightly smoke-tested.
