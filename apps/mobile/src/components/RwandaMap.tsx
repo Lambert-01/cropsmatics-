@@ -15,7 +15,7 @@ interface Feature {
   geometry: Geometry;
 }
 
-const GEOJSON = require("../../assets/geodata/rwanda_districts.geojson") as {
+const GEOJSON = require("../../assets/geodata/rwanda_districts.json") as {
   features: Feature[];
 };
 
