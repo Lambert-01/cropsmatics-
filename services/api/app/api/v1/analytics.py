@@ -281,6 +281,25 @@ def erosion(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     }
 
 
+def _priority_limitations(result: dict) -> list[str]:
+    """Proxy notes plus an explicit statement of what was excluded, and why.
+
+    A reader must be able to tell from the response itself that an excluded
+    component was not scored, instead of inferring it from a component that
+    happens to be zero.
+    """
+    limitations = list(result["proxy_notes"])
+    unavailable = result.get("components_unavailable") or []
+    if unavailable:
+        limitations.append(
+            "the following components carry no measured value for the selected "
+            f"period and were excluded from the score: {', '.join(unavailable)}. "
+            "Their weight was redistributed over the components that do have data, "
+            "so no neutral constant enters the score."
+        )
+    return limitations
+
+
 @router.get("/intervention-priorities", response_model=PriorityResponse)
 def intervention_priorities(
     limit: int = Query(50, ge=1, le=500),
@@ -291,13 +310,16 @@ def intervention_priorities(
         weights=result["weights"],
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
+        components_unavailable=result["components_unavailable"],
+        component_availability=result["component_availability"],
         provenance=Provenance(
             source_id=(
-                f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP"
+                result.get("source_id")
+                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
             ),
             source_period=f.period_code or "2025-B",
             method="weighted transparent score over normalized components",
-            limitations=result["proxy_notes"],
+            limitations=_priority_limitations(result),
         ),
     )
 
@@ -314,12 +336,15 @@ def intervention_priorities_weighted(
         weights=result["weights"],
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
+        components_unavailable=result["components_unavailable"],
+        component_availability=result["component_availability"],
         provenance=Provenance(
             source_id=(
-                f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP"
+                result.get("source_id")
+                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
             ),
             source_period=f.period_code or "2025-B",
             method="user-adjusted weights over transparent normalized components",
-            limitations=result["proxy_notes"],
+            limitations=_priority_limitations(result),
         ),
     )

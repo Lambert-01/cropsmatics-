@@ -403,8 +403,14 @@ export interface MapMetricsResponse {
   message?: string | null;
   /** The release that does carry the metric when the selected period does not. */
   available_period?: string | null;
-  /** Set when a period-specific metric also consumes a single-release component. */
+  /**
+   * Always null under the exclude-and-reweight policy: no map value is reported
+   * as a blend of two releases.
+   */
   reference_period?: string | null;
+  /** Priority components with no measured value for the selected period. */
+  components_unavailable?: string[];
+  component_availability?: ComponentAvailability[];
   source_id?: string | null;
   provenance: Provenance;
 }
@@ -668,14 +674,33 @@ export interface PriorityRow {
   gap: number;
   vulnerability: number;
   affected_scale: number;
-  readiness: number;
-  cost_constraint: number;
+  /**
+   * `null` means the component has no measured value for the selected period, so
+   * its weight was redistributed rather than applied to a neutral constant. The
+   * UI must render "not available", never `0`.
+   */
+  readiness: number | null;
+  cost_constraint: number | null;
+}
+
+/** Whether a priority component is measured, a proxy, unavailable or unknown. */
+export type ComponentStatus = "measured" | "proxy" | "unavailable" | "undetermined";
+
+export interface ComponentAvailability {
+  component: string;
+  label: string;
+  status: ComponentStatus;
+  source_period?: string | null;
+  note?: string | null;
 }
 
 export interface PriorityResponse {
   weights: Record<string, number>;
   rows: PriorityRow[];
   proxy_notes: string[];
+  /** Components excluded for this period, with their weight redistributed. */
+  components_unavailable: string[];
+  component_availability: ComponentAvailability[];
   provenance: Provenance;
 }
 
@@ -747,6 +772,9 @@ export interface PriorityView {
   reason?: string | null;
   source_id?: string | null;
   n_observations: number;
+  /** Components excluded for this side's period, with their weight redistributed. */
+  components_unavailable: string[];
+  component_availability: ComponentAvailability[];
   rows: PriorityCandidateRow[];
   stats: PriorityViewStats;
 }
@@ -807,6 +835,9 @@ export interface PriorityScenarioResponse {
   preset_labels: Record<string, string>;
   weight_labels: Record<string, string>;
   proxy_notes: string[];
+  /** Union of the components excluded on either side. */
+  components_unavailable: string[];
+  component_availability: ComponentAvailability[];
   provenance: Provenance;
   limitations: string[];
 }
@@ -869,6 +900,9 @@ export interface SensitivityResponse {
   seed: number;
   top_n: number;
   proxy_notes: string[];
+  /** Components excluded from every tested weighting because they are unmeasured. */
+  components_unavailable: string[];
+  component_availability: ComponentAvailability[];
   disclaimer: string;
   limitations: string[];
   provenance: Provenance;

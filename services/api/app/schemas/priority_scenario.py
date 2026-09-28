@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.schemas.analytics import WeightsIn
+from app.schemas.analytics import ComponentAvailability, WeightsIn
 from app.schemas.common import Provenance
 from app.schemas.scenario import ScenarioChange
 
@@ -103,6 +103,10 @@ class PriorityView(BaseModel):
     reason: str | None = None
     source_id: str | None = None
     n_observations: int = 0
+    #: Components that have no measured value for *this side's* period, so their
+    #: weights were redistributed before ranking.
+    components_unavailable: list[str] = Field(default_factory=list)
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
     rows: list[PriorityCandidateRow] = Field(default_factory=list)
     stats: PriorityViewStats = Field(default_factory=PriorityViewStats)
 
@@ -178,5 +182,11 @@ class PriorityScenarioResponse(BaseModel):
     #: Display names for the engine weight keys (wg/wv/wf/wr/wc).
     weight_labels: dict[str, str] = Field(default_factory=dict)
     proxy_notes: list[str] = Field(default_factory=list)
+    #: Union of the components excluded on either side because they carry no
+    #: measured value for that side's period.
+    components_unavailable: list[str] = Field(default_factory=list)
+    #: Per-component status for the baseline side's frame (the frame the notes
+    #: are built from). Both sides report their own list in ``PriorityView``.
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
     provenance: Provenance
     limitations: list[str] = Field(default_factory=list)

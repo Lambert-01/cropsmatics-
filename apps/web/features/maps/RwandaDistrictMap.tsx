@@ -15,6 +15,7 @@ import { buildProjection, type GeoCollection, type GeoFeature } from "@/features
 import { cn } from "@/lib/cn";
 import { METRIC_SEMANTICS, type MapMetricId } from "@/lib/constants";
 import { periodLabel } from "@/lib/format";
+import { unavailableSummary } from "@/lib/priority";
 import type { FacilityItem, MapMetricsResponse } from "@/types";
 
 const VIEW_W = 1000;
@@ -169,13 +170,15 @@ export function RwandaDistrictMap({
         </div>
       ) : null}
 
-      {data?.reference_period ? (
+      {data?.components_unavailable?.length ? (
         <p className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
           <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber">
-            Reference period: {periodLabel(data.reference_period)}
+            Not in this score
           </span>{" "}
-          The readiness and cost components of this score come from that survey, not from{" "}
-          {periodLabel(data.period_code ?? data.period)}.
+          {unavailableSummary(data.components_unavailable)}
+          {data.available_period
+            ? ` ${periodLabel(data.available_period)} carries them — select that period to include them.`
+            : ""}
         </p>
       ) : null}
 

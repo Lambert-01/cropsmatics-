@@ -138,25 +138,45 @@ def test_irrigation_layer_cites_the_irrigation_source_not_the_crop_table(client)
     assert body["provenance"]["source_id"] == "NISR_SAS_2025B_IRRIGATION_WATER"
 
 
-# --- a mixed-release score is reported, not hidden --------------------------
+# --- a component the period cannot measure is excluded, never blended --------
 
 
-def test_priority_reports_the_reference_period_of_its_proxy_components(client):
+def test_priority_excludes_components_the_period_cannot_measure(client):
+    """Outside 2025B the map must not score a 2025B survey inside a 2026B value."""
     _require_data(client)
-    blended = _metrics(client, "priority", "2026B")
-    assert len(blended["districts"]) == 30
-    assert blended["reference_period"] == "2025B"
-    assert blended["provenance"]["reference_period"] == "2025B"
-    # Both releases appear in the source, and a limitation spells out the mix.
-    assert "NISR_SAS_2025B_DISTRICT_FACTORS" in blended["provenance"]["source_id"]
-    assert any("2025B" in note for note in blended["provenance"]["limitations"])
+    body = _metrics(client, "priority", "2026B")
+    assert len(body["districts"]) == 30
+    # No blend: the score is made of the selected period's own observations.
+    assert body["reference_period"] is None
+    assert body["provenance"]["reference_period"] is None
+    assert "NISR_SAS_2025B_DISTRICT_FACTORS" not in body["provenance"]["source_id"]
+    # The excluded components are named, and so is the release that measures them.
+    assert set(body["components_unavailable"]) == {"readiness", "cost_constraint"}
+    assert body["available_period"] == "2025B"
+    statuses = {entry["component"]: entry["status"] for entry in body["component_availability"]}
+    assert statuses["gap_index"] == "measured"
+    assert statuses["vulnerability"] == "proxy"
+    assert statuses["affected_scale"] == "proxy"
+    assert statuses["readiness"] == "unavailable"
+    assert statuses["cost_constraint"] == "unavailable"
+    joined = " ".join(body["provenance"]["limitations"])
+    assert "readiness" in joined and "cost_constraint" in joined
+    assert "redistributed" in joined
 
 
-def test_priority_needs_no_reference_badge_for_its_own_release(client):
+def test_priority_scores_its_own_release_with_every_component(client):
     _require_data(client)
     native = _metrics(client, "priority", "2025B")
     assert native["reference_period"] is None
-    assert native["provenance"]["reference_period"] is None
+    assert native["components_unavailable"] == []
+    statuses = {entry["component"]: entry["status"] for entry in native["component_availability"]}
+    assert statuses["readiness"] == "measured"
+    assert statuses["cost_constraint"] == "measured"
+    assert all(
+        entry["source_period"] == "2025B"
+        for entry in native["component_availability"]
+        if entry["component"] in ("readiness", "cost_constraint")
+    )
 
 
 # --- no cross-crop yield may leak through the detail fields -----------------

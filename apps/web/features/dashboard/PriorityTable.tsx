@@ -7,6 +7,7 @@ import { PriorityBadge } from "@/components/ui/Badge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { fmtNumber } from "@/lib/format";
+import { componentText } from "@/lib/priority";
 import type { PriorityRow } from "@/types";
 
 /**
@@ -191,8 +192,8 @@ function ExpandedDetails({
     { label: "Priority score", value: `${Math.round(row.score * 100)} / 100` },
     { label: "Vulnerability", value: fmtNumber(row.vulnerability, 3) },
     { label: "Affected scale", value: fmtNumber(row.affected_scale, 3) },
-    { label: "Readiness", value: fmtNumber(row.readiness, 3) },
-    { label: "Cost constraint", value: fmtNumber(row.cost_constraint, 3) },
+    { label: "Readiness", value: componentText(row.readiness) },
+    { label: "Cost constraint", value: componentText(row.cost_constraint) },
     {
       label: "Harvested area",
       value: row.harvested_area_ha != null ? `${fmtNumber(row.harvested_area_ha, 0)} ha` : "—",

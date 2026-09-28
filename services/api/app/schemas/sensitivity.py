@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.schemas.analytics import WeightsIn
+from app.schemas.analytics import ComponentAvailability, WeightsIn
 from app.schemas.common import Provenance
 
 
@@ -86,6 +86,11 @@ class SensitivityResponse(BaseModel):
     seed: int = 42
     top_n: int = 10
     proxy_notes: list[str] = Field(default_factory=list)
+    #: Components whose weight was redistributed out of every tested weighting
+    #: because they have no measured value for the selected period. The sweep
+    #: never tests a weighting that would score a neutral constant.
+    components_unavailable: list[str] = Field(default_factory=list)
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
     disclaimer: str = ""
     limitations: list[str] = Field(default_factory=list)
     provenance: Provenance

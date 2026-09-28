@@ -10,6 +10,8 @@ rank the planner shows for the same weights.
 
 from __future__ import annotations
 
+from dataclasses import replace as dc_replace
+
 from app.analytics import sensitivity
 from app.schemas.common import Provenance
 from app.schemas.filters import AnalyticsFilters
@@ -60,13 +62,40 @@ def analyse(
     top_n: int = 10,
     include_presets: bool = True,
 ) -> dict:
-    """Run the sweep over the selected candidate set and return the raw result."""
-    candidates = analytics_service.priority_candidates(f)
-    baseline = analytics_service.normalise_weights(weights)
+    """Run the sweep over the selected candidate set and return the raw result.
+
+    The sweep uses the same adjusted weights as the planner: when readiness or
+    cost components are unavailable for the selected period their weights are
+    redistributed - in the baseline *and in every tested draw* - so the sweep
+    never tests a weighting that would score a neutral constant as if it were
+    measured data, and it never tests a weighting the planner could not apply.
+    """
+    candidates, _source, unavailable = analytics_service.priority_candidates_with_source(f)
+    effective_weights = analytics_service.adjusted_weights(weights, unavailable)
+    baseline = analytics_service.normalise_weights(effective_weights)
 
     sweep = sensitivity.weight_draws(
         n_random=n_random, seed=seed, include_presets=include_presets
     )
+    if unavailable:
+        sweep = dc_replace(
+            sweep,
+            draws=[
+                analytics_service.adjusted_weights(draw, unavailable)
+                for draw in sweep.draws
+            ],
+        )
+    # The reported presets are the ones that were actually tested, so a client
+    # cannot offer a starting point the engine would silently change.
+    presets = {
+        key: analytics_service.adjusted_weights(preset, unavailable)
+        for key, preset in sensitivity.PRESETS.items()
+    }
+
+    # Build period-aware proxy notes from the actual frame so the notes match the data.
+    df_for_notes = analytics_service.candidate_frame(f)
+    proxy_notes = analytics_service.proxy_notes_for(df_for_notes)
+    availability = analytics_service.component_availability(df_for_notes)
 
     if not candidates:
         return {
@@ -79,15 +108,19 @@ def analyse(
             "seed": seed,
             "rows": [],
             "robust_count": 0,
-            "presets": sensitivity.PRESETS,
-            "proxy_notes": analytics_service.PROXY_NOTES,
+            "presets": presets,
+            "proxy_notes": proxy_notes,
+            "components_unavailable": unavailable,
+            "component_availability": availability,
             "disclaimer": sensitivity.DISCLAIMER,
             "limitations": LIMITATIONS,
         }
 
-    result = sensitivity.analyse(candidates, weights=weights, sweep=sweep, top_n=top_n)
-    result["presets"] = sensitivity.PRESETS
-    result["proxy_notes"] = analytics_service.PROXY_NOTES
+    result = sensitivity.analyse(candidates, weights=effective_weights, sweep=sweep, top_n=top_n)
+    result["presets"] = presets
+    result["proxy_notes"] = proxy_notes
+    result["components_unavailable"] = unavailable
+    result["component_availability"] = availability
     result["limitations"] = LIMITATIONS
     return result
 
@@ -110,6 +143,15 @@ def run(payload: SensitivityRequest) -> SensitivityResponse:
             0,
             "no candidate is published for this selection, so there is nothing to "
             "test; this is reported as no candidates rather than as a stable ranking",
+        )
+    if result.get("components_unavailable"):
+        excluded = ", ".join(result["components_unavailable"])
+        limitations.insert(
+            0,
+            "for this period the following priority components carry no measured "
+            f"data and were excluded from every tested weighting: {excluded}. Their "
+            "weight was redistributed over the components that do have data; no "
+            "neutral constant was scored in their place.",
         )
     # Keep the response and its provenance telling the same story.
     result["limitations"] = limitations

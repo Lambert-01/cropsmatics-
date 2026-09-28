@@ -25,10 +25,18 @@ training table. Three rules follow from that:
    empty and the note names the release that does carry them. Reusing old-period
    colours silently is exactly the failure this avoids.
 
-The one place a single-release input is deliberately combined with a selected
-period is the ``priority`` score: its readiness and cost components come from
-the 2025 Season B practice/land survey, are joined by district, and the result
-reports ``reference_period`` so the mixture is explicit rather than hidden.
+Why the priority score does not borrow the 2025 Season B survey
+---------------------------------------------------------------
+It previously did: readiness and cost were joined from the 2025 Season B district
+practice/land survey onto any period's gap, and the blend was reported through
+``reference_period``. That made the map and the ranking disagree - the ranking
+excludes a component it cannot measure for the selected period, the map silently
+scored one - and it put two releases inside one number. The single platform policy
+is now: a component with no measured value for the selected period is excluded and
+its weight is redistributed over the components that do have data
+(``analytics_service.component_availability``). The map therefore reports
+``components_unavailable`` instead of a blend, and ``available_period`` names the
+release that does carry the missing component.
 """
 
 from __future__ import annotations
@@ -41,6 +49,8 @@ from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import period_service
 from app.services.analytics_service import (
     FACTOR_COLUMNS,
+    UNAVAILABLE,
+    component_availability,
     frame_period_code,
     frame_source_id,
     gapped,
@@ -84,11 +94,14 @@ SOURCE_BY_METRIC: dict[str, str] = {
 }
 
 # Priority-score components that only the single-release factor table carries.
+# They are never joined onto another period's frame: the ranking excludes them and
+# redistributes their weight instead (analytics_service.adjusted_weights), so the
+# component names below are documentation of what a 2025B-only run adds - not a
+# join key.
 REFERENCE_COMPONENT_COLUMNS: tuple[str, ...] = (
     "erosion_protection_farmers_pct",
     "agricultural_land_000ha",
 )
-REFERENCE_SOURCE_ID = "NISR_SAS_2025B_DISTRICT_FACTORS"
 
 
 # --- period helpers ---------------------------------------------------------
@@ -129,26 +142,16 @@ def _single_release_message(metric: str, f: AnalyticsFilters, available: str | N
     )
 
 
-def _with_reference_components(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
-    """Join single-release readiness/cost components onto a period frame.
+def priority_component_availability(frame: pd.DataFrame) -> tuple[list[str], list[dict]]:
+    """Availability of the priority components for the frame about to be scored.
 
-    The canonical panel carries no practice adoption or land area, so the
-    priority score's readiness and cost components are taken from the 2025
-    Season B district factor survey. Returns ``(frame, joined_columns)``; the
-    caller reports ``reference_period`` whenever anything was joined, so the
-    score is never silently a blend of two releases.
+    Returns ``(unavailable, availability)``. The unavailable names are the ones
+    whose weight ``priority_frame`` redistributes, and the caller reports both so
+    the map never shows a score whose inputs are unexplained.
     """
-    missing = [c for c in REFERENCE_COMPONENT_COLUMNS if c not in frame.columns]
-    if not missing:
-        return frame, []
-    ref = _factors()
-    if ref is None or ref.empty or "district" not in ref.columns or "district" not in frame.columns:
-        return frame, []
-    usable = [c for c in missing if c in ref.columns]
-    if not usable:
-        return frame, []
-    lookup = ref[["district", *usable]].drop_duplicates(subset="district")
-    return frame.merge(lookup, on="district", how="left"), usable
+    availability = component_availability(frame)
+    unavailable = [c["component"] for c in availability if c["status"] == UNAVAILABLE]
+    return unavailable, availability
 
 
 # --- metric assembly --------------------------------------------------------
@@ -160,7 +163,7 @@ def _empty(
     message: str | None = None,
     *,
     available_period: str | None = None,
-    reference_period_used: str | None = None,
+    components_unavailable: list[str] | None = None,
 ) -> dict:
     label, unit = METRICS.get(metric, (metric, None))
     return {
@@ -176,7 +179,8 @@ def _empty(
         "requires_crop": metric in CROP_REQUIRED_METRICS,
         "message": message,
         "available_period": available_period,
-        "reference_period": reference_period_used,
+        "reference_period": None,
+        "components_unavailable": components_unavailable or [],
         "source_id": SOURCE_BY_METRIC.get(metric),
     }
 
@@ -206,11 +210,12 @@ def district_metrics(
     # unset period) keep reading the legacy joined table.
     frame = apply_filters(productivity_frame(f), f)
 
-    reference_used: str | None = None
+    unavailable: list[str] = []
+    availability: list[dict] = []
     if metric == "priority":
-        frame, joined = _with_reference_components(frame)
-        if joined:
-            reference_used = reference
+        # Components this period cannot measure are excluded, not borrowed from
+        # another release; the response says which ones and where they do exist.
+        unavailable, availability = priority_component_availability(frame)
 
     g = gapped(frame, f.benchmark_strategy)
     if g.empty:
@@ -219,7 +224,7 @@ def district_metrics(
             f,
             "No verified district observations for this selection.",
             available_period=reference if dataset else None,
-            reference_period_used=reference_used,
+            components_unavailable=unavailable,
         )
 
     # Priority score needs the full component frame (normalized across districts).
@@ -292,7 +297,7 @@ def district_metrics(
                 "priority_score": _round(priority),
                 "period": period,
                 "period_code": period_code,
-                "reference_period": reference_used,
+                "reference_period": None,
             },
         })
 
@@ -300,11 +305,6 @@ def district_metrics(
     label, unit = METRICS[metric]
 
     source_id = SOURCE_BY_METRIC.get(metric) or frame_source_id(g)
-    if reference_used and source_id != REFERENCE_SOURCE_ID:
-        # The score is a blend of two releases; say so in the source too.
-        source_id = ",".join(
-            sorted({*source_id.split(","), REFERENCE_SOURCE_ID})
-        )
 
     return {
         "metric": metric,
@@ -318,8 +318,12 @@ def district_metrics(
         "districts": rows,
         "requires_crop": metric in CROP_REQUIRED_METRICS,
         "message": None,
-        "available_period": reference if dataset else None,
-        "reference_period": reference_used,
+        # For the priority metric this names the release that carries the excluded
+        # components, so the UI can point at 2025 Season B instead of blending it.
+        "available_period": (reference if dataset or unavailable else None),
+        "reference_period": None,
+        "components_unavailable": unavailable,
+        "component_availability": availability,
         "source_id": source_id,
     }
 

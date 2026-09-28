@@ -23,6 +23,13 @@ from app.services import period_service
 # Documented so the weighting is never a black box (docs/11_INTERVENTION_ENGINE.md).
 _PERISHABILITY = {"high": 1.0, "medium": 0.5, "low": 0.2}
 
+# Columns that only the 2025B joined training table carries. When a frame comes
+# from the canonical panel (any other period) these columns are absent, so the
+# components that depend on them are explicitly unavailable rather than filled
+# with a neutral constant that would look like measured data.
+_READINESS_COL = "erosion_protection_farmers_pct"
+_COST_COL = "agricultural_land_000ha"
+
 HIGH_GAP_PCT = 25.0  # |gap_index| at/above this is flagged "high gap" in the UI
 
 # Yield-gap distribution bands. Thresholds are explicit and returned with the
@@ -80,12 +87,225 @@ FACTOR_LABELS = {
     "agricultural_land_000ha": "Agricultural land area",
 }
 
+# --- component availability policy (v2) -------------------------------------
+#
+# The priority score is a weighted sum over five components. Three of them come
+# from the productivity rows of the *selected period*; two - readiness
+# (erosion-protection adoption) and cost constraint (agricultural-land share) -
+# exist only in the 2025 Season B district practice/land survey.
+#
+# Policy: a component that has no measured value for the selected period is
+# **excluded**, and its weight is redistributed proportionally over the
+# components that do have data. It is never filled with a neutral constant and
+# never borrowed from another release inside the same score, because both would
+# put a number on screen that the selected period did not produce. Every surface
+# therefore reports, per component, whether it is measured, a documented proxy,
+# unavailable or undetermined - and an unavailable component is reported as
+# ``null``, never as ``0`` or ``0.5``.
+#
+# See docs/11_INTERVENTION_ENGINE.md for the worked example and the alternative
+# (join the 2025B survey in as a labelled reference period) that was rejected.
+COMPONENT_ORDER: tuple[str, ...] = (
+    "gap_index",
+    "vulnerability",
+    "affected_scale",
+    "readiness",
+    "cost_constraint",
+)
+
+COMPONENT_LABELS: dict[str, str] = {
+    "gap_index": "Productivity gap",
+    "vulnerability": "Vulnerability / exposure",
+    "affected_scale": "Affected scale",
+    "readiness": "Readiness",
+    "cost_constraint": "Cost constraint",
+}
+
+#: Component status vocabulary, used verbatim in API responses and the UI.
+MEASURED = "measured"
+PROXY = "proxy"
+UNAVAILABLE = "unavailable"
+UNDETERMINED = "undetermined"
+
+#: The release that carries the two single-release components.
+REFERENCE_FACTOR_PERIOD = "2025B"
+
+_GAP_NOTE = (
+    "gap is computed from this period's published district yield against the "
+    "selected benchmark strategy"
+)
+_VULNERABILITY_NOTE = (
+    "vulnerability uses crop perishability as a proxy (no verified post-harvest "
+    "loss join per district yet)"
+)
+_AFFECTED_SCALE_NOTE = (
+    "affected scale uses harvested area as a proxy for the number of farmers exposed"
+)
+
+_READINESS_MEASURED_NOTE = (
+    "readiness uses measured erosion-protection adoption "
+    f"({REFERENCE_FACTOR_PERIOD}) as a proxy for existing practice uptake"
+)
+_COST_MEASURED_NOTE = (
+    "cost constraint uses measured agricultural-land share "
+    f"({REFERENCE_FACTOR_PERIOD}) as an inverse cost proxy"
+)
+_READINESS_UNAVAILABLE_NOTE = (
+    "readiness is unavailable for this period: district erosion-protection data are "
+    f"{REFERENCE_FACTOR_PERIOD} only, so the readiness weight is redistributed over "
+    "the components that do have data instead of being filled with a constant"
+)
+_COST_UNAVAILABLE_NOTE = (
+    "cost constraint is unavailable for this period: district agricultural-land data "
+    f"are {REFERENCE_FACTOR_PERIOD} only, so the cost weight is redistributed over "
+    "the components that do have data instead of being filled with a constant"
+)
+_UNDETERMINED_NOTE = (
+    "no rows for this selection, so whether this component carries measured data "
+    "cannot be determined"
+)
+
+# Legacy constant kept for callers that import it directly (the 2025B release,
+# where both single-release components are measured).
 PROXY_NOTES = [
-    "vulnerability uses crop perishability as a proxy (no verified post-harvest loss join per district yet)",
-    "readiness uses erosion-protection adoption as a proxy for existing practice uptake",
-    "cost constraint uses agricultural-land share as an inverse cost proxy",
-    "affected scale uses harvested area as a proxy for the number of farmers exposed",
+    _VULNERABILITY_NOTE,
+    _AFFECTED_SCALE_NOTE,
+    _READINESS_MEASURED_NOTE,
+    _COST_MEASURED_NOTE,
 ]
+
+
+def has_readiness(df: pd.DataFrame) -> bool:
+    """True when the frame carries measured erosion-protection adoption values."""
+    return _READINESS_COL in df.columns and df[_READINESS_COL].notna().any()
+
+
+def has_cost(df: pd.DataFrame) -> bool:
+    """True when the frame carries measured agricultural-land area values."""
+    return _COST_COL in df.columns and df[_COST_COL].notna().any()
+
+
+def _single_release_status(df: pd.DataFrame, present: bool) -> str:
+    """Status of a 2025B-only component, given whether its column is populated."""
+    if present:
+        return MEASURED
+    return UNDETERMINED if df.empty else UNAVAILABLE
+
+
+def component_availability(df: pd.DataFrame | None = None) -> list[dict]:
+    """Per-component status for a frame, in the engine's component order.
+
+    One entry per component: ``{component, label, status, source_period, note}``
+    where ``status`` is one of ``measured`` / ``proxy`` / ``unavailable`` /
+    ``undetermined``. This is the single source of truth for the "what is this
+    number made of" question, so no surface has to infer availability from the
+    presence of a column - or, worse, from a component value that happened to be
+    filled with a constant.
+    """
+    frame = df if df is not None else pd.DataFrame()
+    readiness = _single_release_status(frame, has_readiness(frame))
+    cost = _single_release_status(frame, has_cost(frame))
+    readiness_note = {
+        MEASURED: _READINESS_MEASURED_NOTE,
+        UNAVAILABLE: _READINESS_UNAVAILABLE_NOTE,
+        UNDETERMINED: _UNDETERMINED_NOTE,
+    }[readiness]
+    cost_note = {
+        MEASURED: _COST_MEASURED_NOTE,
+        UNAVAILABLE: _COST_UNAVAILABLE_NOTE,
+        UNDETERMINED: _UNDETERMINED_NOTE,
+    }[cost]
+    empty_status = UNDETERMINED if frame.empty else None
+
+    return [
+        {
+            "component": "gap_index",
+            "label": COMPONENT_LABELS["gap_index"],
+            "status": empty_status or MEASURED,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _GAP_NOTE,
+        },
+        {
+            "component": "vulnerability",
+            "label": COMPONENT_LABELS["vulnerability"],
+            "status": empty_status or PROXY,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _VULNERABILITY_NOTE,
+        },
+        {
+            "component": "affected_scale",
+            "label": COMPONENT_LABELS["affected_scale"],
+            "status": empty_status or PROXY,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _AFFECTED_SCALE_NOTE,
+        },
+        {
+            "component": "readiness",
+            "label": COMPONENT_LABELS["readiness"],
+            "status": readiness,
+            "source_period": REFERENCE_FACTOR_PERIOD if readiness == MEASURED else None,
+            "note": readiness_note,
+        },
+        {
+            "component": "cost_constraint",
+            "label": COMPONENT_LABELS["cost_constraint"],
+            "status": cost,
+            "source_period": REFERENCE_FACTOR_PERIOD if cost == MEASURED else None,
+            "note": cost_note,
+        },
+    ]
+
+
+def components_unavailable(df: pd.DataFrame) -> list[str]:
+    """Names of priority components that have no measured data in this frame."""
+    return [c["component"] for c in component_availability(df) if c["status"] == UNAVAILABLE]
+
+
+def proxy_notes_for(df: pd.DataFrame) -> list[str]:
+    """Period-aware proxy notes: only mention components that are actually present."""
+    return [_VULNERABILITY_NOTE, _AFFECTED_SCALE_NOTE] + [
+        entry["note"]
+        for entry in component_availability(df)
+        if entry["component"] in ("readiness", "cost_constraint")
+    ]
+
+
+def adjusted_weights(weights: dict | None, unavailable: list[str]) -> dict:
+    """Redistribute excluded component weights proportionally to the rest.
+
+    When a component has no measured data its weight is not silently applied to
+    a neutral constant. Instead the weight is distributed proportionally across
+    the components that do have data, so the score remains a weighted sum of
+    verified inputs and the total still sums to 1.
+
+    The mapping from component names to engine weight keys is:
+        gap_index  -> wg   vulnerability -> wv   affected_scale -> wf
+        readiness  -> wr   cost_constraint -> wc
+    """
+    base = {**ip.DEFAULT_WEIGHTS, **(weights or {})}
+    key_map = {
+        "readiness": "wr",
+        "cost_constraint": "wc",
+    }
+    excluded_keys = {key_map[c] for c in unavailable if c in key_map}
+    if not excluded_keys:
+        return base
+    excluded_total = sum(base[k] for k in excluded_keys)
+    remaining = {k: v for k, v in base.items() if k not in excluded_keys}
+    remaining_total = sum(remaining.values()) or 1.0
+    redistributed = {
+        k: round(v + v / remaining_total * excluded_total, 6)
+        for k, v in remaining.items()
+    }
+    # Zero out excluded keys so the engine receives a valid simplex.
+    for k in excluded_keys:
+        redistributed[k] = 0.0
+    # Rounding must not break the simplex: the largest remaining weight absorbs
+    # the residual, so the reported weighting still sums to exactly 1.
+    largest = max(remaining, key=lambda key: redistributed[key])
+    others = sum(v for k, v in redistributed.items() if k != largest)
+    redistributed[largest] = round(max(0.0, 1.0 - others), 6)
+    return redistributed
 
 
 def records(df: pd.DataFrame, columns: list[str] | None = None) -> list[dict]:
@@ -202,7 +422,13 @@ def gapped(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
 def priority_frame(
     df: pd.DataFrame, strategy: str = "national_crop_median", weights: dict | None = None
 ) -> pd.DataFrame:
-    """Attach priority components and a normalized priority score/band per row."""
+    """Attach priority components and a normalized priority score/band per row.
+
+    When the 2025B factor columns (readiness, cost) are absent from the frame
+    the corresponding weights are redistributed to the components that do have
+    measured data. The score is never computed from a neutral constant that
+    would look like an observed value.
+    """
     g = compute_gaps(valid_yield(df), strategy=strategy)
     if g.empty:
         return g
@@ -210,11 +436,22 @@ def priority_frame(
     perish = g.get("perishability", pd.Series(index=g.index, dtype=object))
     g["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
     g["affected_scale"] = g.get("harvested_area_ha", pd.Series(0.0, index=g.index)).fillna(0.0)
-    g["readiness"] = (
-        g.get("erosion_protection_farmers_pct", pd.Series(50.0, index=g.index)).fillna(50.0) / 100.0
-    )
-    land = g.get("agricultural_land_000ha", pd.Series(index=g.index, dtype=float))
-    g["cost_constraint"] = 1.0 - (land / land.max()) if land.notna().any() and land.max() else 0.0
+
+    # Readiness: use measured values when present; NaN otherwise (not a neutral constant).
+    if has_readiness(g):
+        g["readiness"] = g[_READINESS_COL].fillna(g[_READINESS_COL].median()) / 100.0
+    else:
+        g["readiness"] = 0.0  # excluded via weight redistribution below
+
+    # Cost constraint: use measured values when present; 0.0 otherwise (excluded).
+    land = g.get(_COST_COL, pd.Series(dtype=float))
+    if has_cost(g):
+        g["cost_constraint"] = 1.0 - (land / land.max())
+    else:
+        g["cost_constraint"] = 0.0  # excluded via weight redistribution below
+
+    unavailable = components_unavailable(g)
+    effective_weights = adjusted_weights(weights, unavailable)
 
     norm = {}
     for metric in ["gap_index", "vulnerability", "affected_scale", "readiness", "cost_constraint"]:
@@ -229,7 +466,7 @@ def priority_frame(
             affected_scale=norm["affected_scale"].get(idx, 0.0),
             readiness=norm["readiness"].get(idx, 0.0),
             cost_constraint=norm["cost_constraint"].get(idx, 0.0),
-            weights=weights,
+            weights=effective_weights,
         )
         scores.append(r.score)
         bands.append(r.band)
@@ -681,13 +918,20 @@ def normalise_weights(weights: dict | None) -> dict:
     return {**ip.DEFAULT_WEIGHTS, **(weights or {})}
 
 
-def _candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
+def candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
     """Rows carrying the **raw** priority components, before any weighting.
 
     Kept as the single source for the candidate set. The sensitivity sweep needs
     the un-normalized components, because it re-normalizes and re-weights the
     same candidates many times; feeding it the already-normalized values the API
     exposes would normalize twice and silently change every score.
+
+    When the 2025B factor columns are absent the readiness and cost components
+    are carried as 0.0 **as an engine placeholder only** and flagged via
+    ``components_unavailable``. The ranking and sweep callers then call
+    ``adjusted_weights``, which zeroes those weights, so the placeholder can never
+    change a score - and the API never reports it as a component value (it is
+    returned as ``None``).
     """
     df = apply_filters(productivity_frame(f), f) if f is not None else repo.training_dataset()
     gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
@@ -700,27 +944,40 @@ def _candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
     gapped_df["affected_scale"] = gapped_df.get(
         "harvested_area_ha", pd.Series(0, index=gapped_df.index)
     ).fillna(0)
-    gapped_df["readiness"] = (
-        gapped_df.get("erosion_protection_farmers_pct", pd.Series(50.0, index=gapped_df.index))
-        .fillna(50.0) / 100.0
-    )
-    land = gapped_df.get("agricultural_land_000ha", pd.Series(index=gapped_df.index, dtype=float))
-    gapped_df["cost_constraint"] = 1.0 - (land / land.max()) if land.notna().any() and land.max() else 0.0
+
+    # Readiness: measured when the 2025B factor column is present; 0.0 otherwise.
+    if has_readiness(gapped_df):
+        gapped_df["readiness"] = (
+            gapped_df[_READINESS_COL].fillna(gapped_df[_READINESS_COL].median()) / 100.0
+        )
+    else:
+        gapped_df["readiness"] = 0.0
+
+    # Cost constraint: measured when the 2025B land column is present; 0.0 otherwise.
+    land = gapped_df.get(_COST_COL, pd.Series(dtype=float))
+    if has_cost(gapped_df):
+        gapped_df["cost_constraint"] = 1.0 - (land / land.max())
+    else:
+        gapped_df["cost_constraint"] = 0.0
+
     return gapped_df
 
 
 def priority_candidates_with_source(
     f: AnalyticsFilters | None = None,
-) -> tuple[list[dict], str | None]:
-    """The candidates plus the source id of the rows they were built from.
+) -> tuple[list[dict], str | None, list[str]]:
+    """The candidates, the source id, and the list of unavailable components.
 
     The source is read from the frame that actually produced the candidates, so a
     ranking's provenance can never name a different dataset than the one ranked.
+    The unavailable list names components whose weights must be redistributed
+    before scoring (see ``adjusted_weights``).
     """
-    gapped_df = _candidate_frame(f)
+    gapped_df = candidate_frame(f)
     if gapped_df.empty:
-        return [], None
+        return [], None, []
 
+    unavailable = components_unavailable(gapped_df)
     candidates = []
     for _, row in gapped_df.iterrows():
         cid = f"{row.get('district_code', row['district'])}::{row['canonical_crop_name']}"
@@ -742,7 +999,7 @@ def priority_candidates_with_source(
             "readiness": float(row["readiness"]),
             "cost_constraint": float(row["cost_constraint"]),
         })
-    return candidates, frame_source_id(gapped_df)
+    return candidates, frame_source_id(gapped_df), unavailable
 
 
 def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
@@ -751,12 +1008,22 @@ def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
 
 
 def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
-    candidates = priority_candidates(f)
+    candidates, source_id, unavailable = priority_candidates_with_source(f)
+    effective_weights = adjusted_weights(weights, unavailable)
+    df_for_notes = candidate_frame(f)
+    availability = component_availability(df_for_notes)
+    unavailable_set = set(unavailable)
     if not candidates:
-        return {"weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})}, "rows": [],
-                "proxy_notes": PROXY_NOTES}
+        return {
+            "weights": effective_weights,
+            "rows": [],
+            "proxy_notes": proxy_notes_for(df_for_notes),
+            "components_unavailable": unavailable,
+            "component_availability": availability,
+            "source_id": None,
+        }
 
-    ranked = ip.rank(candidates, weights=weights)[:limit]
+    ranked = ip.rank(candidates, weights=effective_weights)[:limit]
     rows = [{
         "id": r["id"], "district": r["district"], "crop": r["crop"],
         "score": r["score"], "band": r["band"],
@@ -768,12 +1035,21 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
         # (the sensitivity sweep) use `priority_candidates` instead.
         "gap": round(r["gap"], 4), "vulnerability": r["vulnerability_component"],
         "affected_scale": r["affected_scale_component"],
-        "readiness": r["readiness_component"], "cost_constraint": r["cost_component"],
+        # An unavailable component is reported as None - the engine placeholder
+        # (0.0, normalized to a constant) must never reach a client as a value.
+        "readiness": None if "readiness" in unavailable_set else r["readiness_component"],
+        "cost_constraint": (
+            None if "cost_constraint" in unavailable_set else r["cost_component"]
+        ),
     } for r in ranked]
+
     return {
-        "weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})},
+        "weights": effective_weights,
         "rows": rows,
-        "proxy_notes": PROXY_NOTES,
+        "proxy_notes": proxy_notes_for(df_for_notes),
+        "components_unavailable": unavailable,
+        "component_availability": availability,
+        "source_id": source_id,
     }
 
 

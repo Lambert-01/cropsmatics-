@@ -34,12 +34,20 @@ def district_metrics(
         "observational association, not causal effect",
         "districts without a valid observation return no value",
     ]
-    if result.get("reference_period"):
+    unavailable = result.get("components_unavailable") or []
+    if unavailable:
         limitations.append(
-            "the priority score's readiness and cost components come from the "
-            f"{result['reference_period']} district practice/land survey, not the "
-            "selected period"
+            "the priority score excluded these components because they carry no "
+            f"measured value for the selected period: {', '.join(unavailable)}. "
+            "Their weight was redistributed over the components that do have data; "
+            "no score is reported as a blend of two releases."
         )
+        if result.get("available_period"):
+            limitations.append(
+                "the excluded components are measured in the "
+                f"{result['available_period']} district practice/land survey - "
+                "select that period to include them"
+            )
     if result.get("available_period") and result.get("message"):
         limitations.append(
             f"this layer is single-release; the latest district release is "
@@ -79,8 +87,9 @@ def weighted_priority_map(
             method="district mean priority score from the selected intervention weights",
             limitations=[
                 "priority scores use documented proxies and are not causal effects",
-                "the readiness and cost components come from a single-release "
-                "district practice/land survey and are reported as a reference period",
+                "a component with no measured value for the selected period is "
+                "excluded and its weight redistributed; it is never scored as a "
+                "constant and never borrowed from another release",
             ],
         ),
     )

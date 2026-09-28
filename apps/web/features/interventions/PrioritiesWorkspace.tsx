@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 
-import { ErrorState } from "@/components/ui/States";
+import { ErrorState, EmptyState, KpiRowSkeleton } from "@/components/ui/States";
 import type { MapMetricId } from "@/lib/constants";
 import type { DashboardFilters } from "@/lib/filters";
 import { useMapMetrics, usePriorities, useWeightedPriorities, useWeightedPriorityMap } from "@/services/hooks/useAnalytics";
-import type { PriorityRow } from "@/types";
+import type { ComponentAvailability, PriorityRow } from "@/types";
 
+import { AIExplainPanel } from "../yield-intelligence/AIExplainPanel";
+import { ComponentAvailabilityNotice } from "./ComponentAvailabilityNotice";
 import { DistrictRationale } from "./DistrictRationale";
 import { PriorityRanking } from "./PriorityRanking";
 import { ScenarioComparison } from "./ScenarioComparison";
@@ -46,13 +48,11 @@ export function PrioritiesWorkspace({ filters }: { filters: DashboardFilters }) 
     [scenarioActive, weighted.data, baseline.data],
   );
   const selected: PriorityRow | null = rows.find((row) => row.id === selectedId) ?? rows[0] ?? null;
-  const proxyNotes = useMemo(
-    () =>
-      rows.length
-        ? (scenarioActive ? weighted.data?.proxy_notes : null) ?? baseline.data?.proxy_notes ?? []
-        : [],
-    [rows, scenarioActive, weighted.data, baseline.data],
-  );
+  const activeSource = scenarioActive ? weighted.data : baseline.data;
+  const proxyNotes = useMemo(() => (rows.length ? activeSource?.proxy_notes ?? [] : []), [rows, activeSource]);
+  const unavailable: string[] = rows.length ? activeSource?.components_unavailable ?? [] : [];
+  const availability: ComponentAvailability[] = activeSource?.component_availability ?? [];
+  const isLoading = baseline.isLoading;
 
   const investigationAreas = useMemo(() => {
     const seen = new Set<string>();

@@ -82,6 +82,38 @@ def algorithms() -> dict:
             {"id": s, "label": s.replace("_", " ").title()} for s in STRATEGIES
         ],
         "priority_weights": analytics_service.ip.DEFAULT_WEIGHTS,
+        # The platform default weighting's documented proxies (the 2025B release,
+        # where every component is measured). Other periods exclude the components
+        # they cannot measure - see `priority_component_policy`.
         "proxies": analytics_service.PROXY_NOTES,
+        "priority_components": [
+            {
+                "component": name,
+                "label": analytics_service.COMPONENT_LABELS[name],
+                "weight_key": key,
+            }
+            for name, key in zip(
+                analytics_service.COMPONENT_ORDER,
+                ("wg", "wv", "wf", "wr", "wc"),
+                strict=True,
+            )
+        ],
+        "priority_component_policy": {
+            "policy": "exclude-and-reweight",
+            "statement": (
+                "A component with no measured value for the selected period is "
+                "excluded and its weight is redistributed proportionally over the "
+                "components that do have data. No component is ever scored as a "
+                "neutral constant, and no score mixes two releases."
+            ),
+            "statuses": [
+                analytics_service.MEASURED,
+                analytics_service.PROXY,
+                analytics_service.UNAVAILABLE,
+                analytics_service.UNDETERMINED,
+            ],
+            "reference_period": analytics_service.REFERENCE_FACTOR_PERIOD,
+            "single_release_components": ["readiness", "cost_constraint"],
+        },
         "high_gap_threshold_pct": analytics_service.HIGH_GAP_PCT,
     }

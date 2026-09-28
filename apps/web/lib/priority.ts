@@ -7,6 +7,7 @@
  * can keep thinking in *its own* weight names while the API stays engine-keyed.
  */
 
+import { fmtNumber } from "@/lib/format";
 import type { PlannerWeights } from "@/types";
 
 /** The engine's internal weight keys, in the order the planner presents them. */
@@ -99,6 +100,59 @@ export function presetToWeights(preset: Record<string, number>): PlannerWeights 
     if (typeof preset[engine] === "number") out[user] = preset[engine];
   });
   return out;
+}
+
+/**
+ * How a component's availability reads.
+ *
+ * `null` on a priority row means the component was excluded, not that it scored
+ * zero: its weight was redistributed over the components that do have data. The
+ * UI must say so — printing "0.00" would present an absence as a measurement.
+ */
+export const COMPONENT_LABELS: Record<string, string> = {
+  gap_index: "Productivity gap",
+  vulnerability: "Vulnerability / exposure",
+  affected_scale: "Affected scale",
+  readiness: "Readiness",
+  cost_constraint: "Cost constraint",
+};
+
+export function componentLabel(component: string): string {
+  return COMPONENT_LABELS[component] ?? component.replace(/_/g, " ");
+}
+
+/** Human sentence for a component status, used in tooltips and notices. */
+export function availabilityLabel(status: string, sourcePeriod?: string | null): string {
+  switch (status) {
+    case "measured":
+      return sourcePeriod ? `measured (${sourcePeriod})` : "measured";
+    case "proxy":
+      return "documented proxy";
+    case "unavailable":
+      return "not available for this period";
+    default:
+      return "availability undetermined";
+  }
+}
+
+/**
+ * How a component value reads.
+ *
+ * `null` is an excluded component, not a component that scored zero, so it must
+ * never be rendered as `0.000`. See `ComponentAvailabilityNotice`.
+ */
+export function componentText(value: number | null | undefined, digits = 3): string {
+  if (value === null || value === undefined) return "not available for this period";
+  return fmtNumber(value, digits);
+}
+
+/** One sentence explaining which components were excluded, for a page notice. */
+export function unavailableSummary(components: string[]): string {
+  if (components.length === 0) return "";
+  const labels = components.map(componentLabel);
+  return `${labels.join(" and ")} ${
+    labels.length === 1 ? "carries" : "carry"
+  } no measured value for this period, so ${labels.length === 1 ? "its" : "their"} weight was redistributed over the components that do.`;
 }
 
 /**

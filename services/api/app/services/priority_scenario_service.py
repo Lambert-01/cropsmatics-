@@ -148,13 +148,23 @@ def _missing_reason(side: ResolvedSide, label: str) -> str:
 
 
 def build_side(side: ResolvedSide, label: str) -> PriorityView:
-    """Build one ranked view from the selected candidates."""
-    candidates, source_id = analytics_service.priority_candidates_with_source(side.filters())
+    """Build one ranked view from the selected candidates.
+
+    When readiness or cost components are unavailable for the selected period
+    their weights are redistributed before ranking, so the score is never
+    computed from a neutral constant that would look like measured data.
+    """
+    candidates, source_id, unavailable = analytics_service.priority_candidates_with_source(side.filters())
+    effective_weights = analytics_service.adjusted_weights(side.weights, unavailable)
+    availability = analytics_service.component_availability(
+        analytics_service.candidate_frame(side.filters())
+    )
+
 
     if not candidates:
         return PriorityView(
             label=label,
-            weights=side.weights,
+            weights=effective_weights,
             top_n=side.top_n,
             period_code=side.period_code,
             period_label=period_service.label(side.period_code),
@@ -165,12 +175,14 @@ def build_side(side: ResolvedSide, label: str) -> PriorityView:
             missing=True,
             reason=_missing_reason(side, label),
             source_id=None,
+            components_unavailable=unavailable,
+            component_availability=availability,
         )
 
-    ranked = ip.rank(candidates, weights=side.weights)
+    ranked = ip.rank(candidates, weights=effective_weights)
     view = ps.build_view(
         ranked,
-        weights=side.weights,
+        weights=effective_weights,
         top_n=side.top_n,
         min_score=side.min_score,
         label=label,
@@ -178,7 +190,7 @@ def build_side(side: ResolvedSide, label: str) -> PriorityView:
 
     return PriorityView(
         label=label,
-        weights=side.weights,
+        weights=effective_weights,
         top_n=side.top_n,
         period_code=side.period_code,
         period_label=period_service.label(side.period_code),
@@ -189,6 +201,8 @@ def build_side(side: ResolvedSide, label: str) -> PriorityView:
         missing=False,
         source_id=source_id,
         n_observations=view["stats"]["n_candidates"],
+        components_unavailable=unavailable,
+        component_availability=availability,
         rows=[PriorityCandidateRow(**row) for row in view["rows"]],
         stats=PriorityViewStats(**view["stats"]),
     )
@@ -240,6 +254,17 @@ def run(payload: PriorityScenarioRequest) -> PriorityScenarioResponse:
             "the weighting"
         )
 
+    # Build period-aware proxy notes from the actual candidate frame.
+    df_for_notes = analytics_service.candidate_frame(baseline_side.filters())
+    proxy_notes = analytics_service.proxy_notes_for(df_for_notes)
+    # Availability is resolved per side (each side has its own period); the
+    # response-level list is the union, and the per-component detail describes the
+    # baseline frame the notes are built from.
+    baseline_availability = analytics_service.component_availability(df_for_notes)
+    unavailable_union = sorted(
+        {*baseline_view.components_unavailable, *scenario_view.components_unavailable}
+    )
+
     return PriorityScenarioResponse(
         baseline=baseline_view,
         scenario=scenario_view,
@@ -251,7 +276,9 @@ def run(payload: PriorityScenarioRequest) -> PriorityScenarioResponse:
         available_presets=sensitivity.PRESETS,
         preset_labels=sensitivity.PRESET_LABELS,
         weight_labels=sensitivity.WEIGHT_LABELS,
-        proxy_notes=analytics_service.PROXY_NOTES,
+        proxy_notes=proxy_notes,
+        components_unavailable=unavailable_union,
+        component_availability=baseline_availability,
         provenance=Provenance(
             source_id=scenario_view.source_id or baseline_view.source_id,
             source_period=f"{baseline_side.period_code}-{scenario_side.period_code}",

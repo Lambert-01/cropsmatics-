@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.schemas.analytics import ComponentAvailability
 from app.schemas.common import Provenance
 
 # --- dashboard overview ----------------------------------------------------
@@ -131,11 +132,18 @@ class MapMetricsResponse(BaseModel):
     requires_crop: bool = False
     message: str | None = None
     # The release that does carry the metric when the selected period does not
-    # (single-release adoption/irrigation/erosion layers).
+    # (single-release adoption/irrigation/erosion layers), or - for the priority
+    # metric - the release that carries components the selected period cannot
+    # measure.
     available_period: str | None = None
     # Set when a period-specific metric also consumes a single-release component
-    # (the priority score's readiness/cost proxies).
+    # (the priority score's readiness/cost proxies). Always null under the
+    # exclusion policy: no score is reported as a blend of two releases.
     reference_period: str | None = None
+    #: Priority components with no measured value for the selected period, whose
+    #: weight was redistributed instead of being scored as a constant.
+    components_unavailable: list[str] = Field(default_factory=list)
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
     source_id: str | None = None
     provenance: Provenance
 
