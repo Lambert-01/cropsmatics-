@@ -709,11 +709,17 @@ def _candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
     return gapped_df
 
 
-def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
-    """The district x crop candidates, with raw (un-normalized) components."""
+def priority_candidates_with_source(
+    f: AnalyticsFilters | None = None,
+) -> tuple[list[dict], str | None]:
+    """The candidates plus the source id of the rows they were built from.
+
+    The source is read from the frame that actually produced the candidates, so a
+    ranking's provenance can never name a different dataset than the one ranked.
+    """
     gapped_df = _candidate_frame(f)
     if gapped_df.empty:
-        return []
+        return [], None
 
     candidates = []
     for _, row in gapped_df.iterrows():
@@ -736,7 +742,12 @@ def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
             "readiness": float(row["readiness"]),
             "cost_constraint": float(row["cost_constraint"]),
         })
-    return candidates
+    return candidates, frame_source_id(gapped_df)
+
+
+def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
+    """The district x crop candidates, with raw (un-normalized) components."""
+    return priority_candidates_with_source(f)[0]
 
 
 def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:

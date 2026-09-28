@@ -45,6 +45,15 @@ PRESETS: dict[str, dict[str, float]] = {
     "vulnerability_focused": {"wg": 0.20, "wv": 0.45, "wf": 0.15, "wr": 0.15, "wc": 0.05},
 }
 
+#: Display names for the presets, so a client never has to humanise a key.
+PRESET_LABELS: dict[str, str] = {
+    "balanced": "Balanced (platform default)",
+    "productivity_gap_focused": "Productivity gap focused",
+    "affected_area_focused": "Affected area focused",
+    "readiness_focused": "Readiness focused",
+    "vulnerability_focused": "Vulnerability focused",
+}
+
 DEFAULT_SEED = 42
 DEFAULT_DRAWS = 200
 MAX_DRAWS = 2000

@@ -171,10 +171,14 @@ def compare(baseline: dict, scenario: dict, *, top_n: int = 10) -> dict:
 
 
 def summarise_changes(baseline: dict, scenario: dict) -> list[dict]:
-    """The assumption values that actually differ between the two sides."""
+    """The assumption values that actually differ between the two sides.
+
+    Weighting is deliberately absent: ``weight_deltas`` reports it per key, which
+    is strictly more informative than a dict-to-dict row, so a weighting change
+    never appears here as an opaque pair of objects.
+    """
     changes: list[dict] = []
     for key, label in (
-        ("weights", "Weighting"),
         ("period_code", "Period"),
         ("province", "Province group"),
         ("district", "District group"),
