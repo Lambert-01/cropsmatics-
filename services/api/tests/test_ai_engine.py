@@ -13,7 +13,7 @@ import pytest
 
 from app.ai import evidence_builder, grounded, intent_router, numeric_guard, tool_registry
 from app.ai.evidence import EvidenceBundle, EvidenceItem, EvidenceKind
-from app.ai.providers import DeterministicProvider, get_provider, load_config
+from app.ai.providers import DeterministicProvider, get_provider
 from app.ai.providers.remote import RemoteConfig, RemoteProvider
 from app.ai.schemas import AIRequest
 
