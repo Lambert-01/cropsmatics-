@@ -111,6 +111,8 @@ def run(payload: SensitivityRequest) -> SensitivityResponse:
             "no candidate is published for this selection, so there is nothing to "
             "test; this is reported as no candidates rather than as a stable ranking",
         )
+    # Keep the response and its provenance telling the same story.
+    result["limitations"] = limitations
 
     return SensitivityResponse(
         **result,

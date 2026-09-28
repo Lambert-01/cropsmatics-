@@ -24,10 +24,14 @@ import type {
   PeriodsResponse,
   PostHarvestResponse,
   PriorityResponse,
+  PriorityScenarioRequest,
+  PriorityScenarioResponse,
   ProductivityResponse,
   ReadinessResponse,
   ScenarioRequest,
   ScenarioResponse,
+  SensitivityRequest,
+  SensitivityResponse,
   SourcesResponse,
   StorageInfrastructureResponse,
   TrendResponse,
@@ -182,6 +186,22 @@ export const api = {
    */
   scenario: (body: ScenarioRequest) =>
     post<ScenarioResponse>("/scenarios/yield", body),
+
+  /**
+   * Intervention Priority Scenario Lab. Re-ranks the published district x crop
+   * candidates under two sets of reviewable planning weights. It writes nothing
+   * and never returns a budget or an intervention outcome.
+   */
+  priorityScenario: (body: PriorityScenarioRequest) =>
+    post<PriorityScenarioResponse>("/scenarios/priority", body),
+
+  /**
+   * Ranking sensitivity. Re-ranks the same candidates under a reproducible sweep
+   * of plausible weightings; the reported share is a robustness share, not a
+   * probability.
+   */
+  sensitivity: (body: SensitivityRequest) =>
+    post<SensitivityResponse>("/scenarios/sensitivity", body),
 
   /**
    * Market Intelligence. With no verified price feed loaded these answer

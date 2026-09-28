@@ -679,6 +679,201 @@ export interface PriorityResponse {
   provenance: Provenance;
 }
 
+// --- intervention priority scenarios ------------------------------------------
+
+/**
+ * The planner's own weight vocabulary. These are the only weights a request may
+ * carry; the server maps them onto its engine keys and normalises them.
+ */
+export interface PlannerWeights {
+  gap: number;
+  vulnerability: number;
+  affected_scale: number;
+  readiness: number;
+  cost: number;
+}
+
+/** One independently-specified side of a priority scenario. */
+export interface PriorityScenarioParams {
+  weights?: PlannerWeights;
+  period_code?: string | null;
+  benchmark_strategy?: string | null;
+  province?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  /** How many ranked candidates count as the review shortlist. */
+  top_n?: number;
+  min_score?: number;
+}
+
+export interface PriorityScenarioRequest {
+  baseline: PriorityScenarioParams;
+  scenario: PriorityScenarioParams;
+}
+
+/** One district × crop candidate as the engine ranked it. */
+export interface PriorityCandidateRow {
+  id: string;
+  district: string;
+  crop?: string | null;
+  rank: number;
+  score: number;
+  band: string;
+  in_priority_group: boolean;
+  in_top_n: boolean;
+}
+
+export interface PriorityViewStats {
+  n_candidates: number;
+  n_priority_group: number;
+  n_top_n: number;
+  band_counts: Record<string, number>;
+  mean_score: number | null;
+}
+
+/** One side of the comparison. `missing` means the selection has no candidates. */
+export interface PriorityView {
+  label?: string | null;
+  /** Engine-keyed weights actually used (wg/wv/wf/wr/wc). */
+  weights: Record<string, number>;
+  top_n: number;
+  period_code?: string | null;
+  period_label?: string | null;
+  crop?: string | null;
+  province?: string | null;
+  district?: string | null;
+  benchmark_strategy?: string | null;
+  missing: boolean;
+  reason?: string | null;
+  source_id?: string | null;
+  n_observations: number;
+  rows: PriorityCandidateRow[];
+  stats: PriorityViewStats;
+}
+
+/** `movement` is `rank_before - rank_after`; positive means the candidate rose. */
+export interface PriorityMovementRow {
+  district: string;
+  rank_before: number | null;
+  rank_after: number | null;
+  movement: number | null;
+  direction: "up" | "down" | "unchanged" | "new" | "dropped" | "unranked" | string;
+  score_before: number | null;
+  score_after: number | null;
+  band_before: string | null;
+  band_after: string | null;
+  in_top_n_before: boolean | null;
+  in_top_n_after: boolean | null;
+}
+
+export interface PriorityMovement {
+  districts: PriorityMovementRow[];
+  n_compared: number;
+  n_moved: number;
+  n_unchanged: number;
+  /** Candidates that only exist on one side because the selection changed. */
+  entered_group: string[];
+  left_group: string[];
+  entered_priority: string[];
+  left_priority: string[];
+}
+
+/** Per-weight change, so a weighting scenario explains itself. */
+export interface WeightDelta {
+  key: string;
+  label?: string | null;
+  before: number | null;
+  after: number | null;
+  delta: number | null;
+}
+
+/**
+ * The result of an analytical priority scenario. `scenario_type` is always
+ * `"analytical"`: this re-ranks published observations, it is never a budget
+ * model or a statement of what an intervention would achieve.
+ */
+export interface PriorityScenarioResponse {
+  scenario_type: "analytical";
+  scenario_label: string;
+  baseline: PriorityView;
+  scenario: PriorityView;
+  changes: ScenarioChange[];
+  weight_deltas: WeightDelta[];
+  ranking_movement: PriorityMovement;
+  available_periods: string[];
+  available_benchmark_strategies: string[];
+  /** Engine-keyed named planning positions, comparable with `PriorityView.weights`. */
+  available_presets: Record<string, Record<string, number>>;
+  preset_labels: Record<string, string>;
+  weight_labels: Record<string, string>;
+  proxy_notes: string[];
+  provenance: Provenance;
+  limitations: string[];
+}
+
+// --- ranking sensitivity -------------------------------------------------------
+
+export interface SensitivityRequest {
+  weights?: PlannerWeights;
+  period_code?: string | null;
+  benchmark_strategy?: string | null;
+  province?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  /** Random weightings drawn on the simplex (0 = presets only). */
+  n_random?: number;
+  /** Makes the sweep exactly reproducible. */
+  seed?: number;
+  top_n?: number;
+  include_presets?: boolean;
+}
+
+/** How one candidate behaves across the whole tested sweep. */
+export interface SensitivityRow {
+  id: string;
+  district: string;
+  crop?: string | null;
+  baseline_rank: number;
+  baseline_band: string;
+  baseline_score: number;
+  top_n_inclusions: number;
+  /** Fraction of tested weightings in which the candidate stayed in the top-N. */
+  top_n_share_pct: number;
+  band_counts: Record<string, number>;
+  band_shares_pct: Record<string, number>;
+  dominant_band: string;
+  band_stability_pct: number;
+  best_rank: number;
+  median_rank: number;
+  worst_rank: number;
+  rank_range: number;
+  robust: boolean;
+}
+
+/**
+ * The result of a robustness sweep. The shares are **robustness shares across
+ * tested weightings, not probabilities** — `disclaimer` says so on the response.
+ */
+export interface SensitivityResponse {
+  /** Engine-keyed weights actually used. */
+  weights: Record<string, number>;
+  weight_labels: Record<string, string>;
+  presets: Record<string, Record<string, number>>;
+  preset_labels: Record<string, string>;
+  rows: SensitivityRow[];
+  districts_analysed: number;
+  robust_count: number;
+  n_scenarios_tested: number;
+  n_random_draws: number;
+  presets_included: string[];
+  seed: number;
+  top_n: number;
+  proxy_notes: string[];
+  disclaimer: string;
+  limitations: string[];
+  provenance: Provenance;
+}
+
 export interface DatasetInfo {
   key: string;
   label: string;

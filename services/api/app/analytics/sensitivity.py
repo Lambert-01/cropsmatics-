@@ -103,6 +103,13 @@ def weight_draws(
     """
     if n_random < 0 or n_random > MAX_DRAWS:
         raise SensitivityError(f"n_random must be between 0 and {MAX_DRAWS}")
+    if n_random == 0 and not include_presets:
+        # A sweep that tests no weighting at all cannot report a robustness share;
+        # an all-zero table would read as "nothing is stable" instead of "nothing
+        # was tested". Refuse rather than return a misleading zero.
+        raise SensitivityError(
+            "a sweep must test at least one weighting: set n_random or include_presets"
+        )
 
     rng = random.Random(seed)
     draws: list[dict] = []

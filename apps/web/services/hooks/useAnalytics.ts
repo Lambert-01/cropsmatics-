@@ -4,7 +4,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { DashboardFilters } from "@/lib/filters";
-import type { AssistantContext, ScenarioRequest } from "@/types";
+import type {
+  AssistantContext,
+  PriorityScenarioRequest,
+  ScenarioRequest,
+  SensitivityRequest,
+} from "@/types";
 
 const FIVE_MIN = 5 * 60 * 1000;
 
@@ -70,6 +75,26 @@ export function useAssistantMutation() {
 export function useScenario() {
   return useMutation({
     mutationFn: (body: ScenarioRequest) => api.scenario(body),
+  });
+}
+
+/**
+ * Priority scenario. A mutation for the same reason as the yield scenario: the
+ * comparison is only computed when the planner asks for it.
+ */
+export function usePriorityScenario() {
+  return useMutation({
+    mutationFn: (body: PriorityScenarioRequest) => api.priorityScenario(body),
+  });
+}
+
+/**
+ * Ranking sensitivity sweep. A mutation because it is an explicit "test the
+ * ranking's robustness" action over a chosen number of draws.
+ */
+export function useSensitivity() {
+  return useMutation({
+    mutationFn: (body: SensitivityRequest) => api.sensitivity(body),
   });
 }
 
