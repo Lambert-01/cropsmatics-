@@ -39,7 +39,11 @@ _GAP_LIMITATIONS = [
     "observational district aggregates, not plot-level evidence",
     "associations are not causation",
     "benchmark choice materially affects the gap",
-    "district data only exist for 2025 Season B",
+    # District productivity exists for every published period (2024A-2026B); the
+    # district input/practice tables used by the factor analysis are still a
+    # single-release (2025 Season B) extract. See /api/v1/meta/periods.
+    "district productivity covers 2024A-2026B; district input/practice, "
+    "irrigation and erosion tables cover 2025 Season B only",
 ]
 
 
@@ -72,10 +76,15 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
         kpis=result["kpis"],
         rows=result["rows"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period=result["period"],
+            source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
+            source_period=f.period_code or result["period"],
             benchmark_strategy=f.benchmark_strategy,
-            method="district aggregation of processed district x crop table",
+            method=(
+                "district aggregation of the canonical multi-period productivity "
+                "panel"
+                if f.period_code
+                else "district aggregation of processed district x crop table"
+            ),
             limitations=_GAP_LIMITATIONS,
         ),
     )
@@ -88,6 +97,9 @@ def factors(f: AnalyticsFilters = Depends(analytics_filters)) -> FactorsResponse
         crop=result["crop"],
         district=result["district"],
         factors=result["factors"],
+        note=analytics_service.single_release_note(
+            f, "district_factors", "district input/practice factor data"
+        ),
         provenance=Provenance(
             source_id="NISR_SAS_2025B_DISTRICT_FACTORS",
             source_period="2025-B",
@@ -117,7 +129,12 @@ def heatmap(
         min_value=result["min_value"],
         unit=result["unit"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
+            source_id=(
+                f"NISR_SAS_{f.period_code}"
+                if f.period_code
+                else "NISR_SAS_2025B_DISTRICT_CROP"
+            ),
+            source_period=f.period_code,
             benchmark_strategy=f.benchmark_strategy,
             method="median district x crop value",
             limitations=_GAP_LIMITATIONS[:3],
@@ -221,11 +238,14 @@ def irrigation(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     result = analytics_service.irrigation_summary(f)
     return {
         **result,
+        "note": analytics_service.single_release_note(
+            f, "irrigation_water", "district irrigation and water-source data"
+        ),
         "provenance": Provenance(
             source_id="NISR_SAS_2025B_IRRIGATION_WATER",
             source_period=result["period"],
             method="official district irrigation technique and water-source shares",
-            limitations=["district shares only for 2025 Season B"],
+            limitations=["district shares cover 2025 Season B only"],
         ).model_dump(),
     }
 
@@ -235,11 +255,14 @@ def erosion(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     result = analytics_service.erosion_summary(f)
     return {
         **result,
+        "note": analytics_service.single_release_note(
+            f, "erosion_control", "district erosion-control data"
+        ),
         "provenance": Provenance(
             source_id="NISR_SAS_2025B_EROSION",
             source_period=result["period"],
             method="official district erosion-control technique and severity shares",
-            limitations=["district shares only for 2025 Season B"],
+            limitations=["district shares cover 2025 Season B only"],
         ).model_dump(),
     }
 
@@ -255,8 +278,10 @@ def intervention_priorities(
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period="2025-B",
+            source_id=(
+                f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP"
+            ),
+            source_period=f.period_code or "2025-B",
             method="weighted transparent score over normalized components",
             limitations=result["proxy_notes"],
         ),
@@ -276,8 +301,10 @@ def intervention_priorities_weighted(
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period="2025-B",
+            source_id=(
+                f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP"
+            ),
+            source_period=f.period_code or "2025-B",
             method="user-adjusted weights over transparent normalized components",
             limitations=result["proxy_notes"],
         ),

@@ -13,7 +13,8 @@ from app.schemas.dashboard import (
     SourceItem,
     SourcesResponse,
 )
-from app.services import analytics_service, meta_service
+from app.schemas.periods import PeriodsResponse
+from app.services import analytics_service, meta_service, period_service
 
 router = APIRouter(prefix="/meta", tags=["system"])
 
@@ -21,6 +22,18 @@ router = APIRouter(prefix="/meta", tags=["system"])
 @router.get("/data-coverage", response_model=CoverageResponse)
 def data_coverage() -> CoverageResponse:
     return CoverageResponse(**meta_service.coverage())
+
+
+@router.get("/periods", response_model=PeriodsResponse)
+def periods() -> PeriodsResponse:
+    """The published period dimension, derived from the processed tables.
+
+    Returns every period that actually carries rows (2024A-2026B as of the 2026
+    releases; 2026 Season C has not been published), newest last, with the
+    coverage level and contributing datasets for each. Clients should read this
+    instead of hard-coding a period.
+    """
+    return PeriodsResponse(**period_service.catalog())
 
 
 @router.get("/sources", response_model=SourcesResponse)

@@ -76,6 +76,8 @@ def main() -> int:
     rows: list[dict] = []
     available: dict[str, pd.DataFrame] = {}
     for name in [
+        # Canonical multi-period panel: district rows for every published period.
+        "crop_productivity",
         "district_crop_productivity",
         "district_factors",
         "irrigation_water",
@@ -92,7 +94,8 @@ def main() -> int:
             available[name] = pd.read_csv(path)
             rows.extend(_coverage_for(name, available[name]))
 
-    # Productivity only has district rows for 2025B; add the national periods.
+    # The legacy single-release pack has district rows for 2025B only; the
+    # periods it does not cover are national context from the trend tables.
     if "district_crop_productivity" in available:
         district_periods = {r["period"] for r in rows if r["dataset"] == "district_crop_productivity"}
         if "national_crop_trends" in available:

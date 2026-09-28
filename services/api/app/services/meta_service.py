@@ -21,6 +21,8 @@ MODELS_DIR = REPO_ROOT / "ml" / "reports"
 # and the manifest can be compared directly.
 REQUIRED_DATASETS: dict[str, str] = {
     "training": "training_district_crop.csv",
+    "crop_productivity": "crop_productivity.csv",
+    "market_prices": "market_price_observation.csv",
     "district_crop_productivity": "district_crop_productivity.csv",
     "district_factors": "district_productivity_factors.csv",
     "irrigation_water": "irrigation_water.csv",
@@ -39,8 +41,13 @@ REQUIRED_DATASETS: dict[str, str] = {
 REQUIRED_DICTIONARIES = ["districts.csv", "crops.csv"]
 
 COVERAGE_NOTES = [
-    "District-level productivity, factors, irrigation and erosion are only available for 2025 Season B.",
-    "2024B, 2025A and 2026A are national context series and are NOT district estimates.",
+    "District productivity (area, harvested area, production, yield) is available "
+    "for all eight published periods (2024A-2026B) in the multi-period panel; "
+    "2026 Season C has not been published.",
+    "District input/practice, irrigation and erosion tables are still single-release "
+    "(2025 Season B). See /api/v1/meta/periods for which datasets each period covers.",
+    "2024B, 2025A and 2026A national trend rows are context series and are NOT "
+    "district estimates.",
     "Post-harvest use shares are national crop-level values, not district values.",
     "Cold-chain context lists program districts; facility capacity is not verified.",
 ]

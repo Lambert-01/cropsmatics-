@@ -33,24 +33,46 @@ def test_dashboard_overview(client):
     assert districts["value"] == 30
 
 
-def test_national_only_period_has_national_kpis_and_no_district_data(client):
+def test_period_with_district_panel_reports_district_coverage(client):
+    """2024B carries real district productivity in the multi-period panel.
+
+    It used to be national-only context when the platform had a single-release
+    (2025B) district extract; the panel changed that, and the dashboard must
+    follow the data rather than the old limitation.
+    """
     _require_data(client)
-    body = client.get("/api/v1/dashboard/overview?year=2024&season=B").json()
-    assert body["coverage_level"] == "national"
+    body = client.get("/api/v1/dashboard/overview?period_code=2024B").json()
+    assert body["coverage_level"] == "district"
+    assert body["n_observations"] > 0
+    assert next(k for k in body["kpis"] if k["id"] == "districts")["value"] == 30
+    assert body["provenance"]["source_period"] == "2024B"
+    assert body["provenance"]["source_id"].startswith("NISR_SAS_2024")
+
+
+def test_latest_panel_period_is_served(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?period_code=2026B").json()
+    assert body["coverage_level"] == "district"
+    assert body["n_observations"] > 0
+    assert body["provenance"]["source_id"] == "NISR_SAS_2026B"
+    assert "2026B" in body["available_periods"]
+    # District input/practice factors are still a single-release table, so the
+    # adoption KPI is null here rather than borrowed from another season.
+    assert next(k for k in body["kpis"] if k["id"] == "input_adoption")["value"] is None
+
+
+def test_unknown_period_falls_back_to_national_context_without_inventing(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?year=2019&season=A").json()
+    assert body["coverage_level"] is None
     assert body["n_observations"] == 0
     assert {k["id"] for k in body["kpis"]} == {
         "national_production", "national_area", "national_yield", "national_seed"
     }
-    assert all(k["period"] == "2024B" for k in body["kpis"])
-    assert next(k for k in body["kpis"] if k["id"] == "national_production")["value"] > 0
-
-
-def test_national_input_only_period_preserves_missing_crop_metrics(client):
-    _require_data(client)
-    body = client.get("/api/v1/dashboard/overview?year=2026&season=B").json()
-    assert body["coverage_level"] == "national"
-    assert next(k for k in body["kpis"] if k["id"] == "national_production")["value"] is None
-    assert next(k for k in body["kpis"] if k["id"] == "national_seed")["value"] is not None
+    # No published rows for that period: every value stays null, never 0.
+    for kpi in body["kpis"]:
+        if kpi["id"].startswith("national_"):
+            assert kpi["value"] is None, kpi
 
 
 def test_data_coverage(client):

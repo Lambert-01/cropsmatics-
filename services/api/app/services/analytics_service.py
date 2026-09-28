@@ -15,6 +15,7 @@ from app.analytics import intervention_priority as ip
 from app.analytics.productivity_gap import STRATEGIES, compute_gaps
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
+from app.services import period_service
 
 # MVP proxies for priority components that official 2025B tables do not carry.
 # Documented so the weighting is never a black box (docs/11_INTERVENTION_ENGINE.md).
@@ -64,8 +65,84 @@ def valid_yield(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["yield_kg_ha"].fillna(0) > 0].copy()
 
 
+LEGACY_SOURCE_ID = "NISR_SAS_2025B_DISTRICT_CROP"
+
+
+def frame_source_id(df: pd.DataFrame) -> str:
+    """Source id of the rows actually used, taken from the rows themselves."""
+    if "source_id" in df.columns:
+        ids = sorted({str(v) for v in df["source_id"].dropna() if str(v)})
+        if ids:
+            return ",".join(ids)
+    return LEGACY_SOURCE_ID
+
+
+def frame_period_code(df: pd.DataFrame) -> str | None:
+    """The single period a frame covers, or None when it spans several."""
+    if "period_code" in df.columns:
+        codes = sorted({str(v) for v in df["period_code"].dropna() if str(v)})
+        if len(codes) == 1:
+            return codes[0]
+        return None
+    if {"year", "season"}.issubset(df.columns):
+        pairs = {
+            (int(y), str(s)) for y, s in zip(df["year"], df["season"], strict=False) if str(s)
+        }
+        if len(pairs) == 1:
+            year, season = pairs.pop()
+            return f"{year}{season}"
+    return None
+
+
 def _factor_cols(df: pd.DataFrame) -> list[str]:
     return [c for c in FACTOR_COLUMNS if c in df.columns]
+
+
+def legacy_periods() -> set[str]:
+    """Periods the joined training table actually carries (a single release)."""
+    try:
+        df = repo.training_dataset()
+    except Exception:
+        return set()
+    if df.empty or not {"year", "season"}.issubset(df.columns):
+        return set()
+    return {
+        f"{int(y)}{str(s).upper()}"
+        for y, s in zip(df["year"], df["season"], strict=False)
+        if str(s)
+    }
+
+
+def productivity_frame(f: AnalyticsFilters | None = None) -> pd.DataFrame:
+    """The productivity rows a filter should read.
+
+    Without a period selection this stays the joined training table, so existing
+    analytics keep exactly the behaviour they had (including the factor columns
+    only that table has). For a period the training table does not cover - the
+    other seven published periods - it reads the canonical panel, district rows
+    only, so a national row can never be reported as a district observation.
+    """
+    if f is None:
+        return repo.training_dataset()
+
+    key = f.period_key()
+    if not key or key in legacy_periods():
+        return repo.training_dataset()
+
+    try:
+        panel = repo.crop_productivity()
+    except Exception:
+        return repo.training_dataset()
+    if "period_code" not in panel.columns:
+        return repo.training_dataset()
+    frame = panel[panel["period_code"].astype(str) == key]
+    if "geography_level" in frame.columns:
+        frame = frame[frame["geography_level"] == "DISTRICT"]
+    if frame.empty:
+        # The period exists but has no district rows: fall back to the training
+        # table, whose apply_filters then yields an honest empty selection.
+        return repo.training_dataset()
+    return frame.copy()
 
 
 def period_of(df: pd.DataFrame) -> str | None:
@@ -150,7 +227,7 @@ def gap_report(strategy: str = "national_crop_median", limit: int = 100) -> dict
 
 def productivity(f: AnalyticsFilters) -> dict:
     """KPI + district ranking for the Productivity Intelligence page."""
-    df = apply_filters(repo.training_dataset(), f)
+    df = apply_filters(productivity_frame(f), f)
     g = gapped(df, f.benchmark_strategy)
     if g.empty:
         return {"period": None, "kpis": [], "rows": [], "n_observations": 0}
@@ -191,10 +268,31 @@ def productivity(f: AnalyticsFilters) -> dict:
     ]
     return {
         "period": period_of(g),
+        "period_code": frame_period_code(g),
+        "source_id": frame_source_id(g),
         "kpis": kpis,
         "rows": records(rows),
         "n_observations": int(len(valid)),
     }
+
+
+def single_release_note(f: AnalyticsFilters, dataset: str, what: str) -> str | None:
+    """Explain, honestly, why a period selection has no rows for a dataset.
+
+    District input/practice, irrigation and erosion tables are still a
+    single-release extract, so any other period genuinely has no such data.
+    Saying so is better than an empty result that reads as "nothing measured".
+    """
+    if not f.period_code:
+        return None
+    covers = any(d["dataset"] == dataset for d in period_service.datasets_for(f.period_code))
+    if covers:
+        return None
+    return (
+        f"{what} is not published for {f.period_code}; the district "
+        f"{dataset.replace('_', ' ')} table covers 2025 Season B only, so this "
+        "period returns no rows"
+    )
 
 
 def factor_associations(f: AnalyticsFilters) -> dict:
@@ -243,7 +341,7 @@ def factor_associations(f: AnalyticsFilters) -> dict:
 
 def heatmap(f: AnalyticsFilters, metric: str = "gap") -> dict:
     """district x crop matrix for a chosen metric."""
-    g = gapped(apply_filters(repo.training_dataset(), f), f.benchmark_strategy)
+    g = gapped(apply_filters(productivity_frame(f), f), f.benchmark_strategy)
     if g.empty:
         return {"metric": metric, "districts": [], "crops": [], "cells": [],
                 "max_value": None, "min_value": None, "unit": None}
@@ -290,9 +388,7 @@ def erosion_summary(f: AnalyticsFilters) -> dict:
 
 
 def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
-    df = repo.training_dataset()
-    if f is not None:
-        df = apply_filters(df, f)
+    df = apply_filters(productivity_frame(f), f) if f is not None else repo.training_dataset()
     gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
     gapped_df = gapped_df[gapped_df["yield_kg_ha"].fillna(0) > 0].copy()
     if gapped_df.empty:

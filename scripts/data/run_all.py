@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 """Run the full data pipeline in deterministic order.
 
-    validate_raw -> normalize_geography -> normalize_crops
-                 -> build_district_crop -> build_factor -> build_irrigation
-                 -> build_erosion -> build_postharvest -> build_national_trends
-                 -> build_input_trends -> build_cold_chain
-                 -> build_postharvest_infrastructure -> build_cold_chain_network_summary
-                 -> build_training
-                 -> build_dashboard_summary -> build_data_coverage -> build_sources
-                 -> build_manifest
+    catalog_raw -> ingest_sas_tables -> build_crop_productivity
+                -> ingest_market_prices -> validate_raw
+                -> normalize_geography -> normalize_crops
+                -> build_district_crop -> build_factor -> build_irrigation
+                -> build_erosion -> build_postharvest -> build_national_trends
+                -> build_input_trends -> build_cold_chain
+                -> build_postharvest_infrastructure -> build_cold_chain_network_summary
+                -> build_training
+                -> build_dashboard_summary -> build_data_coverage -> build_sources
+                -> build_manifest
 
-Stops immediately if validation fails. Safe to re-run; outputs are overwritten.
+The multi-season SAS chain runs first because it has its own hard contracts
+(the table mapping must be unique and complete, every district/crop must resolve
+against the dictionaries) and because ``validate_raw`` checks the freshly built
+panel in the same run. Nothing downstream of validation is written when
+validation fails: the run stops with a non-zero exit code.
+
+Safe to re-run; outputs are overwritten deterministically.
 """
 
 from __future__ import annotations
@@ -22,6 +30,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 STEPS = [
+    "scripts.data.catalog_raw",
+    "scripts.data.ingest_sas_tables",
+    "scripts.data.build_crop_productivity",
+    "scripts.data.ingest_market_prices",
     "scripts.data.validate_raw",
     "scripts.data.normalize_geography",
     "scripts.data.normalize_crops",

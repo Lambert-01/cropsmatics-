@@ -45,8 +45,19 @@ def training_dataset() -> pd.DataFrame:
 
 
 def productivity_dataset() -> pd.DataFrame:
-    """Cleaned district x crop productivity table (real 2025B district rows)."""
+    """Cleaned district x crop productivity table (legacy single-release pack)."""
     return _load("district_crop_productivity.csv")
+
+
+def crop_productivity() -> pd.DataFrame:
+    """Canonical multi-period productivity panel (2024A-2026B).
+
+    One row per period x geography x crop, with the published metrics in
+    columns and full source lineage. District rows carry ``geography_level ==
+    'DISTRICT'``; national and SSF/LSF aggregates are separate rows rather than
+    being mixed into the district panel.
+    """
+    return _load("crop_productivity.csv")
 
 
 def factors_dataset() -> pd.DataFrame:

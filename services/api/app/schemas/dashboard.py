@@ -110,6 +110,9 @@ class FactorsResponse(BaseModel):
     crop: str | None = None
     district: str | None = None
     factors: list[FactorMetric] = Field(default_factory=list)
+    # Set when the requested period has no factor data at all, so an empty list
+    # is never mistaken for "no association measured".
+    note: str | None = None
     provenance: Provenance
 
 

@@ -11,19 +11,30 @@ import pandas as pd
 
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
-from app.services import meta_service, trend_service
-from app.services.analytics_service import FACTOR_COLUMNS, HIGH_GAP_PCT, gapped, period_of
+from app.services import meta_service, period_service, trend_service
+from app.services.analytics_service import (
+    FACTOR_COLUMNS,
+    HIGH_GAP_PCT,
+    frame_period_code,
+    frame_source_id,
+    gapped,
+    period_of,
+    productivity_frame,
+)
 
 
 def _period_key(f: AnalyticsFilters) -> str | None:
-    if f.year and f.season:
-        return f"{f.year}{f.season}"
-    if f.year:
-        return str(f.year)
-    return None
+    return f.period_key() or (str(f.year) if f.year else None)
 
 
 def available_periods() -> list[str]:
+    """The published period dimension, from the data (never a fixed list)."""
+    try:
+        codes = period_service.period_codes()
+        if codes:
+            return codes
+    except Exception:
+        pass
     levels = meta_service.coverage()["coverage"]
     periods = {period for dataset in levels.values() for period in dataset if len(period) == 5}
     return sorted(periods)
@@ -70,8 +81,8 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
          "source_id": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS"},
     ]
     return {
-        "filters": {"year": f.year, "season": f.season, "crop": f.crop,
-                    "province": f.province, "district": f.district,
+        "filters": {"period_code": f.period_code, "year": f.year, "season": f.season,
+                    "crop": f.crop, "province": f.province, "district": f.district,
                     "benchmark_strategy": f.benchmark_strategy},
         "period": period,
         "available_periods": available_periods(),
@@ -80,7 +91,7 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
         "n_observations": 0,
         "kpis": kpis,
         "provenance": {
-            "source_id": source, "source_period": period,
+            "source_id": source, "source_period": f.period_code or period,
             "method": "published national series; all-crop yield = total production / total harvested area",
             "limitations": ["national context only; no district estimates for this period"],
         },
@@ -90,15 +101,26 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
 def overview(f: AnalyticsFilters) -> dict:
     all_coverage = meta_service.coverage()["coverage"]
     coverage = all_coverage.get("district_crop_productivity", {})
-    level = _coverage_level(f, coverage)
-    if level is None and f.year and f.season:
-        key = _period_key(f)
-        if any(key in periods for periods in all_coverage.values()):
+    panel_coverage = all_coverage.get("crop_productivity", {})
+
+    selected = f.period_code or _period_key(f)
+    if selected:
+        # A period is district-level when either the multi-period panel or the
+        # legacy pack genuinely carries district rows for it.
+        if panel_coverage.get(selected) == "district":
+            level = "district"
+        elif coverage.get(selected) == "district":
+            level = "district"
+        elif any(selected in periods for periods in all_coverage.values()):
             level = "national"
+        else:
+            level = None
+    else:
+        level = _coverage_level(f, coverage)
     if level != "district":
         return _national_overview(f, coverage, level)
 
-    df = apply_filters(repo.training_dataset(), f)
+    df = apply_filters(productivity_frame(f), f)
     g = gapped(df, f.benchmark_strategy)
     valid = g[g["yield_kg_ha"].fillna(0) > 0]
     period = period_of(g if not g.empty else df)
@@ -122,24 +144,29 @@ def overview(f: AnalyticsFilters) -> dict:
     except Exception:
         storage_districts = 0
 
+    # Report the rows actually used: the panel carries its own per-period source
+    # ids, so provenance cannot silently claim the legacy 2025B extract.
+    productivity_source = frame_source_id(valid if not valid.empty else df)
+    productivity_period = period
+
     kpis = [
         {"id": "avg_yield", "label": "Average yield",
          "value": None if valid.empty else round(float(valid["yield_kg_ha"].mean()), 1),
-         "unit": "kg/ha", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
+         "unit": "kg/ha", "period": productivity_period, "source_id": productivity_source},
         {"id": "median_gap", "label": "Median productivity gap",
          "value": None if median_gap is None else round(median_gap, 1),
-         "unit": "%", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
+         "unit": "%", "period": productivity_period, "source_id": productivity_source,
          "note": f"{f.benchmark_strategy} benchmark"},
         {"id": "high_gap", "label": "High productivity-gap observations",
-         "value": high_gap, "unit": "district-crops", "period": period,
-         "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
+         "value": high_gap, "unit": "district-crops", "period": productivity_period,
+         "source_id": productivity_source,
          "note": f"gap index >= {HIGH_GAP_PCT:.0f}% below benchmark"},
         {"id": "crops", "label": "Crops analysed",
          "value": int(valid["canonical_crop_name"].nunique()) if not valid.empty else 0,
-         "unit": "crops", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
+         "unit": "crops", "period": productivity_period, "source_id": productivity_source},
         {"id": "districts", "label": "Districts covered",
          "value": int(valid["district"].nunique()) if not valid.empty else 0,
-         "unit": "districts", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
+         "unit": "districts", "period": productivity_period, "source_id": productivity_source},
         {"id": "input_adoption", "label": "Average input adoption",
          "value": None if adoption is None else round(adoption, 1),
          "unit": "% of farmers", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_FACTORS"},
@@ -150,7 +177,7 @@ def overview(f: AnalyticsFilters) -> dict:
          "note": "national crop-level values"},
         {"id": "total_production", "label": "Total production in selection",
          "value": None if valid.empty else round(float(valid["production_mt"].sum()), 1),
-         "unit": "metric tonnes", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
+         "unit": "metric tonnes", "period": productivity_period, "source_id": productivity_source},
         {"id": "storage_districts", "label": "Cold-chain program districts",
          "value": storage_districts, "unit": "districts", "period": "2026",
          "source_id": "MINAGRI_ACES_COLDCHAIN_2026",
@@ -159,6 +186,7 @@ def overview(f: AnalyticsFilters) -> dict:
 
     return {
         "filters": {
+            "period_code": f.period_code,
             "year": f.year, "season": f.season, "crop": f.crop,
             "province": f.province, "district": f.district,
             "benchmark_strategy": f.benchmark_strategy,
@@ -170,14 +198,15 @@ def overview(f: AnalyticsFilters) -> dict:
         "n_observations": int(len(valid)),
         "kpis": kpis,
         "provenance": {
-            "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
-            "source_period": period,
+            "source_id": productivity_source,
+            "source_period": f.period_code or frame_period_code(df) or period,
             "benchmark_strategy": f.benchmark_strategy,
             "method": "aggregation of processed district x crop table; PGI = 100*(benchmark-observed)/benchmark",
             "limitations": [
                 "observational district aggregates, not plot-level evidence",
                 "associations are not causation",
-                "district data only exist for 2025 Season B",
+                "district productivity covers 2024A-2026B; district "
+                "input/practice, irrigation and erosion tables cover 2025 Season B only",
             ],
         },
     }

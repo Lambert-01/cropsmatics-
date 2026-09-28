@@ -17,8 +17,13 @@ from app.repositories import dataset_repository as repo
 
 # key -> (label, loader, source_id)
 DATASETS: dict[str, tuple[str, str, str]] = {
+    "crop_productivity": (
+        "Crop Productivity (2024A-2026B)",
+        "crop_productivity",
+        "NISR_SAS_2024_ANNUAL,NISR_SAS_2025_ANNUAL,NISR_SAS_2026A,NISR_SAS_2026B",
+    ),
     "district_crop_productivity": (
-        "District Crop Productivity",
+        "District Crop Productivity (2025B legacy)",
         "productivity_dataset",
         "NISR_SAS_2025B_DISTRICT_CROP",
     ),
@@ -66,6 +71,19 @@ DATASETS: dict[str, tuple[str, str, str]] = {
 # Whitelisted exact-match filter columns per dataset family. Any query param
 # outside these names is rejected with a 400 rather than silently ignored.
 FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
+    "crop_productivity": (
+        "period_code",
+        "year",
+        "season",
+        "district",
+        "district_code",
+        "province",
+        "crop",
+        "crop_code",
+        "geography_level",
+        "farmer_scale",
+        "source_id",
+    ),
     "district_crop_productivity": ("district", "province", "canonical_crop_name", "year", "season"),
     "district_factors": ("district", "province", "year", "season"),
     "irrigation_water": ("district", "province", "year", "season"),
