@@ -106,7 +106,7 @@ class EvidenceBundle(BaseModel):
         """
         allowed: set[float] = set()
         for item in self.items:
-            if isinstance(item.value, (int, float)) and not isinstance(item.value, bool):
+            if isinstance(item.value, int | float) and not isinstance(item.value, bool):
                 allowed.add(float(item.value))
             for text in (item.period_code, item.source_id, item.district, item.note, item.unit):
                 if text:

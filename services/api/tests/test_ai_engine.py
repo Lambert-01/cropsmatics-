@@ -211,7 +211,6 @@ def test_every_planned_tool_is_registered_and_has_a_handler():
 
 
 def test_bundle_items_carry_their_provenance():
-    _require_data = None  # noqa: F841 - this test is provider-free
     routed = intent_router.route(
         AIRequest(question="Maize yield in Bugesera", context=None)
     )
@@ -268,25 +267,27 @@ def test_a_fully_configured_provider_is_selected(monkeypatch):
     assert get_provider(config).name == "remote"
 
 
-def test_provider_status_never_leaks_the_credential():
+def test_provider_status_never_leaks_the_credential(monkeypatch):
+    """The status may report that a credential *exists*, never what it is."""
     import asyncio
 
     from app.ai.providers import provider_status
 
-    monkeypatch_env = {
-        "AI_ENABLED": "true",
-        "AI_MODEL": "m",
-        "AI_BASE_URL": "https://example.invalid/v1",
-        "AI_API_KEY": "super-secret-value",
-    }
+    monkeypatch.setenv("AI_ENABLED", "true")
+    monkeypatch.setenv("AI_MODEL", "some-model")
+    monkeypatch.setenv("AI_BASE_URL", "https://example.invalid/v1")
+    monkeypatch.setenv("AI_API_KEY", "super-secret-value")
+
     status = asyncio.run(provider_status())
     rendered = str(status)
-    # The real key is in the environment for this call; it must not appear.
-    assert "super-secret-value" not in rendered or "super-secret-value" not in str(
-        load_config(monkeypatch_env).public()
-    )
+
+    assert "super-secret-value" not in rendered
+    assert status["remote"]["credential_configured"] is True
+    # With a full configuration the remote provider is selected, and the
+    # deterministic fallback is still advertised as available.
+    assert status["selected"] == "remote"
     assert status["fallback_available"] is True
-    assert status["selected"] in ("deterministic", "remote")
+    assert status["fallback_provider"] == "deterministic"
 
 
 def test_a_failing_provider_does_not_break_the_answer(client, monkeypatch):
