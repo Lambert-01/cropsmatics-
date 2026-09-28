@@ -14,6 +14,10 @@ import type {
   FactorsResponse,
   HeatmapResponse,
   MapMetricsResponse,
+  MarketDispersionGroup,
+  MarketObservation,
+  MarketStatus,
+  MarketTrendSeries,
   ModelsResponse,
   OverviewResponse,
   PeriodTrendResponse,
@@ -22,6 +26,8 @@ import type {
   PriorityResponse,
   ProductivityResponse,
   ReadinessResponse,
+  ScenarioRequest,
+  ScenarioResponse,
   SourcesResponse,
   StorageInfrastructureResponse,
   TrendResponse,
@@ -167,6 +173,58 @@ export const api = {
     if (district) params.set("district", district);
     if (season) params.set("season", season);
     return get<PeriodTrendResponse>("/productivity/trend", params.toString());
+  },
+
+  /**
+   * Yield Scenario Lab. Re-computes published observations under two sets of
+   * assumptions. It is a POST because a scenario has six parameters, but it
+   * writes nothing — and it never returns a prediction.
+   */
+  scenario: (body: ScenarioRequest) =>
+    post<ScenarioResponse>("/scenarios/yield", body),
+
+  /**
+   * Market Intelligence. With no verified price feed loaded these answer
+   * honestly with `data_available: false` and a reason — they never return a
+   * sample price. Price types are always returned separately.
+   */
+  marketStatus: () => get<MarketStatus>("/markets/status"),
+  marketCommodities: () =>
+    get<{
+      data_available: boolean;
+      commodities: { commodity: string; commodity_code?: string | null; observations: number; price_types: string[]; markets: number }[];
+      reason: string | null;
+    }>("/markets/commodities"),
+  marketCoverage: () => get<Record<string, unknown>>("/markets/coverage"),
+  marketObservations: (params: Record<string, string> = {}) =>
+    get<{ data_available: boolean; total: number; rows: MarketObservation[]; reason: string | null }>(
+      "/markets/observations",
+      new URLSearchParams(params).toString(),
+    ),
+  marketLatest: (params: Record<string, string> = {}) =>
+    get<{ data_available: boolean; rows: MarketObservation[]; note: string; reason: string | null }>(
+      "/markets/latest",
+      new URLSearchParams(params).toString(),
+    ),
+  marketTrend: (commodity: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ commodity, ...params });
+    return get<{
+      commodity: string;
+      data_available: boolean;
+      series: MarketTrendSeries[];
+      note: string;
+      reason: string | null;
+    }>("/markets/trend", query.toString());
+  },
+  marketDispersion: (commodity: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ commodity, ...params });
+    return get<{
+      commodity: string;
+      data_available: boolean;
+      groups: MarketDispersionGroup[];
+      note: string;
+      reason: string | null;
+    }>("/markets/dispersion", query.toString());
   },
 };
 

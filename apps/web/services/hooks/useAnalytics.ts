@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { DashboardFilters } from "@/lib/filters";
-import type { AssistantContext } from "@/types";
+import type { AssistantContext, ScenarioRequest } from "@/types";
 
 const FIVE_MIN = 5 * 60 * 1000;
 
@@ -59,6 +59,17 @@ export function useAssistantMutation() {
       context?: AssistantContext;
       language?: string;
     }) => api.assistant(question, language, context),
+  });
+}
+
+/**
+ * Analytical yield scenario. Exposed as a mutation rather than a query because it
+ * is only run on an explicit "Run scenario" action, so the page never recomputes
+ * a comparison the user has not asked for.
+ */
+export function useScenario() {
+  return useMutation({
+    mutationFn: (body: ScenarioRequest) => api.scenario(body),
   });
 }
 

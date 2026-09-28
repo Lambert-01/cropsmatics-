@@ -126,6 +126,229 @@ export interface PeriodTrendResponse {
   provenance: Provenance;
 }
 
+// --- analytical scenarios (Yield Scenario Lab) --------------------------------
+
+/**
+ * The reviewable assumptions that define one side of a scenario. Both sides are
+ * described independently: an unset field takes its own side's default, and an
+ * unset group field means "no restriction". Nothing is inherited from the other
+ * side, so the response always shows exactly what was compared.
+ */
+export interface ScenarioParams {
+  period_code?: string | null;
+  benchmark_strategy?: string | null;
+  gap_threshold_pct?: number | null;
+  province?: string | null;
+  district?: string | null;
+  ranking_criterion?: string | null;
+}
+
+export interface ScenarioRequest {
+  crop: string;
+  baseline: ScenarioParams;
+  scenario: ScenarioParams;
+}
+
+export interface ScenarioDistrictRow {
+  district: string;
+  /** Null when the district has no published value for the ranking criterion. */
+  rank: number | null;
+  district_code?: string | null;
+  province?: string | null;
+  yield_kg_ha?: number | null;
+  benchmark_yield_kg_ha?: number | null;
+  gap_index?: number | null;
+  harvested_area_ha?: number | null;
+  production_mt?: number | null;
+  below_benchmark: boolean;
+  below_threshold: boolean;
+}
+
+export interface ScenarioViewStats {
+  /** Districts actually shown (the selected group). */
+  n_districts: number;
+  n_below_benchmark: number;
+  n_below_threshold: number;
+  ranked_districts: number;
+  unranked_districts: number;
+  mean_gap_index: number | null;
+  mean_yield_kg_ha: number | null;
+  total_production_mt: number | null;
+  total_harvested_area_ha: number | null;
+  /**
+   * Districts the benchmark was measured over — the whole published set for the
+   * crop, not the displayed group. Larger than `n_districts` when a group is
+   * selected, which is what shows the reference level did not move.
+   */
+  n_benchmark_districts: number;
+  benchmark_scope?: string | null;
+}
+
+/** One side of the comparison. `missing` means the crop was not tabulated. */
+export interface ScenarioView {
+  period_code?: string | null;
+  period_label?: string | null;
+  crop: string;
+  benchmark_strategy: string;
+  gap_threshold_pct: number;
+  ranking_criterion: string;
+  ranking_criterion_label: string;
+  ranking_criterion_unit?: string | null;
+  ranking_criterion_note?: string | null;
+  province?: string | null;
+  district?: string | null;
+  missing: boolean;
+  reason?: string | null;
+  n_observations: number;
+  source_id?: string | null;
+  rows: ScenarioDistrictRow[];
+  gap_bands: GapBand[];
+  stats: ScenarioViewStats;
+}
+
+/** `movement` is `rank_before - rank_after`; positive means the district moved up. */
+export interface RankMovementRow {
+  district: string;
+  rank_before: number | null;
+  rank_after: number | null;
+  movement: number | null;
+  direction: "up" | "down" | "unchanged" | "new" | "dropped" | "unranked" | string;
+  gap_before: number | null;
+  gap_after: number | null;
+  yield_before: number | null;
+  yield_after: number | null;
+  below_threshold_before: boolean | null;
+  below_threshold_after: boolean | null;
+}
+
+export interface RankMovement {
+  districts: RankMovementRow[];
+  n_compared: number;
+  n_moved: number;
+  n_unchanged: number;
+  /** Districts that only appear on one side because the group itself changed. */
+  entered_group: string[];
+  left_group: string[];
+  entered_priority: string[];
+  left_priority: string[];
+}
+
+export interface ScenarioChange {
+  parameter: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+
+/** Mode B. Only enabled when a validated model card is actually registered. */
+export interface ModelScenarioAvailability {
+  available: boolean;
+  reason: string;
+  model_name?: string | null;
+  model_version?: string | null;
+  metrics: Record<string, number>;
+  warning: string;
+}
+
+/**
+ * The result of an analytical scenario. `scenario_type` is always
+ * `"analytical"`: this is a re-computation of published observations under
+ * different assumptions, never a prediction.
+ */
+export interface ScenarioResponse {
+  scenario_type: "analytical";
+  scenario_label: string;
+  crop: string;
+  baseline: ScenarioView;
+  scenario: ScenarioView;
+  changes: ScenarioChange[];
+  ranking_movement: RankMovement;
+  model_scenario: ModelScenarioAvailability;
+  available_periods: string[];
+  available_benchmark_strategies: string[];
+  available_ranking_criteria: { id: string; label: string; unit?: string | null; note?: string | null }[];
+  provenance: Provenance;
+  limitations: string[];
+}
+
+// --- market intelligence ------------------------------------------------------
+
+/** Date range an observation set actually covers. Null when there are none. */
+export interface MarketDateCoverage {
+  start: string;
+  end: string;
+}
+
+/**
+ * Whether verified market prices are loaded. `data_available: false` is a
+ * first-class state, not an error: the schema is registered but no attributable
+ * price feed has been ingested, so no price is shown.
+ */
+export interface MarketStatus {
+  data_available: boolean;
+  observations: number;
+  rows_in_file: number;
+  /** Fixture rows, excluded from every figure. */
+  synthetic_rows: number;
+  table_present: boolean;
+  schema_columns: string[];
+  reason: string | null;
+  manifest: { file?: string | null; rows?: number | null; sha256?: string | null };
+  registered_sources: Record<string, unknown>[];
+  date_coverage: MarketDateCoverage | null;
+  commodity_count: number;
+  market_count: number;
+  district_count: number;
+  province_count: number;
+  price_types_present: string[];
+  price_types_supported: string[];
+  notes: string[];
+}
+
+/** One observation, with the currency and unit it was published in. */
+export interface MarketObservation {
+  observation_key?: string | null;
+  observation_date?: string | null;
+  commodity_name_raw?: string | null;
+  variety?: string | null;
+  market_name?: string | null;
+  district?: string | null;
+  province?: string | null;
+  price_type?: string | null;
+  price_value_original?: number | null;
+  currency_original?: string | null;
+  unit_original?: string | null;
+  conversion_basis?: string | null;
+  price_rwf_per_kg?: number | null;
+  source_id?: string | null;
+  source_url?: string | null;
+  is_synthetic?: boolean;
+}
+
+/**
+ * A price series for ONE price type. The API never returns a single series
+ * spanning several types, because that would compare different measurements.
+ */
+export interface MarketTrendSeries {
+  price_type: string;
+  unit: string;
+  unit_basis?: string | null;
+  points: { date: string; value: number }[];
+  n_observations: number;
+}
+
+/** Observed range for ONE price type. */
+export interface MarketDispersionGroup {
+  price_type: string;
+  unit: string;
+  n_observations: number;
+  minimum: number;
+  maximum: number;
+  median: number;
+  range: number;
+  markets: number;
+}
+
 // --- assistant (grounded explanation layer) -----------------------------------
 
 /**

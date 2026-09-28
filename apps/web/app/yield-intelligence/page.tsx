@@ -8,12 +8,14 @@ import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import { AIExplainPanel } from "@/features/yield-intelligence/AIExplainPanel";
+import { SimulationLab } from "@/features/yield-intelligence/SimulationLab";
 import {
   YieldGapDistribution,
 } from "@/features/yield-intelligence/YieldGapDistribution";
@@ -40,10 +42,24 @@ import { useFilters } from "@/services/hooks/useFilters";
  */
 const YIELD_KPI_IDS = ["mean_yield", "benchmark_yield", "gap_shortfall", "yoy_yield"];
 
+/**
+ * Analytical workspaces.
+ *
+ * ``explorer`` is the existing evidence view; ``simulation`` is the Scenario Lab.
+ * The wider OVERVIEW/TRENDS/SPATIAL/GAPS/DRIVERS split is a later step — these
+ * two are the ones that are fully implemented today, so no tab is offered that
+ * cannot deliver.
+ */
+const YIELD_TABS = [
+  { id: "explorer", label: "Evidence explorer" },
+  { id: "simulation", label: "Scenario Lab" },
+];
+
 export default function YieldIntelligencePage() {
   const { filters } = useFilters();
   const [trendMode, setTrendMode] = useState<YieldTrendMode>("same_season");
   const [mapMetric, setMapMetric] = useState<MapMetricId>("yield");
+  const [tab, setTab] = useState<string>("explorer");
 
   const crop = filters.crop;
   const periodCode = filters.period;
@@ -65,6 +81,13 @@ export default function YieldIntelligencePage() {
       />
 
       <AnalyticsFilterBar />
+
+      <Tabs
+        items={YIELD_TABS}
+        active={tab}
+        onChange={setTab}
+        ariaLabel="Yield Intelligence workspaces"
+      />
 
       {!crop ? (
         <Card>
@@ -99,6 +122,8 @@ export default function YieldIntelligencePage() {
         </>
       ) : null}
 
+      {tab === "explorer" ? (
+        <>
       {/* SECTION 1 — yield over time */}
       {crop ? (
         <YieldOverTimeChart
@@ -181,6 +206,28 @@ export default function YieldIntelligencePage() {
       />
 
       {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
+        </>
+      ) : null}
+
+      {/* SECTION 8 — Scenario Lab (analytical scenario, never a prediction) */}
+      {tab === "simulation" && crop ? (
+        <SimulationLab
+          crop={crop}
+          periodCode={periodCode}
+          province={filters.province}
+          district={filters.district}
+          benchmark={filters.benchmark}
+        />
+      ) : null}
+
+      {tab === "simulation" && !crop ? (
+        <Card>
+          <EmptyState
+            title="Select a crop to open the Scenario Lab."
+            hint="A scenario ranks districts within a crop, and yields are only comparable within a crop, so a crop has to be selected first."
+          />
+        </Card>
+      ) : null}
     </div>
   );
 }

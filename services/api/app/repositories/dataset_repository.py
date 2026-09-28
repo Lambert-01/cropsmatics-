@@ -111,6 +111,16 @@ def dashboard_overview() -> pd.DataFrame:
     return _load("dashboard_overview.csv")
 
 
+def market_observations() -> pd.DataFrame:
+    """Verified market price observations.
+
+    A header-only table is a **valid** state: it means the schema is designed and
+    no verified price observation has been loaded yet. That is reported as zero
+    coverage rather than being filled with sample prices.
+    """
+    return _load("market_price_observation.csv")
+
+
 def data_coverage() -> pd.DataFrame:
     return _load("data_coverage.csv")
 
