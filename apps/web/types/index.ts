@@ -3,6 +3,8 @@
 export interface Provenance {
   source_id?: string | null;
   source_period?: string | null;
+  /** Set when a result mixes a period-specific input with a single-release one. */
+  reference_period?: string | null;
   model_version?: string | null;
   benchmark_strategy?: string | null;
   method?: string | null;
@@ -31,27 +33,126 @@ export interface KPI {
   value: number | null;
   unit?: string | null;
   period?: string | null;
+  /** Canonical YYYYS period this specific number describes. */
+  period_code?: string | null;
   source_id?: string | null;
   note?: string | null;
+  /** "selection" describes the current selection; "context" is another release. */
+  scope?: "selection" | "context" | string;
 }
 
 export interface OverviewResponse {
   filters: Record<string, string | number | null>;
   period?: string | null;
+  period_code?: string | null;
   available_periods: string[];
   coverage: Record<string, string>;
   coverage_level?: string | null;
   n_observations: number;
   kpis: KPI[];
+  /** At most four, one scope and one period. Render these as the headline row. */
+  primary_kpis: KPI[];
+  secondary_kpis: KPI[];
   provenance: Provenance;
+}
+
+/** One band of the yield-gap distribution, with its own cut points. */
+export interface GapBand {
+  id: string;
+  label: string;
+  min_pct?: number | null;
+  max_pct?: number | null;
+  count: number;
+  share_pct?: number | null;
+}
+
+/**
+ * Same-season, previous-year yield change. Seasons differ agronomically, so this
+ * compares the same season one year earlier (2025B vs 2026B) rather than
+ * stepping A -> B -> C as if it were a time series.
+ */
+export interface SameSeasonYoY {
+  available: boolean;
+  reason?: string | null;
+  period_code?: string | null;
+  period_label?: string | null;
+  previous_period_code?: string | null;
+  previous_period_label?: string | null;
+  current_yield_kg_ha?: number | null;
+  previous_yield_kg_ha?: number | null;
+  change_pct?: number | null;
+  crop?: string | null;
+  district?: string | null;
+  province?: string | null;
+  note?: string | null;
 }
 
 export interface ProductivityResponse {
   period?: string | null;
+  period_code?: string | null;
   n_observations: number;
   kpis: KPI[];
+  primary_kpis: KPI[];
+  secondary_kpis: KPI[];
+  /** Null when no crop is selected: a cross-crop mean yield is meaningless. */
+  yoy?: SameSeasonYoY | null;
+  gap_bands: GapBand[];
   rows: Record<string, string | number | null>[];
   provenance: Provenance;
+}
+
+// --- canonical period-aware productivity panel --------------------------------
+
+export interface PeriodTrendPoint {
+  period_code: string;
+  year: number;
+  season: string;
+  label: string;
+  values: {
+    cultivated_area_ha?: number | null;
+    harvested_area_ha?: number | null;
+    production_mt?: number | null;
+    yield_kg_ha?: number | null;
+  };
+}
+
+export interface PeriodTrendResponse {
+  crop: string;
+  district?: string | null;
+  geography_scope: string;
+  unit: Record<string, string>;
+  points: PeriodTrendPoint[];
+  available_periods: string[];
+  provenance: Provenance;
+}
+
+// --- assistant (grounded explanation layer) -----------------------------------
+
+/**
+ * Names the calling page's selection so a contextual action is grounded in the
+ * same period/crop/district the user is viewing. It carries entities only —
+ * never a value — so it cannot inject a figure into an answer.
+ */
+export interface AssistantContext {
+  page?: string;
+  metric?: string;
+  period_code?: string;
+  crop?: string;
+  district?: string;
+  province?: string;
+  benchmark_strategy?: string;
+}
+
+export interface AssistantResponse {
+  answer: string;
+  grounded: boolean;
+  intent: string;
+  evidence: Record<string, unknown>;
+  key_figures: { label?: string | null; value?: number | null; unit?: string | null }[];
+  source?: string | null;
+  period?: string | null;
+  coverage?: string | null;
+  limitations: string[];
 }
 
 export interface MapDistrictMetric {
@@ -69,10 +170,19 @@ export interface MapMetricsResponse {
   metric_label: string;
   unit?: string | null;
   period?: string | null;
+  period_code?: string | null;
   crop?: string | null;
   min_value?: number | null;
   max_value?: number | null;
   districts: MapDistrictMetric[];
+  /** True when the metric needs a crop selection (yield). */
+  requires_crop?: boolean;
+  message?: string | null;
+  /** The release that does carry the metric when the selected period does not. */
+  available_period?: string | null;
+  /** Set when a period-specific metric also consumes a single-release component. */
+  reference_period?: string | null;
+  source_id?: string | null;
   provenance: Provenance;
 }
 
@@ -107,6 +217,8 @@ export interface FactorsResponse {
   crop?: string | null;
   district?: string | null;
   factors: FactorMetric[];
+  /** Set when the requested period has no factor data at all. */
+  note?: string | null;
   provenance: Provenance;
 }
 
@@ -149,6 +261,39 @@ export interface HeatmapResponse {
 export interface CoverageResponse {
   coverage: Record<string, Record<string, string>>;
   details: Record<string, string | number | null>[];
+  notes: string[];
+}
+
+// --- period catalogue -------------------------------------------------------
+
+/** How one dataset covers one period (from /meta/periods). */
+export interface PeriodDatasetCoverage {
+  dataset: string;
+  coverage_level: string;
+  n_districts: number;
+  n_crops: number;
+  source_id?: string | null;
+}
+
+/** One published period. The catalogue is derived from the data, never fixed. */
+export interface PeriodInfo {
+  period_code: string;
+  year: number;
+  season: string;
+  label: string;
+  coverage_level?: string | null;
+  n_districts: number;
+  n_crops: number;
+  datasets: PeriodDatasetCoverage[];
+  is_latest: boolean;
+  is_latest_district: boolean;
+}
+
+export interface PeriodsResponse {
+  count: number;
+  latest?: string | null;
+  latest_district?: string | null;
+  periods: PeriodInfo[];
   notes: string[];
 }
 

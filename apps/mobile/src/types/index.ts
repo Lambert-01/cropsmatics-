@@ -59,6 +59,8 @@ export interface FeaturedTopic {
 export interface Provenance {
   source_id?: string | null;
   source_period?: string | null;
+  /** Set when a result mixes a period-specific input with a single-release one. */
+  reference_period?: string | null;
   model_version?: string | null;
   benchmark_strategy?: string | null;
   method?: string | null;
@@ -153,6 +155,43 @@ export interface ProductivityResponse {
   provenance: Provenance;
 }
 
+// ---- Published period catalogue -------------------------------------------
+
+/** One published period, from `/meta/periods`. Never hard-code a period. */
+export interface PeriodInfo {
+  period_code: string;
+  year: number;
+  season: string;
+  label: string;
+  coverage_level: string | null;
+  n_districts: number;
+  n_crops: number;
+  is_latest: boolean;
+  is_latest_district: boolean;
+}
+
+export interface PeriodsResponse {
+  count: number;
+  latest: string | null;
+  latest_district: string | null;
+  periods: PeriodInfo[];
+  notes: string[];
+}
+
+/** One period of the canonical multi-period productivity panel. */
+export interface PeriodProductivityResponse {
+  period_code: string;
+  label: string;
+  defaulted_to_latest: boolean;
+  filters: Record<string, string | number | null>;
+  n_observations: number;
+  n_districts: number;
+  n_crops: number;
+  available_periods: string[];
+  rows: Record<string, string | number | null>[];
+  provenance: Provenance;
+}
+
 export interface PostHarvestCrop {
   crop: string;
   sold_pct: number | null;
@@ -186,6 +225,8 @@ export interface DistrictMetricRow {
     priority_band?: string | null;
     priority_score?: number | null;
     period?: string | null;
+    period_code?: string | null;
+    reference_period?: string | null;
   };
 }
 
@@ -194,10 +235,20 @@ export interface DistrictMetricsResponse {
   metric_label: string;
   unit: string | null;
   period: string | null;
+  period_code?: string | null;
   crop: string | null;
   min_value: number | null;
   max_value: number | null;
   districts: DistrictMetricRow[];
+  /** True when the metric needs a crop selection (raw yield). */
+  requires_crop?: boolean;
+  /** Why the layer is empty, when it is (no crop, or a single-release layer). */
+  message?: string | null;
+  /** The release that does carry the metric when the selected period does not. */
+  available_period?: string | null;
+  /** Set when a period-specific metric also consumes a single-release component. */
+  reference_period?: string | null;
+  source_id?: string | null;
   provenance: Provenance;
 }
 

@@ -25,10 +25,15 @@ export function KpiSkeleton() {
   );
 }
 
-export function KpiRowSkeleton({ count = 6 }: { count?: number }) {
+/**
+ * KPI placeholder row. Capped at four: a skeleton must never suggest more
+ * headline cards than the product is allowed to show.
+ */
+export function KpiRowSkeleton({ count = 4 }: { count?: number }) {
+  const cards = Math.min(count, 4);
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-      {Array.from({ length: count }).map((_, i) => (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: cards }).map((_, i) => (
         <KpiSkeleton key={i} />
       ))}
     </div>

@@ -67,11 +67,15 @@ export default function ProductivityPage() {
       </div>
 
       {overview.error ? <ErrorState message={(overview.error as Error).message} onRetry={() => overview.refetch()} /> : null}
-      {overview.isLoading ? <KpiRowSkeleton count={5} /> : null}
+      {overview.isLoading ? <KpiRowSkeleton count={4} /> : null}
       {overview.data && !districtMode ? (
         <>
           <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
-          <DashboardKpis kpis={overview.data.kpis} />
+          <DashboardKpis
+            kpis={overview.data.kpis}
+            primaryKpis={overview.data.primary_kpis}
+            secondaryKpis={overview.data.secondary_kpis}
+          />
           <div className="grid gap-4 xl:grid-cols-2">
             <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
             <InputAdoptionChart data={inputs.data} isLoading={inputs.isLoading} />
@@ -88,9 +92,13 @@ export default function ProductivityPage() {
       ) : null}
 
       {districtMode && productivity.isLoading ? (
-        <KpiRowSkeleton count={5} />
+        <KpiRowSkeleton count={4} />
       ) : districtMode && productivity.data ? (
-        <DashboardKpis kpis={productivity.data.kpis} />
+        <DashboardKpis
+          kpis={productivity.data.kpis}
+          primaryKpis={productivity.data.primary_kpis}
+          secondaryKpis={productivity.data.secondary_kpis}
+        />
       ) : null}
 
       {districtMode ? <>

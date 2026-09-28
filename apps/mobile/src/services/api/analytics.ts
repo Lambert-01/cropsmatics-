@@ -1,13 +1,23 @@
-import type { ProductivityResponse, TrendResponse } from "../../types";
+import type {
+  PeriodProductivityResponse,
+  TrendResponse,
+} from "../../types";
 import { qs, request } from "./client";
 
 export const analyticsApi = {
-  productivity: (params?: { crop?: string; district?: string; period?: string }) =>
-    request<ProductivityResponse>(
-      `/analytics/productivity${qs({
+  /**
+   * Canonical period-aware productivity panel (``/productivity``).
+   *
+   * The parameter is ``period_code`` (e.g. ``2026B``): the legacy ``period``
+   * name was ignored by the API and silently returned the latest release
+   * instead of the requested one.
+   */
+  productivity: (params?: { crop?: string; district?: string; periodCode?: string }) =>
+    request<PeriodProductivityResponse>(
+      `/productivity${qs({
         crop: params?.crop,
         district: params?.district,
-        period: params?.period,
+        period_code: params?.periodCode,
       })}`,
     ),
   postHarvest: (params?: { crop?: string }) =>

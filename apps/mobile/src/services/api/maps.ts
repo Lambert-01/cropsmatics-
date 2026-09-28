@@ -10,12 +10,23 @@ export type MapMetric =
   | "erosion";
 
 export const mapsApi = {
-  districtMetrics: (params?: { metric?: MapMetric; crop?: string; period?: string }) =>
+  /**
+   * District choropleth values. The period is passed as ``period_code``
+   * (``2026B``); the previous ``period`` name was ignored by the API.
+   *
+   * ``metric: "yield"`` requires ``crop`` — raw yields from different crops are
+   * not comparable, so the API returns an empty layer plus a message otherwise.
+   */
+  districtMetrics: (params?: {
+    metric?: MapMetric;
+    crop?: string;
+    periodCode?: string;
+  }) =>
     request<DistrictMetricsResponse>(
       `/maps/district-metrics${qs({
         metric: params?.metric,
         crop: params?.crop,
-        period: params?.period,
+        period_code: params?.periodCode,
       })}`,
     ),
 };

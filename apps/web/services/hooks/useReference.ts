@@ -18,6 +18,14 @@ export function useCoverage() {
   return useQuery({ queryKey: ["coverage"], queryFn: api.coverage, staleTime: ONE_HOUR });
 }
 
+/**
+ * The published period catalogue. Period selectors must be built from this so
+ * an unpublished season (e.g. 2026 Season C) can never be offered.
+ */
+export function usePeriods() {
+  return useQuery({ queryKey: ["periods"], queryFn: api.periods, staleTime: ONE_HOUR });
+}
+
 export function useSources() {
   return useQuery({ queryKey: ["sources"], queryFn: api.sources, staleTime: ONE_HOUR });
 }

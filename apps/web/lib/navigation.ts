@@ -35,7 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
       { href: "/productivity", label: "Productivity", icon: TrendingUp },
-      { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat, comingSoon: true },
+      { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat },
       { href: "/interventions", label: "Interventions", icon: Wrench },
     ],
   },

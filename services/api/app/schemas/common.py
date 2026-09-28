@@ -59,6 +59,11 @@ class Provenance(BaseModel):
 
     source_id: str | None = None
     source_period: str | None = None
+    # Set when a result mixes a period-specific input with a single-release one
+    # (e.g. a 2026B productivity map whose readiness component comes from the
+    # 2025 Season B practice survey). Clients should render this as a
+    # "REFERENCE PERIOD" badge so the difference is never silent.
+    reference_period: str | None = None
     model_version: str | None = None
     benchmark_strategy: str | None = None
     method: str | None = None

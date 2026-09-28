@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
-import { MapSkeleton } from "@/components/ui/States";
+import { EmptyState, MapSkeleton } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
 import { DistrictChoropleth } from "@/features/maps/DistrictChoropleth";
 import { FacilityDistrictMarkers, FacilityLayer } from "@/features/maps/FacilityLayer";
@@ -12,6 +12,7 @@ import { MapControls } from "@/features/maps/MapControls";
 import { MapLegend } from "@/features/maps/MapLegend";
 import { MapTooltip } from "@/features/maps/MapTooltip";
 import { buildProjection, type GeoCollection, type GeoFeature } from "@/features/maps/geo";
+import { cn } from "@/lib/cn";
 import { METRIC_SEMANTICS, type MapMetricId } from "@/lib/constants";
 import { periodLabel } from "@/lib/format";
 import type { FacilityItem, MapMetricsResponse } from "@/types";
@@ -121,13 +122,25 @@ export function RwandaDistrictMap({
     return <MapSkeleton height={height} />;
   }
 
+  // The service refuses to colour a layer it cannot answer for the current
+  // selection: a raw yield with no crop, or a single-release adoption layer on
+  // another period. Render its explanation instead of a misleading map.
+  const blocked = Boolean(data?.message) && (data?.districts?.length ?? 0) === 0;
+  const blockedHint = data?.available_period
+    ? `${data.metric_label} is published as a single district release. Switch the period to ${periodLabel(
+        data.available_period,
+      )} to see it on the map.`
+    : "Yield is a crop-specific measure. Pick a crop in the filters above, then choose the Yield metric.";
+
   return (
     <Card>
       <CardHeader
         title={title}
         subtitle={
           data
-            ? `${data.metric_label} · ${data.crop ?? "all crops"} · ${periodLabel(data.period)}`
+            ? `${data.metric_label} · ${data.crop ?? "all crops"} · ${periodLabel(
+                data.period_code ?? data.period,
+              )}`
             : "Loading map metric…"
         }
       />
@@ -139,6 +152,7 @@ export function RwandaDistrictMap({
           onToggleLabels={setShowLabels}
           showFacilities={showFacilities}
           onToggleFacilities={setShowFacilities}
+          cropSelected={Boolean(data?.crop)}
         />
         <p className="mt-2 text-[11px] text-slate-500">
           {METRIC_SEMANTICS[metric].note}. Hatched districts have a productivity gap of at least{" "}
@@ -146,9 +160,31 @@ export function RwandaDistrictMap({
         </p>
       </div>
 
+      {blocked ? (
+        <div className="px-4 pb-4 pt-2">
+          <EmptyState
+            title={data?.message ?? "No verified data for this selection."}
+            hint={blockedHint}
+          />
+        </div>
+      ) : null}
+
+      {data?.reference_period ? (
+        <p className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
+          <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber">
+            Reference period: {periodLabel(data.reference_period)}
+          </span>{" "}
+          The readiness and cost components of this score come from that survey, not from{" "}
+          {periodLabel(data.period_code ?? data.period)}.
+        </p>
+      ) : null}
+
       <div
         ref={containerRef}
-        className="relative mx-auto mt-2 w-full max-w-[820px] px-2"
+        className={cn(
+          "relative mx-auto mt-2 w-full max-w-[820px] px-2",
+          blocked && "hidden",
+        )}
         style={{ minHeight: height * 0.55 }}
       >
         <DistrictChoropleth

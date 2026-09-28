@@ -2,6 +2,8 @@ import { filtersToApiQuery, type DashboardFilters } from "@/lib/filters";
 import type {
   AllocationRequest,
   AllocationResponse,
+  AssistantContext,
+  AssistantResponse,
   CoverageResponse,
   Crop,
   DatasetInfo,
@@ -14,6 +16,8 @@ import type {
   MapMetricsResponse,
   ModelsResponse,
   OverviewResponse,
+  PeriodTrendResponse,
+  PeriodsResponse,
   PostHarvestResponse,
   PriorityResponse,
   ProductivityResponse,
@@ -104,6 +108,8 @@ export const api = {
   facilities: (district?: string) =>
     get<FacilitiesResponse>("/facilities/context", district ? `district=${encodeURIComponent(district)}` : ""),
   coverage: () => get<CoverageResponse>("/meta/data-coverage"),
+  /** The published period dimension, derived from the data (never hard-coded). */
+  periods: () => get<PeriodsResponse>("/meta/periods"),
   sources: () => get<SourcesResponse>("/meta/sources"),
   models: () => get<ModelsResponse>("/meta/models"),
   dataVersion: () => get<DataVersionResponse>("/meta/data-version"),
@@ -146,11 +152,22 @@ export const api = {
   storageAllocation: (body: AllocationRequest) =>
     post<AllocationResponse>("/optimization/storage-allocation", body),
 
-  assistant: (question: string, language = "en") =>
-    post<{ answer: string; grounded: boolean; evidence: Record<string, unknown>; limitations: string[] }>(
-      "/assistant/query",
-      { question, language },
-    ),
+  /**
+   * Grounded explanation layer. ``context`` names the page's selection so a
+   * contextual action is answered from the same period/crop/district the user is
+   * viewing instead of the default release. It carries entities only, never a
+   * value, so it cannot inject a figure into an answer.
+   */
+  assistant: (question: string, language = "en", context?: AssistantContext) =>
+    post<AssistantResponse>("/assistant/query", { question, language, context }),
+
+  /** Canonical period-aware panel: one crop across published periods. */
+  productivityTrend: (crop: string, district?: string, season?: string) => {
+    const params = new URLSearchParams({ crop });
+    if (district) params.set("district", district);
+    if (season) params.set("season", season);
+    return get<PeriodTrendResponse>("/productivity/trend", params.toString());
+  },
 };
 
 /** Build a CSV download URL for a Python-generated report. */

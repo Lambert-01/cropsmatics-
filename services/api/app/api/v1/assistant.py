@@ -25,7 +25,21 @@ from pydantic import BaseModel, Field
 
 from app.analytics.productivity_gap import compute_gaps
 from app.repositories import dataset_repository as repo
-from app.services import assistant_language, mobile_service, postharvest_service, trend_service
+from app.schemas.filters import AnalyticsFilters, apply_filters
+from app.services import (
+    assistant_language,
+    mobile_service,
+    period_service,
+    postharvest_service,
+    productivity_service,
+    trend_service,
+)
+from app.services.analytics_service import (
+    frame_period_code,
+    frame_source_id,
+    productivity_frame,
+    valid_yield,
+)
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -95,9 +109,29 @@ def mentions(text: str, hints: tuple[str, ...]) -> str | None:
 
 
 
+class QueryContext(BaseModel):
+    """Structured evidence supplied by the calling page.
+
+    A contextual action such as "Explain this yield pattern" must ground its
+    answer in the selection the page is actually showing, not in whichever
+    release happens to be the default. The context therefore only *names*
+    entities (period, crop, district, metric); it can never carry a value, so it
+    cannot be used to inject a figure into an answer.
+    """
+
+    page: str | None = Field(None, description="originating screen, e.g. yield-intelligence")
+    metric: str | None = None
+    period_code: str | None = Field(None, description="published period, e.g. 2026B")
+    crop: str | None = None
+    district: str | None = None
+    province: str | None = None
+    benchmark_strategy: str | None = None
+
+
 class QueryIn(BaseModel):
     question: str = Field(min_length=2, max_length=500)
     language: str = "en"
+    context: QueryContext | None = None
 
 
 class QueryOut(BaseModel):
@@ -138,6 +172,7 @@ def _key_figures(intent: str, evidence: dict) -> list[dict]:
             ("production_mt", "production", "metric tonnes"),
             ("harvested_area_ha", "harvested area", "ha"),
             ("yield_mt_ha", "yield", "t/ha"),
+            ("yield_kg_ha", "yield", "kg/ha"),
         ):
             if evidence.get(key) is not None:
                 figures.append({"label": label, "value": evidence[key], "unit": unit})
@@ -299,22 +334,42 @@ def _share(label: str, value: float | None) -> str | None:
     return None if value is None else f"{value:.1f}% {label}"
 
 
-def _district_crop_gap(district: str, crop: str) -> QueryOut:
-    """Compare a district's observed yield against the national crop median."""
+def _district_crop_gap(
+    district: str, crop: str, period_code: str | None = None
+) -> QueryOut:
+    """Compare a district's observed yield against the national crop median.
+
+    The benchmark is computed across every district of the requested period (not
+    on the single district row), and the frame is resolved through the canonical
+    panel so the answer describes the period the caller asked about.
+    """
+    filters = AnalyticsFilters(period_code=period_code)
     try:
-        frame = compute_gaps(repo.training_dataset(), strategy="national_crop_median")
+        frame = apply_filters(productivity_frame(filters), filters)
+        gapped_frame = compute_gaps(valid_yield(frame), strategy="national_crop_median")
     except Exception:
         return _unsupported("district_crop_gap", district=district, crop=crop)
 
-    rows = frame[(frame["district"] == district) & (frame["canonical_crop_name"] == crop)]
+    rows = gapped_frame[
+        (gapped_frame["district"] == district)
+        & (gapped_frame["canonical_crop_name"] == crop)
+    ]
     if rows.empty:
-        return _unsupported("district_crop_gap", district=district, crop=crop)
+        return _unsupported(
+            "district_crop_gap", district=district, crop=crop, period_code=period_code
+        )
 
     r = rows.iloc[0]
     observed = float(r["yield_kg_ha"])
     benchmark = float(r["benchmark_yield_kg_ha"])
     gap = None if r["gap_index"] is None else float(r["gap_index"])
-    period = str(r.get("period") or mobile_service.latest_district_period() or "")
+    period = (
+        str(r.get("period") or "")
+        or frame_period_code(rows)
+        or period_code
+        or mobile_service.latest_district_period()
+        or ""
+    )
     direction = "below" if gap is not None and gap > 0 else "above"
 
     answer = (
@@ -336,13 +391,14 @@ def _district_crop_gap(district: str, crop: str) -> QueryOut:
         evidence={
             "district": district,
             "crop": crop,
+            "period_code": frame_period_code(rows) or period_code,
             "observed_yield_kg_ha": observed,
             "benchmark_yield_kg_ha": benchmark,
             "benchmark_strategy": "national_crop_median",
             "gap_index": gap,
-            "n_observations": 1,
+            "n_observations": int(len(gapped_frame["district"])),
         },
-        source=str(r.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP"),
+        source=frame_source_id(rows) or "NISR_SAS_2025B_DISTRICT_CROP",
         period=period or None,
         coverage="district",
         limitations=_limitations(
@@ -352,8 +408,74 @@ def _district_crop_gap(district: str, crop: str) -> QueryOut:
     )
 
 
-def _crop_context(crop: str) -> QueryOut:
+def _crop_context_for_period(crop: str, period_code: str) -> QueryOut:
+    """National context for one published period, from the canonical panel.
+
+    ``crop_trend`` reads the panel's published NATIONAL rows, so this never sums
+    district rows into a national figure.
+    """
+    try:
+        result = productivity_service.crop_trend(crop=crop)
+    except Exception:
+        return _unsupported("crop_national_context", crop=crop, period_code=period_code)
+
+    if result.get("missing"):
+        return _unsupported("crop_national_context", crop=crop, period_code=period_code)
+
+    point = next(
+        (p for p in result.get("points", []) if p["period_code"] == period_code), None
+    )
+    if point is None:
+        return _unsupported("crop_national_context", crop=crop, period_code=period_code)
+
+    values = point["values"]
+    production = values.get("production_mt")
+    area = values.get("harvested_area_ha")
+    yield_value = values.get("yield_kg_ha")
+    if production is None and area is None:
+        return _unsupported("crop_national_context", crop=crop, period_code=period_code)
+
+    parts = []
+    if production is not None:
+        parts.append(f"production of {production:,.0f} metric tonnes")
+    if area is not None:
+        parts.append(f"harvested area of {area:,.0f} ha")
+    if yield_value is not None:
+        parts.append(f"yield of {yield_value:,.0f} kg/ha")
+
+    answer = (
+        f"In {period_service.label(period_code)}, the published national series for {crop} "
+        f"reports {_list_phrase(parts)}. These are the published national totals for that "
+        "period, not a sum of district rows; a crop-specific district yield is shown on the "
+        "district ranking."
+    )
+
+    return QueryOut(
+        answer=answer,
+        grounded=True,
+        intent="crop_national_context",
+        evidence={
+            "crop": crop,
+            "period_code": period_code,
+            "production_mt": production,
+            "harvested_area_ha": area,
+            "yield_kg_ha": yield_value,
+            "coverage_level": "national",
+        },
+        source=result.get("source_id") or "crop_productivity",
+        period=period_code,
+        coverage="national",
+        limitations=_limitations(
+            "published national totals for one period; never a sum of district rows",
+            "yield is crop-specific, so it is never averaged or compared across crops",
+        ),
+    )
+
+
+def _crop_context(crop: str, period_code: str | None = None) -> QueryOut:
     """National production context plus the official post-harvest use shares."""
+    if period_code:
+        return _crop_context_for_period(crop, period_code)
     try:
         points = trend_service.crop_trends(crop).get("points") or []
     except Exception:
@@ -437,7 +559,7 @@ def _crop_context(crop: str) -> QueryOut:
 
 
 
-def _district_context(district: str) -> QueryOut:
+def _district_context(district: str, period_code: str | None = None) -> QueryOut:
     """District-level productivity and practice-adoption summary.
 
     Deliberately does **not** compute a mean yield across crops. Maize, beans,
@@ -447,8 +569,9 @@ def _district_context(district: str) -> QueryOut:
     has the largest reported production, and the district's practice adoption;
     a crop-specific yield is only given when a crop is named.
     """
+    filters = AnalyticsFilters(period_code=period_code, district=district)
     try:
-        productive = repo.productivity_dataset()
+        productive = apply_filters(productivity_frame(filters), filters)
     except Exception:
         return _unsupported("district_context", district=district)
 
@@ -461,7 +584,11 @@ def _district_context(district: str) -> QueryOut:
         return _unsupported("district_context", district=district)
 
     n_crops = int(has_data["canonical_crop_name"].nunique())
-    period = mobile_service.latest_district_period()
+    period = (
+        frame_period_code(productive)
+        or period_code
+        or mobile_service.latest_district_period()
+    )
     period_label = mobile_service.format_period(period) or "the latest period"
 
     by_crop = (
@@ -512,6 +639,13 @@ def _district_context(district: str) -> QueryOut:
         phrase = _list_phrase([item for item in practices if item])
         if phrase:
             answer += f" Reported practice adoption: {phrase}."
+            # The practice survey is a single release; never let it read as if it
+            # belonged to the selected period.
+            if period_code and period_code != "2025B":
+                answer += (
+                    " Those adoption figures come from the 2025 Season B district "
+                    "practice survey, not from the selected period."
+                )
         evidence["practice_adoption_pct"] = {
             key: (None if factors.get(key) is None else float(factors[key]))
             for key in (
@@ -531,13 +665,15 @@ def _district_context(district: str) -> QueryOut:
         grounded=True,
         intent="district_context",
         evidence=evidence,
-        source="NISR_SAS_2025B_DISTRICT_CROP",
+        source=frame_source_id(productive) or "NISR_SAS_2025B_DISTRICT_CROP",
         period=period,
         coverage="district",
         limitations=_limitations(
             "district aggregates only; practice adoption is a share of farmers, not of area",
             "no cross-crop average yield is computed because crops have different natural scales",
             "a district spans several agro-ecological conditions",
+            "practice adoption comes from the 2025 Season B survey when another "
+            "period is selected",
         ),
     )
 
@@ -667,12 +803,26 @@ def _resolve(payload: QueryIn) -> QueryOut:
 
     district, crop = extract(payload.question)
 
+    # A page may send its own selection as structured context. It only names
+    # entities (never values), and an entity the question states explicitly still
+    # wins, so the context narrows grounding without overriding the user.
+    requested_period: str | None = None
+    context = payload.context
+    if context is not None:
+        if context.period_code:
+            try:
+                requested_period = period_service.require(context.period_code)
+            except period_service.UnknownPeriodError:
+                requested_period = None
+        district = district or context.district
+        crop = crop or context.crop
+
     if district is not None and crop is not None:
-        return _district_crop_gap(district, crop)
+        return _district_crop_gap(district, crop, period_code=requested_period)
     if crop is not None:
-        return _crop_context(crop)
+        return _crop_context(crop, period_code=requested_period)
     if district is not None:
-        return _district_context(district)
+        return _district_context(district, period_code=requested_period)
 
     indicator_ids = matched_indicators(question)
     if indicator_ids:

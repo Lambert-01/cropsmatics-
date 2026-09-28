@@ -72,8 +72,14 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
     result = analytics_service.productivity(f)
     return ProductivityResponse(
         period=result["period"],
+        period_code=result.get("period_code"),
         n_observations=result["n_observations"],
         kpis=result["kpis"],
+        primary_kpis=result.get("primary_kpis", []),
+        secondary_kpis=result.get("secondary_kpis", []),
+        yoy=result.get("yoy"),
+        gap_bands=result.get("gap_bands", []),
+        gap_summary=result.get("gap_summary"),
         rows=result["rows"],
         provenance=Provenance(
             source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
@@ -81,11 +87,19 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
             benchmark_strategy=f.benchmark_strategy,
             method=(
                 "district aggregation of the canonical multi-period productivity "
-                "panel"
+                "panel; no cross-crop yield is computed"
                 if f.period_code
-                else "district aggregation of processed district x crop table"
+                else "district aggregation of processed district x crop table; "
+                "no cross-crop yield is computed"
             ),
-            limitations=_GAP_LIMITATIONS,
+            limitations=_GAP_LIMITATIONS
+            + [
+                "the same-season change compares one season with the same season "
+                "one year earlier; consecutive seasons are not a time series "
+                "because they differ agronomically",
+                "the gap distribution counts districts into bands whose cut points "
+                "are returned with the counts",
+            ],
         ),
     )
 

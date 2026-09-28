@@ -94,7 +94,11 @@ export default function InterventionsPage() {
       {overview.data && !districtMode ? (
         <>
           <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
-          <DashboardKpis kpis={overview.data.kpis} />
+          <DashboardKpis
+            kpis={overview.data.kpis}
+            primaryKpis={overview.data.primary_kpis}
+            secondaryKpis={overview.data.secondary_kpis}
+          />
           <div className="grid gap-4 xl:grid-cols-2">
             <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
             <InputAdoptionChart data={inputs.data} isLoading={inputs.isLoading} />

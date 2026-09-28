@@ -97,9 +97,14 @@ export default function MapsScreen() {
           <Card>
             <Text style={typography.h2}>{t.nationalDataOnly}</Text>
             <Text style={typography.caption}>
-              District-level data are not available for this selection. A map is only coloured where a verified
-              district value exists.
+              {data?.message ??
+                "District-level data are not available for this selection. A map is only coloured where a verified district value exists."}
             </Text>
+            {data?.available_period ? (
+              <Text style={typography.micro}>
+                Latest district release: {data.available_period}
+              </Text>
+            ) : null}
             <SecondaryButton label={t.viewDistrictDetails} onPress={() => router.push("/explore/indicators")} />
           </Card>
         ) : (
@@ -127,8 +132,14 @@ export default function MapsScreen() {
                 </View>
               </View>
               <Text style={typography.micro}>
-                {data?.metric_label} · {data?.unit ?? ""} · {data?.period ?? "—"}. Tap a district for its value.
+                {data?.metric_label} · {data?.unit ?? ""} · {data?.period_code ?? data?.period ?? "—"}. Tap a
+                district for its value.
               </Text>
+              {data?.reference_period ? (
+                <Text style={typography.micro}>
+                  Reference period: {data.reference_period} (readiness and cost components).
+                </Text>
+              ) : null}
             </Card>
 
             {selectedRow ? (
@@ -162,8 +173,8 @@ export default function MapsScreen() {
             )}
 
             <SourceCard
-              sourceLabel={data?.provenance?.source_id ?? undefined}
-              period={data?.period ?? undefined}
+              sourceLabel={data?.source_id ?? data?.provenance?.source_id ?? undefined}
+              period={data?.period_code ?? data?.period ?? undefined}
               coverage="district"
               limitations={data?.provenance?.limitations}
             />

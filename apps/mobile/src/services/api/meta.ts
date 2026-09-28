@@ -1,3 +1,4 @@
+import type { PeriodsResponse } from "../../types";
 import { request } from "./client";
 
 export interface DataCoverage {
@@ -26,4 +27,9 @@ export const metaApi = {
   coverage: () => request<DataCoverage>("/meta/data-coverage"),
   dataVersion: () => request<DataVersion>("/meta/data-version"),
   sources: () => request<{ sources: SourceItem[] }>("/meta/sources"),
+  /**
+   * The published period dimension, derived from the data. Period selectors must
+   * be built from this so an unpublished season (2026 Season C) is never offered.
+   */
+  periods: () => request<PeriodsResponse>("/meta/periods"),
 };

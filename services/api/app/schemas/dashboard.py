@@ -20,8 +20,14 @@ class KPI(BaseModel):
     value: float | None = None
     unit: str | None = None
     period: str | None = None
+    # Canonical YYYYS period this specific number describes. Present so a client
+    # can never present a 2025B value as if it belonged to the selected period.
+    period_code: str | None = None
     source_id: str | None = None
     note: str | None = None
+    # "selection" -> describes the current crop/period/geography selection.
+    # "context"   -> comes from a different release and must be shown separately.
+    scope: str = "selection"
 
 
 class CoverageNote(BaseModel):
@@ -32,18 +38,67 @@ class CoverageNote(BaseModel):
 class OverviewResponse(BaseModel):
     filters: dict
     period: str | None = None
+    period_code: str | None = None
     available_periods: list[str] = Field(default_factory=list)
     coverage: dict[str, str] = Field(default_factory=dict)
     coverage_level: str | None = None
     n_observations: int = 0
+    # Full metric set (kept for existing clients).
     kpis: list[KPI] = Field(default_factory=list)
+    # At most four KPIs that share one analytical scope and one period. A client
+    # renders these as the headline strip; everything else is secondary.
+    primary_kpis: list[KPI] = Field(default_factory=list)
+    secondary_kpis: list[KPI] = Field(default_factory=list)
     provenance: Provenance
+
+
+class GapBand(BaseModel):
+    """One band of the yield-gap distribution, with its own cut points."""
+
+    id: str
+    label: str
+    min_pct: float | None = None
+    max_pct: float | None = None
+    count: int = 0
+    share_pct: float | None = None
+
+
+class SameSeasonYoY(BaseModel):
+    """Same-season, previous-year yield change for one selection.
+
+    Seasons differ agronomically, so this compares the same season one year
+    earlier (2025B vs 2026B) instead of stepping A -> B -> C.
+    """
+
+    available: bool = False
+    reason: str | None = None
+    period_code: str | None = None
+    period_label: str | None = None
+    previous_period_code: str | None = None
+    previous_period_label: str | None = None
+    current_yield_kg_ha: float | None = None
+    previous_yield_kg_ha: float | None = None
+    change_pct: float | None = None
+    crop: str | None = None
+    district: str | None = None
+    province: str | None = None
+    note: str | None = None
 
 
 class ProductivityResponse(BaseModel):
     period: str | None = None
+    period_code: str | None = None
     n_observations: int = 0
     kpis: list[KPI] = Field(default_factory=list)
+    primary_kpis: list[KPI] = Field(default_factory=list)
+    secondary_kpis: list[KPI] = Field(default_factory=list)
+    # None when no crop is selected (a cross-crop mean yield is meaningless).
+    yoy: SameSeasonYoY | None = None
+    gap_bands: list[GapBand] = Field(default_factory=list)
+    # ``median_is_degenerate`` is True when median(gap) is structurally 0 because
+    # the benchmark is itself a distribution median; clients must not present
+    # that as "no gap anywhere".
+    gap_summary: dict | None = None
     rows: list[dict] = Field(default_factory=list)
     provenance: Provenance
 
@@ -66,10 +121,22 @@ class MapMetricsResponse(BaseModel):
     metric_label: str
     unit: str | None = None
     period: str | None = None
+    period_code: str | None = None
     crop: str | None = None
     min_value: float | None = None
     max_value: float | None = None
     districts: list[MapDistrictMetric] = Field(default_factory=list)
+    # True when the metric cannot be mapped without a crop (yield): the map must
+    # explain this instead of rendering an all-crop aggregate.
+    requires_crop: bool = False
+    message: str | None = None
+    # The release that does carry the metric when the selected period does not
+    # (single-release adoption/irrigation/erosion layers).
+    available_period: str | None = None
+    # Set when a period-specific metric also consumes a single-release component
+    # (the priority score's readiness/cost proxies).
+    reference_period: str | None = None
+    source_id: str | None = None
     provenance: Provenance
 
 

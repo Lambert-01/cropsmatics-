@@ -8,6 +8,8 @@ benchmark). Associations are never presented as causal effects.
 
 from __future__ import annotations
 
+from dataclasses import replace as dc_replace
+
 import numpy as np
 import pandas as pd
 
@@ -22,6 +24,38 @@ from app.services import period_service
 _PERISHABILITY = {"high": 1.0, "medium": 0.5, "low": 0.2}
 
 HIGH_GAP_PCT = 25.0  # |gap_index| at/above this is flagged "high gap" in the UI
+
+# Yield-gap distribution bands. Thresholds are explicit and returned with the
+# counts so the UI can print the actual cut points instead of a vague "low to
+# high" legend. ``min_pct`` is exclusive, ``max_pct`` inclusive.
+GAP_BANDS: tuple[dict, ...] = (
+    {"id": "above_benchmark", "label": "At or above benchmark", "min_pct": None, "max_pct": 0.0},
+    {"id": "near_benchmark", "label": "Near benchmark", "min_pct": 0.0, "max_pct": 10.0},
+    {"id": "moderate_gap", "label": "Moderate gap", "min_pct": 10.0, "max_pct": HIGH_GAP_PCT},
+    {"id": "high_gap", "label": "High gap", "min_pct": HIGH_GAP_PCT, "max_pct": None},
+)
+
+# --- primary KPI policy ----------------------------------------------------
+# No surface may present more than four headline KPI cards, and the headline
+# strip must describe one analytical scope and one period - never a 2025B
+# context figure sitting next to a 2026B observation. Pages therefore name the
+# KPI ids they consider primary, in order; everything else is secondary and
+# belongs in a detail panel, table or "more metrics" disclosure.
+MAX_PRIMARY_KPIS = 4
+
+
+def split_kpis(kpis: list[dict], primary_ids: list[str]) -> tuple[list[dict], list[dict]]:
+    """``(primary, secondary)`` with primary capped at four, in requested order.
+
+    A primary KPI whose value is unavailable is still returned so the UI shows
+    an explicit "no verified data" state; it is never swapped for a value from
+    a different period to fill the slot.
+    """
+    by_id = {k["id"]: k for k in kpis}
+    primary = [by_id[i] for i in primary_ids if i in by_id][:MAX_PRIMARY_KPIS]
+    chosen = {k["id"] for k in primary}
+    secondary = [k for k in kpis if k["id"] not in chosen]
+    return primary, secondary
 
 FACTOR_COLUMNS = [
     "improved_seed_farmers_pct",
@@ -230,13 +264,27 @@ def productivity(f: AnalyticsFilters) -> dict:
     df = apply_filters(productivity_frame(f), f)
     g = gapped(df, f.benchmark_strategy)
     if g.empty:
-        return {"period": None, "kpis": [], "rows": [], "n_observations": 0}
+        # The crop was not tabulated for this period. Report no KPIs at all
+        # rather than manufactured zeros, but still explain the missing
+        # same-season comparison so a client can say why.
+        return {
+            "period": None,
+            "period_code": f.period_code,
+            "kpis": [],
+            "primary_kpis": [],
+            "secondary_kpis": [],
+            "yoy": same_season_yoy(f, f.period_code),
+            "gap_bands": [],
+            "gap_summary": gap_summary(pd.Series(dtype=float)),
+            "rows": [],
+            "n_observations": 0,
+        }
 
     valid = g[g["gap_index"].notna()]
     benchmark_median = float(valid["benchmark_yield_kg_ha"].median()) if not valid.empty else None
-    gap_median = float(valid["gap_index"].median()) if not valid.empty else None
-    above = int((valid["gap_index"] <= 0).sum())
-    below = int((valid["gap_index"] > 0).sum())
+    summary = gap_summary(valid["gap_index"] if not valid.empty else pd.Series(dtype=float))
+    period_code = frame_period_code(g)
+    source_id = frame_source_id(g)
 
     rows = (
         valid.groupby("district", dropna=False)
@@ -254,25 +302,266 @@ def productivity(f: AnalyticsFilters) -> dict:
     )
     rows = rows.head(f.limit)
 
-    kpis = [
-        {"id": "mean_yield", "label": "Mean observed yield",
-         "value": round(float(valid["yield_kg_ha"].mean()), 1), "unit": "kg/ha"},
-        {"id": "benchmark_yield", "label": "Median benchmark yield",
-         "value": None if benchmark_median is None else round(benchmark_median, 1), "unit": "kg/ha"},
-        {"id": "median_gap", "label": "Median productivity gap",
-         "value": None if gap_median is None else round(gap_median, 1), "unit": "%"},
-        {"id": "districts_above", "label": "Observations at/above benchmark",
-         "value": above, "unit": "district-crops"},
-        {"id": "districts_below", "label": "Observations below benchmark",
-         "value": below, "unit": "district-crops"},
-    ]
+    # Same-season year-on-year change and the gap distribution both describe the
+    # selection the caller is looking at, so they are computed here rather than
+    # in the browser.
+    yoy = same_season_yoy(f, period_code)
+    bands = gap_distribution(rows)
+
+    kpis: list[dict] = []
+    # Raw yields are only comparable within a crop. Without a crop selection no
+    # yield KPI is produced at all - an "all crops yield" would average across
+    # biologically different crops and is never presented.
+    if f.crop:
+        # A headline must answer "what crop is this?" on its own, so the crop is
+        # in the label rather than only in surrounding context.
+        kpis.append(
+            {
+                "id": "mean_yield", "label": f"Observed {f.crop} yield",
+                "value": round(float(valid["yield_kg_ha"].mean()), 1)
+                if not valid.empty else None,
+                "unit": "kg/ha", "period_code": period_code, "source_id": source_id,
+                "note": f"{f.crop} only",
+            }
+        )
+        kpis.append(
+            {
+                "id": "benchmark_yield", "label": f"Benchmark {f.crop} yield",
+                "value": None if benchmark_median is None else round(benchmark_median, 1),
+                "unit": "kg/ha", "period_code": period_code, "source_id": source_id,
+                "note": f"{f.crop} only · {f.benchmark_strategy} benchmark",
+            }
+        )
+    shortfall = summary["typical_shortfall"]
+    n_below = summary["districts_below"]
+    kpis.extend(
+        [
+            # The informative gap figure: how far the districts that ARE below
+            # benchmark typically sit below it.
+            {"id": "gap_shortfall", "label": "Typical yield gap",
+             "value": None if shortfall is None else round(shortfall, 1),
+             "unit": "%", "period_code": period_code, "source_id": source_id,
+             "note": (
+                 f"median shortfall across the {n_below} districts below benchmark"
+                 if n_below
+                 else "no district is below the benchmark for this selection"
+             )},
+            {"id": "below_benchmark_share", "label": "Districts below benchmark",
+             "value": summary["below_share_pct"], "unit": "%",
+             "period_code": period_code, "source_id": source_id,
+             "note": f"{n_below} of {summary['total']}"},
+            # Kept for compatibility, but flagged when it is a structural zero so
+            # a client can never present it as "no gap anywhere".
+            {"id": "median_gap", "label": "Median productivity gap",
+             "value": None if summary["median_gap"] is None else round(summary["median_gap"], 1),
+             "unit": "%", "period_code": period_code, "source_id": source_id,
+             "note": (
+                 "0 by construction: the benchmark is itself a distribution "
+                 "median, so use the typical yield gap and the share below benchmark"
+                 if summary["median_is_degenerate"]
+                 else f"{f.benchmark_strategy} benchmark"
+             )},
+            {"id": "districts_above", "label": "Observations at/above benchmark",
+             "value": summary["districts_above"], "unit": "district-crops",
+             "period_code": period_code, "source_id": source_id},
+            {"id": "districts_below", "label": "Observations below benchmark",
+             "value": n_below, "unit": "district-crops",
+             "period_code": period_code, "source_id": source_id},
+            {"id": "crops", "label": "Crops analysed",
+             "value": int(valid["canonical_crop_name"].nunique()) if not valid.empty else 0,
+             "unit": "crops", "period_code": period_code, "source_id": source_id},
+        ]
+    )
+
+    if f.crop:
+        available = bool(yoy and yoy.get("available"))
+        kpis.append(
+            {
+                "id": "yoy_yield",
+                "label": "Same-season change",
+                "value": yoy.get("change_pct") if available else None,
+                "unit": "%",
+                "period_code": period_code,
+                "source_id": source_id,
+                "note": (
+                    f"{f.crop} vs {yoy['previous_period_label']} "
+                    f"({yoy['previous_period_code']})"
+                    if available
+                    else (yoy or {}).get("reason", "not available for this selection")
+                ),
+            }
+        )
+
+    # Yield Intelligence headlines: observed yield, benchmark, the typical gap
+    # and the same-season change. "Median productivity gap" is deliberately not a
+    # headline: it is structurally 0 for a median benchmark (see gap_summary).
+    primary_ids = (
+        ["mean_yield", "benchmark_yield", "gap_shortfall", "yoy_yield"]
+        if f.crop
+        else ["gap_shortfall", "below_benchmark_share", "districts_below", "crops"]
+    )
+    primary, secondary = split_kpis(kpis, primary_ids)
+
     return {
         "period": period_of(g),
-        "period_code": frame_period_code(g),
-        "source_id": frame_source_id(g),
+        "period_code": period_code,
+        "source_id": source_id,
         "kpis": kpis,
+        "primary_kpis": primary,
+        "secondary_kpis": secondary,
+        "yoy": yoy,
+        "gap_bands": bands,
+        "gap_summary": summary,
         "rows": records(rows),
         "n_observations": int(len(valid)),
+    }
+
+
+def gap_summary(gap_index: pd.Series) -> dict:
+    """Summarise a gap distribution without headlining a degenerate median.
+
+    ``gap_index = 100 * (1 - yield / benchmark)`` is a monotone-decreasing
+    transform of yield, so whenever the benchmark is itself a median of the same
+    population ``median(gap_index)`` is *identically 0* - not "no gap", but a
+    property of the estimator. Reporting it as "Median productivity gap: 0.0%"
+    while half the districts sit below the benchmark is exactly the kind of
+    number that reads as meaningful and is not.
+
+    This returns the median (kept for compatibility) **plus** the two figures
+    that do carry information: the typical shortfall among districts that are
+    actually below benchmark, and the share of districts below benchmark.
+    """
+    series = gap_index.dropna()
+    total = int(len(series))
+    if total == 0:
+        return {
+            "median_gap": None,
+            "typical_shortfall": None,
+            "districts_below": 0,
+            "districts_above": 0,
+            "total": 0,
+            "below_share_pct": None,
+            "median_is_degenerate": False,
+        }
+
+    median_gap = float(series.median())
+    below = series[series > 0]
+    n_below = int(len(below))
+    return {
+        "median_gap": median_gap,
+        "typical_shortfall": float(below.median()) if n_below else None,
+        "districts_below": n_below,
+        "districts_above": int(total - n_below),
+        "total": total,
+        "below_share_pct": round(100.0 * n_below / total, 1),
+        # A structural zero, not a measured absence of gaps.
+        "median_is_degenerate": abs(median_gap) < 1e-9 and n_below > 0,
+    }
+
+
+def gap_distribution(rows: pd.DataFrame) -> list[dict]:
+    """Count districts into the documented yield-gap bands.
+
+    Bands are counted over the district rows the page actually shows (one
+    median gap per district), and every band reports its own cut points so the
+    classification is auditable rather than a black box.
+    """
+    if rows.empty or "gap_index" not in rows.columns:
+        return []
+    series = rows["gap_index"].dropna()
+    total = int(len(series))
+    out: list[dict] = []
+    for band in GAP_BANDS:
+        low, high = band["min_pct"], band["max_pct"]
+        mask = pd.Series(True, index=series.index)
+        if low is not None:
+            mask &= series > low
+        if high is not None:
+            mask &= series <= high
+        count = int(mask.sum())
+        out.append(
+            {
+                "id": band["id"],
+                "label": band["label"],
+                "min_pct": low,
+                "max_pct": high,
+                "count": count,
+                "share_pct": None if total == 0 else round(100.0 * count / total, 1),
+            }
+        )
+    return out
+
+
+def _mean_yield_for(f: AnalyticsFilters, period_code: str) -> float | None:
+    """Mean observed yield of the same selection in one period, or None."""
+    probe = dc_replace(f, period_code=period_code)
+    frame = apply_filters(productivity_frame(probe), probe)
+    if frame.empty or "yield_kg_ha" not in frame.columns:
+        return None
+    present = frame["yield_kg_ha"].dropna()
+    present = present[present > 0]
+    if present.empty:
+        return None
+    return float(present.mean())
+
+
+def same_season_yoy(f: AnalyticsFilters, period_code: str | None) -> dict | None:
+    """Same-season, previous-year change for the current selection.
+
+    Agricultural seasons differ, so an A -> B -> C step is not a time series.
+    The honest comparison is the same season one year earlier (2025B vs 2026B),
+    which is what this computes. Returns ``None`` when no crop is selected (a
+    cross-crop mean yield is meaningless) and a structured "not published"
+    result when the previous year has no release for the crop.
+    """
+    if not f.crop or not period_code:
+        return None
+    try:
+        year, season = period_service.parse(period_code)
+    except period_service.UnknownPeriodError:
+        return None
+
+    previous = f"{year - 1}{season}"
+    if previous not in period_service.period_codes():
+        return {
+            "available": False,
+            "reason": (
+                f"{period_service.label(previous)} has not been published, so no "
+                "same-season comparison exists"
+            ),
+            "period_code": period_code,
+            "previous_period_code": previous,
+        }
+
+    current_value = _mean_yield_for(f, period_code)
+    previous_value = _mean_yield_for(f, previous)
+    if current_value is None or previous_value is None or previous_value == 0:
+        return {
+            "available": False,
+            "reason": (
+                f"{f.crop} has no published yield for "
+                f"{period_service.label(previous)} in this selection"
+            ),
+            "period_code": period_code,
+            "previous_period_code": previous,
+        }
+
+    return {
+        "available": True,
+        "period_code": period_code,
+        "period_label": period_service.label(period_code),
+        "previous_period_code": previous,
+        "previous_period_label": period_service.label(previous),
+        "current_yield_kg_ha": round(current_value, 1),
+        "previous_yield_kg_ha": round(previous_value, 1),
+        "change_pct": round(100.0 * (current_value - previous_value) / previous_value, 1),
+        "crop": f.crop,
+        "district": f.district,
+        "province": f.province,
+        "note": (
+            "same-season year-on-year comparison of mean observed yield; seasons "
+            "are not comparable in sequence because they differ agronomically"
+        ),
     }
 
 

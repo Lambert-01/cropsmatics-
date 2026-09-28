@@ -28,9 +28,50 @@ def test_dashboard_overview(client):
     assert body["available_periods"]
     assert "2025B" in body["coverage"]
     ids = {k["id"] for k in body["kpis"]}
-    assert {"avg_yield", "districts", "crops", "median_gap", "high_gap"} <= ids
+    # No crop selected: no yield KPI at all (raw crop yields are not comparable).
+    assert "avg_yield" not in ids
+    assert {"districts", "crops", "median_gap", "high_gap", "total_production"} <= ids
     districts = next(k for k in body["kpis"] if k["id"] == "districts")
     assert districts["value"] == 30
+    assert districts["period_code"] == "2025B"
+
+
+def test_overview_primary_kpis_are_at_most_four_and_same_scope(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview").json()
+    primary = body["primary_kpis"]
+    assert 0 < len(primary) <= 4
+    # The headline strip is one analytical snapshot: no cross-period context.
+    assert all(kpi["scope"] == "selection" for kpi in primary)
+    assert {kpi["period_code"] for kpi in primary} == {body["period_code"]}
+    # Everything else is secondary and never a headline card.
+    primary_ids = {kpi["id"] for kpi in primary}
+    assert not (primary_ids & {kpi["id"] for kpi in body["secondary_kpis"]})
+
+
+def test_overview_context_kpis_carry_their_own_period(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?period_code=2026B").json()
+    context = {k["id"]: k for k in body["kpis"] if k["scope"] == "context"}
+    assert context, "single-release context figures must be labelled as such"
+    # A 2025B context figure must never masquerade as the selected 2026B period.
+    assert context["input_adoption"]["period_code"] == "2025B"
+    assert context["postharvest_loss"]["period_code"] == "2025B"
+    for kpi in context.values():
+        assert kpi["period_code"] != body["period_code"] or kpi["period_code"] is None
+
+
+def test_overview_yield_is_crop_specific_when_a_crop_is_selected(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?crop=Maize").json()
+    ids = {k["id"] for k in body["kpis"]}
+    assert "avg_yield" in ids
+    yield_kpi = next(k for k in body["kpis"] if k["id"] == "avg_yield")
+    assert "Maize" in yield_kpi["label"]
+    assert yield_kpi["note"] == "Maize only"
+    primary_ids = [k["id"] for k in body["primary_kpis"]]
+    assert len(primary_ids) <= 4
+    assert "avg_yield" in primary_ids
 
 
 def test_period_with_district_panel_reports_district_coverage(client):
@@ -138,12 +179,48 @@ def test_input_adoption_trend(client):
 
 def test_map_metric(client):
     _require_data(client)
-    body = client.get("/api/v1/maps/district-metrics?metric=gap").json()
+    body = client.get("/api/v1/maps/district-metrics?metric=gap&crop=Maize").json()
     assert body["metric"] == "gap"
+    assert body["crop"] == "Maize"
+    assert not body["requires_crop"] or body["districts"]
     assert len(body["districts"]) == 30
     ngoma = next(d for d in body["districts"] if d["district"] == "Ngoma")
     assert ngoma["district_code"]
     assert "gap_index" in ngoma["details"]
+
+
+def test_map_yield_requires_a_crop(client):
+    _require_data(client)
+    body = client.get("/api/v1/maps/district-metrics?metric=yield").json()
+    # No all-crop yield choropleth: the map is empty and says why.
+    assert body["districts"] == []
+    assert body["requires_crop"] is True
+    assert body["message"]
+    assert "crop" in body["message"].lower()
+    # With a crop selection the yield layer is populated.
+    with_crop = client.get("/api/v1/maps/district-metrics?metric=yield&crop=Maize").json()
+    assert len(with_crop["districts"]) > 0
+    assert with_crop["crop"] == "Maize"
+
+
+def test_map_gap_without_crop_never_shows_a_cross_crop_yield(client):
+    _require_data(client)
+    body = client.get("/api/v1/maps/district-metrics?metric=gap").json()
+    # A relative gap is valid across crops, so the layer still renders...
+    assert len(body["districts"]) == 30
+    assert body["requires_crop"] is False
+    # ...but no raw yield is exposed, because averaging crop yields is invalid.
+    for district in body["districts"]:
+        assert district["details"]["yield_kg_ha"] is None
+        assert district["details"]["benchmark_yield_kg_ha"] is None
+    assert body["districts"][0]["details"]["gap_index"] is not None
+
+
+def test_map_period_independent_metric_still_works_without_crop(client):
+    _require_data(client)
+    body = client.get("/api/v1/maps/district-metrics?metric=priority").json()
+    assert len(body["districts"]) == 30
+    assert body["requires_crop"] is False
 
 
 def test_map_unknown_metric_rejected(client):

@@ -70,9 +70,13 @@ export default function DashboardPage() {
       ) : null}
 
       {overview.isLoading ? (
-        <KpiRowSkeleton count={8} />
+        <KpiRowSkeleton count={4} />
       ) : overview.data ? (
-        <DashboardKpis kpis={overview.data.kpis} />
+        <DashboardKpis
+          kpis={overview.data.kpis}
+          primaryKpis={overview.data.primary_kpis}
+          secondaryKpis={overview.data.secondary_kpis}
+        />
       ) : null}
 
       {overview.data ? (
@@ -97,7 +101,7 @@ export default function DashboardPage() {
         />
         {overview.data ? (
           <InsightPanel
-            kpis={overview.data.kpis}
+            kpis={overview.data.primary_kpis.length ? overview.data.primary_kpis : overview.data.kpis}
             priorities={priorities.data?.rows ?? []}
             period={overview.data.period}
             coverageLevel={overview.data.coverage_level}
