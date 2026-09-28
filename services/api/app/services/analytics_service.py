@@ -676,13 +676,24 @@ def erosion_summary(f: AnalyticsFilters) -> dict:
     return {"districts": records(df), "period": period_of(df)}
 
 
-def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
+def normalise_weights(weights: dict | None) -> dict:
+    """The fully-specified weighting actually used, defaults filled in."""
+    return {**ip.DEFAULT_WEIGHTS, **(weights or {})}
+
+
+def _candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
+    """Rows carrying the **raw** priority components, before any weighting.
+
+    Kept as the single source for the candidate set. The sensitivity sweep needs
+    the un-normalized components, because it re-normalizes and re-weights the
+    same candidates many times; feeding it the already-normalized values the API
+    exposes would normalize twice and silently change every score.
+    """
     df = apply_filters(productivity_frame(f), f) if f is not None else repo.training_dataset()
     gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
     gapped_df = gapped_df[gapped_df["yield_kg_ha"].fillna(0) > 0].copy()
     if gapped_df.empty:
-        return {"weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})}, "rows": [],
-                "proxy_notes": PROXY_NOTES}
+        return gapped_df
 
     perish = gapped_df.get("perishability", pd.Series(index=gapped_df.index, dtype=object))
     gapped_df["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
@@ -695,6 +706,14 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
     )
     land = gapped_df.get("agricultural_land_000ha", pd.Series(index=gapped_df.index, dtype=float))
     gapped_df["cost_constraint"] = 1.0 - (land / land.max()) if land.notna().any() and land.max() else 0.0
+    return gapped_df
+
+
+def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
+    """The district x crop candidates, with raw (un-normalized) components."""
+    gapped_df = _candidate_frame(f)
+    if gapped_df.empty:
+        return []
 
     candidates = []
     for _, row in gapped_df.iterrows():
@@ -717,6 +736,14 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
             "readiness": float(row["readiness"]),
             "cost_constraint": float(row["cost_constraint"]),
         })
+    return candidates
+
+
+def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
+    candidates = priority_candidates(f)
+    if not candidates:
+        return {"weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})}, "rows": [],
+                "proxy_notes": PROXY_NOTES}
 
     ranked = ip.rank(candidates, weights=weights)[:limit]
     rows = [{
@@ -725,6 +752,9 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
         "yield_kg_ha": r.get("yield_kg_ha"),
         "benchmark_yield_kg_ha": r.get("benchmark_yield_kg_ha"),
         "harvested_area_ha": r.get("harvested_area_ha"),
+        # `gap` is a raw component while the others are normalized, because gap is
+        # reported to users in its own units. Callers that need a consistent set
+        # (the sensitivity sweep) use `priority_candidates` instead.
         "gap": round(r["gap"], 4), "vulnerability": r["vulnerability_component"],
         "affected_scale": r["affected_scale_component"],
         "readiness": r["readiness_component"], "cost_constraint": r["cost_component"],

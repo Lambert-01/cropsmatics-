@@ -280,7 +280,7 @@ def build_view(
     }
 
 
-def _direction(rank_before: int | None, rank_after: int | None) -> tuple[str, int | None]:
+def direction_for(rank_before: int | None, rank_after: int | None) -> tuple[str, int | None]:
     """``(direction, movement)`` where a positive movement means it moved up.
 
     ``movement`` is ``rank_before - rank_after``: rank 5 -> rank 2 is +3.
@@ -327,7 +327,7 @@ def compare_views(
 
         rank_before = b["rank"] if b else None
         rank_after = s["rank"] if s else None
-        direction, delta = _direction(rank_before, rank_after)
+        direction, delta = direction_for(rank_before, rank_after)
 
         # Priority movement is only meaningful when the district is in both
         # views; a district outside the group is not "no longer a priority".
