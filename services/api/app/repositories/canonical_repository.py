@@ -388,6 +388,96 @@ def productivity_frame(
     return frame
 
 
+def observation_frame(
+    filename: str,
+    *,
+    columns: list[str] | None = None,
+    period_id: str | None = None,
+) -> pd.DataFrame:
+    """Reconstruct a wide indicator file from the normalized observation table.
+
+    ``agricultural_observation`` stores one row per (period x geography x crop x
+    indicator), while the processed files are wide - one row per geography/crop
+    with one column per indicator. This inverts the loader's mapping using the
+    same catalogue, so the two cannot disagree about which column an indicator
+    writes to.
+
+    ``columns`` is the processed file's column contract. When supplied, the frame
+    is reindexed to it exactly, so a canonical read cannot silently gain or lose a
+    column relative to the artefact consumers already depend on.
+
+    Missing stays missing: an indicator the source did not publish is ``None``,
+    never zero.
+    """
+    from app.data.catalogue import INDICATORS
+    from app.models.canonical import AgriculturalObservation
+
+    file_indicators = [item for item in INDICATORS if item.source_file == filename]
+    if not file_indicators:
+        raise ValueError(f"{filename!r} has no indicators in the catalogue")
+    code_to_column = {item.code: item.source_column for item in file_indicators}
+    indicator_columns = list(dict.fromkeys(code_to_column.values()))
+
+    statement = select(AgriculturalObservation).where(
+        AgriculturalObservation.indicator_code.in_(list(code_to_column)),
+        AgriculturalObservation.is_synthetic.is_(False),
+    )
+    if period_id is not None:
+        statement = statement.where(AgriculturalObservation.period_id == period_id)
+
+    with _engine().connect() as connection:
+        raw = [dict(row) for row in connection.execute(statement).mappings().all()]
+
+    records: dict[tuple, dict] = {}
+    for row in raw:
+        metadata = _metadata(row)
+        key = (
+            row.get("period_id"),
+            row.get("geography_code"),
+            row.get("district_code"),
+            row.get("crop_code"),
+            row.get("crop_variant"),
+        )
+        record = records.get(key)
+        if record is None:
+            year, season = metadata.get("year"), metadata.get("season")
+            period = str(row.get("period_id") or "")
+            if year is None and len(period) >= 5:
+                year = int(period[:4])
+            if season is None and len(period) >= 5:
+                season = period[4]
+            record = {
+                "year": year,
+                "season": season,
+                "district": metadata.get("district"),
+                "district_code": row.get("district_code"),
+                "province": metadata.get("province"),
+                "agro_ecological_zone": metadata.get("agro_ecological_zone"),
+                "crop": metadata.get("crop"),
+                "canonical_crop_name": metadata.get("canonical_crop_name"),
+                "crop_code": row.get("crop_code"),
+                "source": metadata.get("source"),
+                "source_id": row.get("source_id"),
+                "source_period": metadata.get("source_period"),
+                "processing_script": metadata.get("processing_script"),
+                "processing_version": metadata.get("processing_version"),
+                "shares_sum_pct": metadata.get("shares_sum_pct"),
+                "shares_sum_ok": metadata.get("shares_sum_ok"),
+                "is_synthetic": row.get("is_synthetic"),
+            }
+            for column in indicator_columns:
+                record[column] = None
+            records[key] = record
+        column = code_to_column.get(row.get("indicator_code"))
+        if column is not None:
+            record[column] = row.get("value")
+
+    frame = pd.DataFrame(list(records.values()))
+    if columns:
+        frame = frame.reindex(columns=list(columns))
+    return frame
+
+
 def productivity_periods() -> list[str]:
     """Published periods that actually carry productivity rows, chronological."""
     from app.models.canonical import CropProductivity

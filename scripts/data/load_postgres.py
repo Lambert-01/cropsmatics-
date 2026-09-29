@@ -606,7 +606,27 @@ def observation_rows(
                     "quality_flag": quality_flag,
                     "quality_note": note,
                     "is_synthetic": bool(as_bool(row.get("is_synthetic")) or False),
-                    "metadata_json": {"source_column": indicator.source_column},
+                    # The source file is wide, so the columns that describe the row
+                    # rather than measure it (its district, agro-ecological zone,
+                    # published crop name, source title) are carried here. Without
+                    # them a canonical read could reproduce the numbers but not the
+                    # row, and the processed contract could not be honoured.
+                    "metadata_json": {
+                        "source_column": indicator.source_column,
+                        "year": clean(row.get("year")),
+                        "season": clean(row.get("season")),
+                        "district": clean(row.get("district")),
+                        "province": clean(row.get("province")),
+                        "agro_ecological_zone": clean(row.get("agro_ecological_zone")),
+                        "source": clean(row.get("source")),
+                        "source_period": clean(row.get("source_period")),
+                        "processing_script": clean(row.get("processing_script")),
+                        "processing_version": clean(row.get("processing_version")),
+                        "crop": clean(row.get("crop")),
+                        "canonical_crop_name": clean(row.get("canonical_crop_name")),
+                        "shares_sum_pct": clean(row.get("shares_sum_pct")),
+                        "shares_sum_ok": clean(row.get("shares_sum_ok")),
+                    },
                 }
             )
 

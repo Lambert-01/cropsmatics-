@@ -128,6 +128,38 @@ def _canonical_productivity() -> pd.DataFrame:
     return _canonical().productivity_frame()
 
 
+@lru_cache(maxsize=None)
+def _csv_columns(path_str: str) -> tuple[str, ...]:
+    """A processed file's column contract, read without loading its rows."""
+    return tuple(pd.read_csv(path_str, nrows=0).columns)
+
+
+def _contract_columns(filename: str) -> list[str] | None:
+    """The processed artefact's columns, or None when it is not present."""
+    path = get_settings().processed_dir / filename
+    if not path.exists():
+        return None
+    try:
+        return list(_csv_columns(str(path)))
+    except (OSError, pd.errors.ParserError):
+        return None
+
+
+@lru_cache(maxsize=None)
+def _canonical_observation(filename: str) -> pd.DataFrame:
+    """A wide indicator file rebuilt from the normalized observation table."""
+    return _canonical().observation_frame(filename, columns=_contract_columns(filename))
+
+
+def _observation_read(dataset: str, filename: str) -> pd.DataFrame:
+    """Serve a wide indicator file from the DB, honouring the processed contract."""
+    return _read(
+        dataset,
+        lambda: _canonical_observation(filename).copy(),
+        lambda: _load(filename),
+    )
+
+
 # --- primary analytical tables --------------------------------------------
 
 
@@ -157,21 +189,21 @@ def crop_productivity() -> pd.DataFrame:
 
 
 def factors_dataset() -> pd.DataFrame:
-    """Cleaned district input/practice factor table."""
-    return _load("district_productivity_factors.csv")
+    """District input/practice factor table (canonical observations)."""
+    return _observation_read("district_factors", "district_productivity_factors.csv")
 
 
 def irrigation_water() -> pd.DataFrame:
-    return _load("irrigation_water.csv")
+    return _observation_read("irrigation_water", "irrigation_water.csv")
 
 
 def erosion_control() -> pd.DataFrame:
-    return _load("erosion_control.csv")
+    return _observation_read("erosion_control", "erosion_control.csv")
 
 
 def postharvest_use() -> pd.DataFrame:
-    """Crop-level sold/stored/consumed/loss share table."""
-    return _load("crop_postharvest_use.csv")
+    """Crop-level sold/stored/consumed/loss share table (canonical observations)."""
+    return _observation_read("crop_postharvest_use", "crop_postharvest_use.csv")
 
 
 def national_crop_trends() -> pd.DataFrame:
@@ -179,7 +211,7 @@ def national_crop_trends() -> pd.DataFrame:
 
 
 def national_input_trends() -> pd.DataFrame:
-    return _load("national_input_trends.csv")
+    return _observation_read("national_input_trends", "national_input_trends.csv")
 
 
 def cold_chain_context() -> pd.DataFrame:
@@ -254,5 +286,7 @@ def curated_sources() -> pd.DataFrame:
 def clear_cache() -> None:
     """Drop cached tables (e.g. after the pipeline is re-run in-process)."""
     _read_csv.cache_clear()
+    _csv_columns.cache_clear()
     _canonical_productivity.cache_clear()
+    _canonical_observation.cache_clear()
     _SOURCES.clear()
