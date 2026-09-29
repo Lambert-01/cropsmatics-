@@ -21,6 +21,7 @@ without guessing.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # --- units ------------------------------------------------------------------
@@ -477,6 +478,65 @@ def source_table_id(source_id: str, sheet: str | None) -> str:
     Stable across runs, which is what makes the upsert idempotent.
     """
     return f"{source_id}::{sheet or 'unnamed'}"
+
+
+def dataset_table_id(source_id: str) -> str:
+    """Stable id for a source known only at release (dataset) granularity.
+
+    Used when an extract does not name a single published worksheet - or names
+    several. The alternative, "no attribution", is what left every normalized
+    observation with ``source_table_id = NULL`` while the panel rows had a real
+    one. An explicit dataset-level row is honest where a worksheet id would not
+    be, and ``granularity`` on the row says which it is.
+    """
+    return f"{source_id}::dataset"
+
+
+# "Table 14", "Tables 30-31", "Table 8 to 9" - the published reference forms
+# the extracted sources actually use.
+_TABLE_REF_RE = re.compile(r"\bTables?\s+(\d+)(?:\s*(?:-|–|to)\s*(\d+))?", re.IGNORECASE)
+
+
+def parse_table_references(text: str | None) -> list[str]:
+    """Published table references named in a source description.
+
+    ``"NISR SAS 2025 Season B - Tables 30-31"`` -> ``["Table 30", "Table 31"]``.
+
+    Only what the source text actually says is returned: a description with no
+    table reference yields an empty list rather than a guessed one, and the raw
+    text is preserved alongside so the reading can always be checked.
+    """
+    if not text or not isinstance(text, str):
+        return []
+    references: list[str] = []
+    for match in _TABLE_REF_RE.finditer(text):
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else start
+        # Guard against a pathological range rather than expanding unboundedly.
+        if end < start or end - start > 20:
+            end = start
+        for number in range(start, end + 1):
+            reference = f"Table {number}"
+            if reference not in references:
+                references.append(reference)
+    return references
+
+
+def observation_source_attribution(
+    source_id: str, source_text: str | None
+) -> tuple[str, list[str]]:
+    """``(source_table_id, table_references)`` for one observation extract.
+
+    When the extract names exactly one published table the observation is
+    attributed to that worksheet. Otherwise it is attributed to the dataset row
+    and the (possibly empty, possibly multi-table) reference list is reported for
+    the caller to keep in metadata - a multi-table extract never claims a single
+    table it did not come from.
+    """
+    references = parse_table_references(source_text)
+    if len(references) == 1:
+        return source_table_id(source_id, references[0]), references
+    return dataset_table_id(source_id), references
 
 
 def parse_source_titles(raw: str | None) -> dict[str, str]:

@@ -24,7 +24,7 @@ process. Call :func:`clear_cache` after re-running the pipeline.
 from __future__ import annotations
 
 from collections.abc import Callable
-from functools import lru_cache
+from functools import cache, lru_cache
 
 import pandas as pd
 
@@ -128,7 +128,7 @@ def _canonical_productivity() -> pd.DataFrame:
     return _canonical().productivity_frame()
 
 
-@lru_cache(maxsize=None)
+@cache
 def _csv_columns(path_str: str) -> tuple[str, ...]:
     """A processed file's column contract, read without loading its rows."""
     return tuple(pd.read_csv(path_str, nrows=0).columns)
@@ -145,7 +145,7 @@ def _contract_columns(filename: str) -> list[str] | None:
         return None
 
 
-@lru_cache(maxsize=None)
+@cache
 def _canonical_observation(filename: str) -> pd.DataFrame:
     """A wide indicator file rebuilt from the normalized observation table."""
     return _canonical().observation_frame(filename, columns=_contract_columns(filename))

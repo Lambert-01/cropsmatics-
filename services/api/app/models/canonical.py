@@ -131,6 +131,19 @@ class SourceTable(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     period_id: Mapped[str | None] = mapped_column(ForeignKey("period.period_id"), nullable=True)
     source_url: Mapped[str | None] = mapped_column(nullable=True)
     extraction_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # `worksheet` = the extract names one published table, so `sheet` is set.
+    # `dataset`  = it names none, or several; the row describes the release, and
+    #              the table references it does carry live in the fact's metadata.
+    # Without this, "worksheet not published in this extract" and "nobody filled
+    # the column in" looked identical.
+    granularity: Mapped[str] = mapped_column(String(16), default="worksheet", nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "granularity IN ('worksheet', 'dataset')",
+            name="ck_source_table_granularity",
+        ),
+    )
 
 
 class DatasetVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -333,11 +346,17 @@ class AgriculturalObservation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "quality_flag IN ('ok', 'review', 'severe', 'unknown')",
             name="ck_agricultural_observation_quality_flag",
         ),
-        # Percentages must be plausible; a value above 100 is a source error
-        # worth catching rather than publishing.
+        # An observation is a physical quantity, so it cannot be negative.
+        #
+        # There is deliberately **no generic upper bound**. An indicator-aware
+        # bound cannot live in a CHECK (PostgreSQL forbids joining `unit`), and a
+        # rule like `value <= 100000` is simply wrong: 102,013 ha of agroforestry
+        # is a real published district figure that such a rule rejected. A share
+        # is bounded at 100 and everything else is only non-negative; the
+        # unit-aware bound is enforced in the loader, which can see the unit.
         CheckConstraint(
-            "value IS NULL OR value <= 100 * 1000",
-            name="ck_agricultural_observation_value_bound",
+            "value IS NULL OR value >= 0",
+            name="ck_agricultural_observation_value_non_negative",
         ),
         Index("ix_agricultural_observation_period_indicator", "period_id", "indicator_code"),
         Index(

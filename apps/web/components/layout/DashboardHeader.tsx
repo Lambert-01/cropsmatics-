@@ -1,46 +1,62 @@
 "use client";
 
-import { Bell, Menu, Search, UserRound } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { useLanguage } from "@/lib/i18n";
-import { SEASONS } from "@/lib/constants";
+import { buildSuggestions } from "@/lib/search";
 import { useFilters } from "@/services/hooks/useFilters";
-import { useCrops, useDistricts, useCoverage } from "@/services/hooks/useReference";
+import { useCrops, useDatasets, useDistricts } from "@/services/hooks/useReference";
 
+/**
+ * The global chrome: menu, search, the active scope, and language.
+ *
+ * It deliberately holds **no period/crop/district selectors**. Those duplicate
+ * the filter bar every analytical page already renders, and worse, the two could
+ * disagree: the header wrote the shared filter state while the page's own bar
+ * rendered from the same state with different controls. Analytical filtering
+ * belongs to the analytical page. What the header shows instead is a read-only
+ * summary of the scope that *is* active, so a reader always knows what they are
+ * looking at without a second set of inputs.
+ *
+ * Notification and profile controls were removed rather than left as decoration:
+ * there is no notification system and no signed-in profile, so both buttons did
+ * nothing when clicked.
+ */
 export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
-  const { filters, setFilters } = useFilters();
+  const router = useRouter();
+  const { filters, reset } = useFilters();
   const { lang, setLang, t } = useLanguage();
   const { data: districts } = useDistricts();
   const { data: crops } = useCrops();
-  const { data: coverage } = useCoverage();
+  const { data: datasetList } = useDatasets();
   const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
 
-  // Only offer years that genuinely appear in the coverage matrix.
-  const years = useMemo(() => {
-    const keys = Object.keys(coverage?.coverage?.district_crop_productivity ?? {});
-    const national = Object.keys(coverage?.coverage?.national_crop_trends ?? {});
-    const set = new Set<string>();
-    [...keys, ...national].forEach((k) => {
-      const m = /^(\d{4})/.exec(k);
-      if (m) set.add(m[1]);
-    });
-    return Array.from(set).sort();
-  }, [coverage]);
+  const suggestions = useMemo(
+    () =>
+      buildSuggestions({
+        query: search,
+        crops: (crops ?? []).map((crop) => ({ name: crop.crop_name })),
+        districts: (districts ?? []).map((district) => ({ name: district.district })),
+        datasets: (datasetList?.datasets ?? []).map((dataset) => ({
+          key: dataset.key,
+          label: dataset.label,
+        })),
+      }),
+    [search, crops, districts, datasetList],
+  );
 
-  const suggestions = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (q.length < 2) return [];
-    const d = (districts ?? []).filter((x) => x.district.toLowerCase().includes(q));
-    const c = (crops ?? []).filter((x) => x.crop_name.toLowerCase().includes(q));
-    return [
-      ...d.slice(0, 4).map((x) => ({ kind: "district" as const, value: x.district })),
-      ...c.slice(0, 4).map((x) => ({ kind: "crop" as const, value: x.crop_name })),
-    ];
-  }, [search, districts, crops]);
+  const scope = [filters.period, filters.crop, filters.district].filter(
+    (part): part is string => Boolean(part),
+  );
 
-  const hasFilters =
-    filters.year || filters.season || filters.crop || filters.province || filters.district;
+  function go(href: string) {
+    setSearch("");
+    setOpen(false);
+    router.push(href);
+  }
 
   return (
     <header className="sticky top-0 z-20 border-b border-forest/10 bg-white/90 backdrop-blur">
@@ -54,8 +70,8 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
           <Menu className="h-4 w-4" />
         </button>
 
-        {/* Search */}
-        <div className="relative hidden min-w-0 flex-1 sm:block">
+        {/* Search: navigates to a real destination rather than mutating filters. */}
+        <div className="relative min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
             aria-hidden="true"
@@ -63,111 +79,76 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
           <input
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+              } else if (event.key === "Enter" && suggestions[0]) {
+                go(suggestions[0].href);
+              }
+            }}
             placeholder={t("search.placeholder")}
             aria-label={t("search.placeholder")}
+            role="combobox"
+            aria-expanded={open && suggestions.length > 0}
+            aria-controls="global-search-results"
             className="input w-full max-w-md pl-8"
           />
-          {suggestions.length > 0 ? (
-            <ul className="absolute z-30 mt-1 w-full max-w-md overflow-hidden rounded-lg border border-forest/10 bg-white shadow-pop">
-              {suggestions.map((s) => (
-                <li key={`${s.kind}-${s.value}`}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-forest/[0.04]"
-                    onClick={() => {
-                      setFilters(s.kind === "district" ? { district: s.value } : { crop: s.value });
-                      setSearch("");
-                    }}
-                  >
-                    <span className="text-slate-700">{s.value}</span>
-                    <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                      {s.kind}
-                    </span>
-                  </button>
-                </li>
-              ))}
+          {open && search.trim().length >= 2 ? (
+            <ul
+              id="global-search-results"
+              role="listbox"
+              aria-label={t("search.results")}
+              className="absolute z-30 mt-1 w-full max-w-md overflow-hidden rounded-lg border border-forest/10 bg-white shadow-pop"
+            >
+              {suggestions.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-slate-500">{t("search.noResults")}</li>
+              ) : (
+                suggestions.map((suggestion) => (
+                  <li key={`${suggestion.kind}-${suggestion.value}`}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-forest/[0.04]"
+                      onClick={() => go(suggestion.href)}
+                    >
+                      <span className="truncate text-slate-700">{suggestion.label}</span>
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-slate-400">
+                        {t(`search.kind.${suggestion.kind}`)}
+                      </span>
+                    </button>
+                  </li>
+                ))
+              )}
             </ul>
           ) : null}
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          {/* Year */}
-          <select
-            aria-label="Year"
-            className="input hidden sm:block"
-            value={filters.year ?? ""}
-            onChange={(e) => setFilters({ year: e.target.value ? Number(e.target.value) : undefined })}
-          >
-            <option value="">{t("header.all")}</option>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-
-          {/* Season */}
-          <select
-            aria-label={t("header.season")}
-            className="input"
-            value={filters.season ?? ""}
-            onChange={(e) => setFilters({ season: e.target.value || undefined })}
-          >
-            <option value="">{t("header.season")}</option>
-            {SEASONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-
-          {/* Crop */}
-          <select
-            aria-label={t("header.crop")}
-            className="input hidden md:block max-w-[10rem]"
-            value={filters.crop ?? ""}
-            onChange={(e) => setFilters({ crop: e.target.value || undefined })}
-          >
-            <option value="">{t("header.crop")}</option>
-            {(crops ?? []).map((c) => (
-              <option key={c.crop_code} value={c.crop_name}>
-                {c.crop_name}
-              </option>
-            ))}
-          </select>
-
-          {/* District */}
-          <select
-            aria-label={t("header.district")}
-            className="input hidden lg:block max-w-[9rem]"
-            value={filters.district ?? ""}
-            onChange={(e) => setFilters({ district: e.target.value || undefined })}
-          >
-            <option value="">{t("header.district")}</option>
-            {(districts ?? []).map((d) => (
-              <option key={d.district_code} value={d.district}>
-                {d.district}
-              </option>
-            ))}
-          </select>
-
-          {hasFilters ? (
-            <button
-              type="button"
-              className="btn hidden sm:inline-flex"
-              onClick={() =>
-                setFilters({
-                  year: undefined,
-                  season: undefined,
-                  crop: undefined,
-                  province: undefined,
-                  district: undefined,
-                })
-              }
-            >
-              Clear
-            </button>
+          {/* Active scope, read-only: what the numbers on screen actually cover. */}
+          {scope.length ? (
+            <div className="hidden items-center gap-1.5 rounded-lg border border-forest/15 bg-forest/[0.03] px-2.5 py-1.5 md:flex">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                {t("header.scope")}
+              </span>
+              <span className="max-w-[22rem] truncate text-xs font-medium text-slate-700">
+                {scope.join(" · ")}
+              </span>
+              <button
+                type="button"
+                onClick={reset}
+                aria-label={t("header.clearScope")}
+                title={t("header.clearScope")}
+                className="rounded p-0.5 text-slate-400 hover:bg-forest/10 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
           ) : null}
 
           {/* Language */}
@@ -190,13 +171,6 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
               </button>
             ))}
           </div>
-
-          <button type="button" className="btn" aria-label={t("header.notifications")}>
-            <Bell className="h-4 w-4" />
-          </button>
-          <button type="button" className="btn" aria-label={t("header.profile")}>
-            <UserRound className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </header>

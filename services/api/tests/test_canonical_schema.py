@@ -69,6 +69,24 @@ def _create_table_block(sql: str, table: str) -> str:
     return sql[start:end]
 
 
+def _column_is_migrated(sql: str, table: str, column: str) -> bool:
+    """Whether a model column is created by the chain.
+
+    Either it is part of the table's ``CREATE TABLE``, or a later revision adds it
+    with ``ALTER TABLE ... ADD COLUMN``. Both are correct; rewriting an already
+    shared revision to fold a new column into its original ``CREATE TABLE`` is
+    not, so an incremental migration has to satisfy this guard too.
+    """
+    if re.search(rf"(?<![\w]){re.escape(column)}(?![\w])", _create_table_block(sql, table)):
+        return True
+    return bool(
+        re.search(
+            rf"ALTER TABLE\s+{re.escape(table)}\s+ADD COLUMN\s+{re.escape(column)}\b",
+            sql,
+        )
+    )
+
+
 def test_the_migration_chain_has_a_single_head():
     """One head: a second head means a branch nobody will merge by accident."""
     script = ScriptDirectory.from_config(_alembic_config())
@@ -87,11 +105,10 @@ def test_every_canonical_table_is_created(table, offline_sql):
 
 @pytest.mark.parametrize("table", CANONICAL_TABLES)
 def test_every_model_column_exists_in_the_migration(table, offline_sql):
-    block = _create_table_block(offline_sql, table)
     missing = [
         column.name
         for column in Base.metadata.tables[table].columns
-        if not re.search(rf"(?<![\w]){re.escape(column.name)}(?![\w])", block)
+        if not _column_is_migrated(offline_sql, table, column.name)
     ]
     assert not missing, f"{table}: columns in the model but not the migration: {missing}"
 

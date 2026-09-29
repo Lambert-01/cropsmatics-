@@ -18,6 +18,11 @@ export function useCoverage() {
   return useQuery({ queryKey: ["coverage"], queryFn: api.coverage, staleTime: ONE_HOUR });
 }
 
+/** The whitelisted datasets the Data Explorer can open. */
+export function useDatasets() {
+  return useQuery({ queryKey: ["datasets"], queryFn: api.datasets, staleTime: ONE_HOUR });
+}
+
 /**
  * The published period catalogue. Period selectors must be built from this so
  * an unpublished season (e.g. 2026 Season C) can never be offered.

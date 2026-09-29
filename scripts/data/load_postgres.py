@@ -56,6 +56,8 @@ from app.data.catalogue import (  # noqa: E402
     INDICATORS,
     SOURCES,
     UNITS,
+    UNITS_BY_CODE,
+    observation_source_attribution,
     parse_source_titles,
     source_table_id,
     validate_catalogue,
@@ -360,6 +362,56 @@ def source_table_rows(panel: pd.DataFrame) -> list[dict]:
                     # workbook table does not have its own URL in this source.
                     "source_url": None,
                     "extraction_date": None,
+                    "granularity": "worksheet",
+                },
+            )
+    return list(rows.values())
+
+
+def observation_source_table_rows() -> list[dict]:
+    """One provenance row per observation extract, at the granularity it supports.
+
+    Some extracts name a single published table ("... - Table 14") and are
+    attributed to that worksheet. Others name several, or none - and one file even
+    draws on different tables in different rows - so each distinct (source, source
+    description) pair is attributed on its own terms and lands either on a
+    worksheet row or on the release-level (`dataset`) row.
+    """
+    rows: dict[str, dict] = {}
+    for filename in sorted({item.source_file for item in INDICATORS}):
+        path = PROCESSED_DIR / filename
+        if not path.exists():
+            continue
+        frame = pd.read_csv(path)
+        if frame.empty or "source_id" not in frame.columns:
+            continue
+        texts = frame["source"] if "source" in frame.columns else [None] * len(frame)
+        seen: set[tuple[str, str]] = set()
+        for raw_id, raw_text in zip(frame["source_id"], texts, strict=False):
+            source_id = str(clean(raw_id) or "")
+            if not source_id:
+                continue
+            text = clean(raw_text)
+            key = (source_id, str(text or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+
+            table_id, references = observation_source_attribution(source_id, text)
+            rows.setdefault(
+                table_id,
+                {
+                    "source_table_id": table_id,
+                    "source_id": source_id,
+                    # The extract is a flat table, so no workbook is named.
+                    "workbook": None,
+                    "sheet": references[0] if len(references) == 1 else None,
+                    # The source's own description, verbatim.
+                    "source_title_original": str(text) if text else None,
+                    "period_id": None,
+                    "source_url": None,
+                    "extraction_date": None,
+                    "granularity": "worksheet" if len(references) == 1 else "dataset",
                 },
             )
     return list(rows.values())
@@ -368,6 +420,25 @@ def source_table_rows(panel: pd.DataFrame) -> list[dict]:
 # --------------------------------------------------------------------------
 # validation
 # --------------------------------------------------------------------------
+
+
+def validate_observation_value(
+    indicator_code: str, unit_code: str, value: float
+) -> str | None:
+    """Unit-aware plausibility check for one observation value.
+
+    Returns a rejection reason, or ``None`` when the value is acceptable.
+
+    A share (a percentage) cannot exceed 100. Nothing may be negative. There is
+    deliberately **no generic upper bound**: a hectare total can legitimately be
+    large, and the old ``value <= 100000`` rule rejected a real published figure.
+    """
+    if value < 0:
+        return "negative_value"
+    unit = UNITS_BY_CODE.get(unit_code)
+    if unit is not None and unit.dimension == "share" and value > 100:
+        return f"share_above_100:{indicator_code}"
+    return None
 
 
 def dictionaries() -> tuple[dict, dict, dict]:
@@ -548,6 +619,14 @@ def observation_rows(
                 # Not measured. No row is written, and no zero is invented.
                 continue
 
+            # The unit is known here, so the bound is applied here rather than as
+            # a generic rule in the schema (which cannot join `unit`).
+            problem = validate_observation_value(indicator.code, indicator.unit, value)
+            if problem:
+                stats.rejected_rows += 1
+                stats.reject_reasons[problem] += 1
+                continue
+
             try:
                 period_id = normalize_period(clean(row.get("year")), clean(row.get("season")))
             except (TypeError, ValueError):
@@ -587,6 +666,17 @@ def observation_rows(
                 quality_flag = "review"
                 note = f"district_code {district_code} is not in the district dictionary"
 
+            # Provenance at the finest granularity the extract supports. A row
+            # whose source description names one table is attributed to that
+            # worksheet; otherwise it points at the release-level row and keeps
+            # the (possibly several) table references in metadata.
+            source_id = str(clean(row.get("source_id")) or "")
+            source_text = clean(row.get("source"))
+            if source_id:
+                source_table, source_tables = observation_source_attribution(source_id, source_text)
+            else:
+                source_table, source_tables = None, []
+
             out.append(
                 {
                     "period_id": period_id,
@@ -600,8 +690,8 @@ def observation_rows(
                     "indicator_code": indicator.code,
                     "value": value,
                     "unit_code": indicator.unit,
-                    "source_id": str(clean(row.get("source_id")) or ""),
-                    "source_table_id": None,
+                    "source_id": source_id,
+                    "source_table_id": source_table,
                     "dataset_version": version,
                     "quality_flag": quality_flag,
                     "quality_note": note,
@@ -626,6 +716,9 @@ def observation_rows(
                         "canonical_crop_name": clean(row.get("canonical_crop_name")),
                         "shares_sum_pct": clean(row.get("shares_sum_pct")),
                         "shares_sum_ok": clean(row.get("shares_sum_ok")),
+                        # Every published table this row draws on (`[]` when the
+                        # source description names none).
+                        "source_tables": source_tables,
                     },
                 }
             )
@@ -745,11 +838,13 @@ def main(argv: list[str] | None = None) -> int:
                 "loaded_at": None if args.dry_run else started,
             }], ("version",), dry_run=args.dry_run)
         )
+        # Panel worksheets and observation extracts share one provenance table,
+        # so an observation's source_table_id always resolves.
         report.append(
             load_rows(
                 session,
                 SourceTable,
-                source_table_rows(panel),
+                source_table_rows(panel) + observation_source_table_rows(),
                 ("source_table_id",),
                 dry_run=args.dry_run,
             )

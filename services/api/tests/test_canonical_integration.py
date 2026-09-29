@@ -385,6 +385,147 @@ def test_inquiry_client_uuid_is_idempotent_across_retries(loaded, app_engine):
     assert count == 1
 
 
+# The wide indicator files whose rows are stored in `agricultural_observation`.
+OBSERVATION_FILES = (
+    "district_productivity_factors.csv",
+    "irrigation_water.csv",
+    "erosion_control.csv",
+    "crop_postharvest_use.csv",
+    "national_input_trends.csv",
+)
+
+
+@pytest.mark.parametrize("filename", OBSERVATION_FILES)
+def test_observation_read_matches_the_processed_file(loaded, app_engine, filename):
+    """A wide file rebuilt from the normalized table must equal the artefact.
+
+    Same columns, same rows, same values - including NULLs and the published
+    crop variant. This is what makes the normalized table authoritative for the
+    practices/inputs/irrigation/erosion/post-harvest reads.
+    """
+    import pandas as pd
+
+    from app.repositories import canonical_repository as canonical
+
+    csv = pd.read_csv(REPO_ROOT / "data" / "processed" / filename)
+    frame = canonical.observation_frame(filename, columns=list(csv.columns))
+
+    assert list(frame.columns) == list(csv.columns), "column contract drifted"
+    assert len(frame) == len(csv), "row count drifted"
+
+    key = [c for c in ("year", "season", "district_code", "crop") if c in csv.columns]
+    left = frame.sort_values(key, kind="stable").reset_index(drop=True)
+    right = csv.sort_values(key, kind="stable").reset_index(drop=True)
+    for column in csv.columns:
+        assert _norm(left[column]) == _norm(right[column]), f"{filename}:{column}"
+
+
+def test_observation_read_honours_the_requested_contract(loaded, app_engine):
+    """A narrower contract must be returned exactly, with real values."""
+    from app.repositories import canonical_repository as canonical
+
+    contract = [
+        "year",
+        "season",
+        "district",
+        "district_code",
+        "improved_seed_farmers_pct",
+    ]
+    frame = canonical.observation_frame(
+        "district_productivity_factors.csv", columns=contract
+    )
+    assert list(frame.columns) == contract
+    assert not frame.empty
+    assert frame["improved_seed_farmers_pct"].notna().any()
+
+
+def test_observation_read_keeps_missing_values_missing(loaded, app_engine):
+    """A value the source did not publish stays NULL, never zero.
+
+    ``national_input_trends`` is the file that actually carries blank cells, so it
+    is the one that can prove the round trip does not invent a zero.
+    """
+    import pandas as pd
+
+    from app.repositories import canonical_repository as canonical
+
+    csv = pd.read_csv(REPO_ROOT / "data" / "processed" / "national_input_trends.csv")
+    blank_columns = [c for c in csv.columns if csv[c].isna().any()]
+    assert blank_columns, "fixture assumption: this file has blank cells"
+
+    frame = canonical.observation_frame("national_input_trends.csv", columns=list(csv.columns))
+    for column in blank_columns:
+        assert int(frame[column].isna().sum()) == int(csv[column].isna().sum()), (
+            f"{column}: blank count changed"
+        )
+        # A blank must not have been coerced to zero on the way through the DB.
+        assert int(frame[column].isna().sum()) > 0, f"{column}: blanks disappeared"
+        assert int((frame[column] == 0).sum()) == int((csv[column] == 0).sum()), (
+            f"{column}: zero count changed"
+        )
+
+
+def test_every_observation_has_a_resolvable_source_table(loaded, app_engine):
+    """Normalized observations must carry the same provenance depth as the panel.
+
+    They previously had ``source_table_id = NULL`` across the board while panel
+    rows pointed at a real worksheet, so the same platform answered "which table
+    is this from?" differently depending on the domain.
+    """
+    from sqlalchemy import inspect, text
+
+    with app_engine.connect() as connection:
+        assert "source_table" in set(inspect(connection).get_table_names())
+        unresolvable = connection.execute(
+            text(
+                "SELECT count(*) FROM agricultural_observation o "
+                "LEFT JOIN source_table s ON s.source_table_id = o.source_table_id "
+                "WHERE o.source_table_id IS NULL OR s.source_table_id IS NULL"
+            )
+        ).scalar()
+    assert unresolvable == 0, "an observation has no resolvable source table"
+
+
+def test_attribution_granularity_matches_what_the_extract_supports(loaded, app_engine):
+    """A worksheet row must name a sheet; a dataset row must not pretend to."""
+    from sqlalchemy import text
+
+    with app_engine.connect() as connection:
+        bad_worksheet = connection.execute(
+            text(
+                "SELECT count(*) FROM source_table "
+                "WHERE granularity = 'worksheet' AND (sheet IS NULL OR sheet = '')"
+            )
+        ).scalar()
+    assert bad_worksheet == 0
+
+
+def test_a_multi_table_extract_keeps_its_reference_list(loaded, app_engine):
+    """Irrigation draws on Tables 30-31; the row must not claim just one."""
+    import json
+
+    from sqlalchemy import text
+
+    with app_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT source_table_id, metadata_json FROM agricultural_observation "
+                "WHERE indicator_code = 'surface_irrigation_pct' LIMIT 1"
+            )
+        ).mappings().one()
+        granularity = connection.execute(
+            text("SELECT granularity FROM source_table WHERE source_table_id = :i"),
+            {"i": row["source_table_id"]},
+        ).scalar()
+
+    metadata = row["metadata_json"]
+    if isinstance(metadata, str):
+        metadata = json.loads(metadata)
+    assert metadata["source_tables"] == ["Table 30", "Table 31"]
+    # Two tables -> a release-level row, never a single worksheet claim.
+    assert granularity == "dataset"
+
+
 def test_market_observations_are_absent_rather_than_zero(engine, loaded):
     """No verified market price dataset exists, so nothing is invented for it."""
     from sqlalchemy import inspect
