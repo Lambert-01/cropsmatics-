@@ -23,9 +23,75 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal
 
+import pandas as pd
 from sqlalchemy import func, select
 
 Availability = Literal["ready", "empty", "unavailable"]
+
+# The processed panel's column contract. A canonical read reproduces this shape
+# exactly (same names, same units, same missing-is-None behaviour) so a caller
+# cannot tell which layer answered except through the reported `source`. Columns
+# with no dedicated table column are unpacked from `metadata_json`, which the
+# loader fills from the processed row.
+PRODUCTIVITY_COLUMNS: tuple[str, ...] = (
+    "period_code",
+    "year",
+    "season",
+    "geography_level",
+    "geography_code",
+    "district",
+    "district_code",
+    "province",
+    "agro_ecological_zone",
+    "farmer_scale",
+    "row_scope",
+    "row_scope_raw",
+    "crop_code",
+    "crop_name_raw",
+    "canonical_crop_name",
+    "category",
+    "perishability",
+    "cold_chain_recommended",
+    "cultivated_area_ha",
+    "harvested_area_ha",
+    "production_mt",
+    "yield_kg_ha",
+    "cultivated_area_reported",
+    "yield_reported",
+    "harvest_ratio",
+    "source_id",
+    "source_period",
+    "source_release",
+    "source_workbook",
+    "source_sheets",
+    "source_titles_raw",
+    "period_override_reason",
+    "metric_source_map",
+    "source_row_min",
+    "processing_script",
+    "processing_version",
+    "is_synthetic",
+)
+
+# Columns read straight off the table; everything else comes from metadata_json.
+_DIRECT_COLUMNS: tuple[str, ...] = (
+    "year",
+    "season",
+    "geography_code",
+    "district_code",
+    "farmer_scale",
+    "row_scope",
+    "crop_code",
+    "cultivated_area_ha",
+    "harvested_area_ha",
+    "production_mt",
+    "yield_kg_ha",
+    "cultivated_area_reported",
+    "yield_reported",
+    "harvest_ratio",
+    "source_id",
+    "is_synthetic",
+)
 
 # Tables that must exist before a canonical read means anything.
 REQUIRED_TABLES = ("period", "crop_productivity", "agricultural_observation", "dataset_version")
@@ -221,3 +287,115 @@ def indicator_rows() -> list[dict]:
 
 def generated_at() -> str:
     return datetime.now(UTC).isoformat()
+
+
+# --------------------------------------------------------------------------
+# analytical reads
+# --------------------------------------------------------------------------
+
+
+def is_ready() -> bool:
+    """Whether canonical reads can be served right now (probe without detail)."""
+    return probe()["availability"] == "ready"
+
+
+def _metadata(row: dict) -> dict:
+    value = row.get("metadata_json")
+    return value if isinstance(value, dict) else {}
+
+
+def _sheets_value(value) -> str | None:
+    """`metadata_json.source_sheets` back to the panel's ``a|b`` form."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        parts = [str(v).strip() for v in value if str(v).strip()]
+        return "|".join(parts) or None
+    return str(value)
+
+
+def _productivity_row(row: dict) -> dict:
+    """One canonical row projected onto the processed panel's contract."""
+    metadata = _metadata(row)
+    projected: dict = {
+        "period_code": row.get("period_id"),
+        # The processed panel stores geographic levels uppercase; preserve that
+        # so every consumer comparing to "DISTRICT" keeps working unchanged.
+        "geography_level": str(row.get("geography_level") or "").upper(),
+        "district": row.get("district_name"),
+        "province": row.get("province_name"),
+        "canonical_crop_name": row.get("crop_name"),
+        "agro_ecological_zone": metadata.get("agro_ecological_zone"),
+        "row_scope_raw": metadata.get("row_scope_raw"),
+        "crop_name_raw": metadata.get("crop_name_raw"),
+        "category": metadata.get("category"),
+        "perishability": metadata.get("perishability"),
+        "cold_chain_recommended": metadata.get("cold_chain_recommended"),
+        "source_period": metadata.get("source_period"),
+        "source_release": metadata.get("source_release"),
+        "source_workbook": metadata.get("source_workbook"),
+        "source_sheets": _sheets_value(metadata.get("source_sheets")),
+        "source_titles_raw": metadata.get("source_titles_raw"),
+        "period_override_reason": metadata.get("period_override_reason"),
+        "metric_source_map": metadata.get("metric_source_map"),
+        "source_row_min": metadata.get("source_row_min"),
+        "processing_script": metadata.get("processing_script"),
+        "processing_version": metadata.get("processing_version"),
+    }
+    for column in _DIRECT_COLUMNS:
+        projected[column] = row.get(column)
+    return projected
+
+
+def productivity_frame(
+    *,
+    period_id: str | None = None,
+    geography_level: str | None = None,
+    crop_code: str | None = None,
+    district_code: str | None = None,
+    farmer_scale: str | None = None,
+    include_synthetic: bool = False,
+) -> pd.DataFrame:
+    """The canonical productivity panel as a processed-panel-shaped DataFrame.
+
+    Missing stays missing: a NULL metric is passed through as ``None`` rather than
+    coerced to zero, exactly as the processed CSV does.
+    """
+    from app.models.canonical import CropProductivity
+
+    statement = select(CropProductivity)
+    if period_id is not None:
+        statement = statement.where(CropProductivity.period_id == period_id)
+    if geography_level is not None:
+        statement = statement.where(
+            CropProductivity.geography_level == geography_level.strip().lower()
+        )
+    if crop_code is not None:
+        statement = statement.where(CropProductivity.crop_code == crop_code)
+    if district_code is not None:
+        statement = statement.where(CropProductivity.district_code == district_code)
+    if farmer_scale is not None:
+        statement = statement.where(CropProductivity.farmer_scale == farmer_scale)
+    if not include_synthetic:
+        # A test fixture must never be served as an observation.
+        statement = statement.where(CropProductivity.is_synthetic.is_(False))
+
+    with _engine().connect() as connection:
+        raw = [dict(row) for row in connection.execute(statement).mappings().all()]
+
+    rows = [_productivity_row(row) for row in raw]
+    frame = pd.DataFrame(rows, columns=list(PRODUCTIVITY_COLUMNS))
+    return frame
+
+
+def productivity_periods() -> list[str]:
+    """Published periods that actually carry productivity rows, chronological."""
+    from app.models.canonical import CropProductivity
+
+    with _engine().connect() as connection:
+        rows = connection.execute(
+            select(CropProductivity.year, CropProductivity.season)
+            .where(CropProductivity.is_synthetic.is_(False))
+            .distinct()
+        ).all()
+    return sorted(f"{int(year)}{str(season).upper()}" for year, season in rows)

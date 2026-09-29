@@ -227,6 +227,164 @@ def test_negative_metrics_are_refused_by_the_database(engine, loaded):
             )
 
 
+@pytest.fixture()
+def app_engine(engine, monkeypatch):
+    """Point the application's session layer at the test database.
+
+    The API's own engine is bound at import time to whatever ``DATABASE_URL``
+    held; the integration tests drive their own throwaway database, so the
+    application modules are re-pointed here rather than re-imported.
+    """
+    from sqlalchemy.orm import sessionmaker
+
+    import app.db.session as session_module
+
+    monkeypatch.setattr(session_module, "engine", engine)
+    monkeypatch.setattr(
+        session_module,
+        "SessionLocal",
+        sessionmaker(bind=engine, autoflush=False, expire_on_commit=False),
+    )
+    return engine
+
+
+def _norm(series):
+    """Normalise a column so NaN and None compare alike across layers."""
+    return series.astype(object).where(series.notna(), None).tolist()
+
+
+def test_canonical_read_matches_the_processed_panel(loaded, app_engine):
+    """The canonical read must reproduce the processed panel exactly.
+
+    This is the parity guarantee that makes the database authoritative: for a
+    representative slice, the DB-served frame equals the CSV-served frame column
+    for column, including NULLs.
+    """
+    import pandas as pd
+
+    from app.repositories import canonical_repository as canonical
+
+    csv = pd.read_csv(REPO_ROOT / "data" / "processed" / "crop_productivity.csv")
+    expected = csv[
+        (csv["period_code"] == "2026B")
+        & (csv["crop_code"] == "CROP-MAI")
+        & (csv["geography_level"] == "DISTRICT")
+        & (csv["farmer_scale"] == "all")
+    ].sort_values("district_code")
+
+    frame = canonical.productivity_frame(
+        period_id="2026B",
+        geography_level="DISTRICT",
+        crop_code="CROP-MAI",
+        farmer_scale="all",
+    ).sort_values("district_code")
+
+    assert len(frame) == len(expected)
+    for column in (
+        "district",
+        "district_code",
+        "province",
+        "agro_ecological_zone",
+        "canonical_crop_name",
+        "cultivated_area_ha",
+        "harvested_area_ha",
+        "production_mt",
+        "yield_kg_ha",
+        "source_id",
+        "source_sheets",
+    ):
+        assert _norm(frame[column]) == _norm(expected[column]), column
+
+
+def test_canonical_read_marks_geography_levels_like_the_panel(loaded, app_engine):
+    """Consumers compare against uppercase levels, so the projection must too."""
+    from app.repositories import canonical_repository as canonical
+
+    frame = canonical.productivity_frame(period_id="2026B", geography_level="NATIONAL")
+    assert not frame.empty
+    assert set(frame["geography_level"]) == {"NATIONAL"}
+
+
+def test_processed_panel_and_database_have_the_same_row_count(loaded, app_engine):
+    import pandas as pd
+
+    from app.repositories import canonical_repository as canonical
+
+    csv = pd.read_csv(REPO_ROOT / "data" / "processed" / "crop_productivity.csv")
+    assert len(canonical.productivity_frame()) == len(csv)
+
+
+def test_inquiry_table_is_created_with_a_hashed_token_column(engine, migrated):
+    """The migration must create the table and must not create a plaintext column."""
+    from sqlalchemy import inspect
+
+    columns = {column["name"] for column in inspect(engine).get_columns("inquiry")}
+    assert {
+        "client_uuid",
+        "receipt_token_hash",
+        "topic",
+        "crop",
+        "province",
+        "district",
+        "message",
+        "status",
+    } <= columns
+    assert "receipt_token" not in columns
+
+
+def test_inquiry_receipt_token_is_never_stored_in_plaintext(loaded, app_engine):
+    """Creation returns the token once; the table keeps only its SHA-256 hash."""
+    import hashlib
+
+    from sqlalchemy import text
+
+    from app.services import inquiry_service
+
+    created = inquiry_service.create(
+        {
+            "topic": "Data question",
+            "message": "Canonical storage parity check.",
+            "client_uuid": "integration-test-inquiry-1",
+        }
+    )
+    token = created["receipt_token"]
+    assert token and created["id"]
+
+    with app_engine.connect() as connection:
+        stored = connection.execute(
+            text("SELECT receipt_token_hash FROM inquiry WHERE id = :id"),
+            {"id": created["id"]},
+        ).scalar()
+    assert stored != token
+    assert stored == hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    # The correct token reads the inquiry back; any other token does not.
+    assert inquiry_service.get_by_receipt(created["id"], token) is not None
+    assert inquiry_service.get_by_receipt(created["id"], "x" * 40) is None
+
+
+def test_inquiry_client_uuid_is_idempotent_across_retries(loaded, app_engine):
+    from sqlalchemy import text
+
+    from app.services import inquiry_service
+
+    payload = {
+        "topic": "Data question",
+        "message": "Queued offline retry.",
+        "client_uuid": "integration-test-inquiry-2",
+    }
+    first = inquiry_service.create(payload)
+    second = inquiry_service.create(payload)
+    assert first["id"] == second["id"]
+
+    with app_engine.connect() as connection:
+        count = connection.execute(
+            text("SELECT count(*) FROM inquiry WHERE client_uuid = :c"),
+            {"c": payload["client_uuid"]},
+        ).scalar()
+    assert count == 1
+
+
 def test_market_observations_are_absent_rather_than_zero(engine, loaded):
     """No verified market price dataset exists, so nothing is invented for it."""
     from sqlalchemy import inspect

@@ -149,8 +149,131 @@ def _database_status() -> str:
     return database_status()[0]
 
 
+def _expected_dataset_identity(manifest: dict) -> dict:
+    """The manifest fields the loader records against a dataset version.
+
+    The loader's content-addressed version is a pure function of exactly these
+    four fields, so comparing them is equivalent to comparing the version string
+    while keeping readiness decoupled from the loader module.
+    """
+    return {
+        "pipeline_version": manifest.get("pipeline_version"),
+        "git_sha": manifest.get("git_sha"),
+        "build_timestamp": manifest.get("build_timestamp"),
+        "row_counts": manifest.get("row_counts") or {},
+    }
+
+
+def canonical_readiness() -> dict:
+    """Deep readiness of the canonical database, never raising.
+
+    Validates, in order: a DATABASE_URL is configured, the database is reachable,
+    the migration chain has been applied, the canonical tables exist, a dataset is
+    loaded, and the loaded dataset version matches the processed manifest. Any
+    step that fails is named so a deploy can be held back without guesswork.
+    """
+    settings = get_settings()
+    mode = settings.canonical_mode
+    result: dict = {
+        "mode": mode,
+        "database_configured": bool((settings.database_url or "").strip()),
+        "availability": "unavailable",
+        "reason": None,
+        "migrations_applied": False,
+        "tables_present": False,
+        "dataset_loaded": False,
+        "version_matches_manifest": None,
+        "dataset_version": None,
+        "expected_version": None,
+        "row_counts": {},
+        "blocking": [],
+    }
+
+    try:
+        from app.repositories import canonical_repository as canonical
+
+        probe = canonical.probe()
+    except Exception:  # noqa: BLE001 - readiness reports, it does not raise
+        result["reason"] = "canonical probe failed"
+        result["blocking"].append("database_probe")
+        return result
+
+    result["availability"] = probe.get("availability")
+    result["reason"] = probe.get("reason")
+    result["row_counts"] = probe.get("row_counts") or {}
+    result["tables_present"] = result["availability"] != "unavailable" or bool(
+        probe.get("row_counts")
+    )
+
+    # Migrations applied is a distinct signal from "tables exist": a schema can
+    # be present without the alembic bookkeeping (e.g. created out of band).
+    try:
+        from sqlalchemy import inspect, text
+
+        from app.db.session import engine
+
+        with engine.connect() as connection:
+            names = set(inspect(connection).get_table_names())
+            result["tables_present"] = "crop_productivity" in names
+            if "alembic_version" in names:
+                # The alembic bookkeeping table holds one row per applied head.
+                applied = connection.execute(
+                    text("SELECT count(*) FROM alembic_version")
+                ).scalar()
+                result["migrations_applied"] = bool(applied)
+            if "dataset_version" in names:
+                loaded = canonical.current_version()
+                if loaded is not None:
+                    result["dataset_version"] = loaded.get("version")
+                    result["dataset_loaded"] = True
+                    expected = _expected_identity_from_manifest(loaded)
+                    result["expected_version"] = expected.get("version")
+                    result["version_matches_manifest"] = expected.get("matches")
+    except Exception:  # noqa: BLE001 - a partial probe is still a useful report
+        if "tables_present" not in result or not result["tables_present"]:
+            result["blocking"].append("database_inspect")
+
+    if not result["database_configured"]:
+        result["blocking"].append("database_url_missing")
+    if result["availability"] != "ready":
+        result["blocking"].append("canonical_not_ready")
+    if not result["migrations_applied"]:
+        result["blocking"].append("migrations_not_applied")
+    if not result["dataset_loaded"]:
+        result["blocking"].append("dataset_not_loaded")
+    if result["version_matches_manifest"] is False:
+        result["blocking"].append("dataset_version_mismatch")
+
+    return result
+
+
+def _expected_identity_from_manifest(loaded: dict) -> dict:
+    """Compare the loaded dataset version against the processed manifest."""
+    try:
+        manifest = repo.data_manifest()
+    except Exception:
+        # No manifest to compare against: report unknown rather than a false pass.
+        return {"version": None, "matches": None}
+
+    expected = _expected_dataset_identity(manifest)
+    matches = all(
+        (loaded.get(key) or {}) == (expected.get(key) or {})
+        if key == "row_counts"
+        else loaded.get(key) == expected.get(key)
+        for key in expected
+    )
+    return {"version": loaded.get("version"), "matches": matches}
+
+
 def readiness() -> dict:
-    """Data-readiness probe used by deployment health checks."""
+    """Data-readiness probe used by deployment health checks.
+
+    Two independent questions are answered: are the processed artefacts present
+    (the reproducibility/fallback layer), and is the canonical database serving
+    the expected dataset. In ``required`` mode the second question is the one
+    that decides the verdict, so a production deploy cannot report ready while
+    the analytical answers would come from files.
+    """
     processed = get_settings().processed_dir
     dictionaries = REPO_ROOT / "data" / "dictionaries"
 
@@ -185,18 +308,34 @@ def readiness() -> dict:
         checks.append({"check": "model_card", "status": "unavailable"})
 
     database, canonical = database_status()
+    canonical_state = canonical_readiness()
+    mode = canonical_state["mode"]
+
+    # Informational: in `required` mode the canonical verdict is what matters, so
+    # a not-serving database is not reported as a CSV problem here.
     if canonical.get("availability") != "ready":
-        # Not a hard failure: the processed files are still authoritative here.
         checks.append(
             {
                 "check": "canonical_database",
-                "status": "not_serving",
+                "status": "required_unavailable" if mode == "required" else "not_serving",
                 "detail": canonical.get("reason"),
+            }
+        )
+    if canonical_state["dataset_loaded"] and canonical_state["version_matches_manifest"] is False:
+        checks.append(
+            {
+                "check": "canonical_dataset_version",
+                "status": "mismatch",
+                "detail": "loaded dataset version does not match the processed manifest",
             }
         )
 
     hard_missing = [c for c in checks if c["status"] in ("missing", "empty")]
-    status = "ready" if not hard_missing else "degraded"
+    if mode == "required":
+        status = "ready" if not canonical_state["blocking"] else "not_ready"
+    else:
+        status = "ready" if not hard_missing else "degraded"
+
     return {
         "status": status,
         "version": get_settings().version,
@@ -205,6 +344,8 @@ def readiness() -> dict:
         "dictionaries": dict_ok,
         "database": database,
         "canonical": canonical,
+        "canonical_data_mode": mode,
+        "canonical_state": canonical_state,
         "model": model_status,
         "checks": checks,
     }

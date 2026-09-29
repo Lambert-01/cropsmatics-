@@ -1,14 +1,29 @@
-"""Read-only access to processed analytical tables and reference dictionaries.
+"""Read-only access to the analytical data layer.
 
-The API intentionally reads the same files the data pipeline produces, so the
-public analytical endpoints work without a database during early development.
-Every loader is cached with ``lru_cache`` so CSVs are parsed once per process.
-Call :func:`clear_cache` after re-running the pipeline if the process is long
-lived. Database-backed repositories are added alongside as the schema fills.
+The canonical PostgreSQL tables are the production authority. Which layer
+answers a read is decided by ``CANONICAL_DATA_MODE`` (``Settings.canonical_mode``):
+
+* ``required``  - PostgreSQL must be ready. If it cannot serve a read the request
+  fails with :class:`CanonicalDataUnavailable` rather than quietly answering from
+  the processed files. Production defaults to this.
+* ``preferred`` - PostgreSQL first, and the processed files stand in when the
+  database is unavailable. Which layer answered is reported by
+  :func:`canonical_source_status` and the ``/data/*`` envelopes.
+* ``file``      - processed files only. Development/testing.
+
+Only datasets that genuinely have a canonical home are routed through the
+database. A dataset the schema does not yet model (the legacy joined training
+table, the national trend context series) keeps reading the processed file, which
+is why the processed artefacts remain in the pipeline output at all: they are the
+reproducibility and fallback layer.
+
+Every CSV loader is cached with ``lru_cache`` so files are parsed once per
+process. Call :func:`clear_cache` after re-running the pipeline.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
 
 import pandas as pd
@@ -23,6 +38,21 @@ class DatasetUnavailable(RuntimeError):
     """Raised when a requested dataset has not been built yet."""
 
 
+class CanonicalDataUnavailable(RuntimeError):
+    """The canonical database is required but cannot serve this read.
+
+    Distinct from :class:`DatasetUnavailable`: the pipeline output may be
+    perfectly present while a ``required``-mode deployment still must not answer
+    from it. The API maps this to a ``DATABASE_UNAVAILABLE`` response.
+    """
+
+    code = "DATABASE_UNAVAILABLE"
+
+
+# Process-level record of which layer answered each canonical-backed dataset.
+_SOURCES: dict[str, str] = {}
+
+
 @lru_cache
 def _read_csv(path_str: str) -> pd.DataFrame:
     return pd.read_csv(path_str)
@@ -34,6 +64,68 @@ def _load(filename: str) -> pd.DataFrame:
     if not path.exists():
         raise DatasetUnavailable(f"{filename} not found. Run `make data` to build it.")
     return _read_csv(str(path)).copy()
+
+
+# --- canonical dispatch ----------------------------------------------------
+
+
+def _canonical():
+    from app.repositories import canonical_repository
+
+    return canonical_repository
+
+
+def canonical_source_status() -> dict:
+    """Which layer the canonical-backed datasets are served from, and why.
+
+    Reporting only - it never raises, so a readiness or status endpoint can call
+    it even when the database is unreachable.
+    """
+    mode = get_settings().canonical_mode
+    try:
+        probe = _canonical().probe()
+    except Exception:  # noqa: BLE001 - a status probe reports, it does not raise
+        probe = {"availability": "unavailable", "reason": "probe failed"}
+    return {
+        "mode": mode,
+        "availability": probe.get("availability"),
+        "reason": probe.get("reason"),
+        "served_from": dict(_SOURCES),
+    }
+
+
+def _read(dataset: str, fetch, fallback: Callable[[], pd.DataFrame]) -> pd.DataFrame:
+    """Serve ``dataset`` from PostgreSQL when the mode and the database allow it.
+
+    In ``required`` mode a database that cannot answer is a hard failure, not a
+    silent downgrade: the whole point of the mode is that a production answer is
+    never quietly sourced from a file.
+    """
+    mode = get_settings().canonical_mode
+    if mode != "file":
+        try:
+            if _canonical().is_ready():
+                frame = fetch()
+                _SOURCES[dataset] = "postgres"
+                return frame
+        except Exception:  # noqa: BLE001 - probe/read failure is handled below
+            pass
+
+    if mode == "required":
+        _SOURCES[dataset] = "unavailable"
+        raise CanonicalDataUnavailable(
+            f"the canonical database is required (CANONICAL_DATA_MODE=required) "
+            f"but is not serving '{dataset}'"
+        )
+
+    _SOURCES[dataset] = "processed_csv"
+    return fallback()
+
+
+@lru_cache(maxsize=1)
+def _canonical_productivity() -> pd.DataFrame:
+    """The canonical productivity panel, built once per process."""
+    return _canonical().productivity_frame()
 
 
 # --- primary analytical tables --------------------------------------------
@@ -57,7 +149,11 @@ def crop_productivity() -> pd.DataFrame:
     'DISTRICT'``; national and SSF/LSF aggregates are separate rows rather than
     being mixed into the district panel.
     """
-    return _load("crop_productivity.csv")
+    return _read(
+        "crop_productivity",
+        lambda: _canonical_productivity().copy(),
+        lambda: _load("crop_productivity.csv"),
+    )
 
 
 def factors_dataset() -> pd.DataFrame:
@@ -158,3 +254,5 @@ def curated_sources() -> pd.DataFrame:
 def clear_cache() -> None:
     """Drop cached tables (e.g. after the pipeline is re-run in-process)."""
     _read_csv.cache_clear()
+    _canonical_productivity.cache_clear()
+    _SOURCES.clear()

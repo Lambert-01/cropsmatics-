@@ -37,6 +37,11 @@ class ReadinessOut(BaseModel):
     # they are not. Distinct from `database`: a reachable database whose
     # canonical schema has not been migrated is not serving canonical reads.
     canonical: dict = Field(default_factory=dict)
+    # The effective CANONICAL_DATA_MODE (required / preferred / file) and the deep
+    # canonical probe: migrations applied, tables present, dataset loaded, and
+    # whether the loaded dataset version matches the processed manifest.
+    canonical_data_mode: str = "preferred"
+    canonical_state: dict = Field(default_factory=dict)
     model: str = "unavailable"
     checks: list[dict] = Field(default_factory=list)
 

@@ -490,12 +490,27 @@ def panel_rows(
                 "quality_flag": quality_flag,
                 "quality_note": "; ".join(notes) or None,
                 "is_synthetic": bool(as_bool(row.get("is_synthetic")) or False),
+                # Provenance and descriptive columns that have no dedicated
+                # column in the canonical table are carried here verbatim, so a
+                # canonical read can reproduce the processed row's full contract
+                # instead of dropping context a consumer still needs.
                 "metadata_json": {
                     "source_sheets": sheets,
                     "metric_source_map": clean(row.get("metric_source_map")),
                     "period_override_reason": clean(row.get("period_override_reason")),
                     "source_row_min": clean(row.get("source_row_min")),
                     "source_period": clean(row.get("source_period")),
+                    "crop_name_raw": clean(row.get("crop_name_raw")),
+                    "agro_ecological_zone": clean(row.get("agro_ecological_zone")),
+                    "row_scope_raw": clean(row.get("row_scope_raw")),
+                    "category": clean(row.get("category")),
+                    "perishability": clean(row.get("perishability")),
+                    "cold_chain_recommended": clean(row.get("cold_chain_recommended")),
+                    "source_release": clean(row.get("source_release")),
+                    "source_workbook": clean(row.get("source_workbook")),
+                    "source_titles_raw": clean(row.get("source_titles_raw")),
+                    "processing_script": clean(row.get("processing_script")),
+                    "processing_version": clean(row.get("processing_version")),
                 },
             }
         )

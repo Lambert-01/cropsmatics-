@@ -53,8 +53,29 @@ jobs:
         run: npx expo config --type public
 
   api:
-    name: API (lint, test)
+    name: API (lint, test, canonical integration)
     runs-on: ubuntu-latest
+    # A real PostgreSQL backs the canonical layer here. The unit tests stay
+    # database-independent (conftest pins an unreachable DATABASE_URL), and the
+    # integration suite is pointed at this throwaway container explicitly, so the
+    # migrations, loader, idempotency, parity and inquiry storage are proven in CI
+    # instead of being skipped by default.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cropmatics
+          POSTGRES_PASSWORD: cropmatics
+          POSTGRES_DB: cropmatics_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cropmatics -d cropmatics_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CANONICAL_TEST_DATABASE_URL: postgresql+psycopg://cropmatics:cropmatics@localhost:5432/cropmatics_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -72,10 +93,18 @@ jobs:
         run: python scripts/data/run_all.py
       - name: Ruff
         run: ruff check services/api/app services/api/tests
-      - name: Pytest
+      - name: Pytest (unit + canonical integration)
         env:
           JWT_SECRET: test-secret
         run: pytest services/api/tests -q
+      - name: Canonical integration proof
+        # Run the database-backed suite on its own so a regression in migrations,
+        # the loader or the canonical reads is legible in the log rather than
+        # buried in the full run. The module fixtures apply `alembic upgrade head`
+        # and run the loader against the container above.
+        env:
+          JWT_SECRET: test-secret
+        run: pytest services/api/tests/test_canonical_integration.py -q --no-header -ra
 
   ml:
     name: ML (lint, test)

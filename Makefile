@@ -94,6 +94,14 @@ load: ## Load processed CSVs into the canonical PostgreSQL tables
 load-dry: ## Report exactly what a canonical load would change (writes nothing)
 	bash scripts/dev.sh load --dry-run
 
+.PHONY: bootstrap
+bootstrap: ## Deploy step: migrate, load only if the dataset version changed, verify
+	$(PYTHON) scripts/data/canonical_bootstrap.py
+
+.PHONY: bootstrap-dry
+bootstrap-dry: ## Show what the deploy bootstrap would do (writes nothing)
+	$(PYTHON) scripts/data/canonical_bootstrap.py --dry-run
+
 # ---------- quality ----------
 .PHONY: lint
 lint: ## Lint JS + Python (including the data pipeline)

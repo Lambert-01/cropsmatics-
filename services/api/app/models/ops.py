@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, ProvenanceMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -62,6 +62,47 @@ class DataSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     raw_file: Mapped[str | None] = mapped_column(nullable=True)
     processing_script: Mapped[str | None] = mapped_column(nullable=True)
     notes: Mapped[str | None] = mapped_column(nullable=True)
+
+
+class Inquiry(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """An anonymous information inquiry submitted from web or mobile.
+
+    Production storage for what used to be an append-only JSONL file on the API
+    host - a file that is lost on redeploy and cannot be queried.
+
+    Privacy model
+    -------------
+    * ``receipt_token_hash`` is a SHA-256 digest. The plaintext receipt token is
+      returned to the submitter exactly once, at creation, and is never stored,
+      so a database disclosure cannot be replayed to read anyone's inquiry.
+      Lookups hash the presented token and compare in constant time.
+    * ``client_uuid`` is unique, which is what makes a queued offline retry
+      idempotent instead of creating a duplicate.
+    * The submitted crop/province/district are free text from the visitor, so
+      they are stored verbatim rather than being coerced into codes the caller
+      never supplied.
+    """
+
+    __tablename__ = "inquiry"
+
+    client_uuid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    receipt_token_hash: Mapped[str] = mapped_column(String(64), index=True)
+    topic: Mapped[str] = mapped_column(String(120))
+    crop: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    province: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    district: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    message: Mapped[str] = mapped_column()
+    contact_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    organization: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="RECEIVED", nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('RECEIVED', 'REVIEWING', 'ANSWERED', 'CLOSED')",
+            name="ck_inquiry_status",
+        ),
+    )
 
 
 class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):

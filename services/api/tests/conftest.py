@@ -10,7 +10,9 @@ Two things are pinned before the application is imported:
   depending on the network.
 
 Integration tests that genuinely need PostgreSQL read an explicit connection
-string (see ``tests/test_canonical_repository.py``) and skip when it is absent.
+string (see ``tests/test_canonical_integration.py``) and skip when it is absent.
+CI provides that string from a real ``postgres:16`` service container, so the
+canonical integration suite runs there rather than being skipped by default.
 """
 
 from __future__ import annotations
