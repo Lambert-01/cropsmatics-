@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SourceDisclosure } from "@/components/ui/SourceDisclosure";
 import { cn } from "@/lib/cn";
 
 export function Card({
@@ -40,10 +41,12 @@ export function CardBody({ children, className }: { children: ReactNode; classNa
   return <div className={cn("px-4 pb-4 pt-3", className)}>{children}</div>;
 }
 
+/**
+ * Source note under a figure or table.
+ *
+ * Delegates to `SourceDisclosure`, so the reader's "show sources by default"
+ * preference is honoured in one place for every chart and table that uses it.
+ */
 export function SourceNote({ children }: { children: ReactNode }) {
-  return (
-    <p className="mt-3 border-t border-forest/5 pt-2 text-[11px] leading-relaxed text-slate-500">
-      {children}
-    </p>
-  );
+  return <SourceDisclosure>{children}</SourceDisclosure>;
 }

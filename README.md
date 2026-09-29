@@ -169,8 +169,15 @@ the big screen at a demo: attendees scan it and install.
 ```bash
 make data           # validate + normalize + build processed tables
 make data-validate  # validation report only
-python scripts/data/load_database.py   # load processed tables into Postgres
+make migrate        # apply the canonical schema (Alembic)
+make load           # upsert processed tables into the canonical PostgreSQL tables
+make load-dry       # report exactly what a load would change, writing nothing
 ```
+
+The loader is idempotent: re-running it reports rows as *unchanged* instead of
+duplicating them, records a `dataset_version` and one `data_ingestion_run` per
+target table, and never deletes. `scripts/data/load_database.py` is kept as an
+alias for backwards compatibility.
 
 ### ML
 

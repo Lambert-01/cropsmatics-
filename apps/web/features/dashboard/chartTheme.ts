@@ -1,3 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { usePreferences } from "@/components/providers/PreferencesProvider";
+
 /** Shared Recharts styling so every chart reads the same way. */
 export const CHART = {
   primary: "#087F5B",
@@ -26,3 +32,30 @@ export const TOOLTIP_STYLE = {
   },
   labelStyle: { color: CHART.forest, fontWeight: 600 },
 } as const;
+
+/**
+ * Whether charts should animate on mount.
+ *
+ * Recharts animates its series through requestAnimationFrame, so the CSS rule
+ * that honours the reduced-motion preference cannot reach it. Charts spread
+ * `{...useChartMotion()}` onto each series instead.
+ *
+ * The OS-level `prefers-reduced-motion` setting also disables it: a user who has
+ * already asked the platform for less motion should not have to ask this
+ * application separately.
+ */
+export function useChartMotion(): { isAnimationActive: boolean } {
+  const { preferences } = usePreferences();
+  const [osReducedMotion, setOsReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setOsReducedMotion(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  return { isAnimationActive: !preferences.reducedMotion && !osReducedMotion };
+}

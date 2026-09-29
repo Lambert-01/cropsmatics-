@@ -15,7 +15,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { cn } from "@/lib/cn";
 import { fmtCompact, fmtNumber } from "@/lib/format";
 import type { PeriodTrendResponse } from "@/types";
@@ -51,6 +51,7 @@ export function YieldOverTimeChart({
   mode: YieldTrendMode;
   onModeChange: (mode: YieldTrendMode) => void;
 }) {
+  const motion = useChartMotion();
   const published = data?.points ?? [];
 
   // The same-season view needs a season to compare on. Without a selected
@@ -187,6 +188,7 @@ export function YieldOverTimeChart({
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               <Line
+                {...motion}
                 yAxisId="yield"
                 type="monotone"
                 dataKey="yield_kg_ha"
@@ -197,6 +199,7 @@ export function YieldOverTimeChart({
                 connectNulls={false}
               />
               <Line
+                {...motion}
                 yAxisId="production"
                 type="monotone"
                 dataKey="production_mt"

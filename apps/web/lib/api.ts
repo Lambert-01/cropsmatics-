@@ -10,6 +10,7 @@ import type {
   DatasetResponse,
   DataVersionResponse,
   District,
+  DistrictSummaryResponse,
   FacilitiesResponse,
   FactorsResponse,
   HeatmapResponse,
@@ -28,6 +29,7 @@ import type {
   PriorityScenarioResponse,
   ProductivityResponse,
   ReadinessResponse,
+  ReportCatalogEntry,
   ScenarioRequest,
   ScenarioResponse,
   SensitivityRequest,
@@ -154,11 +156,16 @@ export const api = {
     }
     return get<DatasetResponse>(`/meta/dataset/${key}`, params.toString());
   },
-  districtSummary: (district: string) =>
-    get<{ district: string; crops: Record<string, unknown>[] }>(
-      "/reports/district-summary",
-      `district=${encodeURIComponent(district)}`,
-    ),
+  districtSummary: (district: string, filters?: DashboardFilters) => {
+    const params = new URLSearchParams({ district });
+    if (filters) new URLSearchParams(filtersToApiQuery(filters)).forEach((v, k) => params.set(k, v));
+    return get<DistrictSummaryResponse>("/reports/district-summary", params.toString());
+  },
+  /**
+   * The backend report catalogue. Drives the Reports workspace so the list of
+   * available exports has exactly one definition, on the server.
+   */
+  reportCatalog: () => get<{ reports: ReportCatalogEntry[] }>("/reports/catalog"),
   storageAllocation: (body: AllocationRequest) =>
     post<AllocationResponse>("/optimization/storage-allocation", body),
 
@@ -248,8 +255,21 @@ export const api = {
   },
 };
 
-/** Build a CSV download URL for a Python-generated report. */
-export function reportUrl(path: string, filters?: DashboardFilters): string {
-  const qs = filters ? filtersToApiQuery(filters) : "";
-  return `${BASE_URL}/reports${path}${qs ? `?${qs}` : ""}`;
+/**
+ * Build a download URL for a Python-generated report.
+ *
+ * Accepts either a bare path (`/yield-gaps.csv`) or a full report endpoint from
+ * the catalogue (`/reports/yield-gaps.csv`), so a caller cannot produce a
+ * doubled prefix by passing the value the API itself returned.
+ */
+export function reportUrl(
+  endpoint: string,
+  filters?: DashboardFilters,
+  format: "csv" | "json" = "csv",
+): string {
+  const path = endpoint.startsWith("/reports") ? endpoint : `/reports${endpoint}`;
+  const params = new URLSearchParams(filters ? filtersToApiQuery(filters) : "");
+  if (format === "json") params.set("format", "json");
+  const qs = params.toString();
+  return `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
 }

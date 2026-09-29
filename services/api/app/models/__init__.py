@@ -12,6 +12,16 @@ from app.models.analytics import (
     ProductivityGap,
     ProductivityMetric,
 )
+from app.models.canonical import (
+    AgriculturalObservation,
+    CropProductivity,
+    DataIngestionRun,
+    DatasetVersion,
+    Indicator,
+    Period,
+    SourceTable,
+    Unit,
+)
 from app.models.crop import Crop
 from app.models.enums import (
     FacilityType,
@@ -64,6 +74,15 @@ __all__ = [
     "ProductivityGap",
     "InterventionPriority",
     "ModelVersion",
+    # canonical analytical layer
+    "Period",
+    "Unit",
+    "Indicator",
+    "SourceTable",
+    "DatasetVersion",
+    "DataIngestionRun",
+    "CropProductivity",
+    "AgriculturalObservation",
     # market
     "MarketPrice",
     "Recommendation",

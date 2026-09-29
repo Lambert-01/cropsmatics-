@@ -22,7 +22,8 @@ scripts/
 | `build_factor_dataset.py` | cleaned input/practice table |
 | `build_postharvest_dataset.py` | cleaned post-harvest use/loss table |
 | `build_training_dataset.py` | **primary** analytical join (productivity × factors) |
-| `load_database.py` | load processed tables into PostgreSQL |
+| `load_postgres.py` | upsert processed tables into the canonical PostgreSQL tables (idempotent; `--dry-run`) |
+| `load_database.py` | deprecated alias for `load_postgres.py` |
 | `run_all.py` | run the whole chain in order |
 
 Run everything:

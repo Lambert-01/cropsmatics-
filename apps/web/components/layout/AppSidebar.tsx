@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/cn";
 import { useLanguage } from "@/lib/i18n";
-import { FOOTER_TAGLINE, NAV_GROUPS } from "@/lib/navigation";
+import { FOOTER_TAGLINE, NAV_GROUPS, type NavItem } from "@/lib/navigation";
+import { useMarketStatus } from "@/services/hooks/useMarkets";
 
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/" || pathname === href;
@@ -36,9 +37,23 @@ export function navItemClasses(active: boolean): { link: string; icon: string } 
   };
 }
 
+/**
+ * Which optional destinations this deployment can actually serve.
+ *
+ * Market Intelligence is offered only once verified price observations exist, so
+ * the navigation reflects the data instead of promising an empty workspace. On a
+ * failed status request the answer is `false` — a data domain is never assumed
+ * available.
+ */
+function useCapabilities(): Record<NonNullable<NavItem["capability"]>, boolean> {
+  const marketStatus = useMarketStatus();
+  return { market_prices: marketStatus.data?.data_available === true };
+}
+
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const capabilities = useCapabilities();
 
   return (
     <div className="sidebar-surface flex h-full flex-col text-white/90">
@@ -69,29 +84,28 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               {t(`group.${group.label}`)}
             </p>
             <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = isActive(pathname, item.href);
-                const Icon = item.icon;
-                const styles = navItemClasses(active);
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
-                      className={styles.link}
-                    >
-                      <Icon className={styles.icon} aria-hidden="true" />
-                      <span className="truncate">{t(`nav.${item.href.replace(/^\//, "")}`)}</span>
-                      {item.comingSoon ? (
-                        <span className="ml-auto rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/50">
-                          Soon
+              {group.items
+                .filter((item) => !item.capability || capabilities[item.capability])
+                .map((item) => {
+                  const active = isActive(pathname, item.href);
+                  const Icon = item.icon;
+                  const styles = navItemClasses(active);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onNavigate}
+                        aria-current={active ? "page" : undefined}
+                        className={styles.link}
+                      >
+                        <Icon className={styles.icon} aria-hidden="true" />
+                        <span className="truncate">
+                          {t(`nav.${item.href.replace(/^\//, "")}`)}
                         </span>
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
+                      </Link>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         ))}

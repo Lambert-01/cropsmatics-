@@ -113,6 +113,8 @@ export default function DashboardPage() {
         <PriorityTable
           rows={priorities.data?.rows ?? []}
           onSelectDistrict={(d) => setFilters({ district: d })}
+          benchmarkStrategy={priorities.data?.provenance?.benchmark_strategy ?? null}
+          period={priorities.data?.provenance?.source_period ?? null}
         />
         <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
       </div>

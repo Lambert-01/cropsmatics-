@@ -2,8 +2,6 @@
  * Main API service — re-exports all sub-clients and preserves the legacy `api`
  * object so existing field-operations code continues to work unchanged.
  */
-import Constants from "expo-constants";
-
 import type {
   FacilityContext,
   FacilityContextResponse,
@@ -11,6 +9,7 @@ import type {
   RiskResult,
   StorageInfrastructure,
 } from "../types";
+import { BASE_URL as BASE } from "./api/client";
 
 export { cropsApi } from "./api/crops";
 export { districtsApi } from "./api/districts";
@@ -23,7 +22,7 @@ export { indicatorsApi } from "./api/indicators";
 export { mapsApi } from "./api/maps";
 export { postHarvestApi } from "./api/postharvest";
 export { sourcesApi } from "./api/sources";
-export { BASE_URL } from "./api/client";
+export { BASE_URL, API_CONFIG, PRODUCTION_API_BASE_URL } from "./api/client";
 export {
   ApiError,
   NetworkError,
@@ -33,16 +32,6 @@ export {
   UnsupportedDataError,
   ServerError,
 } from "./api/client";
-
-function resolveBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
-  if (fromEnv) return fromEnv;
-  const fromConfig = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined)?.trim();
-  if (fromConfig) return fromConfig;
-  return "http://localhost:8000/api/v1";
-}
-
-const BASE = resolveBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

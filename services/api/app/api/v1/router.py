@@ -8,6 +8,7 @@ from app.api.v1 import (
     analytics,
     assistant,
     auth,
+    canonical,
     crops,
     dashboard,
     data,
@@ -30,6 +31,8 @@ from app.api.v1 import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(meta.router)
+# `/data/version` and `/data/coverage`; `data` above owns `/meta/dataset`.
+api_router.include_router(canonical.router)
 api_router.include_router(data.router)
 api_router.include_router(mobile.router)
 api_router.include_router(inquiries.router)

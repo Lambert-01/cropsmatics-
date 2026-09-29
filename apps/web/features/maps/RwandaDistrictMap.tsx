@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { usePreferences } from "@/components/providers/PreferencesProvider";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, MapSkeleton } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
@@ -43,8 +44,12 @@ export function RwandaDistrictMap({
 }) {
   const [collection, setCollection] = useState<GeoCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showLabels, setShowLabels] = useState(false);
+  // `null` means "follow the stored preference"; a local toggle overrides it for
+  // this view without changing what the reader has saved in Settings.
+  const [labelOverride, setLabelOverride] = useState<boolean | null>(null);
   const [showFacilities, setShowFacilities] = useState(false);
+  const { preferences } = usePreferences();
+  const showLabels = labelOverride ?? preferences.mapLabels;
   const [hovered, setHovered] = useState<{ feature: GeoFeature; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -150,7 +155,7 @@ export function RwandaDistrictMap({
           metric={metric}
           onMetric={onMetricChange}
           showLabels={showLabels}
-          onToggleLabels={setShowLabels}
+          onToggleLabels={setLabelOverride}
           showFacilities={showFacilities}
           onToggleFacilities={setShowFacilities}
           cropSelected={Boolean(data?.crop)}

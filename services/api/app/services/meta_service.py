@@ -120,26 +120,33 @@ def sources() -> list[dict]:
     return list(items.values())
 
 
-def _database_status() -> str:
-    """Report DB connectivity without making readiness depend on it.
+def database_status() -> tuple[str, dict]:
+    """Report DB connectivity and whether the canonical layer is serving data.
 
-    The public analytical endpoints read processed CSVs, so the service is
-    usable without a database. A missing database is therefore reported as
-    ``optional/unavailable``, never as a failure.
+    The public analytical endpoints still read processed CSVs today, so the
+    service stays usable without a database and a missing database is reported as
+    ``optional/unavailable`` rather than as a failure. The canonical availability
+    is reported separately because it is the difference between an environment
+    where ``/data/version`` is authoritative and one where it is a fallback.
     """
     try:
-        from sqlalchemy import create_engine, text
+        from app.repositories import canonical_repository
 
-        from app.core.config import get_settings
+        probe = canonical_repository.probe()
+    except Exception:  # noqa: BLE001 - readiness must never raise
+        return "optional/unavailable", {"availability": "unavailable", "reason": "probe failed"}
 
-        engine = create_engine(
-            get_settings().database_url, connect_args={"connect_timeout": 2}
-        )
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return "connected"
-    except Exception:
-        return "optional/unavailable"
+    return "connected", probe
+
+
+def _database_status() -> str:
+    """Backwards-compatible string form used by the readiness payload.
+
+    Deliberately unchanged: the canonical detail lives in the separate
+    ``canonical`` field, so a client that only understands
+    ``connected``/``optional/unavailable`` keeps working.
+    """
+    return database_status()[0]
 
 
 def readiness() -> dict:
@@ -177,7 +184,16 @@ def readiness() -> dict:
     if not model_cards:
         checks.append({"check": "model_card", "status": "unavailable"})
 
-    database = _database_status()
+    database, canonical = database_status()
+    if canonical.get("availability") != "ready":
+        # Not a hard failure: the processed files are still authoritative here.
+        checks.append(
+            {
+                "check": "canonical_database",
+                "status": "not_serving",
+                "detail": canonical.get("reason"),
+            }
+        )
 
     hard_missing = [c for c in checks if c["status"] in ("missing", "empty")]
     status = "ready" if not hard_missing else "degraded"
@@ -188,6 +204,7 @@ def readiness() -> dict:
         "row_counts": row_counts,
         "dictionaries": dict_ok,
         "database": database,
+        "canonical": canonical,
         "model": model_status,
         "checks": checks,
     }

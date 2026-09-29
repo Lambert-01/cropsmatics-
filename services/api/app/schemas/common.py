@@ -33,6 +33,10 @@ class ReadinessOut(BaseModel):
     row_counts: dict[str, int | None] = Field(default_factory=dict)
     dictionaries: bool = False
     database: str = "optional/unavailable"
+    # Whether the canonical PostgreSQL tables are serving data, and why not when
+    # they are not. Distinct from `database`: a reachable database whose
+    # canonical schema has not been migrated is not serving canonical reads.
+    canonical: dict = Field(default_factory=dict)
     model: str = "unavailable"
     checks: list[dict] = Field(default_factory=list)
 

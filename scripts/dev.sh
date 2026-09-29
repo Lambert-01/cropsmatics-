@@ -182,13 +182,16 @@ cmd_migrate() {
 cmd_load() {
   need_env_file
   need_venv
-  info "loading processed CSVs into PostgreSQL"
-  if [ ! -f "$ROOT/data/processed/district_crop_productivity.csv" ]; then
+  # The canonical panel, not the legacy single-release table, decides whether the
+  # pipeline has been run: it is what the loader actually reads.
+  info "loading processed CSVs into the canonical PostgreSQL tables"
+  if [ ! -f "$ROOT/data/processed/crop_productivity.csv" ]; then
     warn "processed data missing — running the pipeline first"
     "$VENV_PY" "$ROOT/scripts/data/run_all.py"
   fi
-  "$VENV_PY" "$ROOT/scripts/data/load_database.py"
-  ok "analytical tables loaded"
+  # Any extra arguments reach the loader, so `scripts/dev.sh load --dry-run` works.
+  "$VENV_PY" "$ROOT/scripts/data/load_postgres.py" "$@"
+  ok "canonical tables loaded"
 }
 
 cmd_api() {

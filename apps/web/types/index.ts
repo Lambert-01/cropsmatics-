@@ -925,6 +925,35 @@ export interface DatasetResponse {
   limit: number;
 }
 
+/**
+ * One entry of the backend report catalogue (`/reports/catalog`).
+ *
+ * The Reports workspace renders this rather than a hard-coded list, so a report
+ * cannot appear in the interface after it was removed on the server — or go
+ * missing from it after being added.
+ */
+export interface ReportCatalogEntry {
+  key: string;
+  title: string;
+  description: string;
+  group: string;
+  /** Full API path, e.g. `/reports/crop-productivity.csv`. */
+  endpoint: string;
+  filename: string;
+  formats: string[];
+  /** Which shared filters the report actually honours. Empty means none. */
+  scope: string[];
+  /** What the report covers, and what it deliberately does not. */
+  coverage_note: string;
+}
+
+export interface DistrictSummaryResponse {
+  district: string;
+  period_code?: string | null;
+  crops: Record<string, string | number | null>[];
+  provenance: Provenance;
+}
+
 export interface AllocationRequest {
   sources: { id: string; quantity_kg: number; crop: string }[];
   facilities: {

@@ -87,8 +87,12 @@ db-init: ## Create the database schema from models (dev convenience)
 	cd $(API_DIR) && .venv/bin/python -m app.db.init_db
 
 .PHONY: load
-load: ## Load processed CSVs into PostgreSQL
+load: ## Load processed CSVs into the canonical PostgreSQL tables
 	bash scripts/dev.sh load
+
+.PHONY: load-dry
+load-dry: ## Report exactly what a canonical load would change (writes nothing)
+	bash scripts/dev.sh load --dry-run
 
 # ---------- quality ----------
 .PHONY: lint

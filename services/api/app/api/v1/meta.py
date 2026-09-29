@@ -13,10 +13,28 @@ from app.schemas.dashboard import (
     SourceItem,
     SourcesResponse,
 )
+from app.schemas.data_status import IndicatorItem, IndicatorsResponse
 from app.schemas.periods import PeriodsResponse
-from app.services import analytics_service, meta_service, period_service
+from app.services import analytics_service, data_status_service, meta_service, period_service
 
 router = APIRouter(prefix="/meta", tags=["system"])
+
+
+@router.get("/indicators", response_model=IndicatorsResponse)
+def indicators() -> IndicatorsResponse:
+    """The machine-readable data dictionary.
+
+    Every indicator the platform can serve, with its unit, domain, the
+    geographic levels it is genuinely published at, and whether it carries a
+    crop dimension. Clients read this instead of hard-coding indicator names.
+    """
+    payload = data_status_service.indicators()
+    return IndicatorsResponse(
+        indicators=[IndicatorItem(**item) for item in payload["indicators"]],
+        source=payload["source"],
+        generated_at=payload["generated_at"],
+        count=payload["count"],
+    )
 
 
 @router.get("/data-coverage", response_model=CoverageResponse)

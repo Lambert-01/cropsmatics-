@@ -13,7 +13,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import type { PriorityRow } from "@/types";
 
 const SERIES = [
@@ -32,6 +32,7 @@ const SERIES = [
  * named underneath instead.
  */
 export function ScoreComponentChart({ rows }: { rows: PriorityRow[] }) {
+  const motion = useChartMotion();
   const data = rows.slice(0, 10).map((r) => ({
     name: `${r.district}`,
     crop: r.crop,
@@ -65,7 +66,7 @@ export function ScoreComponentChart({ rows }: { rows: PriorityRow[] }) {
               <Tooltip {...TOOLTIP_STYLE} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {active.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="a" fill={s.color} />
+                <Bar {...motion} key={s.key} dataKey={s.key} name={s.label} stackId="a" fill={s.color} />
               ))}
             </BarChart>
           </ResponsiveContainer>

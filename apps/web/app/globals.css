@@ -146,3 +146,46 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: -2px;
 }
+
+/* ---------------------------------------------------------------------------
+   Local preferences — components/providers/PreferencesProvider.tsx
+   Driven by a data attribute on <html> so a preference reaches every table and
+   transition without each component subscribing to context.
+   --------------------------------------------------------------------------- */
+
+/* Reduced motion. Also honours the OS-level setting, so a user who has already
+   asked the platform for less motion is not asked again. This covers CSS motion
+   only; chart entry animations are SVG/JS-driven and are handled by
+   `useChartMotion()` in features/dashboard/chartTheme.ts. */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html * ,
+  html *::before,
+  html *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Compact tables: tighter row padding so more of a ranking fits on one screen.
+   Applies to both table systems in the codebase rather than only one. */
+html[data-compact-tables="true"] .table-base thead th,
+html[data-compact-tables="true"] .responsive-table .rt-th {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+html[data-compact-tables="true"] .table-base tbody td,
+html[data-compact-tables="true"] .responsive-table .rt-td {
+  padding-top: 0.25rem;
+  padding-bottom: 0.3rem;
+}

@@ -13,7 +13,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { fmtNumber } from "@/lib/format";
 import type { PostHarvestCrop } from "@/types";
 
@@ -24,6 +24,8 @@ export function LossByCropChart({
   crops: PostHarvestCrop[];
   isLoading?: boolean;
 }) {
+  const motion = useChartMotion();
+
   if (isLoading) return <ChartSkeleton height={340} />;
 
   const data = crops
@@ -56,7 +58,7 @@ export function LossByCropChart({
                 {...TOOLTIP_STYLE}
                 formatter={(value) => [`${fmtNumber(Number(value), 2)}%`, "loss share"]}
               />
-              <Bar dataKey="loss" radius={[0, 4, 4, 0]}>
+              <Bar {...motion} dataKey="loss" radius={[0, 4, 4, 0]}>
                 {data.map((d) => (
                   <Cell
                     key={d.crop}
