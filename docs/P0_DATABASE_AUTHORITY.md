@@ -217,3 +217,30 @@ is now shown read-only. Global search **navigates** instead of mutating hidden
 state: a crop opens `/productivity?crop=…`, a district opens `/maps?district=…`,
 and a dataset opens `/data-explorer?dataset=…` (the Data Explorer now honours that
 parameter).
+
+### Web: Yield Intelligence workspaces
+
+Yield Intelligence was one long scroll of eight stacked analyses; reaching the
+last one meant scrolling past the other seven. It is now eight focused
+workspaces — Overview, Trends, Spatial, Gaps, Drivers, Scenarios, AI Analyst and
+Methodology — selected in the URL (`?workspace=`) so a link reopens the same one.
+
+- **Every workspace renders real analysis.** No placeholder tabs were added, and
+  the crop-required state is shown instead of the tab strip, so a reader is never
+  offered a workspace that cannot deliver.
+- Two items the brief lists are deliberately **absent because the data does not
+exist yet** — a map `change` layer and an indexed trend. The map offers the six
+  metrics the API actually computes (yield, gap, priority, input adoption,
+  irrigation, erosion protection); inventing the others would be the
+  invented-precision failure this platform avoids everywhere else.
+- **Overview** is capped at the four crop-specific KPIs plus a same-season change
+  stated in full, the below/at-benchmark split and the two districts to look at
+  first. The compact same-season card *is* its trend statement; a second chart
+  would only duplicate the Trends workspace.
+- **Spatial** adds a district drawer: selecting a district on the map or in the
+  ranking scopes the page to it and opens its published yield, benchmark, gap,
+  production and area, with a prompt for the AI Analyst. Same-season change and
+  the period list appear only once that district is the active selection, and are
+  never substituted from another district.
+- **Drivers** states `ASSOCIATION IS NOT CAUSATION` and names the reference
+  release the practice survey actually comes from.

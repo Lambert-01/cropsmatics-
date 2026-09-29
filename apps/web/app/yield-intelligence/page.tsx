@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, Minus, Sprout } from "lucide-react";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
@@ -15,17 +15,18 @@ import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTab
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import { AIExplainPanel } from "@/features/yield-intelligence/AIExplainPanel";
+import { DistrictYieldDrawer } from "@/features/yield-intelligence/DistrictYieldDrawer";
 import { SimulationLab } from "@/features/yield-intelligence/SimulationLab";
-import {
-  YieldGapDistribution,
-} from "@/features/yield-intelligence/YieldGapDistribution";
+import { YieldGapDistribution } from "@/features/yield-intelligence/YieldGapDistribution";
 import {
   YieldOverTimeChart,
   type YieldTrendMode,
 } from "@/features/yield-intelligence/YieldOverTimeChart";
+import { YieldOverview } from "@/features/yield-intelligence/YieldOverview";
 import type { MapMetricId } from "@/lib/constants";
+import { periodLabel } from "@/lib/format";
+import { YIELD_WORKSPACES, resolveWorkspace } from "@/lib/yield-workspaces";
 import { splitPeriod } from "@/lib/filters";
-import { periodLabel, fmtNumber } from "@/lib/format";
 import {
   useFactors,
   useMapMetrics,
@@ -35,43 +36,67 @@ import {
 import { useFilters } from "@/services/hooks/useFilters";
 
 /**
- * Yield Intelligence.
+ * Yield Intelligence, organised as focused workspaces.
+ *
+ * This was previously one long scroll of eight stacked analyses. Each workspace
+ * below now holds one question, and the selection lives in the URL so a link
+ * opens the same workspace it was copied from.
  *
  * Headline set is declared here rather than inherited from response order: at
  * most four cards, all crop-specific and all for the selected period.
  */
 const YIELD_KPI_IDS = ["mean_yield", "benchmark_yield", "gap_shortfall", "yoy_yield"];
 
-/**
- * Analytical workspaces.
- *
- * ``explorer`` is the existing evidence view; ``simulation`` is the Scenario Lab.
- * The wider OVERVIEW/TRENDS/SPATIAL/GAPS/DRIVERS split is a later step — these
- * two are the ones that are fully implemented today, so no tab is offered that
- * cannot deliver.
- */
-const YIELD_TABS = [
-  { id: "explorer", label: "Evidence explorer" },
-  { id: "simulation", label: "Scenario Lab" },
-];
-
 export default function YieldIntelligencePage() {
-  const { filters } = useFilters();
+  const { filters, setFilters } = useFilters();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const workspace = resolveWorkspace(searchParams.get("workspace"));
   const [trendMode, setTrendMode] = useState<YieldTrendMode>("same_season");
   const [mapMetric, setMapMetric] = useState<MapMetricId>("yield");
-  const [tab, setTab] = useState<string>("explorer");
+  const [drawerDistrict, setDrawerDistrict] = useState<string | null>(null);
 
   const crop = filters.crop;
   const periodCode = filters.period;
   const { season } = splitPeriod(periodCode);
 
+  // Hooks run unconditionally; the `enabled` flags keep an unselected crop from
+  // firing four requests that can only come back empty.
   const productivity = useProductivity(filters, Boolean(crop));
   const trend = useProductivityTrend(crop, filters.district, undefined, Boolean(crop));
   const mapMetrics = useMapMetrics(filters, mapMetric, Boolean(crop));
   const factors = useFactors(filters, Boolean(crop));
 
-  const yoy = productivity.data?.yoy;
-  const periodText = periodCode ? periodLabel(periodCode) : (productivity.data?.period ?? null);
+  const periodText = useMemo(
+    () => (periodCode ? periodLabel(periodCode) : (productivity.data?.period ?? null)),
+    [periodCode, productivity.data?.period],
+  );
+
+  const rows = productivity.data?.rows ?? [];
+  // At most 30 districts; a plain lookup is cheaper than memoising the frame.
+  const selectedRow = rows.find((row) => String(row.district) === drawerDistrict);
+  // Same-season change and the period list belong to the active selection, so
+  // they are shown only once the clicked district is the one being queried.
+  const drawerHasSelection = drawerDistrict !== null && drawerDistrict === filters.district;
+
+  function setWorkspace(id: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("workspace", id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  /**
+   * Opening a district scopes the page to it *and* opens its detail.
+   *
+   * Both, rather than only the drawer: the drill-down the reader asked for is the
+   * district, so the trend and same-season figures behind it should follow.
+   */
+  function openDistrict(district: string) {
+    setDrawerDistrict(district);
+    setFilters({ district });
+  }
 
   return (
     <div className="space-y-5">
@@ -82,13 +107,6 @@ export default function YieldIntelligencePage() {
 
       <AnalyticsFilterBar />
 
-      <Tabs
-        items={YIELD_TABS}
-        active={tab}
-        onChange={setTab}
-        ariaLabel="Yield Intelligence workspaces"
-      />
-
       {!crop ? (
         <Card>
           <EmptyState
@@ -96,218 +114,165 @@ export default function YieldIntelligencePage() {
             hint="Yield is only comparable within a crop — maize, beans and potato kg/ha sit on different natural scales. Pick a crop above and this page fills with its observed yield, benchmark, gap and same-season change."
           />
         </Card>
-      ) : null}
-
-      {crop && productivity.error ? (
-        <ErrorState
-          message={(productivity.error as Error).message}
-          onRetry={() => productivity.refetch()}
-        />
-      ) : null}
-
-      {crop && productivity.isLoading ? <KpiRowSkeleton count={4} /> : null}
-
-      {crop && productivity.data ? (
+      ) : (
         <>
-          {/* Four headline cards: observed yield, benchmark, typical gap, YoY change. */}
-          <DashboardKpis kpis={productivity.data.kpis} primaryIds={YIELD_KPI_IDS} />
-
-          {/* Same-season change, stated in full rather than as a bare percentage. */}
-          <YoYInsight
-            crop={crop}
-            district={filters.district}
-            yoy={yoy}
-            periodText={periodText}
+          <Tabs
+            items={YIELD_WORKSPACES.map((item) => ({ id: item.id, label: item.label }))}
+            active={workspace}
+            onChange={setWorkspace}
+            ariaLabel="Yield Intelligence workspaces"
           />
-        </>
-      ) : null}
 
-      {tab === "explorer" ? (
-        <>
-      {/* SECTION 1 — yield over time */}
-      {crop ? (
-        <YieldOverTimeChart
-          data={trend.data}
-          isLoading={trend.isLoading}
-          crop={crop}
-          district={filters.district}
-          season={season}
-          mode={trendMode}
-          onModeChange={setTrendMode}
-        />
-      ) : null}
+          <p className="px-1 text-xs text-slate-500">
+            {YIELD_WORKSPACES.find((item) => item.id === workspace)?.description}
+          </p>
 
-      {/* SECTION 2 — district yield map (crop is required by the API) */}
-      {crop ? (
-        <RwandaDistrictMap
-          data={mapMetrics.data}
-          metric={mapMetric}
-          onMetricChange={setMapMetric}
-          selectedDistrict={filters.district}
-          height={520}
-          title={`District ${mapMetric === "yield" ? "yield" : "gap"} — ${crop}`}
-        />
-      ) : null}
+          {productivity.error ? (
+            <ErrorState
+              message={(productivity.error as Error).message}
+              onRetry={() => productivity.refetch()}
+            />
+          ) : null}
 
-      {/* SECTION 3 — district ranking */}
-      {crop ? <DistrictRankingTable rows={productivity.data?.rows ?? []} /> : null}
+          {productivity.isLoading ? <KpiRowSkeleton count={4} /> : null}
 
-      {/* SECTION 4 — yield gap distribution */}
-      {crop ? (
-        <YieldGapDistribution
-          bands={productivity.data?.gap_bands ?? []}
-          isLoading={productivity.isLoading}
-          crop={crop}
-        />
-      ) : null}
+          {productivity.data ? (
+            <DashboardKpis
+              kpis={productivity.data.kpis}
+              primaryIds={YIELD_KPI_IDS}
+            />
+          ) : null}
 
-      {/* SECTION 5 — associated practices, with the release difference stated */}
-      {crop ? (
-        <div className="grid gap-5 xl:grid-cols-[3fr_2fr]">
-          <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} crop={crop} />
-          <PracticesContext
-            note={factors.data?.note}
-            periodText={periodText}
-            provenancePeriod={factors.data?.provenance.reference_period ?? "2025B"}
-          />
-        </div>
-      ) : null}
+          {workspace === "overview" ? (
+            <YieldOverview
+              crop={crop}
+              district={filters.district}
+              rows={rows}
+              yoy={productivity.data?.yoy}
+              periodText={periodText}
+              isLoading={productivity.isLoading}
+              onSelectDistrict={openDistrict}
+            />
+          ) : null}
 
-      {/* SECTION 6 — model performance, observed vs modelled kept separate */}
-      <div className="grid gap-5 xl:grid-cols-2">
-        <ModelPerformancePanel />
-        <ObservedVsModelled />
-      </div>
+          {workspace === "trends" ? (
+            <YieldOverTimeChart
+              data={trend.data}
+              isLoading={trend.isLoading}
+              crop={crop}
+              district={filters.district}
+              season={season}
+              mode={trendMode}
+              onModeChange={setTrendMode}
+            />
+          ) : null}
 
-      {/* SECTION 7 — contextual grounded explanation */}
-      <AIExplainPanel
-        context={{
-          page: "yield-intelligence",
-          metric: mapMetric,
-          period_code: periodCode,
-          crop,
-          district: filters.district,
-          province: filters.province,
-          benchmark_strategy: filters.benchmark,
-        }}
-        prompts={
-          crop
-            ? [
-                `Explain the ${crop} yield pattern${filters.district ? ` in ${filters.district}` : ""}`,
+          {workspace === "spatial" ? (
+            <div className="space-y-5">
+              <RwandaDistrictMap
+                data={mapMetrics.data}
+                metric={mapMetric}
+                onMetricChange={setMapMetric}
+                onSelectDistrict={openDistrict}
+                selectedDistrict={filters.district}
+                height={520}
+                title={`District ${mapMetric} — ${crop}`}
+              />
+              <DistrictRankingTable rows={rows} onSelectDistrict={openDistrict} />
+              <p className="px-1 text-xs text-slate-500">
+                Click a district on the map or in the ranking to open its published detail.
+              </p>
+            </div>
+          ) : null}
+
+          {workspace === "gaps" ? (
+            <div className="space-y-5">
+              <YieldGapDistribution
+                bands={productivity.data?.gap_bands ?? []}
+                isLoading={productivity.isLoading}
+                crop={crop}
+              />
+              <DistrictRankingTable rows={rows} onSelectDistrict={openDistrict} />
+              <Card className="p-4 text-xs text-slate-600">
+                A gap here is measured against each district&apos;s own benchmark for this crop and
+                period. Persistence is only claimed when several comparable same-season observations
+                agree; a single release never establishes it, and no cause is attributed to a gap.
+              </Card>
+            </div>
+          ) : null}
+
+          {workspace === "drivers" ? (
+            <div className="grid gap-5 xl:grid-cols-[3fr_2fr]">
+              <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} crop={crop} />
+              <PracticesContext
+                note={factors.data?.note}
+                periodText={periodText}
+                provenancePeriod={factors.data?.provenance.reference_period ?? "2025B"}
+              />
+            </div>
+          ) : null}
+
+          {workspace === "scenarios" ? (
+            <SimulationLab
+              crop={crop}
+              periodCode={periodCode}
+              province={filters.province}
+              district={filters.district}
+              benchmark={filters.benchmark}
+            />
+          ) : null}
+
+          {workspace === "ai" ? (
+            <AIExplainPanel
+              context={{
+                page: "yield-intelligence",
+                metric: mapMetric,
+                period_code: periodCode,
+                crop,
+                district: filters.district,
+                province: filters.province,
+                benchmark_strategy: filters.benchmark,
+              }}
+              prompts={[
+                filters.district
+                  ? `Explain ${filters.district} ${crop} yield`
+                  : `Explain the ${crop} yield pattern`,
                 "Which districts are furthest below the benchmark?",
                 "What data are missing for this selection?",
-              ]
-            : [
-                "What data are missing for this selection?",
-                "Which crops have published yield data?",
-                "What should I investigate next?",
-              ]
-        }
-      />
+              ]}
+            />
+          ) : null}
 
-      {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
+          {workspace === "methodology" ? (
+            <div className="space-y-5">
+              <div className="grid gap-5 xl:grid-cols-2">
+                <ModelPerformancePanel />
+                <ObservedVsModelled />
+              </div>
+              {productivity.data ? (
+                <ProvenanceCard provenance={productivity.data.provenance} />
+              ) : null}
+            </div>
+          ) : null}
+
+          {drawerDistrict ? (
+            <DistrictYieldDrawer
+              district={drawerDistrict}
+              crop={crop}
+              periodText={periodText}
+              row={selectedRow}
+              yoy={drawerHasSelection ? productivity.data?.yoy : null}
+              trend={drawerHasSelection ? trend.data?.points : undefined}
+              onClose={() => setDrawerDistrict(null)}
+              onAskAi={() => {
+                setDrawerDistrict(null);
+                setWorkspace("ai");
+              }}
+            />
+          ) : null}
         </>
-      ) : null}
-
-      {/* SECTION 8 — Scenario Lab (analytical scenario, never a prediction) */}
-      {tab === "simulation" && crop ? (
-        <SimulationLab
-          crop={crop}
-          periodCode={periodCode}
-          province={filters.province}
-          district={filters.district}
-          benchmark={filters.benchmark}
-        />
-      ) : null}
-
-      {tab === "simulation" && !crop ? (
-        <Card>
-          <EmptyState
-            title="Select a crop to open the Scenario Lab."
-            hint="A scenario ranks districts within a crop, and yields are only comparable within a crop, so a crop has to be selected first."
-          />
-        </Card>
-      ) : null}
+      )}
     </div>
-  );
-}
-
-/** The same-season change, written out with both periods and both values. */
-function YoYInsight({
-  crop,
-  district,
-  yoy,
-  periodText,
-}: {
-  crop: string;
-  district?: string;
-  yoy?: {
-    available: boolean;
-    reason?: string | null;
-    previous_period_label?: string | null;
-    current_yield_kg_ha?: number | null;
-    previous_yield_kg_ha?: number | null;
-    change_pct?: number | null;
-  } | null;
-  periodText?: string | null;
-}) {
-  const scope = district ? `in ${district}` : "across all districts";
-
-  if (!yoy) {
-    return (
-      <Card className="flex items-start gap-2 p-4 text-xs text-slate-500">
-        <Sprout className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        <span>
-          A same-season comparison needs a published period. Choose a period above to compare{" "}
-          {crop} yield with the same season one year earlier.
-        </span>
-      </Card>
-    );
-  }
-
-  if (!yoy.available) {
-    return (
-      <Card className="flex items-start gap-2 p-4 text-xs text-slate-500">
-        <Minus className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden="true" />
-        <span>
-          No same-season comparison is available for {crop} {scope}.{" "}
-          {yoy.reason ?? "The previous year has no published release for this selection."}
-        </span>
-      </Card>
-    );
-  }
-
-  const up = (yoy.change_pct ?? 0) > 0;
-  const flat = (yoy.change_pct ?? 0) === 0;
-  const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
-
-  return (
-    <Card className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
-      <span
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-          flat
-            ? "bg-slate-100 text-slate-600"
-            : up
-              ? "bg-success/10 text-success"
-              : "bg-danger/10 text-danger"
-        }`}
-      >
-        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-        {flat ? "unchanged" : `${up ? "+" : ""}${fmtNumber(yoy.change_pct ?? null, 1)}%`}
-      </span>
-      <p className="text-xs text-slate-600">
-        {crop} mean observed yield {scope} was{" "}
-        <strong className="text-forest-deep">
-          {fmtNumber(yoy.current_yield_kg_ha ?? null, 0)} kg/ha
-        </strong>{" "}
-        in {periodText ?? "the selected period"}, versus{" "}
-        <strong className="text-forest-deep">
-          {fmtNumber(yoy.previous_yield_kg_ha ?? null, 0)} kg/ha
-        </strong>{" "}
-        in {yoy.previous_period_label ?? "the previous year"}. Same season, one year apart — seasons
-        differ agronomically, so consecutive seasons are not a time series.
-      </p>
-    </Card>
   );
 }
 
@@ -322,7 +287,9 @@ function PracticesContext({
   provenancePeriod?: string | null;
 }) {
   const release = periodLabel(provenancePeriod ?? "2025B");
-  const differs = Boolean(provenancePeriod && periodText && periodLabel(provenancePeriod) !== periodText);
+  const differs = Boolean(
+    provenancePeriod && periodText && periodLabel(provenancePeriod) !== periodText,
+  );
 
   return (
     <Card className="h-fit">
@@ -345,9 +312,12 @@ function PracticesContext({
           </p>
         )}
         {note ? <p className="text-amber-700">{note}</p> : null}
+        <p className="rounded-lg border border-danger/25 bg-danger/[0.05] p-3 font-semibold text-danger">
+          ASSOCIATION IS NOT CAUSATION
+        </p>
         <p className="text-slate-500">
-          Association is not causation: these are district-level correlations between reported
-          adoption and observed yield, and confounding between practices is expected.
+          These are district-level correlations between reported adoption and observed yield, and
+          confounding between practices is expected.
         </p>
       </div>
       <SourceNote>
