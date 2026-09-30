@@ -60,9 +60,16 @@ jobs:
     # integration suite is pointed at this throwaway container explicitly, so the
     # migrations, loader, idempotency, parity and inquiry storage are proven in CI
     # instead of being skipped by default.
+    #
+    # The image MUST ship PostGIS. The initial Alembic revision runs
+    # `CREATE EXTENSION IF NOT EXISTS postgis` and declares geometry columns, so the
+    # official `postgres:16` image fails `alembic upgrade head` with
+    # `FeatureNotSupported: extension "postgis" is not available` and every test in
+    # the canonical suite errors. This mirrors `docker-compose.yml`, which has always
+    # used the PostGIS image, and production (Neon/Supabase are PostGIS-enabled).
     services:
       postgres:
-        image: postgres:16
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: cropmatics
           POSTGRES_PASSWORD: cropmatics

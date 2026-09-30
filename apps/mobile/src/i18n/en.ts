@@ -124,6 +124,31 @@ export const en = {
   askNotGrounded: "Cropmatics does not currently have verified data to answer this question.",
   askNoHistory: "No questions yet.",
   askDeleteHistory: "Delete History",
+  // Transport/answer states. A failed request is not an answer, so these are
+  // never rendered as if the question had been judged unsupported.
+  askErrorOfflineTitle: "No internet connection",
+  askErrorOfflineMessage: "Reconnect and try again.",
+  askErrorTimeoutTitle: "Request timed out",
+  askErrorTimeoutMessage: "Cropmatics is taking longer than expected. Try again.",
+  askErrorServerTitle: "Service unavailable",
+  askErrorServerMessage:
+    "Cropmatics services are temporarily unavailable. Your question was not interpreted as unsupported.",
+  askErrorValidationTitle: "Question not accepted",
+  askErrorValidationMessage: "Please refine your question.",
+  askErrorUnsupportedTitle: "No verified evidence",
+  askErrorUnsupportedMessage: "Cropmatics does not have verified evidence for that question.",
+  askErrorNotFoundTitle: "No data for this selection",
+  askErrorNotFoundMessage: "No verified observation is available for this selection.",
+  askErrorUnknownTitle: "Something went wrong",
+  askErrorUnknownMessage: "Something went wrong. Try again.",
+  // Client-side progress cue while one request is in flight. These describe the
+  // stage the product is working through; they never claim a tool finished.
+  askProgressUnderstanding: "Understanding your question…",
+  askProgressCheckingData: "Checking available Cropmatics data…",
+  askProgressResolving: "Resolving crop and district…",
+  askProgressComparingPeriods: "Comparing published periods…",
+  askProgressReviewingEvidence: "Reviewing verified evidence…",
+  askProgressPreparing: "Preparing explanation…",
 
   // ---- Saved ---------------------------------------------------------------
   savedTitle: "Saved Items",

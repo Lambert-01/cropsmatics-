@@ -1,1 +1,6 @@
-<resources/>
+<resources>
+  <!-- The app pins a light UI (app.json userInterfaceStyle: light), so the
+       launch window stays the same neutral surface in night mode rather than
+       reverting to a dark system-derived colour. -->
+  <color name="splashscreen_background">#F7FAF8</color>
+</resources>

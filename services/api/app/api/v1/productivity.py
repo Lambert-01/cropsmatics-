@@ -1,8 +1,14 @@
 """Period-aware productivity endpoints.
 
-These read the canonical multi-period panel (``crop_productivity.csv``), which
-carries district area/harvest/production/yield for every published period
-(2024A-2026B). They are the period-first counterpart to ``/analytics/productivity``
+These read the canonical multi-period panel, which carries district
+area/harvest/production/yield for every published period (2024A-2026B). The panel
+is served by the canonical PostgreSQL repository whenever ``CANONICAL_DATA_MODE``
+is ``required`` or ``preferred``, and from the processed ``crop_productivity.csv``
+artefact otherwise; the dispatch lives in
+``app/repositories/dataset_repository.py`` and is described in
+``docs/P0_DATABASE_AUTHORITY.md``.
+
+They are the period-first counterpart to ``/analytics/productivity``
 (kept unchanged for existing clients) and are the endpoints a client should use
 when it wants a specific season.
 

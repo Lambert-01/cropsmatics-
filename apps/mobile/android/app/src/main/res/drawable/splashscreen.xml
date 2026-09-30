@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Native launch window.
+
+  A flat brand-coloured background used to be shown here, which read as a dark
+  green flash before the first React Native frame. The background now matches
+  expo.splash.backgroundColor in app.json (the app's neutral surface) and carries
+  the Cropmatics mark small and centred.
+
+  splashscreen_logo.png lives in drawable-nodpi so Android draws it at its
+  intrinsic 320 px instead of scaling it to the density bucket, which keeps the
+  mark a sane size on every screen without upscaling.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
   <item android:drawable="@color/splashscreen_background"/>
+  <item>
+    <bitmap
+      android:src="@drawable/splashscreen_logo"
+      android:gravity="center"/>
+  </item>
 </layer-list>

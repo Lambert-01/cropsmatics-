@@ -1,4 +1,12 @@
 <resources>
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#ffffff</color>
+  <!--
+    Startup window background. Defined here so the native launch window matches
+    expo.splash.backgroundColor in app.json (#F7FAF8, the app's neutral surface)
+    instead of falling back to the expo-splash-screen library default. The app
+    shell is light, so a dark window background flashed dark green before the
+    first frame.
+  -->
+  <color name="splashscreen_background">#F7FAF8</color>
 </resources>

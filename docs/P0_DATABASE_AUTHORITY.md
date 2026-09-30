@@ -84,7 +84,7 @@ against an unmigrated or unloaded database.
 
 ## 5. CI
 
-The `api` job runs a real `postgres:16` service container and sets
+The `api` job runs a real `postgis/postgis:16-3.4` service container and sets
 `CANONICAL_TEST_DATABASE_URL`. The canonical integration suite (`test_canonical_integration.py`)
 therefore *runs* in CI instead of skipping, proving:
 
@@ -99,6 +99,14 @@ therefore *runs* in CI instead of skipping, proving:
 A latent defect was fixed to enable this: `alembic/env.py` used to overwrite a
 programmatically supplied URL with `DATABASE_URL`, which would have sent CI
 migrations at the wrong database.
+
+The service container **must** be a PostGIS image, not the plain `postgres:16`
+image. The initial revision runs `CREATE EXTENSION IF NOT EXISTS postgis` and
+declares `geometry` columns, so `alembic upgrade head` fails on the official
+image with `FeatureNotSupported: extension "postgis" is not available` and every
+test in the suite errors before it runs. This matches `docker-compose.yml`, which
+has always used the PostGIS image, and production, where Neon/Supabase are
+PostGIS-enabled.
 
 ## 6. Inquiry storage
 

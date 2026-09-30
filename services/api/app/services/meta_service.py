@@ -123,11 +123,13 @@ def sources() -> list[dict]:
 def database_status() -> tuple[str, dict]:
     """Report DB connectivity and whether the canonical layer is serving data.
 
-    The public analytical endpoints still read processed CSVs today, so the
-    service stays usable without a database and a missing database is reported as
-    ``optional/unavailable`` rather than as a failure. The canonical availability
-    is reported separately because it is the difference between an environment
-    where ``/data/version`` is authoritative and one where it is a fallback.
+    Analytical reads are dispatched by ``CANONICAL_DATA_MODE`` (see
+    ``dataset_repository``), so a missing database is reported as
+    ``optional/unavailable`` rather than as a failure: in ``preferred``/``file``
+    mode the processed artefacts answer the request instead. The canonical
+    availability is reported separately because it is the difference between an
+    environment where the database is the authority and one where the files are a
+    fallback.
     """
     try:
         from app.repositories import canonical_repository

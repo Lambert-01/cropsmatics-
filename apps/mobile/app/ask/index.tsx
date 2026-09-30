@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,14 +31,48 @@ import { askApi } from "../../src/services/api";
 import type { AskAnswer } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
 import { colors, radius, spacing, typography } from "../../src/theme";
+import { askProgressStages, describeAskFailure, type AskFailure, type AskFailureKind } from "../../src/utils/askFailure";
 import { slugifyEntity } from "../../src/utils/slug";
 
+/**
+ * One question and its outcome.
+ *
+ * `answer` and `failure` are mutually exclusive: a turn either produced an
+ * answer, or it did not and carries the typed reason why. Keeping them separate
+ * is what stops a lost connection from being displayed as "no verified
+ * evidence".
+ */
 interface Turn {
   id: string;
   question: string;
   answer: AskAnswer | null;
-  pending?: boolean;
+  failure: AskFailure | null;
+  pending: boolean;
 }
+
+/** How often the in-flight progress cue moves to its next stage. */
+const PROGRESS_STAGE_MS = 1200;
+
+const FAILURE_ICONS: Record<AskFailureKind, keyof typeof Ionicons.glyphMap> = {
+  offline: "cloud-offline-outline",
+  timeout: "time-outline",
+  server: "server-outline",
+  validation: "create-outline",
+  unsupported: "help-circle-outline",
+  not_found: "search-outline",
+  unknown: "alert-circle-outline",
+};
+
+/** Transport and server problems are faults; "we have no evidence" is not. */
+const FAILURE_IS_FAULT: Record<AskFailureKind, boolean> = {
+  offline: true,
+  timeout: true,
+  server: true,
+  unknown: true,
+  validation: false,
+  unsupported: false,
+  not_found: false,
+};
 
 export default function AskScreen() {
   const router = useRouter();
@@ -49,22 +84,42 @@ export default function AskScreen() {
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState(0);
 
   const suggestions = useQuery({ queryKey: ["ask-suggestions"], queryFn: () => askApi.suggestions(6) });
+  const stages = askProgressStages(t);
 
-  const send = async (question: string) => {
-    const trimmed = question.trim();
-    if (!trimmed || loading) return;
-    const id = `${Date.now()}`;
-    setTurns((prev) => [...prev, { id, question: trimmed, answer: null, pending: true }]);
-    setInput("");
+  /**
+   * Advance the progress cue while a request is in flight.
+   *
+   * The endpoint is synchronous, so this is deliberately an indeterminate
+   * client-side cue: it stops at the last stage rather than completing, and the
+   * wording describes work in progress. It is never presented as backend
+   * telemetry or as model reasoning.
+   */
+  useEffect(() => {
+    if (!loading) return;
+    const stages = askProgressStages(t);
+    setStage(0);
+    const timer = setInterval(() => {
+      setStage((current) => Math.min(current + 1, stages.length - 1));
+    }, PROGRESS_STAGE_MS);
+    return () => clearInterval(timer);
+  }, [loading, t]);
+
+  const run = async (id: string, question: string) => {
     setLoading(true);
     try {
-      const answer = await askApi.query({ question: trimmed, language });
-      setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, answer, pending: false } : turn)));
+      const answer = await askApi.query({ question, language });
+      setTurns((prev) =>
+        prev.map((turn) => (turn.id === id ? { ...turn, answer, failure: null, pending: false } : turn)),
+      );
+      // Only answers become history. A transport failure is not a past answer,
+      // and recording one would both mislead the history screen and duplicate
+      // the entry when the retry succeeds.
       try {
         addAskHistory({
-          question: trimmed,
+          question,
           answer: answer.answer,
           grounded: answer.grounded,
           intent: answer.intent,
@@ -74,29 +129,10 @@ export default function AskScreen() {
       } catch {
         // history persistence is best-effort
       }
-    } catch {
+    } catch (error) {
+      const failure = describeAskFailure(error, t);
       setTurns((prev) =>
-        prev.map((turn) =>
-          turn.id === id
-            ? {
-                ...turn,
-                pending: false,
-                answer: {
-                  answer: t.askNotGrounded,
-                  grounded: false,
-                  intent: "unsupported",
-                  evidence: {},
-                  key_figures: [],
-                  language,
-                  translation_status: null,
-                  source: null,
-                  period: null,
-                  coverage: null,
-                  limitations: [],
-                },
-              }
-            : turn,
-        ),
+        prev.map((turn) => (turn.id === id ? { ...turn, answer: null, failure, pending: false } : turn)),
       );
     } finally {
       setLoading(false);
@@ -104,8 +140,26 @@ export default function AskScreen() {
     }
   };
 
+  const send = (question: string) => {
+    const trimmed = question.trim();
+    if (!trimmed || loading) return;
+    const id = `${Date.now()}`;
+    setTurns((prev) => [...prev, { id, question: trimmed, answer: null, failure: null, pending: true }]);
+    setInput("");
+    void run(id, trimmed);
+  };
+
+  /** Re-ask the same question in place, so no duplicate turn is created. */
+  const retry = (turn: Turn) => {
+    if (loading) return;
+    setTurns((prev) =>
+      prev.map((row) => (row.id === turn.id ? { ...row, answer: null, failure: null, pending: true } : row)),
+    );
+    void run(turn.id, turn.question);
+  };
+
   useEffect(() => {
-    if (params.q) void send(params.q as string);
+    if (params.q) send(params.q as string);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.q]);
 
@@ -143,7 +197,7 @@ export default function AskScreen() {
               <>
                 <Text style={typography.h3}>{t.askSuggestedQuestions}</Text>
                 {(suggestions.data?.questions ?? []).map((question) => (
-                  <Card key={question} onPress={() => void send(question)} accessibilityLabel={question}>
+                  <Card key={question} onPress={() => send(question)} accessibilityLabel={question}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
                       <Text style={{ ...typography.body, flex: 1 }}>{question}</Text>
                       <Ionicons name="arrow-forward" size={16} color={colors.primary} />
@@ -164,7 +218,38 @@ export default function AskScreen() {
               </View>
 
               {turn.pending ? (
-                <LoadingSkeleton height={70} />
+                <Card
+                  style={{ gap: spacing.sm }}
+                  accessibilityLabel={stages[Math.min(stage, stages.length - 1)]}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                    <ActivityIndicator color={colors.primary} />
+                    <Text style={{ ...typography.bodySmall, flex: 1 }}>{stages[Math.min(stage, stages.length - 1)]}</Text>
+                  </View>
+                  <LoadingSkeleton height={44} />
+                </Card>
+              ) : turn.failure ? (
+                <View
+                  accessibilityLiveRegion="polite"
+                  accessibilityLabel={`${turn.failure.title}. ${turn.failure.message}`}
+                >
+                  <Card style={styles.failureCard}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                      <Ionicons
+                        name={FAILURE_ICONS[turn.failure.kind]}
+                        size={18}
+                        color={FAILURE_IS_FAULT[turn.failure.kind] ? colors.danger : colors.amber}
+                      />
+                      <Text style={{ ...typography.h3, flex: 1 }}>{turn.failure.title}</Text>
+                    </View>
+                    <Text style={typography.caption}>{turn.failure.message}</Text>
+                    {turn.failure.retryable ? (
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+                        <SecondaryButton label={t.tryAgain} icon="refresh" onPress={() => retry(turn)} />
+                      </View>
+                    ) : null}
+                  </Card>
+                </View>
               ) : turn.answer ? (
                 <Card style={{ gap: spacing.sm }}>
                   <Text style={typography.body}>{turn.answer.answer}</Text>
@@ -252,7 +337,7 @@ export default function AskScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t.askSend}
-            onPress={() => void send(input)}
+            onPress={() => send(input)}
             disabled={loading || !input.trim()}
             style={[styles.send, (loading || !input.trim()) && { opacity: 0.5 }]}
           >
@@ -291,6 +376,7 @@ const styles = StyleSheet.create({
   figureRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   figureValue: { fontSize: 14, fontWeight: "700", color: colors.forestDeep },
   notGrounded: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
+  failureCard: { gap: spacing.sm, backgroundColor: colors.surface },
   composer: {
     flexDirection: "row",
     alignItems: "flex-end",
