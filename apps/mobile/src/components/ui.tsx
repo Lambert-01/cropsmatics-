@@ -277,6 +277,9 @@ export function FilterChip({
       accessibilityLabel={label}
       accessibilityState={{ selected: Boolean(selected) }}
       onPress={onPress}
+      // The chip stays visually compact for density; hitSlop brings the actual
+      // touch target up to the Android minimum without inflating the row.
+      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       style={[styles.chip, selected ? styles.chipSelected : null]}
     >
       <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{label}</Text>

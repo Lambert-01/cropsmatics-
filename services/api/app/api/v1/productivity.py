@@ -22,6 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.common import Provenance
+from app.schemas.dashboard import SameSeasonChange
 from app.schemas.periods import (
     PeriodProductivityResponse,
     PeriodTrendPoint,
@@ -130,6 +131,7 @@ def trend(
         unit=productivity_service.UNITS,
         points=[PeriodTrendPoint(**point) for point in result["points"]],
         available_periods=result["available_periods"],
+        change=SameSeasonChange(**result["change"]) if result.get("change") else None,
         provenance=Provenance(
             source_id=result["source_id"],
             source_period="2024A-2026B",

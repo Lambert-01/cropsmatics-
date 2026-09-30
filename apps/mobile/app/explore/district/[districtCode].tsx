@@ -1,45 +1,57 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { HorizontalBarChart } from "../../../src/components/charts";
-import { ScreenLayout } from "../../../src/components/ScreenLayout";
+import { HorizontalBarChart, TimeSeriesChart } from "../../../src/components/charts";
 import {
-  Badge,
-  Card,
-  EmptyState,
-  ErrorState,
-  FilterChip,
-  InfoRow,
-  LoadingSkeleton,
-  SectionHeader,
-  SourceCard,
-} from "../../../src/components/ui";
-import { districtsApi } from "../../../src/services/api";
-import type { MetricValue } from "../../../src/services/api/districts";
+  ChangeIndicator,
+  CoverageBadge,
+  DataSection,
+  DataWarning,
+  MetricReadout,
+  PeriodSelector,
+  SourceMethodSheet,
+} from "../../../src/components/data-view";
+import { ScreenLayout } from "../../../src/components/ScreenLayout";
+import { EmptyState, ErrorState, FilterChip, LoadingSkeleton } from "../../../src/components/ui";
+import { PANEL_UNITS } from "../../../src/constants/metrics";
 import { getSavedItem, removeSavedItem, saveItem } from "../../../src/database";
+import { usePeriods } from "../../../src/hooks/queries";
 import { strings } from "../../../src/i18n";
+import { analyticsApi, districtsApi, mapsApi } from "../../../src/services/api";
+import type { MetricValue } from "../../../src/services/api/districts";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../../src/theme";
+import { chart, colors, radius, spacing, typography } from "../../../src/theme";
+import { changeFromApi, fromPeriodCoded, toSeriesPoints } from "../../../src/utils/analytics";
+import { periodsCarryingLayer } from "../../../src/utils/coverage";
 
-type Tab = "overview" | "crops" | "inputs" | "land";
-type Metric = "production_mt" | "harvested_area_ha";
+type Tab = "production" | "inputs" | "land";
 
-function percentRows(items: MetricValue[]) {
-  return items
-    .filter((m) => m.value != null)
-    .map((m) => ({ label: m.label, value: m.value as number }));
+interface PanelRow {
+  canonical_crop_name?: string | null;
+  crop_code?: string | null;
+  district?: string | null;
+  district_code?: string | null;
+  cultivated_area_ha?: number | null;
+  harvested_area_ha?: number | null;
+  production_mt?: number | null;
+  yield_kg_ha?: number | null;
 }
+
+const SINGLE_RELEASE_NOTE =
+  "District input, irrigation and erosion shares still come from a single release (2025 Season B). Selecting another period does not change them.";
 
 export default function DistrictDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ districtCode: string }>();
   const slug = params.districtCode;
   const t = strings(useAppStore((s) => s.language));
-  const [tab, setTab] = useState<Tab>("overview");
-  const [metric, setMetric] = useState<Metric>("production_mt");
+
+  const [tab, setTab] = useState<Tab>("production");
+  const [crop, setCrop] = useState<string | null>(null);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
   const [saved, setSaved] = useState(() => {
     try {
       return Boolean(getSavedItem("district", slug));
@@ -48,20 +60,76 @@ export default function DistrictDetailScreen() {
     }
   });
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const profile = useQuery({
     queryKey: ["district-profile", slug],
     queryFn: () => districtsApi.profile(slug),
   });
+  const periods = usePeriods();
 
-  if (isError) {
+  const districtPeriods = periodsCarryingLayer(periods.data?.periods ?? [], "yield");
+  const activePeriod =
+    periodCode ?? periods.data?.latest_district ?? districtPeriods[districtPeriods.length - 1]?.period_code ?? null;
+
+  // The canonical panel is the period-aware source: one request returns every
+  // crop this district published for the selected period.
+  const panel = useQuery({
+    queryKey: ["district-panel", slug, activePeriod],
+    queryFn: () => analyticsApi.productivity({ district: slug, periodCode: activePeriod ?? undefined }),
+    enabled: Boolean(slug),
+  });
+
+  const rows = useMemo(() => (panel.data?.rows ?? []) as unknown as PanelRow[], [panel.data]);
+  const districtCode = rows.find((row) => row.district_code)?.district_code ?? profile.data?.district_code ?? null;
+
+  // Default to the crop that carries the most production in this period, which
+  // is a published fact rather than a preference.
+  useEffect(() => {
+    if (crop) return;
+    const best = [...rows]
+      .filter((row) => row.production_mt !== null && row.production_mt !== undefined)
+      .sort((a, b) => (b.production_mt as number) - (a.production_mt as number))[0];
+    const fallback = rows.find((row) => row.canonical_crop_name)?.canonical_crop_name;
+    if (best?.canonical_crop_name) setCrop(best.canonical_crop_name);
+    else if (fallback) setCrop(fallback);
+  }, [rows, crop]);
+
+  const selectedRow = rows.find((row) => row.canonical_crop_name === crop) ?? null;
+
+  const cropSeries = useQuery({
+    queryKey: ["district-crop-series", crop, slug],
+    queryFn: () => analyticsApi.periodTrend({ crop: crop as string, district: slug }),
+    enabled: Boolean(crop),
+  });
+
+  const gapLayer = useQuery({
+    queryKey: ["district-gap", districtCode ?? slug, crop, activePeriod],
+    queryFn: () =>
+      mapsApi.districtMetrics({ metric: "gap", crop: crop as string, periodCode: activePeriod ?? undefined }),
+    enabled: Boolean(crop),
+  });
+
+  const benchmark = useMemo(() => {
+    const entry = gapLayer.data?.districts.find(
+      (row) => row.district_code === districtCode || row.district === profile.data?.district,
+    );
+    return entry?.details ?? null;
+  }, [gapLayer.data, districtCode, profile.data]);
+
+  const cropSeriesRaw = useMemo(() => fromPeriodCoded(cropSeries.data?.points ?? []), [cropSeries.data]);
+  const yieldSeries = useMemo(() => toSeriesPoints(cropSeriesRaw, "yield_kg_ha"), [cropSeriesRaw]);
+  // The same-season delta is computed by the Python service (same eligibility
+  // rules as Home and the Crop Terminal); the client never re-derives it.
+  const yieldChange = changeFromApi(cropSeries.data?.change);
+
+  if (profile.isError) {
     return (
       <ScreenLayout back active="explore">
-        <ErrorState message={t.errorGeneric} onRetry={() => void refetch()} />
+        <ErrorState message={t.errorGeneric} onRetry={() => void profile.refetch()} />
       </ScreenLayout>
     );
   }
 
-  if (isLoading || !data) {
+  if (profile.isLoading || !profile.data) {
     return (
       <ScreenLayout back active="explore">
         <LoadingSkeleton height={120} />
@@ -70,35 +138,32 @@ export default function DistrictDetailScreen() {
     );
   }
 
-  const cropRows = data.crops
-    .filter((c) => c[metric] != null)
-    .map((c) => ({ label: c.crop, value: c[metric] as number }))
-    .sort((a, b) => b.value - a.value);
+  const data = profile.data;
 
   return (
     <ScreenLayout back active="explore">
-      <Card style={{ backgroundColor: colors.mintSoft }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="location" size={26} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
+      {/* Identity */}
+      <View style={{ gap: spacing.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={typography.display}>{data.district}</Text>
             <Text style={typography.caption}>
-              {data.province ?? "—"}
-              {data.agro_ecological_zone ? ` · ${data.agro_ecological_zone}` : ""}
+              {[data.province, data.agro_ecological_zone].filter(Boolean).join(" · ") || "—"}
             </Text>
           </View>
+          <Text style={typography.micro}>{data.district_code}</Text>
         </View>
+
+        <CoverageBadge
+          level="district"
+          period={panel.data?.label ?? activePeriod}
+          source={panel.data?.provenance?.source_id ?? null}
+        />
+
         <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
-          <Badge text={data.district_code} />
-          <Badge text={data.period_label ?? "—"} tone="blue" />
-          <Badge text={`${data.n_crops_with_data} crops`} tone="slate" />
-        </View>
-        <View style={{ flexDirection: "row", gap: spacing.sm }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={saved ? t.unsaveItem : t.saveItem}
+          <Action
+            icon={saved ? "bookmark" : "bookmark-outline"}
+            label={saved ? t.unsaveItem : t.saveItem}
             onPress={() => {
               try {
                 if (saved) removeSavedItem("district", slug);
@@ -108,100 +173,175 @@ export default function DistrictDetailScreen() {
                 // device storage unavailable
               }
             }}
-            style={styles.action}
-          >
-            <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={17} color={colors.primaryStrong} />
-            <Text style={styles.actionText}>{saved ? t.unsaveItem : t.saveItem}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.viewDistrictDetails}
-            onPress={() => router.push(("/maps/district/" + data.district_code) as never)}
-            style={styles.action}
-          >
-            <Ionicons name="map-outline" size={17} color={colors.primaryStrong} />
-            <Text style={styles.actionText}>{t.maps}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.compareDistrict}
-            onPress={() => router.push("/explore/compare")}
-            style={styles.action}
-          >
-            <Ionicons name="git-compare-outline" size={17} color={colors.primaryStrong} />
-            <Text style={styles.actionText}>{t.compare}</Text>
-          </Pressable>
-        </View>
-      </Card>
-
-      <View style={styles.tabs}>
-        {(["overview", "crops", "inputs", "land"] as const).map((value) => (
-          <FilterChip
-            key={value}
-            label={
-              value === "overview"
-                ? t.overview
-                : value === "crops"
-                  ? t.topCrops
-                  : value === "inputs"
-                    ? t.inputs
-                    : t.soilErosion
-            }
-            selected={tab === value}
-            onPress={() => setTab(value)}
           />
-        ))}
+          <Action
+            icon="map-outline"
+            label={t.maps}
+            onPress={() => router.push({ pathname: "/maps", params: { district: data.district } })}
+          />
+          <Action
+            icon="git-compare-outline"
+            label={t.compare}
+            onPress={() => router.push({ pathname: "/explore/compare", params: { crop: crop ?? undefined } })}
+          />
+          <Action
+            icon="chatbubble-ellipses-outline"
+            label={t.ask}
+            onPress={() =>
+              router.push({
+                pathname: "/ask",
+                params: { q: `What does the published data show for ${data.district} district?` },
+              })
+            }
+          />
+        </View>
       </View>
 
-      {tab === "overview" ? (
-        <Card>
-          <SectionHeader title={t.overview} subtitle={data.period_label ?? undefined} />
-          <InfoRow label={t.topCrops} value={String(data.n_crops_with_data)} note="crops with published data" />
-          <InfoRow label="Largest production crop" value={data.largest_production_crops[0]?.crop ?? "Not available"} />
-          <Text style={typography.caption}>
-            Choose a crop to inspect crop-specific yield. A single average yield is not shown because crops have
-            different natural yield scales.
-          </Text>
-          <SourceCard
-            sourceLabel={data.provenance.source_id ?? undefined}
-            period={data.period_label ?? undefined}
-            coverage="district"
-            limitations={data.provenance.limitations}
-          />
-        </Card>
-      ) : null}
+      <View style={styles.tabs}>
+        <FilterChip label={t.production} selected={tab === "production"} onPress={() => setTab("production")} />
+        <FilterChip label={t.inputs} selected={tab === "inputs"} onPress={() => setTab("inputs")} />
+        <FilterChip label={t.soilErosion} selected={tab === "land"} onPress={() => setTab("land")} />
+      </View>
 
-      {tab === "crops" ? (
-        <Card>
-          <SectionHeader title={t.topCrops} subtitle={data.period_label ?? undefined} />
-          <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
-            <FilterChip label={t.production} selected={metric === "production_mt"} onPress={() => setMetric("production_mt")} />
-            <FilterChip label={t.harvestedArea} selected={metric === "harvested_area_ha"} onPress={() => setMetric("harvested_area_ha")} />
-          </View>
-          {cropRows.length ? (
-            <HorizontalBarChart values={cropRows} unit={metric === "production_mt" ? "t" : "ha"} />
-          ) : (
-            <EmptyState title={t.noDataAvailable} icon="leaf-outline" />
-          )}
-        </Card>
+      {tab === "production" ? (
+        <>
+          <DataSection title={t.topCrops} subtitle={t.selectCrop} first>
+            <PeriodSelector
+              label={t.selectPeriod}
+              value={activePeriod}
+              onChange={setPeriodCode}
+              options={districtPeriods.map((period) => ({
+                id: period.period_code,
+                label: period.label,
+                hint: `${period.n_crops} crops`,
+              }))}
+            />
+
+            {panel.isLoading ? (
+              <LoadingSkeleton height={160} />
+            ) : rows.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: spacing.sm, alignItems: "center" }}
+              >
+                {rows
+                  .filter((row) => row.canonical_crop_name)
+                  .map((row) => (
+                    <FilterChip
+                      key={row.crop_code ?? row.canonical_crop_name ?? ""}
+                      label={row.canonical_crop_name as string}
+                      selected={crop === row.canonical_crop_name}
+                      onPress={() => setCrop(row.canonical_crop_name as string)}
+                    />
+                  ))}
+              </ScrollView>
+            ) : (
+              <EmptyState title={t.errorNoDistrictData} message={t.noDataAvailable} />
+            )}
+          </DataSection>
+
+          {selectedRow ? (
+            <DataSection title={crop ?? ""} subtitle={panel.data?.label ?? undefined}>
+              <View style={styles.readouts}>
+                <MetricReadout
+                  label={t.metricYield}
+                  value={selectedRow.yield_kg_ha ?? null}
+                  unit={PANEL_UNITS.yield_kg_ha}
+                  size="medium"
+                />
+                <MetricReadout
+                  label={t.metricProduction}
+                  value={selectedRow.production_mt ?? null}
+                  unit={PANEL_UNITS.production_mt}
+                  size="medium"
+                />
+                <MetricReadout
+                  label={t.metricArea}
+                  value={selectedRow.harvested_area_ha ?? null}
+                  unit={PANEL_UNITS.harvested_area_ha}
+                  size="medium"
+                />
+              </View>
+
+              {benchmark?.benchmark_yield_kg_ha != null ? (
+                <View style={styles.readouts}>
+                  <MetricReadout
+                    label={t.metricGap}
+                    value={benchmark.gap_index ?? null}
+                    unit="%"
+                    size="medium"
+                    note={
+                      benchmark.benchmark_yield_kg_ha != null
+                        ? `benchmark ${Math.round(benchmark.benchmark_yield_kg_ha).toLocaleString()} kg/ha for this crop`
+                        : null
+                    }
+                  />
+                </View>
+              ) : (
+                <Text style={typography.micro}>
+                  No published benchmark is available for this crop and period, so no gap is shown.
+                </Text>
+              )}
+
+              {cropSeries.isLoading ? (
+                <LoadingSkeleton height={chart.height} />
+              ) : yieldSeries.some((point) => point.value !== null) ? (
+                <>
+                  <TimeSeriesChart
+                    series={[{ key: "yield", label: `${crop} · ${data.district}`, points: yieldSeries }]}
+                    unit={PANEL_UNITS.yield_kg_ha}
+                    height={chart.height}
+                    accessibilityLabel={`${data.district} ${crop} yield series`}
+                  />
+                  <ChangeIndicator change={yieldChange} unavailableNote={t.noComparableChange} />
+                </>
+              ) : (
+                <EmptyState title={t.noDataAvailable} />
+              )}
+
+              <DataWarning text="No cross-crop average yield is shown: different crops do not share a natural yield scale. Pick a crop to compare like for like." />
+              <SourceMethodSheet
+                title={t.sourceAndMethod}
+                source={panel.data?.provenance?.source_id}
+                period={panel.data?.label ?? activePeriod}
+                coverage={`district · ${panel.data?.n_crops ?? 0} crops`}
+                unit={PANEL_UNITS.yield_kg_ha}
+                method={panel.data?.provenance?.method}
+                limitations={[
+                  ...(panel.data?.provenance?.limitations ?? []),
+                  ...(gapLayer.data?.provenance?.limitations ?? []),
+                ]}
+              />
+            </DataSection>
+          ) : null}
+        </>
       ) : null}
 
       {tab === "inputs" ? (
-        <Card>
-          <SectionHeader title={t.inputs} subtitle="Share of farmers reporting adoption" />
+        <DataSection title={t.inputs} subtitle="Share of farmers reporting adoption" first>
+          <DataWarning text={SINGLE_RELEASE_NOTE} />
           {percentRows(data.factors).length ? (
             <HorizontalBarChart values={percentRows(data.factors)} unit="%" maxItems={10} />
           ) : (
             <EmptyState title={t.noDataAvailable} />
           )}
           <Text style={typography.micro}>These are shares of farmers, not of cultivated area.</Text>
-        </Card>
+          <SourceMethodSheet
+            title={t.sourceAndMethod}
+            source={data.provenance.source_id}
+            period={data.period_label}
+            coverage="district · single release"
+            unit="%"
+            limitations={data.provenance.limitations}
+          />
+        </DataSection>
       ) : null}
 
       {tab === "land" ? (
         <>
-          <Card>
-            <SectionHeader title={t.irrigation} subtitle="Irrigation methods and water sources" />
+          <DataSection title={t.irrigation} subtitle="Irrigation methods and water sources" first>
+            <DataWarning text={SINGLE_RELEASE_NOTE} />
             {percentRows(data.irrigation.methods).length ? (
               <HorizontalBarChart values={percentRows(data.irrigation.methods)} unit="%" />
             ) : (
@@ -210,12 +350,13 @@ export default function DistrictDetailScreen() {
             {percentRows(data.irrigation.sources).length ? (
               <HorizontalBarChart values={percentRows(data.irrigation.sources)} unit="%" />
             ) : null}
-          </Card>
-          <Card>
-            <SectionHeader title={t.soilErosion} subtitle="Land use and erosion-control practices" />
-            {data.land.filter((l) => l.value != null).length ? (
+          </DataSection>
+          <DataSection title={t.soilErosion} subtitle="Land use and erosion-control practices">
+            {data.land.filter((item) => item.value != null).length ? (
               <HorizontalBarChart
-                values={data.land.filter((l) => l.value != null).map((l) => ({ label: l.label, value: l.value as number }))}
+                values={data.land
+                  .filter((item) => item.value != null)
+                  .map((item) => ({ label: item.label, value: item.value as number }))}
                 unit=""
               />
             ) : null}
@@ -224,35 +365,52 @@ export default function DistrictDetailScreen() {
             ) : (
               <EmptyState title={t.noDataAvailable} />
             )}
-          </Card>
-          <SourceCard
-            sourceLabel={data.provenance.source_id ?? undefined}
-            period={data.period_label ?? undefined}
-            coverage="district"
-            limitations={data.provenance.limitations}
-          />
+            <SourceMethodSheet
+              title={t.sourceAndMethod}
+              source={data.provenance.source_id}
+              period={data.period_label}
+              coverage="district · single release"
+              limitations={data.provenance.limitations}
+            />
+          </DataSection>
         </>
       ) : null}
     </ScreenLayout>
   );
 }
 
+function percentRows(items: MetricValue[]) {
+  return items
+    .filter((item) => item.value != null)
+    .map((item) => ({ label: item.label, value: item.value as number }));
+}
+
+function Action({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.action}>
+      <Ionicons name={icon} size={16} color={colors.primaryStrong} />
+      <Text style={styles.actionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  heroIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  readouts: { flexDirection: "row", gap: spacing.md },
   action: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: spacing.md,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,

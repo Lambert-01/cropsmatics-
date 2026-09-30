@@ -242,6 +242,56 @@ export const en = {
   kinyarwanda: "Kinyarwanda",
   continueButton: "Continue",
 
+  // ---- Analytical workspace ------------------------------------------------
+  // Metric names, selector labels and the vocabulary of the data surfaces.
+  // A metric is always rendered with the unit the API published it in.
+  metricYield: "Yield",
+  metricProduction: "Production",
+  metricArea: "Harvested area",
+  metricGap: "Yield gap",
+  metricInputAdoption: "Input adoption",
+  metricIrrigation: "Irrigation",
+  metricErosion: "Erosion protection",
+  metricPriority: "Intervention priority",
+  allPublishedPeriods: "All published periods",
+  sameSeasonView: "Same season",
+  latestPublished: "Latest published",
+  notPublished: "Not published",
+  noComparableChange: "No comparable earlier published period.",
+  sourceAndMethod: "Source & method",
+  cropBoard: "Crop board",
+  cropBoardSubtitle: "Published value, same-season change and trend by crop",
+  nationalSeries: "National series",
+  districtSeries: "District series",
+  pickDistrict: "Pick a district",
+  pickCropFirst: "Select a crop first.",
+  publishedCoverage: "Published coverage",
+  pulseTitle: "Agricultural pulse",
+  pulseSubtitle: "Published national crop production and harvested area",
+  indexedYield: "Indexed yield",
+  indexedYieldNote:
+    "Each crop is indexed to its own published baseline, so crops with different natural yield scales can share one axis.",
+  compareCrops: "Compare crops",
+  compareDistricts: "Compare districts",
+  compareSelectCropAndPeriod:
+    "Select a crop and one published district period to compare districts like for like.",
+  noLayerForPeriod: "This indicator is not published for the selected period.",
+  tapForReadout: "Drag the chart to read a published period.",
+  // ---- Data-honesty notes --------------------------------------------------
+  // These state what the published data can and cannot support. They are never
+  // hidden behind a collapsible sheet, and they never imply a missing
+  // comparison is a zero.
+  gapBenchmarkNote:
+    "Gap is measured against a benchmark yield defined per crop by the API. A larger gap is not a better result.",
+  singlePointNote:
+    "One published period only. A single value is not a trend, and no change can be computed for it.",
+  sameSeasonNotSeries:
+    "One point per year for the same season. Seasons differ agronomically, so this is not a continuous series.",
+  errorNoDistrictPeriod: "No published district period is available for this crop.",
+  nationalOnlyCropLevel: "National crop-level shares. Not district level.",
+  seasonWord: "Season",
+  onlySuffix: "only",
+
   // ---- Errors & empty states -----------------------------------------------
   errorGeneric: "We couldn't load this information right now.",
   errorNoDistrictData: "No district-level data are available for this period.",

@@ -157,6 +157,15 @@ export interface ProductivityResponse {
 
 // ---- Published period catalogue -------------------------------------------
 
+/** How one dataset covers one published period, from `/meta/periods`. */
+export interface PeriodDatasetCoverage {
+  dataset: string;
+  coverage_level: string;
+  n_districts: number;
+  n_crops: number;
+  source_id?: string | null;
+}
+
 /** One published period, from `/meta/periods`. Never hard-code a period. */
 export interface PeriodInfo {
   period_code: string;
@@ -166,8 +175,37 @@ export interface PeriodInfo {
   coverage_level: string | null;
   n_districts: number;
   n_crops: number;
+  /** Which datasets carry this period. Drives honest layer availability. */
+  datasets?: PeriodDatasetCoverage[];
   is_latest: boolean;
   is_latest_district: boolean;
+}
+
+/** One point of the canonical period-aware crop series (`/productivity/trend`). */
+export interface PeriodTrendPoint {
+  period_code: string;
+  year: number;
+  season: string;
+  label: string;
+  values: Record<string, number | null>;
+}
+
+/**
+ * One crop across every published period, for a district or nationally.
+ *
+ * ``unit`` maps each metric to the unit it is published in, so a value is never
+ * relabelled: the canonical district panel publishes ``yield_kg_ha`` (kg/ha).
+ */
+export interface PeriodTrendResponse {
+  crop: string;
+  district: string | null;
+  geography_scope: string;
+  unit: Record<string, string>;
+  points: PeriodTrendPoint[];
+  available_periods: string[];
+  /** The same-season delta, computed by the service. */
+  change?: SameSeasonChange | null;
+  provenance: Provenance;
 }
 
 export interface PeriodsResponse {
@@ -248,7 +286,112 @@ export interface DistrictMetricsResponse {
   available_period?: string | null;
   /** Set when a period-specific metric also consumes a single-release component. */
   reference_period?: string | null;
+  /**
+   * Priority components with no measured value for the selected period. Their
+   * weight is redistributed by the API instead of being scored as a constant.
+   */
+  components_unavailable?: string[];
   source_id?: string | null;
+  provenance: Provenance;
+}
+
+// ---- Indexed yield ---------------------------------------------------------
+
+/**
+ * One crop indexed to its own published baseline.
+ *
+ * Raw yields are never averaged across crops; the Python service divides each
+ * crop by its own baseline instead, and states the eligibility rules and
+ * limitations with the result. ``index``/``value`` are null for a period the
+ * release did not tabulate.
+ */
+export interface IndexedYieldPoint {
+  period: string;
+  label: string;
+  value: number | null;
+  index: number | null;
+}
+
+export interface IndexedYieldSeries {
+  crop: string;
+  eligible: boolean;
+  availability: string;
+  baseline: number | null;
+  n_observations: number;
+  reason: string | null;
+  points: IndexedYieldPoint[];
+}
+
+export interface IndexedYieldResponse {
+  metric: string;
+  unit: string;
+  baseline_definition: string;
+  min_periods: number;
+  periods: string[];
+  series: IndexedYieldSeries[];
+  provenance: Provenance;
+}
+
+// ---- Platform-computed change ----------------------------------------------
+
+/**
+ * A same-season delta computed by the Python service.
+ *
+ * Eligibility is part of the payload: when ``available`` is false, ``reason``
+ * says why (the prior year is absent, published blank, or the baseline is
+ * zero). A missing comparison is never rendered as a 0 % change.
+ */
+export interface SameSeasonChange {
+  metric: string;
+  unit: string | null;
+  available: boolean;
+  reason: string | null;
+  period_code: string | null;
+  period_label: string | null;
+  previous_period_code: string | null;
+  previous_period_label: string | null;
+  current_value: number | null;
+  previous_value: number | null;
+  change_pct: number | null;
+  change_abs: number | null;
+}
+
+// ---- National board --------------------------------------------------------
+
+/**
+ * One crop on the national board.
+ *
+ * ``series`` is aligned to ``NationalBoardResponse.periods``: position *i* of
+ * every metric is the same period, and a null is a period the release did not
+ * tabulate for this crop.
+ */
+export interface NationalBoardCrop {
+  crop: string;
+  coverage: string;
+  n_published_periods: number;
+  latest_published_period: string | null;
+  latest_published_label: string | null;
+  series: Record<string, (number | null)[]>;
+  changes: Record<string, SameSeasonChange>;
+}
+
+/**
+ * The all-crop national total, on the same period axis.
+ *
+ * Yield here is production over harvested area across the crops that published
+ * both — never an average of per-crop yields.
+ */
+export interface NationalBoardTotals {
+  series: Record<string, (number | null)[]>;
+  changes: Record<string, SameSeasonChange>;
+}
+
+export interface NationalBoardResponse {
+  metric_units: Record<string, string>;
+  periods: string[];
+  period_labels: Record<string, string>;
+  crops: NationalBoardCrop[];
+  national: NationalBoardTotals | null;
   provenance: Provenance;
 }
 

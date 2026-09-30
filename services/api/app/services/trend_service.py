@@ -6,6 +6,8 @@ charts never show an interpolated or assumed point.
 
 from __future__ import annotations
 
+import pandas as pd
+
 from app.repositories import dataset_repository as repo
 
 TREND_UNITS = {
@@ -31,6 +33,48 @@ def _period(year, season) -> str:
     return f"{int(year)}{season}" if season else str(int(year))
 
 
+BREAKDOWN_LIMITATION = (
+    "a release can tabulate a crop family together with its published "
+    "varieties under one canonical crop; exactly one row per crop and period "
+    "is used, so a family total is never added to its own breakdown"
+)
+
+
+def collapse_crop_breakdown(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep exactly one row per (canonical crop, period).
+
+    The national trend table carries a family row (``Banana``, ``Beans``) *and*
+    its published varieties (``Cooking banana``, ``Dessert banana``, ``Banana for
+    beer``; ``Bush bean``, ``Climbing bean``, ``Pea``) under the same
+    ``canonical_crop_name``, because the canonical layer deliberately stores
+    varieties as separate observations
+    (``test_crop_varieties_are_stored_separately``).
+
+    Summing them double counts a national figure that the family row already
+    aggregates, and averaging them invents a yield no table reports. The row
+    whose label IS the canonical name is the family total, so that row is kept;
+    a crop with no such row keeps its first published row instead. The rule is a
+    no-op for the ordinary case of one row per crop and period.
+    """
+    if df.empty:
+        return df
+    required = {"canonical_crop_name", "year", "season", "crop"}
+    if not required.issubset(df.columns):
+        return df
+
+    canonical = df["canonical_crop_name"].astype(str).str.strip().str.lower()
+    label = df["crop"].astype(str).str.strip().str.lower()
+    exact = label == canonical
+    if bool(exact.all()):
+        return df
+
+    ordered = pd.concat([df[exact], df[~exact]])
+    deduped = ordered.drop_duplicates(
+        subset=["canonical_crop_name", "year", "season"], keep="first"
+    )
+    return deduped.sort_index()
+
+
 def crop_trends(crop: str | None = None, compare_crops: list[str] | None = None) -> dict:
     """National crop area/production/yield series.
 
@@ -44,6 +88,7 @@ def crop_trends(crop: str | None = None, compare_crops: list[str] | None = None)
     """
     df = repo.national_crop_trends()
     df = df[~df["is_aggregate"].astype(bool)].copy()
+    df = collapse_crop_breakdown(df)
 
     if compare_crops:
         names = [c.strip().lower() for c in compare_crops if c.strip()]

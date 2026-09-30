@@ -1,50 +1,101 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Sparkline } from "../src/components/charts";
+import { CropBoardRow } from "../src/components/CropBoardRow";
+import {
+  ChangeIndicator,
+  DataSection,
+  SourceMethodSheet,
+} from "../src/components/data-view";
 import { AppHeader } from "../src/components/AppHeader";
 import { BottomNav } from "../src/components/BottomNav";
-import {
-  Badge,
-  Card,
-  EmptyState,
-  ErrorState,
-  ListRow,
-  LoadingSkeleton,
-  PrimaryButton,
-  SearchBar,
-  SectionHeader,
-  SecondaryButton,
-  SourceCard,
-  StatCard,
-} from "../src/components/ui";
+import { EmptyState, ErrorState, ListRow, LoadingSkeleton, OfflineBanner, SearchBar } from "../src/components/ui";
+import { useAllCrops, useNationalBoard } from "../src/hooks/queries";
 import { strings } from "../src/i18n";
 import { homeApi } from "../src/services/api";
 import { useAppStore } from "../src/store/useAppStore";
 import { colors, radius, spacing, typography } from "../src/theme";
+import type { NationalBoardCrop } from "../src/types";
+import { boardPoints, changeFromApi, formatValue, toSeriesPoints } from "../src/utils/analytics";
 
-const EXPLORE_TILES = [
-  { id: "crops", label: "crops", href: "/explore/crops", icon: "leaf-outline", desc: "Browse every crop" },
-  { id: "districts", label: "districts", href: "/explore/districts", icon: "location-outline", desc: "All 30 districts" },
-  { id: "indicators", label: "indicators", href: "/explore/indicators", icon: "analytics-outline", desc: "Inputs, irrigation, soil" },
-  { id: "maps", label: "maps", href: "/maps", icon: "map-outline", desc: "District patterns" },
-  { id: "postHarvest", label: "postHarvest", href: "/explore/post-harvest", icon: "cube-outline", desc: "From harvest to use" },
-  { id: "compare", label: "compare", href: "/explore/compare", icon: "git-compare-outline", desc: "Side by side" },
-  { id: "ask", label: "ask", href: "/ask", icon: "chatbubble-ellipses-outline", desc: "Ask a question" },
-  { id: "sources", label: "dataSources", href: "/more/data-sources", icon: "shield-checkmark-outline", desc: "Trusted sources" },
+/**
+ * Home leads with the *national crop series* and its own published period.
+ *
+ * The latest national trend period and the latest district release are different
+ * concepts: the district release describes a different dataset and a different
+ * date. They are shown as two separate lines, so a national figure can never
+ * read as if it belonged to the district release.
+ */
+const PREVIEW_CROPS = 4;
+
+const PRIMARY_ACTIONS = [
+  { id: "crops", href: "/explore/crops", icon: "leaf-outline" },
+  { id: "districts", href: "/explore/districts", icon: "location-outline" },
+  { id: "maps", href: "/maps", icon: "map-outline" },
+  { id: "indicators", href: "/explore/indicators", icon: "analytics-outline" },
 ] as const;
+
+const OTHER_DESTINATIONS = [
+  { id: "postHarvest", href: "/explore/post-harvest", icon: "cube-outline" },
+  { id: "compare", href: "/explore/compare", icon: "git-compare-outline" },
+  { id: "dataSources", href: "/more/data-sources", icon: "shield-checkmark-outline" },
+] as const;
+
+const PULSE_METRIC = "production_mt";
 
 export default function HomeScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["mobile-home"],
-    queryFn: homeApi.get,
-  });
 
-  const cards = data?.summary_cards ?? [];
+  const home = useQuery({ queryKey: ["mobile-home"], queryFn: homeApi.get });
+  const board = useNationalBoard();
+  const crops = useAllCrops();
+
+  const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
+  const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
+
+  const pulsePoints = useMemo(
+    () =>
+      board.data?.national
+        ? boardPoints(
+            { periods, period_labels: periodLabels, series: board.data.national.series },
+            [PULSE_METRIC],
+          )
+        : [],
+    [board.data, periods, periodLabels],
+  );
+  const pulseSeries = useMemo(() => toSeriesPoints(pulsePoints, PULSE_METRIC), [pulsePoints]);
+  const pulseChange = changeFromApi(board.data?.national?.changes?.[PULSE_METRIC]);
+
+  // The pulse's own period: the newest position on the national axis that
+  // actually carries a value.
+  const pulseLatestIndex = useMemo(() => {
+    for (let index = pulseSeries.length - 1; index >= 0; index -= 1) {
+      if (pulseSeries[index].value !== null) return index;
+    }
+    return -1;
+  }, [pulseSeries]);
+  const pulseValue = pulseLatestIndex >= 0 ? pulseSeries[pulseLatestIndex].value : null;
+  const pulsePeriodLabel = pulseLatestIndex >= 0 ? pulseSeries[pulseLatestIndex].label : null;
+  const pulseUnit = board.data?.metric_units?.[PULSE_METRIC] ?? null;
+
+  const previewNames = useMemo(
+    () => (crops.data ?? []).slice(0, PREVIEW_CROPS).map((crop) => crop.crop_name),
+    [crops.data],
+  );
+  const previewByCrop = useMemo(() => {
+    const map = new Map<string, NationalBoardCrop>();
+    for (const item of board.data?.crops ?? []) map.set(item.crop.toLowerCase(), item);
+    return map;
+  }, [board.data]);
+
+  const districtCoverage = home.data?.latest_period_coverage ?? null;
+  const failable = home.isError || board.isError;
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -54,127 +105,121 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero */}
-        <ImageBackground
-          source={require("../assets/images/rwanda-farm-hero-mobile.jpg")}
-          resizeMode="cover"
-          style={styles.hero}
-          imageStyle={{ borderRadius: radius.lg }}
-        >
-          <View style={styles.heroOverlay}>
-            <Text style={styles.heroTitle}>{t.heroTitle}</Text>
-            <Text style={styles.heroSubtitle}>{t.heroSubtitle}</Text>
-            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton label={t.exploreData} icon="compass-outline" onPress={() => router.push("/explore")} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <PrimaryButton label={t.askCropmatics} icon="chatbubble-ellipses-outline" onPress={() => router.push("/ask")} />
-              </View>
-            </View>
-          </View>
-        </ImageBackground>
-
-        {/* Global search */}
         <SearchBar placeholder={t.searchPlaceholder} onFocus={() => router.push("/explore/search")} />
 
-        {isError ? (
-          <ErrorState message={t.errorGeneric} onRetry={() => void refetch()} />
-        ) : isLoading ? (
-          <>
-            <LoadingSkeleton height={64} />
-            <LoadingSkeleton height={120} />
-            <LoadingSkeleton height={160} />
-          </>
-        ) : (
-          <>
-            {/* Data coverage */}
-            <Card>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                <Ionicons name="calendar-outline" size={17} color={colors.primary} />
-                <Text style={{ ...typography.h3, flex: 1 }}>{t.latestData}</Text>
-                <Badge text="Official data" />
-              </View>
-              <Text style={{ ...typography.h2, fontSize: 20 }}>
-                {data?.latest_period_label ?? t.noDataAvailable}
-              </Text>
-              <Text style={typography.caption}>
-                {data?.latest_period_coverage === "district"
-                  ? "District-level agricultural data"
-                  : data?.latest_period_coverage
-                    ? `${data.latest_period_coverage} level`
-                    : "—"}
-              </Text>
-              <SecondaryButton label="View coverage" onPress={() => router.push("/more/data-sources")} />
-            </Card>
-
-            {/* Summary metrics */}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-              {cards.map((card) => (
-                <StatCard
-                  key={card.id}
-                  label={card.label}
-                  value={String(card.value)}
-                  unit={card.unit}
-                  icon={
-                    card.id === "crops"
-                      ? "leaf-outline"
-                      : card.id === "districts"
-                        ? "location-outline"
-                        : card.id === "indicators"
-                          ? "analytics-outline"
-                          : "shield-checkmark-outline"
-                  }
-                  onPress={() => (card.route ? router.push(card.route as never) : undefined)}
+        {failable ? (
+          /* An intentional error variant: what failed, what still works, and one
+             clear retry. No invented figures fill the gap. */
+          <View style={{ gap: spacing.sm }}>
+            <ErrorState
+              message={t.errorGeneric}
+              onRetry={() => {
+                void home.refetch();
+                void board.refetch();
+              }}
+            />
+            <OfflineBanner text={t.offlineBanner} />
+            <DataSection title={t.moreTitle} first>
+              {OTHER_DESTINATIONS.map((item) => (
+                <ListRow
+                  key={item.id}
+                  title={t[item.id]}
+                  icon={item.icon}
+                  onPress={() => router.push(item.href as never)}
                 />
               ))}
+            </DataSection>
+          </View>
+        ) : (
+          <>
+            {/* ---- Agricultural pulse ------------------------------------- */}
+            <View style={styles.pulse}>
+              <View style={styles.pulseHead}>
+                <Ionicons name="pulse-outline" size={15} color={colors.primary} />
+                <Text style={styles.pulseTitle}>{t.pulseTitle}</Text>
+                {pulsePeriodLabel ? (
+                  <Text style={styles.pulsePeriod}>{pulsePeriodLabel}</Text>
+                ) : null}
+              </View>
+
+              {board.isLoading ? (
+                <LoadingSkeleton height={72} />
+              ) : pulseValue === null ? (
+                <Text style={typography.caption}>
+                  No national production total is published for this selection.
+                </Text>
+              ) : (
+                <>
+                  <View style={styles.pulseFigure}>
+                    <Text style={styles.pulseValue}>{formatValue(pulseValue)}</Text>
+                    {pulseUnit ? <Text style={typography.unit}>{pulseUnit}</Text> : null}
+                  </View>
+                  <Text style={typography.micro}>{t.pulseSubtitle}</Text>
+                  <ChangeIndicator change={pulseChange} unavailableNote={t.noComparableChange} />
+                  <Sparkline points={pulseSeries} accessibilityLabel={t.pulseTitle} />
+                </>
+              )}
+
+              {/* Coverage context, kept strictly separate from the value above. */}
+              <View style={styles.coverageRow}>
+                <Text style={styles.coverageLabel}>{t.latestData}</Text>
+                <Text style={styles.coverageValue}>
+                  {home.data?.latest_period_label ?? t.noDataAvailable}
+                  {districtCoverage ? ` · ${districtCoverage}` : ""}
+                </Text>
+              </View>
             </View>
 
-            {/* Explore grid */}
-            <SectionHeader title={t.exploreTitle} subtitle={t.exploreSubtitle} />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-              {EXPLORE_TILES.map((tile) => (
+            {/* ---- Crop board preview ------------------------------------- */}
+            <DataSection title={t.cropBoard} subtitle={t.cropBoardSubtitle} first>
+              {board.isLoading || crops.isLoading ? (
+                <LoadingSkeleton height={96} />
+              ) : previewNames.length ? (
+                <>
+                  {previewNames.map((name, index) => (
+                    <CropBoardRow
+                      key={name}
+                      crop={previewByCrop.get(name.toLowerCase()) ?? null}
+                      metric={PULSE_METRIC}
+                      metricLabel={t.metricProduction}
+                      periods={periods}
+                      periodLabels={periodLabels}
+                      unit={board.data?.metric_units?.[PULSE_METRIC] ?? null}
+                      changeNote={t.noComparableChange}
+                      onPress={() =>
+                        router.push((`/explore/crop/${crops.data?.[index]?.crop_code}`) as never)
+                      }
+                    />
+                  ))}
+                  <ListRow title={t.crops} icon="leaf-outline" onPress={() => router.push("/explore/crops")} />
+                </>
+              ) : (
+                <EmptyState title={t.noDataAvailable} />
+              )}
+            </DataSection>
+
+            {/* ---- Four primary destinations ------------------------------ */}
+            <View style={styles.actions}>
+              {PRIMARY_ACTIONS.map((action) => (
                 <Pressable
-                  key={tile.id}
+                  key={action.id}
                   accessibilityRole="button"
-                  accessibilityLabel={t[tile.label as keyof typeof t]}
-                  onPress={() => router.push(tile.href as never)}
-                  style={styles.tile}
+                  accessibilityLabel={t[action.id]}
+                  onPress={() => router.push(action.href as never)}
+                  style={({ pressed }) => [styles.action, pressed ? { opacity: 0.8 } : null]}
                 >
-                  <View style={styles.tileIcon}>
-                    <Ionicons name={tile.icon} size={20} color={colors.primary} />
-                  </View>
-                  <Text style={{ ...typography.h3, fontSize: 14 }}>{t[tile.label as keyof typeof t]}</Text>
-                  <Text numberOfLines={2} style={styles.tileDesc}>
-                    {tile.desc}
+                  <Ionicons name={action.icon} size={19} color={colors.primary} />
+                  <Text numberOfLines={1} style={styles.actionLabel}>
+                    {t[action.id]}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
-            {/* Featured insights */}
-            <SectionHeader title="Featured insights" subtitle="Derived from real published observations" />
-            {data?.featured_topics?.length ? (
-              data.featured_topics.map((topic) => (
-                <Card key={topic.id} onPress={() => router.push(topic.route as never)} accessibilityLabel={topic.title}>
-                  <Text style={typography.h3}>{topic.title}</Text>
-                  <Text style={typography.body}>{topic.summary}</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                    <Badge text={topic.source_id ?? "Verified source"} tone="slate" />
-                    {topic.period ? <Text style={typography.micro}>{topic.period}</Text> : null}
-                    <Ionicons name="arrow-forward" size={15} color={colors.primary} style={{ marginLeft: "auto" }} />
-                  </View>
-                </Card>
-              ))
-            ) : (
-              <EmptyState title={t.noDataAvailable} />
-            )}
-
-            {/* Popular questions */}
-            <SectionHeader title={t.popularQuestions} />
-            {data?.suggested_questions?.length ? (
-              <Card style={{ paddingVertical: 0 }}>
-                {data.suggested_questions.map((question) => (
+            {/* ---- Below the fold ----------------------------------------- */}
+            {home.data?.suggested_questions?.length ? (
+              <DataSection title={t.popularQuestions}>
+                {home.data.suggested_questions.slice(0, 3).map((question) => (
                   <ListRow
                     key={question}
                     title={question}
@@ -182,16 +227,43 @@ export default function HomeScreen() {
                     onPress={() => router.push({ pathname: "/ask", params: { q: question } })}
                   />
                 ))}
-              </Card>
-            ) : (
-              <EmptyState title={t.askNoHistory} />
-            )}
+              </DataSection>
+            ) : null}
 
-            <SourceCard
-              sourceLabel={data?.provenance?.method ?? undefined}
-              period={data?.latest_period_label ?? undefined}
-              coverage={data?.latest_period_coverage ?? undefined}
-              limitations={data?.provenance?.limitations}
+            {home.data?.featured_topics?.length ? (
+              <DataSection title="Featured insights" subtitle="Derived by the Cropmatics service">
+                {home.data.featured_topics.slice(0, 2).map((topic) => (
+                  <ListRow
+                    key={topic.id}
+                    title={topic.title}
+                    subtitle={topic.summary}
+                    meta={[topic.source_id, topic.period].filter(Boolean).join(" · ")}
+                    onPress={() => router.push(topic.route as never)}
+                  />
+                ))}
+              </DataSection>
+            ) : null}
+
+            <DataSection title={t.moreTitle}>
+              {OTHER_DESTINATIONS.map((item) => (
+                <ListRow
+                  key={item.id}
+                  title={t[item.id]}
+                  icon={item.icon}
+                  onPress={() => router.push(item.href as never)}
+                />
+              ))}
+            </DataSection>
+
+            <SourceMethodSheet
+              title={t.sourceAndMethod}
+              source={board.data?.provenance?.source_id ?? home.data?.provenance?.source_id}
+              period={pulsePeriodLabel}
+              coverage={districtCoverage}
+              unit={pulseUnit}
+              method={board.data?.provenance?.method ?? home.data?.provenance?.method}
+              limitations={board.data?.provenance?.limitations}
+              notes={home.data?.coverage_notes}
             />
           </>
         )}
@@ -203,34 +275,45 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
-  hero: { height: 260, justifyContent: "flex-end" },
-  heroOverlay: {
-    backgroundColor: "rgba(3,45,35,0.62)",
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
-    padding: spacing.md,
-    gap: 4,
-  },
-  heroTitle: { color: colors.white, fontSize: 24, fontWeight: "700" },
-  heroSubtitle: { color: colors.mintLight, fontSize: 13 },
-  tile: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    minHeight: 104,
+  pulse: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
     padding: spacing.md,
-    gap: 5,
+    gap: spacing.sm,
   },
-  tileIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: colors.mintSoft,
+  pulseHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  pulseTitle: { ...typography.h3, flex: 1 },
+  pulsePeriod: { ...typography.micro },
+  pulseFigure: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  pulseValue: {
+    ...typography.numericLarge,
+    fontVariant: ["tabular-nums"] as ["tabular-nums"],
+  },
+  coverageRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  coverageLabel: { ...typography.microCaps },
+  coverageValue: { ...typography.micro, flex: 1, textAlign: "right" },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  action: {
+    flexBasis: "47%",
+    flexGrow: 1,
+    minHeight: 58,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
   },
-  tileDesc: { ...typography.micro, color: colors.slate500 },
+  actionLabel: { ...typography.label, flex: 1 },
 });

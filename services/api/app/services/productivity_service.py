@@ -17,6 +17,7 @@ import pandas as pd
 
 from app.repositories import dataset_repository as repo
 from app.services import period_service
+from app.services.national_board_service import same_season_change
 
 UNITS = {
     "cultivated_area_ha": "ha",
@@ -208,12 +209,24 @@ def crop_trend(*, crop: str, district: str | None = None, season: str | None = N
             }
         )
 
+    # The delta is computed here rather than on the device: a same-season
+    # comparison has eligibility rules (both observations published, a usable
+    # baseline) that must not be re-implemented per client.
+    axis = [point["period_code"] for point in points]
+    change = same_season_change(
+        [point["values"].get("yield_kg_ha") for point in points],
+        axis,
+        "yield_kg_ha",
+        unit=UNITS["yield_kg_ha"],
+    )
+
     return {
         "crop": crop,
         "district": district,
         "geography_scope": scope,
         "points": points,
         "available_periods": period_service.period_codes(),
+        "change": change,
         "missing": missing or not points,
         "source_id": _source_id(series),
     }

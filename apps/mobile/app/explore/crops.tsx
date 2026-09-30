@@ -1,78 +1,145 @@
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { CropBoardRow, type BoardMetric } from "../../src/components/CropBoardRow";
+import { MetricSelector } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
-import { Card, EmptyState, ErrorState, FilterChip, LoadingSkeleton, SearchBar } from "../../src/components/ui";
+import { EmptyState, ErrorState, FilterChip, LoadingSkeleton, SearchBar } from "../../src/components/ui";
+import { useAllCrops, useNationalBoard } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
-import { cropsApi } from "../../src/services/api";
+import type { NationalBoardCrop } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
 import { colors, spacing, typography } from "../../src/theme";
 import { slugifyEntity } from "../../src/utils/slug";
+
+/** Row height the skeleton must match, so the list does not jump when it lands. */
+const ROW_HEIGHT = 96;
 
 export default function CropsScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
+  const [metric, setMetric] = useState<BoardMetric>("production_mt");
 
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["crops"], queryFn: cropsApi.list });
+  const crops = useAllCrops();
+  // One request for the whole board: the series are already aligned to a shared
+  // period axis and the same-season change is computed by the service.
+  const board = useNationalBoard();
+
+  const byName = useMemo(() => {
+    const map = new Map<string, NationalBoardCrop>();
+    for (const crop of board.data?.crops ?? []) map.set(crop.crop.toLowerCase(), crop);
+    return map;
+  }, [board.data]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const crop of data ?? []) if (crop.category) set.add(crop.category);
+    for (const crop of crops.data ?? []) if (crop.category) set.add(crop.category);
     return Array.from(set).sort();
-  }, [data]);
+  }, [crops.data]);
 
-  const filtered = (data ?? []).filter((crop) => {
-    if (category !== "all" && crop.category !== category) return false;
-    if (!query) return true;
-    return slugifyEntity(crop.crop_name).includes(slugifyEntity(query));
-  });
+  const rows = useMemo(
+    () =>
+      (crops.data ?? []).filter((crop) => {
+        if (category !== "all" && crop.category !== category) return false;
+        if (!query) return true;
+        return slugifyEntity(crop.crop_name).includes(slugifyEntity(query));
+      }),
+    [crops.data, category, query],
+  );
+
+  const metricLabel =
+    metric === "production_mt"
+      ? t.metricProduction
+      : metric === "harvested_area_ha"
+        ? t.metricArea
+        : t.metricYield;
+
+  if (crops.isError || board.isError) {
+    return (
+      <ScreenLayout back active="explore">
+        <ErrorState
+          message={t.errorGeneric}
+          onRetry={() => {
+            void crops.refetch();
+            void board.refetch();
+          }}
+        />
+      </ScreenLayout>
+    );
+  }
+
+  const loading = crops.isLoading || board.isLoading;
 
   return (
     <ScreenLayout back active="explore">
+      {/* Controls stay compact: the board is the content. */}
       <SearchBar value={query} onChangeText={setQuery} placeholder={t.searchCrops} />
-      <View style={styles.chips}>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chips}
+        keyboardShouldPersistTaps="handled"
+      >
         <FilterChip label={t.allCategories} selected={category === "all"} onPress={() => setCategory("all")} />
         {categories.map((item) => (
-          <FilterChip key={item} label={item} selected={category === item} onPress={() => setCategory(item)} />
+          <FilterChip
+            key={item}
+            label={item}
+            selected={category === item}
+            onPress={() => setCategory(item)}
+          />
         ))}
-      </View>
+      </ScrollView>
 
-      {isError ? (
-        <ErrorState message={t.errorGeneric} onRetry={() => void refetch()} />
-      ) : isLoading ? (
+      <MetricSelector
+        label={t.selectIndicator}
+        value={metric}
+        onChange={(id) => setMetric(id as BoardMetric)}
+        options={[
+          { id: "production_mt", label: t.metricProduction },
+          { id: "harvested_area_ha", label: t.metricArea },
+          { id: "yield_mt_ha", label: t.metricYield },
+        ]}
+      />
+
+      {loading ? (
+        <View>
+          {[0, 1, 2, 3, 4].map((key) => (
+            <LoadingSkeleton key={key} height={ROW_HEIGHT} />
+          ))}
+        </View>
+      ) : rows.length ? (
         <>
-          <LoadingSkeleton height={84} />
-          <LoadingSkeleton height={84} />
-          <LoadingSkeleton height={84} />
+          <View style={styles.countRow}>
+            <Text style={typography.micro}>
+              {`${rows.length} ${t.crops} · ${t.nationalSeries}`}
+            </Text>
+            <Text style={typography.micro}>
+              {board.data?.periods.length
+                ? `${board.data.periods[0]}–${board.data.periods[board.data.periods.length - 1]}`
+                : ""}
+            </Text>
+          </View>
+          <View>
+            {rows.map((crop) => (
+              <CropBoardRow
+                key={crop.crop_code}
+                crop={byName.get(crop.crop_name.toLowerCase()) ?? null}
+                metric={metric}
+                metricLabel={metricLabel}
+                periods={board.data?.periods ?? []}
+                periodLabels={board.data?.period_labels ?? {}}
+                unit={board.data?.metric_units?.[metric] ?? null}
+                changeNote={t.noComparableChange}
+                onPress={() => router.push((`/explore/crop/${crop.crop_code}`) as never)}
+              />
+            ))}
+          </View>
         </>
-      ) : filtered.length ? (
-        filtered.map((crop) => (
-          <Card
-            key={crop.crop_code}
-            onPress={() => router.push(('/explore/crop/' + crop.crop_code) as never)}
-            accessibilityLabel={crop.crop_name}
-            style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}
-          >
-            <View style={styles.cropIcon}>
-              <Text style={{ fontSize: 22 }}>🌿</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={typography.h2}>{crop.crop_name}</Text>
-              <Text style={typography.caption}>
-                {crop.category ?? "—"}
-                {crop.kinyarwanda_name ? ` · ${crop.kinyarwanda_name}` : ""}
-              </Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.code}>{crop.crop_code}</Text>
-              {crop.cold_chain_recommended ? <Text style={styles.cold}>Cold chain</Text> : null}
-            </View>
-          </Card>
-        ))
       ) : (
         <EmptyState title={t.noResults} message={t.noDataAvailable} icon="leaf-outline" />
       )}
@@ -81,15 +148,13 @@ export default function CropsScreen() {
 }
 
 const styles = StyleSheet.create({
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  cropIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: colors.mintSoft,
+  chips: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
+  countRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
-  code: { ...typography.micro, color: colors.slate500 },
-  cold: { fontSize: 10, fontWeight: "700", color: colors.blue },
 });

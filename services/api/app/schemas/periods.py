@@ -12,6 +12,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from app.schemas.common import Provenance
+from app.schemas.dashboard import SameSeasonChange
 
 
 class PeriodDatasetCoverage(BaseModel):
@@ -76,4 +77,7 @@ class PeriodTrendResponse(BaseModel):
     unit: dict[str, str] = Field(default_factory=dict)
     points: list[PeriodTrendPoint] = Field(default_factory=list)
     available_periods: list[str] = Field(default_factory=list)
+    #: The same-season delta, computed here. ``available`` is false when the
+    #: published series cannot support one.
+    change: SameSeasonChange | None = None
     provenance: Provenance

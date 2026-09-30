@@ -158,6 +158,70 @@ class TrendPoint(BaseModel):
     values: dict[str, float | None] = Field(default_factory=dict)
 
 
+class SameSeasonChange(BaseModel):
+    """A same-season delta computed by the platform, not by a client.
+
+    ``available`` is false whenever the comparison cannot be made - the prior
+    year is absent, published blank, or a zero baseline - and ``reason`` says
+    which. A missing comparison is never reported as a 0 % change.
+    """
+
+    metric: str
+    unit: str | None = None
+    available: bool = False
+    reason: str | None = None
+    period_code: str | None = None
+    period_label: str | None = None
+    previous_period_code: str | None = None
+    previous_period_label: str | None = None
+    current_value: float | None = None
+    previous_value: float | None = None
+    change_pct: float | None = None
+    change_abs: float | None = None
+
+
+class NationalBoardCrop(BaseModel):
+    """One crop on the national board, aligned to the shared period axis."""
+
+    crop: str
+    coverage: str = "national"
+    n_published_periods: int = 0
+    latest_published_period: str | None = None
+    latest_published_label: str | None = None
+    #: metric -> value per position of ``NationalBoardResponse.periods``.
+    #: A null is a period the release did not tabulate for this crop.
+    series: dict[str, list[float | None]] = Field(default_factory=dict)
+    changes: dict[str, SameSeasonChange] = Field(default_factory=dict)
+
+
+class NationalBoardTotals(BaseModel):
+    """The national total across the crops that published a value.
+
+    Yield here is production over harvested area across the crops that published
+    both - never an average of per-crop yields, which would be meaningless.
+    Aligned to the same period axis as the per-crop series.
+    """
+
+    series: dict[str, list[float | None]] = Field(default_factory=dict)
+    changes: dict[str, SameSeasonChange] = Field(default_factory=dict)
+
+
+class NationalBoardResponse(BaseModel):
+    """Read-only national crop board.
+
+    One request for the whole board, with the period axis and the same-season
+    deltas decided here so the client only presents them.
+    """
+
+    metric_units: dict[str, str] = Field(default_factory=dict)
+    periods: list[str] = Field(default_factory=list)
+    period_labels: dict[str, str] = Field(default_factory=dict)
+    crops: list[NationalBoardCrop] = Field(default_factory=list)
+    #: The all-crop national total, on the same axis. Home leads with this.
+    national: NationalBoardTotals | None = None
+    provenance: Provenance
+
+
 class TrendResponse(BaseModel):
     crop: str | None = None
     # Populated only for the optional compare view (2-5 crops).

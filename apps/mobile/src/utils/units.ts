@@ -44,6 +44,31 @@ export function formatQuantity(kg: number | null | undefined, unit: QuantityUnit
   })} ${unit === "tonnes" ? "t" : "kg"}`;
 }
 
+/**
+ * The two published yield units.
+ *
+ * The platform publishes national crop trends in **t/ha** (``yield_mt_ha``) and
+ * district productivity in **kg/ha** (``yield_kg_ha``). They are different
+ * columns of different datasets, so a value is never relabelled from one unit
+ * into the other: it is converted here, once, and a caller that converts has to
+ * say so on screen.
+ */
+export const KG_HA_PER_MT_HA = KG_PER_TONNE;
+
+/** ``kg/ha`` -> ``t/ha``. Null in, null out — never zero. */
+export function kgPerHaToTonnesPerHa(kgPerHa: number | null | undefined): number | null {
+  if (kgPerHa === null || kgPerHa === undefined || !Number.isFinite(kgPerHa)) return null;
+  return kgPerHa / KG_HA_PER_MT_HA;
+}
+
+/** ``t/ha`` -> ``kg/ha``. Null in, null out — never zero. */
+export function tonnesPerHaToKgPerHa(tonnesPerHa: number | null | undefined): number | null {
+  if (tonnesPerHa === null || tonnesPerHa === undefined || !Number.isFinite(tonnesPerHa)) {
+    return null;
+  }
+  return tonnesPerHa * KG_HA_PER_MT_HA;
+}
+
 /** Largest attachment we accept locally. Must stay <= the server limit. */
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB
 export const MAX_ATTACHMENTS = 5;

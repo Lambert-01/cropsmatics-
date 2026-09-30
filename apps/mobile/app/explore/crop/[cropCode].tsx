@@ -2,43 +2,65 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { DonutChart, HorizontalBarChart, LineChart } from "../../../src/components/charts";
-import { ScreenLayout } from "../../../src/components/ScreenLayout";
+import { HorizontalBarChart, StackedShareBar, TimeSeriesChart } from "../../../src/components/charts";
 import {
-  Badge,
-  Card,
-  EmptyState,
-  ErrorState,
-  FilterChip,
-  InfoRow,
-  LoadingSkeleton,
-  SectionHeader,
-  SourceCard,
-} from "../../../src/components/ui";
+  ChangeIndicator,
+  CoverageBadge,
+  DataSection,
+  DataWarning,
+  SourceMethodSheet,
+} from "../../../src/components/data-view";
+import { ScreenLayout } from "../../../src/components/ScreenLayout";
+import { EmptyState, ErrorState, LoadingSkeleton } from "../../../src/components/ui";
+import { PANEL_UNITS } from "../../../src/constants/metrics";
 import { getSavedItem, removeSavedItem, saveItem } from "../../../src/database";
+import { useNationalBoard, usePeriods } from "../../../src/hooks/queries";
 import { strings } from "../../../src/i18n";
-import { cropsApi, postHarvestApi } from "../../../src/services/api";
+import { analyticsApi, cropsApi, mapsApi, postHarvestApi } from "../../../src/services/api";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../../src/theme";
+import { chart, colors, radius, spacing, typography } from "../../../src/theme";
+import {
+  boardPoints,
+  changeFromApi,
+  filterSeason,
+  fromPeriodCoded,
+  latestSeason,
+  publishedCount,
+  toSeriesPoints,
+} from "../../../src/utils/analytics";
+import { periodsCarryingLayer } from "../../../src/utils/coverage";
 
-type Tab = "overview" | "trends" | "districts" | "postharvest";
-type Metric = "yield_kg_ha" | "production_mt" | "harvested_area_ha";
+/** National metrics, in the board's own keys. */
+const NATIONAL_METRICS = ["yield_mt_ha", "production_mt", "harvested_area_ha"] as const;
+type NationalMetric = (typeof NATIONAL_METRICS)[number];
 
-const METRIC_LABEL: Record<Metric, string> = {
-  yield_kg_ha: "Yield (kg/ha)",
-  production_mt: "Production (t)",
-  harvested_area_ha: "Harvested area (ha)",
-};
+/** District cross-section metrics: the canonical panel, plus the Python gap. */
+const DISTRICT_METRICS = ["yield_kg_ha", "production_mt", "harvested_area_ha", "gap"] as const;
+type DistrictMetric = (typeof DISTRICT_METRICS)[number];
 
-export default function CropDetailScreen() {
+type PeriodView = "all" | "same-season";
+
+interface PanelRow {
+  district?: string | null;
+  district_code?: string | null;
+  yield_kg_ha?: number | null;
+  production_mt?: number | null;
+  harvested_area_ha?: number | null;
+}
+
+export default function CropTerminalScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ cropCode: string }>();
   const slug = params.cropCode;
-  const [tab, setTab] = useState<Tab>("overview");
-  const [metric, setMetric] = useState<Metric>("production_mt");
+
+  const [nationalMetric, setNationalMetric] = useState<NationalMetric>("yield_mt_ha");
+  const [periodView, setPeriodView] = useState<PeriodView>("all");
+  const [districtMetric, setDistrictMetric] = useState<DistrictMetric>("yield_kg_ha");
+  const [districtKey, setDistrictKey] = useState<string | null>(null);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
   const [saved, setSaved] = useState(() => {
     try {
       return Boolean(getSavedItem("crop", slug));
@@ -49,40 +71,122 @@ export default function CropDetailScreen() {
 
   const crop = useQuery({ queryKey: ["crop", slug], queryFn: () => cropsApi.get(slug) });
   const name = crop.data?.crop_name;
+  const periods = usePeriods();
 
-  const productivity = useQuery({
-    queryKey: ["crop-productivity", name],
-    queryFn: () => cropsApi.productivity(name as string),
-    enabled: Boolean(name),
+  // --- national series: one cached board read, axis-aligned, delta from Python -
+  const board = useNationalBoard(name ? [name] : []);
+  const entry = board.data?.crops?.[0] ?? null;
+  const axis = useMemo(() => board.data?.periods ?? [], [board.data]);
+  const axisLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
+  const nationalUnit = board.data?.metric_units?.[nationalMetric] ?? null;
+
+  const allPoints = useMemo(
+    () =>
+      entry
+        ? boardPoints({ periods: axis, period_labels: axisLabels, series: entry.series }, [
+            nationalMetric,
+          ])
+        : [],
+    [entry, axis, axisLabels, nationalMetric],
+  );
+
+  const seasonLetter = latestSeason(allPoints);
+  const sameSeasonPoint = useMemo(
+    () => (periodView === "same-season" ? filterSeason(allPoints, seasonLetter) : allPoints),
+    [periodView, allPoints, seasonLetter],
+  );
+  // The Python-computed same-season delta is the same comparison in both views,
+  // so the readout never has to derive one.
+  const nationalChange = changeFromApi(entry?.changes?.[nationalMetric]);
+  const nationalPoints = useMemo(
+    () => toSeriesPoints(sameSeasonPoint, nationalMetric),
+    [sameSeasonPoint, nationalMetric],
+  );
+  const nationalPublished = publishedCount(nationalPoints);
+  const latestIndex = useMemo(() => {
+    for (let index = nationalPoints.length - 1; index >= 0; index -= 1) {
+      if (nationalPoints[index].value !== null) return index;
+    }
+    return -1;
+  }, [nationalPoints]);
+
+  // --- district cross-section -------------------------------------------------
+  const districtPeriods = periodsCarryingLayer(periods.data?.periods ?? [], "gap");
+  const activePeriod =
+    periodCode ??
+    periods.data?.latest_district ??
+    districtPeriods[districtPeriods.length - 1]?.period_code ??
+    null;
+
+  const panel = useQuery({
+    queryKey: ["crop-panel", name, activePeriod],
+    queryFn: () => analyticsApi.productivity({ crop: name as string, periodCode: activePeriod ?? undefined }),
+    enabled: Boolean(name) && districtMetric !== "gap",
   });
-  const trends = useQuery({
-    queryKey: ["crop-trends", name],
-    queryFn: () => cropsApi.trends(name as string),
-    enabled: Boolean(name),
+
+  const gapLayer = useQuery({
+    queryKey: ["crop-gap-layer", name, activePeriod],
+    queryFn: () =>
+      mapsApi.districtMetrics({ metric: "gap", crop: name as string, periodCode: activePeriod ?? undefined }),
+    enabled: Boolean(name) && districtMetric === "gap",
   });
+
+  const panelRows = useMemo(() => (panel.data?.rows ?? []) as unknown as PanelRow[], [panel.data]);
+
+  const crossSection = useMemo(() => {
+    if (districtMetric === "gap") {
+      return (gapLayer.data?.districts ?? [])
+        .filter((row) => row.value !== null && row.district_code)
+        .map((row) => ({ label: row.district, value: row.value as number }))
+        .sort((a, b) => b.value - a.value);
+    }
+    const key = districtMetric as "yield_kg_ha" | "production_mt" | "harvested_area_ha";
+    return panelRows
+      .map((row) => ({ label: row.district ?? "—", value: row[key] ?? null }))
+      .filter((row): row is { label: string; value: number } => row.value !== null)
+      .sort((a, b) => b.value - a.value);
+  }, [panelRows, districtMetric, gapLayer.data]);
+
+  const districtOptions = useMemo(() => {
+    const codes = new Map<string, string>();
+    for (const row of panelRows) if (row.district_code && row.district) codes.set(row.district_code, row.district);
+    for (const row of gapLayer.data?.districts ?? []) {
+      if (row.district_code && row.district) codes.set(row.district_code, row.district);
+    }
+    return Array.from(codes, ([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [panelRows, gapLayer.data]);
+
+  // --- one district's own published series ------------------------------------
+  const districtMetricKey: "yield_kg_ha" | "production_mt" | "harvested_area_ha" =
+    districtMetric === "gap" ? "yield_kg_ha" : districtMetric;
+
+  const districtSeries = useQuery({
+    queryKey: ["crop-district-series", name, districtKey],
+    queryFn: () => analyticsApi.periodTrend({ crop: name as string, district: districtKey as string }),
+    enabled: Boolean(name) && Boolean(districtKey) && districtMetric !== "gap",
+  });
+
+  const districtRaw = useMemo(
+    () => fromPeriodCoded(districtSeries.data?.points ?? []),
+    [districtSeries.data],
+  );
+  const districtPoints = useMemo(
+    () => toSeriesPoints(districtRaw, districtMetricKey),
+    [districtRaw, districtMetricKey],
+  );
+  const districtPublished = publishedCount(districtPoints);
+  const districtUnit =
+    districtSeries.data?.unit?.[districtMetricKey] ?? PANEL_UNITS[districtMetricKey];
+  const districtChange = changeFromApi(districtSeries.data?.change);
+  const selectedDistrictName =
+    districtOptions.find((option) => option.id === districtKey)?.label ?? null;
+
+  // --- post-harvest composition ----------------------------------------------
   const postHarvest = useQuery({
     queryKey: ["crop-postharvest", name],
     queryFn: () => postHarvestApi.summary({ crop: name as string }),
-    enabled: Boolean(name) && tab === "postharvest",
+    enabled: Boolean(name),
   });
-
-  const latest = useMemo(() => {
-    const rows = productivity.data?.rows ?? [];
-    const withData = rows.filter((r) => r.yield_kg_ha != null || r.production_mt != null);
-    return {
-      production: withData.reduce((sum, r) => sum + (r.production_mt ?? 0), 0),
-      area: withData.reduce((sum, r) => sum + (r.harvested_area_ha ?? 0), 0),
-      districts: withData.length,
-    };
-  }, [productivity.data]);
-
-  const districtRows = useMemo(() => {
-    const rows = (productivity.data?.rows ?? []).filter((r) => r[metric] != null);
-    return rows
-      .map((r) => ({ label: r.district ?? "—", value: r[metric] as number }))
-      .sort((a, b) => b.value - a.value);
-  }, [productivity.data, metric]);
-
   const share = postHarvest.data?.crops?.[0];
 
   if (crop.isError) {
@@ -95,175 +199,571 @@ export default function CropDetailScreen() {
 
   return (
     <ScreenLayout back active="explore">
-      {/* Hero */}
-      <Card style={{ backgroundColor: colors.mintSoft, gap: spacing.sm }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
-          <View style={styles.heroIcon}>
-            <Text style={{ fontSize: 30 }}>🌿</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={typography.display}>{crop.data?.crop_name ?? slug}</Text>
-            <Text style={typography.caption}>
-              {crop.data?.category ?? "—"}
-              {crop.data?.kinyarwanda_name ? ` · ${crop.data.kinyarwanda_name}` : ""}
+      {/* ---- Compact toolbar: identity, coverage, actions ------------------ */}
+      <View style={styles.toolbar}>
+        <View style={styles.toolbarTop}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={styles.title}>
+              {name ?? slug}
+            </Text>
+            <Text numberOfLines={1} style={typography.micro}>
+              {[crop.data?.category, crop.data?.kinyarwanda_name].filter(Boolean).join(" · ") || "—"}
             </Text>
           </View>
-        </View>
-        <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
-          <Badge text={crop.data?.crop_code ?? slug} />
-          {productivity.data?.period ? <Badge text={productivity.data.period} tone="blue" /> : null}
-        </View>
-        <View style={{ flexDirection: "row", gap: spacing.sm }}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={saved ? t.unsaveItem : t.saveItem}
             onPress={() => {
               try {
                 if (saved) removeSavedItem("crop", slug);
-                else saveItem({ type: "crop", entityKey: slug, title: crop.data?.crop_name ?? slug, subtitle: crop.data?.category });
+                else
+                  saveItem({
+                    type: "crop",
+                    entityKey: slug,
+                    title: crop.data?.crop_name ?? slug,
+                    subtitle: crop.data?.category,
+                  });
                 setSaved(!saved);
               } catch {
                 // device storage unavailable — no crash
               }
             }}
-            style={styles.action}
+            hitSlop={8}
+            style={styles.iconButton}
           >
-            <Ionicons name={saved ? "bookmark" : "bookmark-outline"} size={17} color={colors.primaryStrong} />
-            <Text style={styles.actionText}>{saved ? t.unsaveItem : t.saveItem}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t.compare}
-            onPress={() => router.push("/explore/compare")}
-            style={styles.action}
-          >
-            <Ionicons name="git-compare-outline" size={17} color={colors.primaryStrong} />
-            <Text style={styles.actionText}>{t.compare}</Text>
+            <Ionicons
+              name={saved ? "bookmark" : "bookmark-outline"}
+              size={19}
+              color={colors.primaryStrong}
+            />
           </Pressable>
         </View>
-      </Card>
 
-      <View style={styles.tabs}>
-        {(["overview", "trends", "districts", "postharvest"] as const).map((value) => (
-          <FilterChip
-            key={value}
-            label={value === "postharvest" ? t.postHarvest : t[value === "overview" ? "overview" : value === "trends" ? "trends" : "districts"]}
-            selected={tab === value}
-            onPress={() => setTab(value)}
+        <View style={styles.actionRow}>
+          <ToolbarAction
+            icon="git-compare-outline"
+            label={t.compare}
+            onPress={() => router.push({ pathname: "/explore/compare", params: { crop: name ?? slug } })}
           />
-        ))}
+          <ToolbarAction
+            icon="map-outline"
+            label={t.maps}
+            onPress={() => router.push({ pathname: "/maps", params: { crop: name ?? slug } })}
+          />
+          <ToolbarAction
+            icon="chatbubble-ellipses-outline"
+            label={t.ask}
+            onPress={() =>
+              router.push({
+                pathname: "/ask",
+                params: { q: `What does the published data show for ${name ?? slug} in Rwanda?` },
+              })
+            }
+          />
+        </View>
+
+        {/* Coverage is stated once, here, and not repeated under every section. */}
+        <CoverageBadge
+          level="national series"
+          period={axis.length ? `${axis[0]}–${axis[axis.length - 1]}` : null}
+          source={board.data?.provenance?.source_id ?? null}
+        />
       </View>
 
-      {tab === "overview" ? (
-        productivity.isLoading ? (
-          <LoadingSkeleton height={120} />
-        ) : (
-          <Card>
-            <SectionHeader title={t.overview} subtitle={productivity.data?.period ?? undefined} />
-            <InfoRow label={t.production} value={latest.production ? `${latest.production.toLocaleString(undefined, { maximumFractionDigits: 0 })} t` : "Not available"} />
-            <InfoRow label={t.harvestedArea} value={latest.area ? `${latest.area.toLocaleString(undefined, { maximumFractionDigits: 0 })} ha` : "Not available"} />
-            <InfoRow label={t.districts} value={String(latest.districts)} note="with published figures" />
-            <SourceCard
-              sourceLabel={productivity.data?.provenance?.source_id ?? undefined}
-              period={productivity.data?.period ?? undefined}
-              coverage="district"
-              limitations={productivity.data?.provenance?.limitations}
-            />
-          </Card>
-        )
-      ) : null}
+      {/* ---- National series: the main analytical surface ------------------ */}
+      <DataSection title={t.nationalSeries} subtitle={t.pulseSubtitle} first>
+        <MetricSelectorRow
+          options={NATIONAL_METRICS.map((metric) => ({
+            id: metric,
+            label:
+              metric === "yield_mt_ha"
+                ? t.metricYield
+                : metric === "production_mt"
+                  ? t.metricProduction
+                  : t.metricArea,
+            unit: board.data?.metric_units?.[metric] ?? null,
+          }))}
+          value={nationalMetric}
+          onChange={(id) => setNationalMetric(id as NationalMetric)}
+        />
 
-      {tab === "trends" ? (
-        trends.isLoading ? (
-          <LoadingSkeleton height={200} />
-        ) : trends.data?.points?.length ? (
-          <Card>
-            <SectionHeader title={t.trends} subtitle="National series" />
-            <LineChart
-              values={trends.data.points.map((p) => ({
-                label: p.label ?? p.period,
-                value: p.values?.production_mt ?? p.values?.yield_mt_ha ?? null,
-              }))}
-              unit={trends.data.metric_units?.production_mt ?? ""}
-            />
-            <SourceCard
-              sourceLabel={trends.data.provenance?.source_id ?? undefined}
-              coverage="national"
-              limitations={trends.data.provenance?.limitations}
-            />
-          </Card>
-        ) : (
-          <EmptyState title={t.noDataAvailable} icon="trending-up-outline" />
-        )
-      ) : null}
+        <MetricSelectorRow
+          options={[
+            { id: "all", label: t.allPublishedPeriods, unit: null },
+            { id: "same-season", label: t.sameSeasonView, unit: seasonLetter ? `Season ${seasonLetter}` : null },
+          ]}
+          value={periodView}
+          onChange={(id) => setPeriodView(id as PeriodView)}
+          compact
+        />
 
-      {tab === "districts" ? (
-        productivity.isLoading ? (
-          <LoadingSkeleton height={200} />
+        {board.isError ? (
+          <ErrorState message={t.errorGeneric} onRetry={() => void board.refetch()} />
+        ) : board.isLoading ? (
+          <LoadingSkeleton height={chart.tallHeight} />            ) : !entry || nationalPublished === 0 ? (
+          <EmptyState
+            title={t.noDataAvailable}
+            message={`${name ?? slug} — ${t.notPublished.toLowerCase()}.`}
+          />
         ) : (
-          <Card>
-            <SectionHeader title={t.districts} subtitle={productivity.data?.period ?? undefined} />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-              {(Object.keys(METRIC_LABEL) as Metric[]).map((key) => (
-                <FilterChip key={key} label={METRIC_LABEL[key]} selected={metric === key} onPress={() => setMetric(key)} />
-              ))}
+          <>
+            {/* The figure sits directly above the plot, so the metric, its unit
+                and its period are readable before the chart is interpreted. */}
+            <View style={styles.figureRow}>
+              <Text style={styles.figureValue}>
+                {nationalPublished === 0 || latestIndex < 0
+                  ? "Not published"
+                  : (nationalPoints[latestIndex].value ?? 0).toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+              </Text>
+              <View style={{ flex: 1 }}>
+                {nationalUnit ? <Text style={typography.unit}>{nationalUnit}</Text> : null}
+                <Text numberOfLines={1} style={typography.micro}>
+                  {latestIndex >= 0
+                    ? `${nationalPoints[latestIndex]?.label ?? ""}${
+                        periodView === "same-season" && seasonLetter
+                          ? ` · ${t.seasonWord} ${seasonLetter} ${t.onlySuffix}`
+                          : ""
+                      }`
+                    : ""}
+                </Text>
+              </View>
             </View>
-            {districtRows.length ? (
-              <HorizontalBarChart values={districtRows} unit="" maxItems={12} />
+
+            <TimeSeriesChart
+              series={[{ key: nationalMetric, label: name ?? slug, points: nationalPoints }]}
+              unit={nationalUnit}
+              height={chart.tallHeight}
+              accessibilityLabel={`${name ?? slug} ${nationalMetric} national series`}
+            />
+
+            <View style={styles.changeRow}>
+              <ChangeIndicator change={nationalChange} unavailableNote={t.noComparableChange} />
+              {nationalChange ? <Text style={typography.micro}>same season</Text> : null}
+            </View>
+
+            {nationalPublished === 1 ? <DataWarning tone="slate" text={t.singlePointNote} /> : null}
+
+            {periodView === "same-season" ? (
+              <DataWarning tone="slate" text={t.sameSeasonNotSeries} />
+            ) : null}
+
+            <SourceMethodSheet
+              title={t.sourceAndMethod}
+              source={board.data?.provenance?.source_id}
+              period={axis.length ? `${axis[0]}–${axis[axis.length - 1]}` : null}
+              coverage="national crop series"
+              unit={nationalUnit}
+              method={board.data?.provenance?.method}
+              limitations={board.data?.provenance?.limitations}
+            />
+          </>
+        )}
+      </DataSection>
+
+      {/* ---- District cross-section and one district's own series ---------- */}
+      <DataSection title={t.districts} subtitle={t.districtSeries}>
+        <PeriodChips
+          options={districtPeriods.map((period) => ({
+            id: period.period_code,
+            label: period.label,
+            hint: `${period.n_districts}`,
+          }))}
+          value={activePeriod}
+          onChange={setPeriodCode}
+        />
+
+        {districtPeriods.length === 0 ? <DataWarning text={t.errorNoDistrictPeriod} /> : null}
+
+        <MetricSelectorRow
+          options={DISTRICT_METRICS.map((metric) => ({
+            id: metric,
+            label:
+              metric === "yield_kg_ha"
+                ? t.metricYield
+                : metric === "production_mt"
+                  ? t.metricProduction
+                  : metric === "harvested_area_ha"
+                    ? t.metricArea
+                    : t.metricGap,
+            unit: metric === "gap" ? "%" : PANEL_UNITS[metric],
+          }))}
+          value={districtMetric}
+          onChange={(id) => {
+            setDistrictMetric(id as DistrictMetric);
+            setDistrictKey(null);
+          }}
+        />
+
+        {districtMetric === "gap" ? (
+          <>
+            <DataWarning text={t.gapBenchmarkNote} />
+            {gapLayer.isLoading ? (
+              <LoadingSkeleton height={180} />
+            ) : crossSection.length ? (
+              <HorizontalBarChart values={crossSection} unit="%" maxItems={30} />
+            ) : (
+              <EmptyState
+                title={gapLayer.data?.message ?? t.errorNoDistrictData}
+                message={
+                  gapLayer.data?.available_period
+                    ? `Latest district release: ${gapLayer.data.available_period}`
+                    : undefined
+                }
+              />
+            )}
+          </>
+        ) : (
+          <>
+            <DistrictPicker
+              label={t.pickDistrict}
+              options={districtOptions}
+              value={districtKey}
+              onChange={setDistrictKey}
+            />
+
+            {districtKey ? (
+              districtSeries.isLoading ? (
+                <LoadingSkeleton height={chart.height} />
+              ) : districtSeries.isError || districtPublished === 0 ? (
+                <EmptyState
+                  title={t.noDataAvailable}
+                  message={`${selectedDistrictName ?? ""} — ${districtMetricKey} ${t.notPublished.toLowerCase()}.`}
+                />
+              ) : districtPublished === 1 ? (
+                /* One published point. Shown as a value, never as a trend and
+                   never with a rank movement. */
+                <View style={{ gap: 4 }}>
+                  <Text style={typography.microCaps}>{`${selectedDistrictName ?? ""} · ${districtUnit ?? ""}`}</Text>
+                  <Text style={styles.figureValue}>
+                    {(districtPoints.find((point) => point.value !== null)?.value ?? 0).toLocaleString(
+                      undefined,
+                      { maximumFractionDigits: 2 },
+                    )}
+                  </Text>
+                  <DataWarning
+                    tone="slate"
+                    text={t.singlePointNote}
+                  />
+                </View>
+              ) : (
+                <>
+                  <TimeSeriesChart
+                    series={[
+                      {
+                        key: `${districtKey}-${districtMetricKey}`,
+                        label: selectedDistrictName ?? "District",
+                        points: districtPoints,
+                      },
+                    ]}
+                    unit={districtUnit}
+                    height={chart.height}
+                    accessibilityLabel={`${selectedDistrictName ?? "District"} ${districtMetricKey} series`}
+                  />
+                  <ChangeIndicator change={districtChange} unavailableNote={t.noComparableChange} />
+                </>
+              )
+            ) : panel.isLoading ? (
+              <LoadingSkeleton height={180} />
+            ) : crossSection.length ? (
+              <HorizontalBarChart
+                values={crossSection}
+                unit={PANEL_UNITS[districtMetric as "yield_kg_ha" | "production_mt" | "harvested_area_ha"]}
+                maxItems={30}
+              />
             ) : (
               <EmptyState title={t.errorNoDistrictData} message={t.noDataAvailable} />
             )}
-          </Card>
-        )
-      ) : null}
+          </>
+        )}
 
-      {tab === "postharvest" ? (
-        postHarvest.isLoading ? (
-          <LoadingSkeleton height={200} />
+        <SourceMethodSheet
+          title={t.sourceAndMethod}
+          source={
+            districtMetric === "gap"
+              ? (gapLayer.data?.source_id ?? gapLayer.data?.provenance?.source_id)
+              : (panel.data?.provenance?.source_id ?? districtSeries.data?.provenance?.source_id)
+          }
+          period={
+            districtMetric === "gap"
+              ? (gapLayer.data?.period_code ?? activePeriod)
+              : (panel.data?.label ?? activePeriod)
+          }
+          coverage={
+            districtMetric === "gap"
+              ? "district · benchmark per crop"
+              : `district · ${panel.data?.n_districts ?? crossSection.length} districts`
+          }
+          unit={districtMetric === "gap" ? "%" : PANEL_UNITS[districtMetric as "yield_kg_ha" | "production_mt" | "harvested_area_ha"]}
+          method={districtMetric === "gap" ? gapLayer.data?.provenance?.method : panel.data?.provenance?.method}
+          limitations={
+            districtMetric === "gap"
+              ? gapLayer.data?.provenance?.limitations
+              : panel.data?.provenance?.limitations
+          }
+        />
+      </DataSection>
+
+      {/* ---- Post-harvest use ---------------------------------------------- */}
+      <DataSection title={t.useOfProduction} subtitle={t.postHarvest}>
+        {postHarvest.isLoading ? (
+          <LoadingSkeleton height={180} />
         ) : share ? (
-          <Card>
-            <SectionHeader title={t.useOfProduction} subtitle="National crop-level shares" />
-            <DonutChart
-              slices={[
-                { label: t.sold, value: share.sold_pct, color: colors.primary },
-                { label: t.stored, value: share.stored_pct, color: colors.blue },
-                { label: t.homeConsumption, value: share.own_consumption_pct, color: colors.amber },
-                { label: t.seed, value: share.seeds_pct, color: colors.forest },
-                { label: t.losses, value: share.post_harvest_losses_pct, color: colors.danger },
+          <>
+            <StackedShareBar
+              sumOk={share.shares_sum_ok}
+              segments={[
+                { key: "sold", label: t.sold, value: share.sold_pct, color: colors.primary },
+                { key: "stored", label: t.stored, value: share.stored_pct, color: colors.blue },
+                { key: "own", label: t.homeConsumption, value: share.own_consumption_pct, color: colors.amber },
+                { key: "seed", label: t.seed, value: share.seeds_pct, color: colors.forest },
+                { key: "losses", label: t.losses, value: share.post_harvest_losses_pct, color: colors.danger },
               ]}
             />
-            <Text style={typography.micro}>
-              National crop-level table for 2025 Season B. It carries no district dimension.
-            </Text>
-          </Card>
+            <DataWarning text={t.nationalOnlyCropLevel} />
+            <SourceMethodSheet
+              title={t.sourceAndMethod}
+              source={postHarvest.data?.provenance?.source_id}
+              coverage="national crop-level"
+              unit="%"
+              method={postHarvest.data?.provenance?.method}
+              limitations={postHarvest.data?.provenance?.limitations}
+            />
+          </>
         ) : (
-          <EmptyState title={t.noDataAvailable} icon="pie-chart-outline" />
-        )
-      ) : null}
+          <EmptyState title={t.noDataAvailable} icon="cube-outline" />
+        )}
+      </DataSection>
     </ScreenLayout>
   );
 }
 
+/** Dense metric switcher: label plus the unit it will be plotted in. */
+function MetricSelectorRow({
+  options,
+  value,
+  onChange,
+  compact = false,
+}: {
+  options: { id: string; label: string; unit: string | null }[];
+  value: string;
+  onChange: (id: string) => void;
+  compact?: boolean;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.selectorRow}
+      keyboardShouldPersistTaps="handled"
+    >
+      {options.map((option) => {
+        const selected = option.id === value;
+        return (
+          <Pressable
+            key={option.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={option.unit ? `${option.label}, ${option.unit}` : option.label}
+            onPress={() => onChange(option.id)}
+            hitSlop={6}
+            style={[
+              styles.selectorChip,
+              compact ? styles.selectorChipCompact : null,
+              selected ? styles.selectorChipSelected : null,
+            ]}
+          >
+            <Text style={[styles.selectorLabel, selected ? styles.selectorLabelSelected : null]}>
+              {option.label}
+            </Text>
+            {option.unit ? (
+              <Text style={[styles.selectorUnit, selected ? styles.selectorUnitSelected : null]}>
+                {option.unit}
+              </Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function PeriodChips({
+  options,
+  value,
+  onChange,
+}: {
+  options: { id: string; label: string; hint: string }[];
+  value: string | null;
+  onChange: (code: string) => void;
+}) {
+  const t = strings(useAppStore((s) => s.language));
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.selectorRow}
+      keyboardShouldPersistTaps="handled"
+    >
+      {options.map((option) => {
+        const selected = option.id === value;
+        return (
+          <Pressable
+            key={option.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={`${option.label}, ${option.hint} ${t.districts}`}
+            onPress={() => onChange(option.id)}
+            hitSlop={6}
+            style={[styles.selectorChip, selected ? styles.selectorChipSelected : null]}
+          >
+            <Text style={[styles.selectorLabel, selected ? styles.selectorLabelSelected : null]}>
+              {option.label}
+            </Text>
+            <Text style={[styles.selectorUnit, selected ? styles.selectorUnitSelected : null]}>
+              {`${option.hint} ${t.districts}`}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function DistrictPicker({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  value: string | null;
+  onChange: (id: string | null) => void;
+}) {
+  const t = strings(useAppStore((s) => s.language));
+  if (!options.length) return null;
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={typography.microCaps}>{label.toUpperCase()}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.selectorRow}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === null }}
+          accessibilityLabel={t.districts}
+          onPress={() => onChange(null)}
+          hitSlop={6}
+          style={[styles.selectorChip, styles.selectorChipCompact, value === null ? styles.selectorChipSelected : null]}
+        >
+          <Text style={[styles.selectorLabel, value === null ? styles.selectorLabelSelected : null]}>
+            {t.districts}
+          </Text>
+        </Pressable>
+        {options.map((option) => (
+          <Pressable
+            key={option.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: value === option.id }}
+            accessibilityLabel={option.label}
+            onPress={() => onChange(option.id)}
+            hitSlop={6}
+            style={[
+              styles.selectorChip,
+              styles.selectorChipCompact,
+              value === option.id ? styles.selectorChipSelected : null,
+            ]}
+          >
+            <Text style={[styles.selectorLabel, value === option.id ? styles.selectorLabelSelected : null]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function ToolbarAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [styles.action, pressed ? { opacity: 0.8 } : null]}
+    >
+      <Ionicons name={icon} size={16} color={colors.primaryStrong} />
+      <Text style={styles.actionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  heroIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
+  toolbar: { gap: spacing.sm },
+  toolbarTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  title: { ...typography.h1, fontSize: 22 },
+  iconButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  tabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  actionRow: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   action: {
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 88,
+    minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    paddingHorizontal: spacing.md,
-    minHeight: 40,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
   actionText: { color: colors.primaryStrong, fontWeight: "600", fontSize: 13 },
+  figureRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  figureValue: {
+    ...typography.numericLarge,
+    fontSize: 28,
+    fontVariant: ["tabular-nums"] as ["tabular-nums"],
+  },
+  changeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
+  selectorRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
+  selectorChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    minHeight: 40,
+    justifyContent: "center",
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  selectorChipCompact: { minHeight: 34 },
+  selectorChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  selectorLabel: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
+  selectorLabelSelected: { color: colors.white },
+  selectorUnit: { fontSize: 10, color: colors.slate500, fontVariant: ["tabular-nums"] },
+  selectorUnitSelected: { color: colors.mintLight },
 });

@@ -1,12 +1,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <!--
+    Permissions, audited against what the app actually does.
+
+    Kept:
+      * INTERNET                - every analytics screen reads the API.
+      * ACCESS_*_LOCATION        - optional harvest GPS capture (expo-location);
+                                  declared in app.json as well, because the
+                                  permission prompt text is defined there.
+      * READ/WRITE_EXTERNAL_     - expo-image-picker / expo-document-picker /
+          STORAGE                 expo-file-system attachment handling on
+                                  Android <= 12. Scoped with maxSdkVersion so
+                                  Android 13+ is not asked for broad storage
+                                  access it does not use.
+
+    Removed:
+      * RECORD_AUDIO            - nothing in the app records audio, and no
+                                  audio module is installed.
+      * SYSTEM_ALERT_WINDOW     - only needed by the developer menu; it is
+                                  declared in src/debug/AndroidManifest.xml so
+                                  it no longer ships in a release build.
+      * VIBRATE                 - no vibration or haptics call exists, and
+                                  expo-haptics is not a dependency.
+
+    Re-adding any of these requires both a real feature that uses it and a
+    matching entry here; app.json's `android.permissions` stays in sync.
+  -->
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
   <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
-  <uses-permission android:name="android.permission.VIBRATE"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

@@ -19,7 +19,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Cropmatics attaches a photo to a harvest you register. Photos stay on your device until you sync."
+          "photosPermission": "Cropmatics attaches a photo to a harvest you register. Photos stay on your device until you sync.",
+          "microphonePermission": false
         }
       ],
       [
@@ -44,6 +45,10 @@
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE"
       ]
     },
     "extra": {

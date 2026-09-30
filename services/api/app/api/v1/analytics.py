@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.analytics.productivity_gap import STRATEGIES
 from app.schemas.analytics import (
     GapResponse,
+    IndexedYieldResponse,
     PriorityRequest,
     PriorityResponse,
 )
@@ -20,6 +21,7 @@ from app.schemas.common import Provenance
 from app.schemas.dashboard import (
     FactorsResponse,
     HeatmapResponse,
+    NationalBoardResponse,
     PostHarvestResponse,
     ProductivityResponse,
     TrendResponse,
@@ -28,6 +30,8 @@ from app.schemas.filters import AnalyticsFilters, analytics_filters
 from app.schemas.storage import StorageInfrastructureResponse
 from app.services import (
     analytics_service,
+    indexed_yield_service,
+    national_board_service,
     postharvest_service,
     storage_service,
     trend_service,
@@ -192,9 +196,106 @@ def trends(
             ),
             limitations=[
                 "national series, not district estimates",
+                trend_service.BREAKDOWN_LIMITATION,
                 "periods available depend on the published releases",
                 "compare view excludes yield: raw yields are not comparable across crop species",
             ],
+        ),
+    )
+
+
+@router.get("/national-board", response_model=NationalBoardResponse)
+def national_board(
+    crops: str | None = Query(
+        None,
+        description=(
+            "Comma-separated crop names to restrict the board to, e.g. "
+            "Maize,Beans. Omit for every non-aggregate crop."
+        ),
+    ),
+) -> NationalBoardResponse:
+    """The whole national crop board in one read.
+
+    Every crop's series is returned on one shared period axis (null for a period
+    the release did not tabulate), and the same-season delta is computed here.
+    The mobile board uses this instead of one request per crop, so the numbers
+    stay authoritative and the client only presents them.
+    """
+    names: list[str] | None = None
+    if crops:
+        names = [c.strip() for c in crops.split(",") if c.strip()]
+        if not (2 <= len(names) <= 40):
+            raise HTTPException(
+                status_code=422,
+                detail="national-board accepts between 2 and 40 comma-separated crop names",
+            )
+
+    result = national_board_service.board(names)
+    return NationalBoardResponse(
+        **result,
+        provenance=Provenance(
+            source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+            source_period="-".join([result["periods"][0], result["periods"][-1]])
+            if result["periods"]
+            else None,
+            method=(
+                "published per-crop national series, aligned to one period axis; "
+                "same-season delta computed server-side from two published "
+                "observations; official aggregate groups excluded"
+            ),
+            limitations=[
+                "national series only, never a district value",
+                trend_service.BREAKDOWN_LIMITATION,
+                "a period the release did not tabulate is returned as null and "
+                "is never interpolated",
+                "the same-season comparison is only reported when both the "
+                "current and the previous-year observation exist",
+                "raw yield is published per crop and is never compared across "
+                "crop species",
+            ],
+        ),
+    )
+
+
+@router.get("/indexed-yield", response_model=IndexedYieldResponse)
+def indexed_yield(
+    crops: str | None = Query(
+        None,
+        description=(
+            "Comma-separated 2-5 crop names, e.g. Maize,Beans. Omit for every "
+            "non-aggregate crop the national trend table carries."
+        ),
+    ),
+) -> IndexedYieldResponse:
+    """Per-crop yield index against each crop's own published baseline.
+
+    Raw yields are not comparable across crop species, so this endpoint never
+    averages them. Each crop is indexed to the median of its own published
+    national yields (= 100), which is the only way to show several crops on one
+    axis without inventing a common scale. Eligibility rules and limitations are
+    part of the response, not an afterthought.
+    """
+    names: list[str] | None = None
+    if crops:
+        names = [c.strip() for c in crops.split(",") if c.strip()]
+        if not (2 <= len(names) <= 5):
+            raise HTTPException(
+                status_code=422,
+                detail="indexed-yield accepts 2 to 5 comma-separated crop names",
+            )
+
+    result = indexed_yield_service.indexed_yield(names)
+    return IndexedYieldResponse(
+        **result,
+        provenance=Provenance(
+            source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+            source_period="2024B-2026A",
+            method=(
+                "index = 100 * published national yield / the crop's own median "
+                "published national yield; computed per crop, never pooled "
+                "across crops"
+            ),
+            limitations=indexed_yield_service.LIMITATIONS,
         ),
     )
 
