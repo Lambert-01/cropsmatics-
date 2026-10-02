@@ -128,7 +128,7 @@ def test_national_totals_share_the_axis_and_are_never_an_average_of_yields(clien
     totals = body["national"]
     assert totals is not None
     axis = body["periods"]
-    for metric, values in totals["series"].items():
+    for _metric, values in totals["series"].items():
         assert len(values) == len(axis)
 
     production = totals["series"]["production_mt"]
