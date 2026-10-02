@@ -1,112 +1,116 @@
-# Data Layer
+# Cropmatics Rwanda Data Layer
 
-Layout and rules for all data used by Cropmatics Rwanda.
+This directory contains the authoritative data inputs, dictionaries and generated analytical outputs used by Cropmatics Rwanda.
 
-```
+## Directory layout
+
+```text
 data/
-├── raw/                 # IMMUTABLE official sources (never edited in place)
+├── raw/                         # IMMUTABLE official/source inputs
 │   ├── nisr/
-│   │   ├── sas/         # 2024 annual, 2025 annual, 2026A, 2026B table extraction
-│   │   └── sas_microdata/  # restricted respondent-level files (not yet populated)
-│   ├── markets/         # esoko / fewsnet / wfp / nisr_sas price exports (drop folder)
-│   └── cropmatics_real_data_2024_2026/   # legacy curated 2025B pack (one release cycle)
-├── external/            # third-party open data (rainfall, soil, OSM, ...) — not yet populated
-├── interim/             # intermediate transforms; regenerable
-│   └── legacy_official_derived/
-├── processed/           # model-ready analytical tables produced by scripts/data
-├── dictionaries/        # code lists: geography, crops, SAS variable map
-├── source_registry/     # where every dataset comes from + access terms
-└── dev_fixtures/        # SYNTHETIC / TEST ONLY — never official statistics
+│   │   └── sas/                 # Multi-season NISR SAS table extractions (2024A–2026B)
+│   ├── external/
+│   │   └── minagri/             # Verified MINAGRI post-harvest/storage context
+│   ├── markets/                 # Provider drop-folder; currently no verified observations
+│   └── cropmatics_real_data_2024_2026/
+│       └── raw_official/        # Original official workbook retained for provenance
+├── dictionaries/                # Crop/geography/code mappings and variable contracts
+├── source_registry/             # Dataset provenance and access terms
+├── interim/                     # Regenerable pipeline intermediates (gitignored)
+├── processed/                   # Regenerable canonical analytical tables (gitignored)
+├── external/                    # Future third-party derived/open inputs (gitignored)
+└── dev_fixtures/
+    └── synthetic/               # Clearly labelled TEST/DEMO data only
 ```
 
-## Hard rules
+## What is authoritative
 
-1. **`raw/` is immutable.** Never edit a raw file. If a fix is needed, add a
-   transform in `scripts/data/` and write the result to `interim/` or `processed/`.
-2. **Never mix official and synthetic data.** Synthetic fixtures live only under
-   `dev_fixtures/synthetic/` and must be labelled `SYNTHETIC`.
-3. **Every processed table is traceable.** Rows carry source metadata
-   (`source_id`, `source_period`, `processing_script`, `processing_version`).
-   See [../docs/DATA_PROVENANCE.md](../docs/DATA_PROVENANCE.md).
-4. **Do not invent values.** Use blanks / `null` / "not verified" instead of
-   guessed numbers (e.g. cold-chain capacity is intentionally empty).
-5. **Derived data is generated, not hand-edited.** Rebuild with
-   `make data` (equivalently `python scripts/data/run_all.py`).
+1. **Official raw inputs live under `data/raw/` and are immutable.** Never edit these files in place. Corrections, normalisation and mappings belong in `scripts/data/` and write to `interim/` or `processed/`.
+2. **`data/raw/nisr/sas/` is the multi-season statistical source layer.** It covers the published 2024A–2026B periods and is interpreted through the reviewed mapping in `scripts/data/sas_table_map.py`.
+3. **`data/raw/cropmatics_real_data_2024_2026/` remains as a curated official-source pack and provenance bridge.** Its CSVs and original workbook are source inputs/reference material, not disposable generated output.
+4. **MINAGRI storage/post-harvest inputs under `data/raw/external/minagri/` are retained** because the active pipeline builds the storage infrastructure and cold-chain context from them.
+5. **Synthetic development fixtures are never production statistics.** They stay under `data/dev_fixtures/synthetic/` and must never be loaded into production analytical tables.
 
-## Key raw datasets
+## Generated data
 
-| File | Granularity | Description |
-|---|---|---|
-| `01_district_crop_productivity_2025B.csv` | district × crop × season | area, harvest, production, yield |
-| `02_district_productivity_factors_2025B.csv` | district × season | input/practice adoption (%) |
-| `03_irrigation_water_2025B.csv` | district × season | irrigation technique + water source |
-| `04_erosion_control_2025B.csv` | district × season | erosion-control technique + severity |
-| `05_crop_postharvest_use_2025B.csv` | crop × season | sold/consumed/stored/loss shares |
-| `06_national_crop_trends_2024_2026.csv` | national × crop × season | area/production/yield series |
-| `07_national_input_practice_trends_2024_2026.csv` | national × season | input/practice trends |
-| `08_verified_cold_chain_context_2026.csv` | district | cold-chain context (capacity blank) |
-| `09_source_registry.csv` | — | official source pages / raw workbook locations |
+`data/interim/` and `data/processed/` are generated by the pipeline and intentionally ignored by Git except for `.gitkeep` placeholders.
 
-`raw/cropmatics_real_data_2024_2026/raw_official/` holds the original NISR
-workbook(s) exactly as received.
+Rebuild all generated analytical data with:
 
-## Multi-season SAS layer (2024A–2026B)
-
-The legacy pack above covers a single release (2025 Season B). The NISR SAS
-workbooks are now extracted sheet-by-sheet under `raw/nisr/sas/`:
-
-```
-data/raw/nisr/sas/
-├── manifest.csv                 # sheet → used range → extracted CSV (as delivered)
-├── 2024/annual/tables/          # 79 tables, 2024A + 2024B + 2024C
-├── 2025/annual/tables/          # 80 tables, 2025A + 2025B + 2025C
-└── 2026/season_a|season_b/tables/  # 35 + 33 tables, 2026A and 2026B
+```bash
+python scripts/data/run_all.py
 ```
 
-Rules for this layer:
+The current deterministic pipeline runs:
 
-* **Period comes from the reviewed mapping, not the sheet title.**
-  `scripts/data/sas_table_map.py` is the data contract: it names every mapped
-  sheet, its period and its domain. A few official titles are wrong (e.g. the
-  2024 pesticide table printed as "2023 Season C"); they are preserved verbatim
-  as `source_title_raw` and the correction is recorded in
-  `period_override_reason`. Nothing is silently rewritten.
-* **Only published periods exist.** `2026C` is absent because NISR has not
-  released it; `normalize_period()` rejects it rather than inventing a season.
-* **Nothing is imputed.** A blank cell (including the workbook's `-` marker)
-  stays null, and a crop NISR did not tabulate for a season has no row at all.
-* **Aggregates are labelled, never mixed in.** `row_scope` / `row_scope_raw` and
-  `geography_level` / `farmer_scale` keep national totals and the SSF/LSF
-  breakdown distinguishable from district observations. NISR's `Total` and
-  `National` labels both mean the national aggregate and are normalized to
-  `total`.
+```text
+catalog_raw
+→ ingest_sas_tables
+→ build_crop_productivity
+→ ingest_market_prices
+→ validate_raw
+→ normalize_geography
+→ normalize_crops
+→ build_district_crop_dataset
+→ build_factor_dataset
+→ build_irrigation
+→ build_erosion
+→ build_postharvest_dataset
+→ build_national_trends
+→ build_input_trends
+→ build_cold_chain
+→ build_postharvest_infrastructure
+→ build_cold_chain_network_summary
+→ build_training_dataset
+→ build_dashboard_summary
+→ build_data_coverage
+→ build_sources
+→ build_manifest
+```
 
-Generated by `make data`:
+## Key official source inputs
 
-| Output | Granularity | Description |
-|---|---|---|
-| `interim/source_catalog.csv` | one row per raw file | path, bytes, SHA-256, publisher, access level |
-| `interim/sas_table_catalog.csv` | one row per extracted sheet | resolved period/domain/metric + mapping status |
-| `interim/sas_*_long.csv` | long | productivity, practices, district indicators, post-harvest |
-| `processed/crop_productivity.csv` | period × geography × crop | all eight published periods, with source lineage |
+| Source | Purpose |
+|---|---|
+| `raw/cropmatics_real_data_2024_2026/01_district_crop_productivity_2025B.csv` | District × crop productivity reference for 2025B |
+| `raw/cropmatics_real_data_2024_2026/02_district_productivity_factors_2025B.csv` | District input/practice adoption |
+| `raw/cropmatics_real_data_2024_2026/03_irrigation_water_2025B.csv` | Irrigation technique and water source |
+| `raw/cropmatics_real_data_2024_2026/04_erosion_control_2025B.csv` | Erosion-control techniques and severity |
+| `raw/cropmatics_real_data_2024_2026/05_crop_postharvest_use_2025B.csv` | Crop use after harvest |
+| `raw/cropmatics_real_data_2024_2026/06_national_crop_trends_2024_2026.csv` | National crop trend reference |
+| `raw/cropmatics_real_data_2024_2026/07_national_input_practice_trends_2024_2026.csv` | National input/practice trends |
+| `raw/cropmatics_real_data_2024_2026/08_verified_cold_chain_context_2026.csv` | Verified cold-chain context; capacity remains null where unpublished |
+| `raw/cropmatics_real_data_2024_2026/09_source_registry.csv` | Source/provenance registry |
+| `raw/external/minagri/10_national_postharvest_infrastructure_2024_2025.csv` | National storage/post-harvest infrastructure |
+| `raw/external/minagri/11_cold_chain_network_summary_2026.csv` | Cold-chain network/program context |
 
-`processed/district_crop_productivity.csv` (the legacy 2025B table) is kept for
-one release cycle so clients keep working; its values are asserted identical to
-the 2025B rows of the new panel by `scripts/tests/test_multi_season.py`.
+## Multi-season SAS rules
 
-## Market prices (provider-neutral)
+- Period comes from the reviewed table mapping, not blindly from a worksheet title.
+- Only published periods are allowed; no unpublished season is invented.
+- Blank cells remain null. Missing observations are never coerced to zero.
+- Aggregate and district rows remain explicitly separated by geography/scope fields.
+- Raw yield is never averaged across unrelated crop species for comparison.
 
-`scripts/data/ingest_market_prices.py` reads any price export dropped under
-`raw/markets/<provider>/` and writes one canonical table,
-`processed/market_price_observation.csv`. Adding a provider does not change the
-schema: the provider contract (accepted column aliases, documented defaults) lives
-in that module, and `raw/markets/README.md` documents each provider's status.
+The principal multi-season output is `processed/crop_productivity.csv`, containing the canonical period × geography × crop panel.
 
-* The published value, currency and unit are preserved verbatim;
-  `price_rwf_per_kg` exists only for an RWF quote with a documented mass
-  conversion, and `conversion_basis` records the factor used.
-* Rejected rows go to `interim/market_price_quarantine.csv` with a reason, and
-  `interim/market_price_report.json` records per-provider counts plus any
-  commodity or district that found no dictionary match.
-* No provider files yet? The canonical schema is written with 0 rows - it does
-  not invent observations.
+`processed/district_crop_productivity.csv` is retained as a generated compatibility table for the current release cycle and is validated against the corresponding rows of the canonical panel.
+
+## Market prices
+
+`scripts/data/ingest_market_prices.py` reads provider exports from `raw/markets/<provider>/` and writes `processed/market_price_observation.csv`.
+
+At present no verified provider export is committed, so the pipeline writes the canonical schema with **zero observations**. Cropmatics must not fabricate market prices to fill that gap.
+
+## Cleanup policy
+
+Superseded derived CSV copies that previously lived under `data/interim/legacy_official_derived/` were removed because they duplicated authoritative raw inputs and were excluded from `scripts/data/run_all.py`.
+
+Future deletion is allowed only when all of the following are true:
+
+1. the file is not an immutable raw source needed for provenance;
+2. no pipeline step, API, model, test or documentation contract consumes it;
+3. an authoritative replacement exists where applicable; and
+4. the complete pipeline and tests still pass after removal.
+
+Git history remains the archive for removed superseded derived artefacts.
