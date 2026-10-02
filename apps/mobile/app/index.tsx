@@ -1,9 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useMemo } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Sparkline } from "../src/components/charts";
 import { CropBoardRow } from "../src/components/CropBoardRow";
@@ -15,11 +15,13 @@ import {
 import { AppHeader } from "../src/components/AppHeader";
 import { BottomNav } from "../src/components/BottomNav";
 import { EmptyState, ErrorState, ListRow, LoadingSkeleton, OfflineBanner, SearchBar } from "../src/components/ui";
+import { features } from "../src/config/features";
 import { useAllCrops, useNationalBoard } from "../src/hooks/queries";
+import { useNationalInsights } from "../src/hooks/useNationalInsights";
 import { strings } from "../src/i18n";
 import { homeApi } from "../src/services/api";
 import { useAppStore } from "../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../src/theme";
+import { colors, radius, shadow, spacing, typography } from "../src/theme";
 import type { NationalBoardCrop } from "../src/types";
 import { boardPoints, changeFromApi, formatValue, toSeriesPoints } from "../src/utils/analytics";
 
@@ -51,10 +53,21 @@ const PULSE_METRIC = "production_mt";
 export default function HomeScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
+  const insets = useSafeAreaInsets();
 
   const home = useQuery({ queryKey: ["mobile-home"], queryFn: homeApi.get });
   const board = useNationalBoard();
   const crops = useAllCrops();
+  // The same deterministic feed the Insights screen shows, so Home's "latest
+  // insight" and the feed can never disagree.
+  const { insights } = useNationalInsights();
+  const latestInsight = insights[0] ?? null;
+
+  const refreshing = home.isFetching || board.isFetching;
+  const onRefresh = useCallback(() => {
+    void home.refetch();
+    void board.refetch();
+  }, [home, board]);
 
   const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
   const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
@@ -99,11 +112,20 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
-      <AppHeader />
+      <AppHeader
+        context={
+          home.data?.latest_period_label
+            ? `${home.data.latest_period_label} \u00b7 ${t.nationalSeries}`
+            : null
+        }
+      />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
         <SearchBar placeholder={t.searchPlaceholder} onFocus={() => router.push("/explore/search")} />
 
@@ -216,6 +238,32 @@ export default function HomeScreen() {
               ))}
             </View>
 
+            {/* ---- Latest insight ----------------------------------------- */}
+            {latestInsight ? (
+              <DataSection
+                title={t.latestInsightTitle}
+                right={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t.seeAllInsights}
+                    onPress={() => router.push("/field-operations/insights")}
+                    hitSlop={8}
+                  >
+                    <Text style={{ ...typography.micro, color: colors.primaryStrong, fontWeight: "700" }}>
+                      {t.seeAllInsights}
+                    </Text>
+                  </Pressable>
+                }
+              >
+                <ListRow
+                  title={latestInsight.title}
+                  subtitle={latestInsight.detail}
+                  icon={latestInsight.icon}
+                  onPress={() => router.push("/field-operations/insights")}
+                />
+              </DataSection>
+            ) : null}
+
             {/* ---- Below the fold ----------------------------------------- */}
             {home.data?.suggested_questions?.length ? (
               <DataSection title={t.popularQuestions}>
@@ -269,6 +317,25 @@ export default function HomeScreen() {
         )}
       </ScrollView>
       <BottomNav active="home" />
+
+      {/* Field operation stays one tap away from the intelligence home, without
+          taking over the analytics layout. Gated by the same feature flag as
+          the Field Operations hub. */}
+      {features.fieldOperations ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t.registerHarvest}
+          onPress={() => router.push("/field-operations/register-harvest")}
+          style={({ pressed }) => [
+            styles.fab,
+            { bottom: 74 + insets.bottom },
+            pressed ? { opacity: 0.9 } : null,
+          ]}
+        >
+          <Ionicons name="add" size={20} color={colors.white} />
+          <Text style={styles.fabLabel}>{t.registerHarvest}</Text>
+        </Pressable>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -301,6 +368,19 @@ const styles = StyleSheet.create({
   },
   coverageLabel: { ...typography.microCaps },
   coverageValue: { ...typography.micro, flex: 1, textAlign: "right" },
+  fab: {
+    position: "absolute",
+    right: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    ...shadow.strong,
+  },
+  fabLabel: { color: colors.white, fontSize: 14, fontWeight: "700" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   action: {
     flexBasis: "47%",

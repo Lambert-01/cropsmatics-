@@ -11,7 +11,12 @@
     "splash": {
       "image": "./assets/branding/splash-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F7FAF8"
+      "backgroundColor": "#032D23",
+      "dark": {
+        "image": "./assets/branding/splash-logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#032D23"
+      }
     },
     "newArchEnabled": false,
     "plugins": [

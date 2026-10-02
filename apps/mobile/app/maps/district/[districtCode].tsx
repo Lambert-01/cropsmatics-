@@ -23,7 +23,7 @@ export default function MapDistrictScreen() {
   const row = metrics.data?.districts.find((d) => d.district_code === slug);
 
   return (
-    <ScreenLayout back active="maps">
+    <ScreenLayout back active="map">
       <SectionHeader title={profile.data?.district ?? slug} subtitle="Agricultural map context" />
       {profile.isError ? (
         <ErrorState message={t.errorGeneric} onRetry={() => void profile.refetch()} />

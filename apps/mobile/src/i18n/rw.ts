@@ -312,6 +312,53 @@ export const rw: Strings = {
   nationalDataOnly: "National data only for this period.",
   districtDataAvailable: "District data available.",
   mapLegend: "Legend",
+  map: "Ikarita",
+  mapNoData: "Nta gaciro kemejwe",
+  // Technical direction wording: kept in English pending native-speaker review,
+  // matching this file's convention for long methodological sentences.
+  legendHigherIsBetter:
+    "Darker shading marks a higher value — the more favourable end of this scale.",
+  legendHigherIsWorse:
+    "Darker shading marks a higher value — the less favourable end of this scale.",
+  search: "Shakisha",
+  filterAll: "Byose",
+  filterSaved: "Byabitswe",
+  moversTitle: "Ibihinduka ku bihingwa",
+  // Comparison wording kept in English pending native-speaker review.
+  moversSubtitle: "Largest same-season production change versus the previous published period",
+  inputAdoptionTitle: "Imikoreshereze y'ibikoresho mu buhinzi",
+  // Technical coverage sentences kept in English pending native-speaker review.
+  inputAdoptionSubtitle: "Share of farmers reporting each practice — national, by published period",
+  inputAdoptionNote: "National coverage. Crop and district filters do not apply to this layer.",
+  factorsTitle: "Ibintu bifitanye isano n'umusaruro",
+  // Correlation methodology wording kept in English pending native-speaker review.
+  factorsSubtitle: "District practice adoption vs yield · Pearson correlation",
+  associationNotCausation: "Isano, ntabwo ari impamvu",
+  factorObservations: "observations",
+  noFactorAssociation: "No factor association could be estimated for this crop.",
+  factorSmallSample: "small sample — indicative only",
+  // Scope note kept in English pending native-speaker review.
+  factorsDistrictScope:
+    "Estimated across all districts for this crop — not this district alone, which has no cross-district variation to correlate.",
+  insightsTitle: "Ibyagaragaye",
+  latestInsightTitle: "Ibyagaragaye bishya",
+  seeAllInsights: "Reba byose",
+  // Derived-sentence templates kept in English pending native-speaker review.
+  insightsFeedSubtitle: "Derived from the latest published national data",
+  insightProduceRising: "{crop} production is up {pct}% versus {prev}.",
+  insightProduceFalling: "{crop} production is down {pct}% versus {prev}.",
+  insightNoMover: "No comparable production change is published yet.",
+  insightAdoption: "{practice} adoption is at {value}% ({period}).",
+  insightLoss: "Reported post-harvest loss is {value}% ({period}).",
+  insightLocalSummary: "{count} local harvest records · {quantity}.",
+  insightNoLocal: "No harvests registered on this device yet.",
+  alertsReview: "Reba",
+  alertsViewHarvest: "Reba isarura",
+  alertsSeeChanges: "Reba impinduka",
+  // Group headings kept in English pending native-speaker review.
+  alertsNeedsAttention: "Needs attention",
+  alertsUpcoming: "Upcoming",
+  alertsUpdates: "Data updates",
   useOfProduction: "Use of Production",
   sold: "Sold",
   homeConsumption: "Home Consumption",

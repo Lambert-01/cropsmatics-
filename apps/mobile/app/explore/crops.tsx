@@ -1,32 +1,40 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { CropBoardRow, type BoardMetric } from "../../src/components/CropBoardRow";
-import { MetricSelector } from "../../src/components/data-view";
+import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
-import { EmptyState, ErrorState, FilterChip, LoadingSkeleton, SearchBar } from "../../src/components/ui";
+import { EmptyState, ErrorState, FilterChip, ListRow, LoadingSkeleton, SearchBar } from "../../src/components/ui";
 import { useAllCrops, useNationalBoard } from "../../src/hooks/queries";
+import { useSavedCrops } from "../../src/hooks/useSavedCrops";
 import { strings } from "../../src/i18n";
 import type { NationalBoardCrop } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
 import { colors, spacing, typography } from "../../src/theme";
+import { computeMovers } from "../../src/utils/movers";
 import { slugifyEntity } from "../../src/utils/slug";
 
 /** Row height the skeleton must match, so the list does not jump when it lands. */
 const ROW_HEIGHT = 96;
+const PULSE_METRIC: BoardMetric = "production_mt";
+/** Movers are shown only when a same-season change exists for the crop. */
+const MOVERS = 3;
 
 export default function CropsScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
+  const [scope, setScope] = useState<"all" | "saved">("all");
   const [metric, setMetric] = useState<BoardMetric>("production_mt");
 
   const crops = useAllCrops();
   // One request for the whole board: the series are already aligned to a shared
   // period axis and the same-season change is computed by the service.
   const board = useNationalBoard();
+  const { savedCodes, toggle } = useSavedCrops();
 
   const byName = useMemo(() => {
     const map = new Map<string, NationalBoardCrop>();
@@ -40,14 +48,28 @@ export default function CropsScreen() {
     return Array.from(set).sort();
   }, [crops.data]);
 
+  const savedCount = useMemo(
+    () => (crops.data ?? []).filter((crop) => savedCodes[crop.crop_code]).length,
+    [crops.data, savedCodes],
+  );
+
   const rows = useMemo(
     () =>
       (crops.data ?? []).filter((crop) => {
+        if (scope === "saved" && !savedCodes[crop.crop_code]) return false;
         if (category !== "all" && crop.category !== category) return false;
         if (!query) return true;
         return slugifyEntity(crop.crop_name).includes(slugifyEntity(query));
       }),
-    [crops.data, category, query],
+    [crops.data, category, query, scope, savedCodes],
+  );
+
+  // Movers come straight from the board's platform-computed same-season change:
+  // the strongest rise and the strongest fall in published production. A crop
+  // without a comparable earlier period is excluded, never treated as 0%.
+  const movers = useMemo(
+    () => computeMovers(board.data?.crops, PULSE_METRIC, MOVERS),
+    [board.data],
   );
 
   const metricLabel =
@@ -59,7 +81,7 @@ export default function CropsScreen() {
 
   if (crops.isError || board.isError) {
     return (
-      <ScreenLayout back active="explore">
+      <ScreenLayout back active="crops">
         <ErrorState
           message={t.errorGeneric}
           onRetry={() => {
@@ -74,9 +96,18 @@ export default function CropsScreen() {
   const loading = crops.isLoading || board.isLoading;
 
   return (
-    <ScreenLayout back active="explore">
+    <ScreenLayout back active="crops">
       {/* Controls stay compact: the board is the content. */}
       <SearchBar value={query} onChangeText={setQuery} placeholder={t.searchCrops} />
+
+      <View style={styles.scopeRow}>
+        <FilterChip label={t.filterAll} selected={scope === "all"} onPress={() => setScope("all")} />
+        <FilterChip
+          label={savedCount ? `${t.filterSaved} · ${savedCount}` : t.filterSaved}
+          selected={scope === "saved"}
+          onPress={() => setScope("saved")}
+        />
+      </View>
 
       <ScrollView
         horizontal
@@ -106,6 +137,28 @@ export default function CropsScreen() {
         ]}
       />
 
+      {/* Movers: a compact read of the biggest published changes. */}
+      {!loading && metric === PULSE_METRIC && (movers.growing.length || movers.falling.length) ? (
+        <DataSection title={t.moversTitle} subtitle={t.moversSubtitle}>
+          {movers.growing.map((item) => (
+            <ListRow
+              key={`up-${item.crop}`}
+              title={item.crop}
+              subtitle={t.latestPublished}
+              right={<ChangeIndicator change={item.change} tone="positive" />}
+            />
+          ))}
+          {movers.falling.map((item) => (
+            <ListRow
+              key={`down-${item.crop}`}
+              title={item.crop}
+              subtitle={t.latestPublished}
+              right={<ChangeIndicator change={item.change} tone="negative" />}
+            />
+          ))}
+        </DataSection>
+      ) : null}
+
       {loading ? (
         <View>
           {[0, 1, 2, 3, 4].map((key) => (
@@ -125,23 +178,46 @@ export default function CropsScreen() {
             </Text>
           </View>
           <View>
-            {rows.map((crop) => (
-              <CropBoardRow
-                key={crop.crop_code}
-                crop={byName.get(crop.crop_name.toLowerCase()) ?? null}
-                metric={metric}
-                metricLabel={metricLabel}
-                periods={board.data?.periods ?? []}
-                periodLabels={board.data?.period_labels ?? {}}
-                unit={board.data?.metric_units?.[metric] ?? null}
-                changeNote={t.noComparableChange}
-                onPress={() => router.push((`/explore/crop/${crop.crop_code}`) as never)}
-              />
-            ))}
+            {rows.map((crop) => {
+              const saved = Boolean(savedCodes[crop.crop_code]);
+              return (
+                <CropBoardRow
+                  key={crop.crop_code}
+                  crop={byName.get(crop.crop_name.toLowerCase()) ?? null}
+                  metric={metric}
+                  metricLabel={metricLabel}
+                  periods={board.data?.periods ?? []}
+                  periodLabels={board.data?.period_labels ?? {}}
+                  unit={board.data?.metric_units?.[metric] ?? null}
+                  changeNote={t.noComparableChange}
+                  onPress={() => router.push((`/explore/crop/${crop.crop_code}`) as never)}
+                  right={
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={saved ? t.unsaveItem : t.saveItem}
+                      accessibilityState={{ selected: saved }}
+                      hitSlop={8}
+                      onPress={() => toggle(crop)}
+                      style={styles.star}
+                    >
+                      <Ionicons
+                        name={saved ? "bookmark" : "bookmark-outline"}
+                        size={18}
+                        color={saved ? colors.primary : colors.slate300}
+                      />
+                    </Pressable>
+                  }
+                />
+              );
+            })}
           </View>
         </>
       ) : (
-        <EmptyState title={t.noResults} message={t.noDataAvailable} icon="leaf-outline" />
+        <EmptyState
+          title={scope === "saved" ? t.savedEmpty : t.noResults}
+          message={t.noDataAvailable}
+          icon={scope === "saved" ? "bookmark-outline" : "leaf-outline"}
+        />
       )}
     </ScreenLayout>
   );
@@ -149,6 +225,8 @@ export default function CropsScreen() {
 
 const styles = StyleSheet.create({
   chips: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
+  scopeRow: { flexDirection: "row", gap: spacing.sm },
+  star: { width: 34, minHeight: 44, alignItems: "center", justifyContent: "center" },
   countRow: {
     flexDirection: "row",
     justifyContent: "space-between",

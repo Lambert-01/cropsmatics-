@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
 import { colors } from "../src/theme";
 
@@ -39,7 +40,11 @@ export default function RootLayout() {
 
   const router = useRouter();
   const segments = useSegments();
-  const { hydrated, onboardingComplete, hydrate } = useAppStore();
+  const { hydrated, onboardingComplete, hydrate, settings } = useAppStore();
+  // The native splash hands over to this animated overlay once the local store
+  // has hydrated, so the branded launch is continuous rather than a hard cut.
+  const [splashDone, setSplashDone] = useState(false);
+  const handleSplashDone = useCallback(() => setSplashDone(true), []);
 
   useEffect(() => {
     void hydrate();
@@ -62,11 +67,18 @@ export default function RootLayout() {
 
   if (!hydrated) {
     // Only reachable before hydration resolves. The view matches the native
-    // splash background so the handover is invisible on the rare frame where
-    // the native window has already gone.
+    // splash background (#032D23) so the handover is invisible on the rare
+    // frame where the native window has already gone.
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface }}>
-        <ActivityIndicator color={colors.primary} />
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: colors.forestDeep,
+        }}
+      >
+        <ActivityIndicator color={colors.white} />
       </View>
     );
   }
@@ -75,6 +87,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={client}>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+        {!splashDone ? (
+          <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
+        ) : null}
       </QueryClientProvider>
     </SafeAreaProvider>
   );

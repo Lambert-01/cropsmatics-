@@ -1,4 +1,5 @@
 import type {
+  FactorsResponse,
   IndexedYieldResponse,
   NationalBoardResponse,
   PeriodProductivityResponse,
@@ -75,4 +76,15 @@ export const analyticsApi = {
       `/analytics/indexed-yield${qs({ crops: params.crops.join(",") })}`,
     ),
   inputAdoption: () => request<TrendResponse>("/analytics/input-adoption"),
+  /**
+   * District practice adoption correlated with a crop's yield.
+   *
+   * A crop selection is required: comparing yields across unrelated crops would
+   * distort the association. The response carries the coefficient, the sample
+   * size and the "association only" interpretation with it.
+   */
+  factors: (params: { crop: string; district?: string }) =>
+    request<FactorsResponse>(
+      `/analytics/factors${qs({ crop: params.crop, district: params.district })}`,
+    ),
 };

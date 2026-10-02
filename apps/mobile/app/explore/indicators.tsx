@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { MultiSeriesChart } from "../../src/components/charts";
+import { DataWarning } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import {
   Badge,
@@ -16,9 +18,9 @@ import {
   SourceCard,
 } from "../../src/components/ui";
 import { strings } from "../../src/i18n";
-import { indicatorsApi } from "../../src/services/api";
+import { analyticsApi, indicatorsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { colors, seriesColor, spacing, typography } from "../../src/theme";
 
 const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Productivity: "trending-up-outline",
@@ -39,6 +41,35 @@ export default function IndicatorsScreen() {
     queryFn: indicatorsApi.list,
   });
 
+  // National input/practice adoption trend. Only series the endpoint actually
+  // publishes a value for are drawn, so a missing practice never reads as 0%.
+  const adoption = useQuery({
+    queryKey: ["input-adoption"],
+    queryFn: analyticsApi.inputAdoption,
+  });
+  const adoptionSeries = useMemo(() => {
+    const points = adoption.data?.points ?? [];
+    const defs = [
+      { key: "improved_seed_pct", label: t.improvedSeed },
+      { key: "inorganic_fertilizer_pct", label: t.inorganicFertilizer },
+      { key: "organic_fertilizer_pct", label: t.organicFertilizer },
+      { key: "pesticide_pct", label: t.pesticide },
+      { key: "irrigation_pct", label: t.irrigation },
+      { key: "anti_erosion_pct", label: t.erosionProtection },
+    ];
+    return defs
+      .map((def, index) => ({
+        key: def.key,
+        label: def.label,
+        color: seriesColor(index),
+        points: points.map((point) => ({
+          label: point.label ?? point.period,
+          value: point.values?.[def.key] ?? null,
+        })),
+      }))
+      .filter((serie) => serie.points.some((point) => point.value !== null));
+  }, [adoption.data, t]);
+
   const selected = data?.indicators.find((i) => i.id === params.id) ?? null;
 
   return (
@@ -55,6 +86,27 @@ export default function IndicatorsScreen() {
         <>
           <SectionHeader title={t.indicatorsTitle} subtitle={t.indicatorsSubtitle} />
           <Badge text={`Latest: ${data?.latest_period_label ?? "—"}`} tone="blue" />
+
+          <Card style={{ gap: spacing.sm }}>
+            <SectionHeader title={t.inputAdoptionTitle} subtitle={t.inputAdoptionSubtitle} />
+            {adoption.isError ? (
+              <Text style={typography.caption}>{t.errorGeneric}</Text>
+            ) : adoption.isLoading ? (
+              <LoadingSkeleton height={220} />
+            ) : adoptionSeries.length ? (
+              <>
+                <MultiSeriesChart
+                  series={adoptionSeries}
+                  unit="%"
+                  height={240}
+                  accessibilityLabel={t.inputAdoptionTitle}
+                />
+                <DataWarning text={t.inputAdoptionNote} tone="slate" />
+              </>
+            ) : (
+              <EmptyState title={t.noDataAvailable} icon="flask-outline" />
+            )}
+          </Card>
 
           {(data?.categories ?? []).map((category) => {
             const items = (data?.indicators ?? []).filter(

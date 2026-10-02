@@ -331,7 +331,7 @@ export default function MapsScreen() {
         </View>
       ) : null}
 
-      <BottomNav active="maps" />
+      <BottomNav active="map" />
     </SafeAreaView>
   );
 }

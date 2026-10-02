@@ -13,6 +13,13 @@ import { colors, spacing, typography } from "../../src/theme";
 
 const GROUPS = [
   {
+    title: "Explore data",
+    items: [
+      { label: "explore", href: "/explore", icon: "compass-outline" as const },
+      { label: "askCropmatics", href: "/ask", icon: "chatbubble-ellipses-outline" as const },
+    ],
+  },
+  {
     title: "My information",
     items: [
       { label: "savedItems", href: "/saved", icon: "bookmark-outline" as const },

@@ -249,6 +249,34 @@ export interface PostHarvestResponse {
   provenance: Provenance;
 }
 
+// ---- Factor associations ---------------------------------------------------
+
+/**
+ * One district practice correlated with a crop's yield.
+ *
+ * ``correlation`` is the Pearson coefficient the Python service computed; it may
+ * be negative, and it is ``null`` when the sample was too small. The API states
+ * in ``interpretation`` that this is association only — never causation.
+ */
+export interface FactorMetric {
+  factor: string;
+  label: string;
+  correlation: number | null;
+  absolute_correlation: number | null;
+  n_observations: number;
+  direction: string | null;
+  interpretation: string;
+}
+
+export interface FactorsResponse {
+  crop: string | null;
+  district: string | null;
+  factors: FactorMetric[];
+  /** Set when the requested period has no factor data at all. */
+  note: string | null;
+  provenance: Provenance;
+}
+
 export interface DistrictMetricRow {
   district: string;
   district_code?: string | null;

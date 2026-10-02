@@ -3,10 +3,11 @@
   <color name="colorPrimaryDark">#ffffff</color>
   <!--
     Startup window background. Defined here so the native launch window matches
-    expo.splash.backgroundColor in app.json (#F7FAF8, the app's neutral surface)
-    instead of falling back to the expo-splash-screen library default. The app
-    shell is light, so a dark window background flashed dark green before the
-    first frame.
+    expo.splash.backgroundColor in app.json (#032D23, the Cropmatics brand
+    green). The launch window is intentionally brand-dark: the splash logo is a
+    bright mark on transparency, so the dark green makes it read as a deliberate
+    branded launch rather than a flash. The app shell itself stays light
+    (#F7FAF8) once the first React Native frame is reached.
   -->
-  <color name="splashscreen_background">#F7FAF8</color>
+  <color name="splashscreen_background">#032D23</color>
 </resources>

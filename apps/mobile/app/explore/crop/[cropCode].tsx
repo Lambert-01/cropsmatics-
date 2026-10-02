@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { FactorAssociation } from "../../../src/components/analytics/FactorAssociation";
 import { HorizontalBarChart, StackedShareBar, TimeSeriesChart } from "../../../src/components/charts";
 import {
   ChangeIndicator,
@@ -188,6 +189,15 @@ export default function CropTerminalScreen() {
     enabled: Boolean(name),
   });
   const share = postHarvest.data?.crops?.[0];
+
+  // --- factors associated with this crop's yield -----------------------------
+  // No period is requested: the factor table is a single release, and asking for
+  // a period it does not carry would return nulls. The API says so in `note`.
+  const cropFactors = useQuery({
+    queryKey: ["crop-factors", name],
+    queryFn: () => analyticsApi.factors({ crop: name as string }),
+    enabled: Boolean(name),
+  });
 
   if (crop.isError) {
     return (
@@ -503,6 +513,23 @@ export default function CropTerminalScreen() {
               : panel.data?.provenance?.limitations
           }
         />
+      </DataSection>
+
+      {/* ---- Factors associated with yield --------------------------------- */}
+      <DataSection title={t.factorsTitle} subtitle={t.factorsSubtitle}>
+        {cropFactors.isError ? (
+          <Text style={typography.caption}>{t.errorGeneric}</Text>
+        ) : cropFactors.isLoading ? (
+          <LoadingSkeleton height={180} />
+        ) : (
+          <FactorAssociation
+            factors={cropFactors.data?.factors ?? []}
+            note={cropFactors.data?.note ?? null}
+            source={cropFactors.data?.provenance?.source_id}
+            method={cropFactors.data?.provenance?.method}
+            limitations={cropFactors.data?.provenance?.limitations}
+          />
+        )}
       </DataSection>
 
       {/* ---- Post-harvest use ---------------------------------------------- */}

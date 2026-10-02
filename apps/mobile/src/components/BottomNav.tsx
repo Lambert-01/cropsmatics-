@@ -8,11 +8,19 @@ import type { Strings } from "../i18n/en";
 import { useAppStore } from "../store/useAppStore";
 import { colors } from "../theme";
 
+/**
+ * Primary navigation.
+ *
+ * Home leads with national intelligence; Crops and Compare are the analytical
+ * watchlist and workspace; Map is district intelligence; More holds everything
+ * else (Ask, Saved, Field Operations, Settings). Alerts live in the header bell
+ * rather than a tab, so they stay contextual instead of a permanent destination.
+ */
 const ITEMS = [
   { id: "home", label: "home", href: "/", icon: "home-outline" as const },
-  { id: "explore", label: "explore", href: "/explore", icon: "compass-outline" as const },
-  { id: "maps", label: "maps", href: "/maps", icon: "map-outline" as const },
-  { id: "ask", label: "ask", href: "/ask", icon: "chatbubble-ellipses-outline" as const },
+  { id: "crops", label: "crops", href: "/explore/crops", icon: "leaf-outline" as const },
+  { id: "compare", label: "compare", href: "/explore/compare", icon: "git-compare-outline" as const },
+  { id: "map", label: "map", href: "/maps", icon: "map-outline" as const },
   { id: "more", label: "more", href: "/more", icon: "grid-outline" as const },
 ] satisfies {
   id: string;

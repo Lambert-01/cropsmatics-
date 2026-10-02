@@ -9,6 +9,7 @@
  * disagree about a value or a change.
  */
 
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -31,6 +32,8 @@ export function CropBoardRow({
   unit,
   changeNote,
   onPress,
+  /** Optional trailing control, e.g. a watchlist toggle. */
+  right,
   /** Row is still waiting for the board response. */
   loading = false,
 }: {
@@ -43,6 +46,7 @@ export function CropBoardRow({
   /** Fallback wording when the API could not compute a change. */
   changeNote: string;
   onPress: () => void;
+  right?: ReactNode;
   loading?: boolean;
 }) {
   const points: RawPoint[] = useMemo(
@@ -100,6 +104,7 @@ export function CropBoardRow({
             {latestLabel ?? (loading ? "Loading…" : "No published period")}
           </Text>
         </View>
+        {right}
         <View style={styles.figure}>
           <Text
             numberOfLines={1}

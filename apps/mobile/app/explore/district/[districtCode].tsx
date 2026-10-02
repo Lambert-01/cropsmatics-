@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { FactorAssociation } from "../../../src/components/analytics/FactorAssociation";
 import { HorizontalBarChart, TimeSeriesChart } from "../../../src/components/charts";
 import {
   ChangeIndicator,
@@ -105,6 +106,15 @@ export default function DistrictDetailScreen() {
     queryKey: ["district-gap", districtCode ?? slug, crop, activePeriod],
     queryFn: () =>
       mapsApi.districtMetrics({ metric: "gap", crop: crop as string, periodCode: activePeriod ?? undefined }),
+    enabled: Boolean(crop),
+  });
+
+  // Associations for the selected crop. The coefficient is estimated across all
+  // districts (a single district has no cross-district variation), so the screen
+  // labels the scope explicitly rather than implying a district-local effect.
+  const factors = useQuery({
+    queryKey: ["district-crop-factors", crop],
+    queryFn: () => analyticsApi.factors({ crop: crop as string }),
     enabled: Boolean(crop),
   });
 
@@ -315,6 +325,21 @@ export default function DistrictDetailScreen() {
               />
             </DataSection>
           ) : null}
+
+          <DataSection title={t.factorsTitle} subtitle={t.factorsSubtitle}>
+            <DataWarning text={t.factorsDistrictScope} />
+            {factors.isLoading ? (
+              <LoadingSkeleton height={160} />
+            ) : (
+              <FactorAssociation
+                factors={factors.data?.factors ?? []}
+                note={factors.data?.note ?? null}
+                source={factors.data?.provenance?.source_id}
+                method={factors.data?.provenance?.method}
+                limitations={factors.data?.provenance?.limitations}
+              />
+            )}
+          </DataSection>
         </>
       ) : null}
 

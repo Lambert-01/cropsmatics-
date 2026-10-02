@@ -165,7 +165,7 @@ export default function CompareScreen() {
   const missingRows = districtValues.filter((row) => row.value === null);
 
   return (
-    <ScreenLayout back active="explore">
+    <ScreenLayout back active="compare">
       <SectionHeader title={t.compareTitle} subtitle={t.compareSubtitle} />
       <View style={styles.row}>
         <FilterChip label={t.compareCrops} selected={mode === "crops"} onPress={() => setMode("crops")} />

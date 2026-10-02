@@ -2,10 +2,11 @@
 <!--
   Native launch window.
 
-  A flat brand-coloured background used to be shown here, which read as a dark
-  green flash before the first React Native frame. The background now matches
-  expo.splash.backgroundColor in app.json (the app's neutral surface) and carries
-  the Cropmatics mark small and centred.
+  The launch window now shows the Cropmatics brand green (#032D23, matching
+  expo.splash.backgroundColor in app.json) with the bright Cropmatics mark small
+  and centred. The mark is a bright green on transparency, so dark green is the
+  deliberate branded launch surface, not a flash. The app shell returns to its
+  light neutral surface once the first React Native frame is reached.
 
   splashscreen_logo.png lives in drawable-nodpi so Android draws it at its
   intrinsic 320 px instead of scaling it to the density bucket, which keeps the
