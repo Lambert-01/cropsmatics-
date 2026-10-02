@@ -21,9 +21,26 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Applies the stored colour scheme before the first paint.
+ *
+ * Without this the server always renders light, so a dark-mode user would see a
+ * white flash until PreferencesProvider mounted. Reading localStorage + the OS
+ * preference inline is the only way to avoid that flash; it fails safe to light.
+ */
+const THEME_BOOTSTRAP = `(function(){try{
+  var raw = localStorage.getItem('cropmatics-preferences');
+  var theme = raw ? (JSON.parse(raw) || {}).theme : 'system';
+  var dark = theme === 'dark' || ((theme === 'system' || !theme) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dark', dark);
+}catch(e){}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body>
         <Providers>
           <PreferencesProvider>

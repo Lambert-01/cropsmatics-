@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -8,6 +9,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
 import { colors } from "../src/theme";
+import { ThemeProvider, useTheme } from "../src/theme/theme-context";
+
+/** Status-bar content follows the active scheme (light text on a dark surface). */
+function ThemedStatusBar() {
+  const { mode } = useTheme();
+  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+}
 
 /**
  * Hold the native launch window until the local store has hydrated.
@@ -85,12 +93,15 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={client}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
-        {!splashDone ? (
-          <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
-        ) : null}
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={client}>
+          <ThemedStatusBar />
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+          {!splashDone ? (
+            <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
+          ) : null}
+        </QueryClientProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

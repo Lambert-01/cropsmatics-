@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Languages, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Check, Languages, Moon, RotateCcw, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { usePreferences } from "@/components/providers/PreferencesProvider";
@@ -275,6 +275,43 @@ export function SettingsView() {
                 value={preferences.defaultDistrict ?? ""}
                 onChange={(v) => setPreference("defaultDistrict", v || null)}
                 options={districtOptions}
+              />
+            }
+          />
+        </CardBody>
+      </Card>
+
+      {/* Appearance */}
+      <Card>
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Moon className="h-4 w-4 text-primary" aria-hidden="true" /> Appearance
+            </span>
+          }
+          subtitle="The colour scheme applies immediately and is remembered in this browser."
+        />
+        <CardBody>
+          <SettingRow
+            id="theme"
+            title="Colour scheme"
+            description="“System” follows your operating system and updates automatically when it changes."
+            control={
+              <PreferenceSelect
+                id="theme"
+                ariaLabel="Colour scheme"
+                value={preferences.theme}
+                onChange={(v) =>
+                  setPreference(
+                    "theme",
+                    v === "dark" || v === "light" ? v : "system",
+                  )
+                }
+                options={[
+                  { value: "system", label: "System" },
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ]}
               />
             }
           />

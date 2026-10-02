@@ -55,6 +55,70 @@ export const colors = {
 };
 
 /**
+ * Dark palette. Same token names as `colors`, so a component that reads from
+ * `useTheme()` renders identically in either scheme.
+ *
+ * Near-black surfaces carry a faint green cast to stay on-brand; brand text
+ * becomes light mint, while `primary` stays a saturated green so solid primary
+ * buttons keep white text legible.
+ */
+export const darkColors: typeof colors = {
+  ...colors,
+  // Brand
+  forestDeep: "#ECFDF5",
+  forest: "#D1FAE5",
+  primary: "#0E9F6E",
+  primaryStrong: "#10B981",
+  primaryDark: "#10B981",
+  brandGreen: "#0E9F6E",
+  mint: "#12312A",
+  mintLight: "#0F241E",
+  mintSoft: "#12261F",
+  tint: "#12261F",
+  overlayTint: "rgba(255,255,255,0.06)",
+
+  // Semantic
+  blue: "#60A5FA",
+  blueSoft: "#12263A",
+  info: "#60A5FA",
+  amber: "#FBBF24",
+  amberSoft: "#3A2E10",
+  danger: "#F87171",
+  dangerSoft: "#3A1A1A",
+  success: "#34D399",
+
+  // Neutrals
+  slate900: "#F1F5F9",
+  slate700: "#CBD5E1",
+  slate500: "#94A3B8",
+  slate: "#CBD5E1",
+  muted: "#94A3B8",
+  slate300: "#3A4A44",
+
+  // Data-surface neutrals
+  hairline: "#1F332C",
+  grid: "#1B2A25",
+  axis: "#7C8F87",
+  missing: "#3A4A44",
+
+  // Surfaces
+  border: "#243A33",
+  surface: "#111C18",
+  background: "#0A1410",
+
+  // Risk bands (icon + text + colour — never colour alone)
+  riskLow: "#34D399",
+  riskModerate: "#FBBF24",
+  riskHigh: "#F87171",
+};
+
+export type Palette = typeof colors;
+export const palettes: Record<"light" | "dark", Palette> = {
+  light: colors,
+  dark: darkColors,
+};
+
+/**
  * Categorical series palette, in assignment order.
  *
  * Chosen so that adjacent series stay distinguishable for the common

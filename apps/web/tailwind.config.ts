@@ -3,8 +3,23 @@ import type { Config } from "tailwindcss";
 /**
  * Semantic design tokens. Components must use these names, not raw hex values,
  * so the palette changes in one place. Risk is always colour + icon + text.
+ *
+ * Every semantic token resolves to a CSS variable (see `app/globals.css`), so a
+ * single `html.dark` class re-themes the whole application — including the
+ * `.card`, `.btn`, `.chip`, `.input` and table primitives — without editing a
+ * single component. Brand accents (`forest`, `forest-deep`, `primary`) are also
+ * variable-driven because they are used for *text and borders*, not only for
+ * solid fills, and dark text must become light on a dark surface.
+ *
+ * `white` is deliberately NOT remapped: `bg-white/10` is used as a translucent
+ * overlay on the already-dark sidebar, and inverting it there would make it
+ * disappear. Solid `bg-white` surfaces are re-themed by explicit dark rules in
+ * `globals.css` instead.
  */
+const rgb = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -13,28 +28,41 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        forest: "#073D2D",
-        "forest-deep": "#032D23",
-        primary: "#087F5B",
-        success: "#16A34A",
-        info: "#2563EB",
-        amber: "#D97706",
-        danger: "#DC2626",
-        // NOTE: do not override Tailwind's default `slate` scale here — the UI
-        // relies on slate-50..900. The palette token is exposed as `ink`.
-        ink: "#334155",
-        surface: "#FFFFFF",
-        background: "#F7FAF8",
+        forest: rgb("forest"),
+        "forest-deep": rgb("forest-deep"),
+        primary: rgb("primary"),
+        success: rgb("success"),
+        info: rgb("info"),
+        amber: rgb("amber"),
+        danger: rgb("danger"),
+        ink: rgb("ink"),
+        surface: rgb("surface"),
+        background: rgb("background"),
+        // The full slate ramp is variable-driven so `text-slate-*`, `border-slate-*`
+        // and `bg-slate-*` all invert together in dark mode.
+        slate: {
+          50: rgb("slate-50"),
+          100: rgb("slate-100"),
+          200: rgb("slate-200"),
+          300: rgb("slate-300"),
+          400: rgb("slate-400"),
+          500: rgb("slate-500"),
+          600: rgb("slate-600"),
+          700: rgb("slate-700"),
+          800: rgb("slate-800"),
+          900: rgb("slate-900"),
+          950: rgb("slate-950"),
+        },
         // Backwards-compatible aliases used by existing components.
         brand: {
-          green: "#087F5B",
-          forest: "#073D2D",
-          slate: "#334155",
+          green: rgb("primary"),
+          forest: rgb("forest"),
+          slate: rgb("ink"),
         },
         risk: {
-          low: "#16A34A",
-          moderate: "#D97706",
-          high: "#DC2626",
+          low: rgb("risk-low"),
+          moderate: rgb("risk-moderate"),
+          high: rgb("risk-high"),
         },
       },
       fontFamily: {

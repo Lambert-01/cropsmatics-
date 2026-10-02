@@ -448,6 +448,7 @@ export const rw: Strings = {
   appearanceSystem: "System",
   appearanceLight: "Light",
   appearanceDark: "Dark",
+  appearanceUnavailable: "Iyi verisiyo ikoresha umuco w'urumuri gusa.",
   dataSettings: "Data",
   offlineCache: "Offline cache",
   clearCachedData: "Clear cached data",

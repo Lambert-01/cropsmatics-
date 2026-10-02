@@ -239,6 +239,7 @@ export const en = {
   appearanceSystem: "System",
   appearanceLight: "Light",
   appearanceDark: "Dark",
+  appearanceUnavailable: "Light theme only in this build.",
   dataSettings: "Data",
   offlineCache: "Offline cache",
   clearCachedData: "Clear cached data",

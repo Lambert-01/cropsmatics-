@@ -4,6 +4,7 @@ import { Menu, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { useLanguage } from "@/lib/i18n";
 import { buildSuggestions } from "@/lib/search";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -150,6 +151,9 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
               </button>
             </div>
           ) : null}
+
+          {/* Colour scheme */}
+          <ThemeToggle />
 
           {/* Language */}
           <div

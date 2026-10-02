@@ -87,9 +87,35 @@ export default function SettingsScreen() {
 
       <Card>
         <Text style={typography.h3}>{t.appearance}</Text>
-        <Text style={typography.caption}>
-          {features.darkMode ? t.appearanceSystem : "Light theme only in this build."}
-        </Text>
+        {features.darkMode ? (
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {(
+              [
+                { value: "system", label: t.appearanceSystem },
+                { value: "light", label: t.appearanceLight },
+                { value: "dark", label: t.appearanceDark },
+              ] as const
+            ).map((option) => (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: settings.appearance === option.value }}
+                accessibilityLabel={option.label}
+                onPress={() => updateSettings({ appearance: option.value })}
+                style={[
+                  styles.option,
+                  settings.appearance === option.value
+                    ? { borderColor: colors.primary, backgroundColor: colors.mintSoft }
+                    : null,
+                ]}
+              >
+                <Text style={{ fontWeight: "600", color: colors.forestDeep }}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text style={typography.caption}>{t.appearanceUnavailable}</Text>
+        )}
       </Card>
 
       <Card>

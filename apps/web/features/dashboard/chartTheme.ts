@@ -4,7 +4,14 @@ import { useEffect, useState } from "react";
 
 import { usePreferences } from "@/components/providers/PreferencesProvider";
 
-/** Shared Recharts styling so every chart reads the same way. */
+/** Shared Recharts styling so every chart reads the same way.
+ *
+ * The categorical colours are chosen to stay distinguishable on both the light
+ * and the dark surface, so they are theme-independent by design. Grid, axis and
+ * tooltip chrome is re-themed with CSS in `app/globals.css` under `html.dark`:
+ * Recharts emits stable class names (`recharts-cartesian-grid`, `recharts-text`,
+ * `recharts-default-tooltip`) and writes `stroke` as an SVG presentation
+ * attribute, where a CSS variable would not resolve. */
 export const CHART = {
   primary: "#087F5B",
   forest: "#073D2D",

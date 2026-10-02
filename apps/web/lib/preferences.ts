@@ -15,6 +15,7 @@ export const PREFERENCES_KEY = "cropmatics-preferences";
 export const PREFERENCES_VERSION = 1;
 
 export type NumberGrouping = "grouped" | "plain";
+export type ThemePreference = "system" | "light" | "dark";
 
 export interface Preferences {
   /** Bumped when the shape changes, so an old entry is discarded, not guessed. */
@@ -38,6 +39,11 @@ export interface Preferences {
    * who has already asked the platform for less motion is not asked again.
    */
   reducedMotion: boolean;
+  /**
+   * Colour scheme. `system` follows the operating system and updates live when
+   * the OS preference changes; the explicit values override it.
+   */
+  theme: ThemePreference;
   /** District names drawn on the choropleth. */
   mapLabels: boolean;
   /** Whether source notes and provenance panels are expanded by default. */
@@ -53,6 +59,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   numberGrouping: "grouped",
   compactTables: false,
   reducedMotion: false,
+  theme: "system",
   mapLabels: true,
   showSources: true,
 };
@@ -94,6 +101,8 @@ export function normalizePreferences(input: unknown): Preferences {
     numberGrouping: raw.numberGrouping === "plain" ? "plain" : "grouped",
     compactTables: asBoolean(raw.compactTables, DEFAULT_PREFERENCES.compactTables),
     reducedMotion: asBoolean(raw.reducedMotion, DEFAULT_PREFERENCES.reducedMotion),
+    theme:
+      raw.theme === "light" || raw.theme === "dark" ? raw.theme : "system",
     mapLabels: asBoolean(raw.mapLabels, DEFAULT_PREFERENCES.mapLabels),
     showSources: asBoolean(raw.showSources, DEFAULT_PREFERENCES.showSources),
   };
