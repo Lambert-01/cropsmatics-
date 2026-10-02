@@ -4,7 +4,8 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { Card, SectionHeader } from "../../src/components/ui";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 const TOPICS = [
   { title: "helpExploreTitle", body: "helpExploreBody" },
@@ -17,6 +18,7 @@ const TOPICS = [
 ] as const;
 
 export default function HelpScreen() {
+  const { typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   return (
     <ScreenLayout back>

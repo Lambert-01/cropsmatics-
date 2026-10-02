@@ -7,7 +7,9 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { getFarm, listHarvests, listRisks } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography, riskFor } from "../../src/theme";
+import { radius, spacing, riskFor } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { HarvestRegistration, HarvestRisk } from "../../src/types";
 import { formatQuantity } from "../../src/utils/units";
 
@@ -18,6 +20,8 @@ interface Card {
 }
 
 export default function HarvestsScreen() {
+  const { colors, typography } = useTheme();
+  const card = useThemedStyles(makeCard);
   const t = strings(useAppStore((state) => state.language));
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
@@ -117,11 +121,12 @@ export default function HarvestsScreen() {
   );
 }
 
-const card = {
-  padding: spacing.md,
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  gap: spacing.xs,
-} as const;
+const makeCard = (colors: Palette) =>
+  ({
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    gap: spacing.xs,
+  }) as const;

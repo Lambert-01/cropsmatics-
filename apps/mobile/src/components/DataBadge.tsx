@@ -1,6 +1,8 @@
 import { Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../theme";
+import { radius, spacing } from "../theme";
+import type { Palette } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 export type DataBadgeKind =
   | "official_national"
@@ -9,7 +11,9 @@ export type DataBadgeKind =
   | "not_verified"
   | "facility_unavailable";
 
-const STYLES: Record<DataBadgeKind, { label: string; color: string; background: string }> = {
+const badgeStyles = (
+  colors: Palette,
+): Record<DataBadgeKind, { label: string; color: string; background: string }> => ({
   official_national: {
     label: "OFFICIAL NATIONAL DATA",
     color: colors.brandGreen,
@@ -23,11 +27,12 @@ const STYLES: Record<DataBadgeKind, { label: string; color: string; background: 
     color: colors.muted,
     background: colors.background,
   },
-};
+});
 
 /** Provenance badge: which layer of data a block belongs to. */
 export function DataBadge({ kind }: { kind: DataBadgeKind }) {
-  const spec = STYLES[kind];
+  const { colors } = useTheme();
+  const spec = badgeStyles(colors)[kind];
   return (
     <View
       style={{

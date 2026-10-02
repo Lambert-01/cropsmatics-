@@ -21,7 +21,9 @@ import { useNationalBoard, usePeriods } from "../../../src/hooks/queries";
 import { strings } from "../../../src/i18n";
 import { analyticsApi, cropsApi, mapsApi, postHarvestApi } from "../../../src/services/api";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { chart, colors, radius, spacing, typography } from "../../../src/theme";
+import { chart, radius, spacing } from "../../../src/theme";
+import type { Palette, Typography } from "../../../src/theme";
+import { useThemedStyles, useTheme } from "../../../src/theme/theme-context";
 import {
   boardPoints,
   changeFromApi,
@@ -43,15 +45,9 @@ type DistrictMetric = (typeof DISTRICT_METRICS)[number];
 
 type PeriodView = "all" | "same-season";
 
-interface PanelRow {
-  district?: string | null;
-  district_code?: string | null;
-  yield_kg_ha?: number | null;
-  production_mt?: number | null;
-  harvested_area_ha?: number | null;
-}
-
 export default function CropTerminalScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ cropCode: string }>();
@@ -132,7 +128,8 @@ export default function CropTerminalScreen() {
     enabled: Boolean(name) && districtMetric === "gap",
   });
 
-  const panelRows = useMemo(() => (panel.data?.rows ?? []) as unknown as PanelRow[], [panel.data]);
+  // Rows are typed from `PeriodProductivityResponse`; no cast is needed.
+  const panelRows = useMemo(() => panel.data?.rows ?? [], [panel.data]);
 
   const crossSection = useMemo(() => {
     if (districtMetric === "gap") {
@@ -578,6 +575,7 @@ function MetricSelectorRow({
   onChange: (id: string) => void;
   compact?: boolean;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <ScrollView
       horizontal
@@ -626,6 +624,7 @@ function PeriodChips({
   onChange: (code: string) => void;
 }) {
   const t = strings(useAppStore((s) => s.language));
+  const styles = useThemedStyles(makeStyles);
   return (
     <ScrollView
       horizontal
@@ -670,6 +669,8 @@ function DistrictPicker({
   onChange: (id: string | null) => void;
 }) {
   const t = strings(useAppStore((s) => s.language));
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   if (!options.length) return null;
   return (
     <View style={{ gap: 4 }}>
@@ -725,6 +726,8 @@ function ToolbarAction({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -739,7 +742,8 @@ function ToolbarAction({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   toolbar: { gap: spacing.sm },
   toolbarTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   title: { ...typography.h1, fontSize: 22 },

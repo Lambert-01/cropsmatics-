@@ -3,13 +3,15 @@ import { useColorScheme } from "react-native";
 
 import { features } from "../config/features";
 import { useAppStore } from "../store/useAppStore";
-import { palettes, type Palette } from "./index";
+import { makeTypography, palettes, type Palette, type Typography } from "./index";
 
 export type ThemeMode = "light" | "dark";
 
 interface ThemeValue {
   /** The active colour palette. Screens should read colours from here. */
   colors: Palette;
+  /** Text styles for the active palette (colours are baked in). */
+  typography: Typography;
   mode: ThemeMode;
   /** Whether dark mode is available in this build at all. */
   available: boolean;
@@ -17,6 +19,7 @@ interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue>({
   colors: palettes.light,
+  typography: makeTypography(palettes.light),
   mode: "light",
   available: false,
 });
@@ -35,11 +38,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ThemeValue>(() => {
     if (!features.darkMode) {
-      return { colors: palettes.light, mode: "light", available: false };
+      const colors = palettes.light;
+      return { colors, typography: makeTypography(colors), mode: "light", available: false };
     }
     const resolved: ThemeMode =
       appearance === "system" ? (system === "dark" ? "dark" : "light") : appearance;
-    return { colors: palettes[resolved], mode: resolved, available: true };
+    const colors = palettes[resolved];
+    return { colors, typography: makeTypography(colors), mode: resolved, available: true };
   }, [appearance, system]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -47,4 +52,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme(): ThemeValue {
   return useContext(ThemeContext);
+}
+
+/**
+ * Theme-aware style factory result.
+ *
+ * Usage inside a component:
+ *   const { colors, typography } = useTheme();
+ *   const styles = useThemedStyles(makeStyles);   // makeStyles(colors, typography)
+ *
+ * The factory is defined at module scope and the result is memoised on the
+ * palette, so a style object is only rebuilt when the scheme actually changes.
+ */
+export function useThemedStyles<T>(
+  factory: (colors: Palette, typography: Typography) => T,
+): T {
+  const { colors, typography } = useTheme();
+  return useMemo(() => factory(colors, typography), [factory, colors, typography]);
 }

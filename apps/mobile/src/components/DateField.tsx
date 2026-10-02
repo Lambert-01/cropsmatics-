@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
 import { parseIsoDate, toIsoDate, todayIso } from "../utils/dates";
-import { colors, radius, spacing, typography } from "../theme";
+import { radius, spacing } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 /**
  * Native date field.
@@ -28,6 +29,7 @@ export function DateField({
   error?: string | null;
   minimumDate?: string | null;
 }) {
+  const { colors, typography } = useTheme();
   const [open, setOpen] = useState(false);
   const parsed = parseIsoDate(value) ?? new Date();
 

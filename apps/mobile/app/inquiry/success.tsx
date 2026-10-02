@@ -8,9 +8,13 @@ import { Badge, Card, PrimaryButton, SecondaryButton } from "../../src/component
 import { listInquiryReceipts } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function InquirySuccessScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ id?: string }>();
@@ -49,7 +53,8 @@ export default function InquirySuccessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   icon: {
     width: 72,
     height: 72,

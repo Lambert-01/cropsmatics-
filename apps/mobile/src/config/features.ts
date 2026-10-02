@@ -6,5 +6,5 @@ export const features = {
   ask: true,
   maps: true,
   savedItems: true,
-  darkMode: false, // scaffolded, not yet fully implemented
+  darkMode: true, // all screens read colours from the theme context
 } as const;

@@ -11,10 +11,14 @@ import { listInquiryDrafts, saveInquiryDraft, saveInquiryReceipt } from "../../s
 import { strings } from "../../src/i18n";
 import { cropsApi, districtsApi, inquiryApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { uuidv4 } from "../../src/utils/uuid";
 
 export default function NewInquiryScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
 
@@ -174,7 +178,8 @@ export default function NewInquiryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   textarea: {
     minHeight: 110,

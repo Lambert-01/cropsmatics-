@@ -4,7 +4,8 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { Card, SectionHeader } from "../../src/components/ui";
 import { strings, type Strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 const SECTIONS: { title: keyof Strings; body: keyof Strings }[] = [
   { title: "methodologyCleanTitle", body: "methodologyCleanBody" },
@@ -16,6 +17,7 @@ const SECTIONS: { title: keyof Strings; body: keyof Strings }[] = [
 ];
 
 export default function MethodologyScreen() {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   return (
     <ScreenLayout back>

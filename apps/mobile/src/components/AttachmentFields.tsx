@@ -7,7 +7,8 @@ import { Alert, Pressable, Text, View } from "react-native";
 import type { HarvestAttachment, SyncStatus } from "../types";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../utils/units";
 import { uuidv4 } from "../utils/uuid";
-import { colors, radius, spacing, typography } from "../theme";
+import { radius, spacing, type Palette } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 export interface PendingAttachment {
   clientUuid: string;
@@ -58,6 +59,7 @@ export function AttachmentFields({
   onChange: (next: PendingAttachment[]) => void;
   labels: Labels;
 }) {
+  const { colors, typography } = useTheme();
   const full = attachments.length >= MAX_ATTACHMENTS;
 
   function guard(asset: PendingAttachment | null): PendingAttachment | null {
@@ -118,7 +120,7 @@ export function AttachmentFields({
           accessibilityRole="button"
           onPress={addPhoto}
           disabled={full}
-          style={buttonStyle(full)}
+          style={buttonStyle(colors, full)}
         >
           <Ionicons name="image-outline" size={16} color={full ? colors.muted : colors.forest} />
           <Text style={{ color: full ? colors.muted : colors.forest, fontSize: 13 }}>
@@ -129,7 +131,7 @@ export function AttachmentFields({
           accessibilityRole="button"
           onPress={addDocument}
           disabled={full}
-          style={buttonStyle(full)}
+          style={buttonStyle(colors, full)}
         >
           <Ionicons name="document-outline" size={16} color={full ? colors.muted : colors.forest} />
           <Text style={{ color: full ? colors.muted : colors.forest, fontSize: 13 }}>
@@ -186,7 +188,7 @@ export function AttachmentFields({
   );
 }
 
-function buttonStyle(disabled: boolean) {
+function buttonStyle(colors: Palette, disabled: boolean) {
   return {
     flex: 1,
     flexDirection: "row" as const,

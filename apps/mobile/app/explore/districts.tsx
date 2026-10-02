@@ -8,12 +8,16 @@ import { Card, EmptyState, ErrorState, FilterChip, LoadingSkeleton, SearchBar } 
 import { strings } from "../../src/i18n";
 import { districtsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette, Typography } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { slugifyEntity } from "../../src/utils/slug";
 
 const PROVINCES = ["Kigali City", "Northern", "Southern", "Eastern", "Western"];
 
 export default function DistrictsScreen() {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [query, setQuery] = useState("");
@@ -75,7 +79,8 @@ export default function DistrictsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   icon: {
     width: 42,

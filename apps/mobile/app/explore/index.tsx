@@ -8,7 +8,9 @@ import { BottomNav } from "../../src/components/BottomNav";
 import { Card, SearchBar, SectionHeader } from "../../src/components/ui";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 const SECTIONS = [
   { id: "crops", href: "/explore/crops", icon: "leaf-outline", desc: "Browse every published crop" },
@@ -21,6 +23,8 @@ const SECTIONS = [
 ] as const;
 
 export default function ExploreScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
 
@@ -56,7 +60,8 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   icon: {
     width: 44,

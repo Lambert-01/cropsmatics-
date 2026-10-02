@@ -15,9 +15,11 @@ import { clearAskHistory, listAskHistory, saveItem } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import type { AskHistoryItem } from "../../src/types";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 export default function AskHistoryScreen() {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const [items, setItems] = useState<AskHistoryItem[]>(() => {
     try {

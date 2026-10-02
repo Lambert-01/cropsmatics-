@@ -29,6 +29,24 @@ export const en = {
   compare: "Compare",
   askCropmatics: "Ask Cropmatics",
 
+  // ---- Home hero & intelligence -------------------------------------------
+  homeEyebrow: "National agricultural intelligence",
+  homeHeadline: "Smarter decisions for a more productive Rwanda",
+  homeHeroBody: "Turning official data into action for a productive and resilient Rwanda.",
+  homeValueDecisions: "Better decisions",
+  homeValueProductivity: "Greater productivity",
+  homeValueFoodSystems: "Stronger food systems",
+  nationalTrendTitle: "National crop trends",
+  districtOpportunities: "District opportunities",
+  whatDataSay: "What the data say",
+  kpiCropsAnalysed: "Crops analysed",
+  kpiDistrictsCovered: "Districts covered",
+  filterSeason: "Season",
+  seasonAll: "All seasons",
+  scopeNational: "National",
+  viewAllCrops: "View all crops",
+  openMap: "Open map",
+
   // ---- Explore -------------------------------------------------------------
   exploreTitle: "Explore",
   exploreSubtitle: "Search crops, districts and indicators.",

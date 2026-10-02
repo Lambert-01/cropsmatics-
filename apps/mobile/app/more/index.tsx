@@ -9,7 +9,9 @@ import { Card, ListRow, SectionHeader } from "../../src/components/ui";
 import { features } from "../../src/config/features";
 import { strings, type Strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette, Typography } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 const GROUPS: { title: keyof Strings; items: { label: keyof Strings; href: string; icon: keyof typeof Ionicons.glyphMap }[] }[] = [
   {
@@ -47,6 +49,8 @@ const GROUPS: { title: keyof Strings; items: { label: keyof Strings; href: strin
 ];
 
 export default function MoreScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
 
@@ -94,7 +98,8 @@ export default function MoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.xl },
   groupTitle: { ...typography.micro, fontWeight: "700", letterSpacing: 1, color: colors.slate500 },
 });

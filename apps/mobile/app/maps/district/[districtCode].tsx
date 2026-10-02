@@ -8,9 +8,11 @@ import { Badge, Card, ErrorState, InfoRow, LoadingSkeleton, PrimaryButton, Secti
 import { districtsApi, mapsApi } from "../../../src/services/api";
 import { strings } from "../../../src/i18n";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../../src/theme";
+import { spacing } from "../../../src/theme";
+import { useTheme } from "../../../src/theme/theme-context";
 
 export default function MapDistrictScreen() {
+  const { colors, typography } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ districtCode: string }>();

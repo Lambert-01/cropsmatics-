@@ -20,7 +20,9 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { strings } from "../../i18n";
 import { useAppStore } from "../../store/useAppStore";
-import { colors, radius, spacing, typography } from "../../theme";
+import { radius, spacing } from "../../theme";
+import type { Palette } from "../../theme";
+import { useTheme, useThemedStyles } from "../../theme/theme-context";
 import type { FactorMetric } from "../../types";
 import { SourceMethodSheet } from "../data-view";
 
@@ -44,6 +46,8 @@ export function FactorAssociation({
   method?: string | null;
   limitations?: string[] | null;
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const [open, setOpen] = useState(false);
 
@@ -138,7 +142,8 @@ export function FactorAssociation({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   warning: {
     flexDirection: "row",
     alignItems: "center",

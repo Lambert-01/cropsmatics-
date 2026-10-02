@@ -17,16 +17,9 @@ import { useAllCrops, usePeriods } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
 import { postHarvestApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 import { releaseLabel } from "../../src/utils/coverage";
-
-interface InfraItem {
-  infrastructure_type: string;
-  existing_number: number | null;
-  total_number: number | null;
-  total_capacity_mt: number | null;
-  period: string | null;
-}
 
 /**
  * The published post-harvest table is a single national crop-level release with
@@ -34,6 +27,7 @@ interface InfraItem {
  * from `/meta/periods` instead of being written into the screen.
  */
 export default function PostHarvestScreen() {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const [crop, setCrop] = useState<string | null>(null);
 
@@ -50,8 +44,9 @@ export default function PostHarvestScreen() {
 
   const row = crop ? summary.data?.crops?.[0] : undefined;
   const release = releaseLabel(summary.data?.provenance?.source_period, periods.data?.periods ?? []);
-  const items = (storage.data?.items as InfraItem[] | undefined) ?? [];
-  const program = storage.data?.program as { program_districts?: string[]; note?: string } | undefined;
+  // `storageInfrastructure` is typed, so the items and program are read directly.
+  const items = storage.data?.items ?? [];
+  const program = storage.data?.program ?? null;
 
   return (
     <ScreenLayout back active="explore">
@@ -125,10 +120,10 @@ export default function PostHarvestScreen() {
         ) : items.length ? (
           <>
             <DataWarning text={t.postHarvestNationalWarning} />
-            {items.slice(0, 6).map((item) => (
+            {items.slice(0, 6).map((item, index) => (
               <InfoRow
-                key={item.infrastructure_type}
-                label={item.infrastructure_type}
+                key={item.infrastructure_type ?? index}
+                label={item.infrastructure_type ?? t.notPublished}
                 value={item.total_number != null ? String(item.total_number) : t.notPublished}
                 note={item.total_capacity_mt != null ? `${item.total_capacity_mt.toLocaleString()} mt capacity` : undefined}
               />

@@ -7,9 +7,13 @@ import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
 import { features } from "../../src/config/features";
 import { clearCachedData } from "../../src/database";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function SettingsScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const { language, setLanguage, settings, updateSettings } = useAppStore();
 
@@ -127,7 +131,8 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   option: {
     flex: 1,
     borderWidth: 1,

@@ -8,7 +8,9 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { apiBaseUrl, apiIsLan, apiIsLocal, shareUrl, shareUrlText } from "../../src/config/share";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 
 /**
  * Share screen — how this app reaches other people's phones.
@@ -17,6 +19,11 @@ import { colors, radius, spacing, typography } from "../../src/theme";
  * carries instructions and works for both an EAS APK install and Expo Go.
  */
 export default function ShareScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
+  const qrWrap = useThemedStyles(makeQrWrap);
+  const urlText = useThemedStyles(makeUrlText);
+  const secondaryButton = useThemedStyles(makeSecondaryButton);
   const language = useAppStore((state) => state.language);
   const t = strings(language);
 
@@ -134,6 +141,7 @@ export default function ShareScreen() {
 }
 
 function Step({ n, text }: { n: number; text: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" }}>
       <View
@@ -153,38 +161,42 @@ function Step({ n, text }: { n: number; text: string }) {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
-const qrWrap = {
-  alignItems: "center" as const,
-  padding: spacing.md,
-  borderRadius: radius.md,
-  backgroundColor: colors.background,
-} as const;
+const makeQrWrap = (colors: Palette) =>
+  ({
+    alignItems: "center" as const,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+  }) as const;
 
-const urlText = {
-  color: colors.slate,
-  fontSize: 12,
-  fontWeight: "600" as const,
-} as const;
+const makeUrlText = (colors: Palette) =>
+  ({
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "600" as const,
+  }) as const;
 
-const secondaryButton = {
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  justifyContent: "center" as const,
-  gap: spacing.xs,
-  padding: spacing.sm,
-  borderRadius: radius.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-} as const;
+const makeSecondaryButton = (colors: Palette) =>
+  ({
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  }) as const;
 
 const actionRow = {
   flexDirection: "row" as const,

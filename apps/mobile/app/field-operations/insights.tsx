@@ -10,7 +10,9 @@ import { useNationalInsights } from "../../src/hooks/useNationalInsights";
 import { strings } from "../../src/i18n";
 import { api } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography, riskFor } from "../../src/theme";
+import { radius, spacing, riskFor } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { HarvestRegistration, HarvestRisk } from "../../src/types";
 import { fillTemplate } from "../../src/utils/templates";
 import { formatQuantity } from "../../src/utils/units";
@@ -25,6 +27,8 @@ function InsightPanel({
   title: string;
   detail: string;
 }) {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
   return (
     <View style={panel}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
@@ -37,6 +41,9 @@ function InsightPanel({
 }
 
 export default function InsightsScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
+  const riskRow = useThemedStyles(makeRiskRow);
   const t = strings(useAppStore((state) => state.language));
   const [risks, setRisks] = useState<HarvestRisk[]>([]);
   const [harvests, setHarvests] = useState<HarvestRegistration[]>([]);
@@ -188,18 +195,20 @@ export default function InsightsScreen() {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
-const riskRow = {
-  borderTopWidth: 1,
-  borderTopColor: colors.border,
-  paddingTop: spacing.sm,
-  gap: 2,
-} as const;
+const makeRiskRow = (colors: Palette) =>
+  ({
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: 2,
+  }) as const;

@@ -5,7 +5,8 @@ import { Pressable, Text, View } from "react-native";
 import { useAlertsCount } from "../hooks/useAlertsCount";
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { colors, spacing, touch, typography } from "../theme";
+import { spacing, touch } from "../theme";
+import { useTheme } from "../theme/theme-context";
 import { BrandMark } from "./BrandMark";
 
 /** A header icon that always meets the minimum touch target. */
@@ -20,6 +21,7 @@ function HeaderAction({
   onPress: () => void;
   badge?: number;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
@@ -78,6 +80,7 @@ export function AppHeader({
   showInfo?: boolean;
   context?: string | null;
 }) {
+  const { colors, typography } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((state) => state.language));
   const alertsCount = useAlertsCount();

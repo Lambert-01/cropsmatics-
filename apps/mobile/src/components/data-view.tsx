@@ -15,7 +15,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { colors, radius, spacing, typography } from "../theme";
+import { radius, spacing } from "../theme";
+import type { Palette } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { ChangeResult } from "../utils/analytics";
 import { formatPercent, formatValue } from "../utils/analytics";
 
@@ -41,6 +43,7 @@ export function MetricReadout({
   size?: "large" | "medium";
   tone?: "neutral" | "positive" | "negative";
 }) {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const published = value !== null && value !== undefined && Number.isFinite(value);
   return (
@@ -93,6 +96,7 @@ export function ChangeIndicator({
   unavailableNote?: string;
   compact?: boolean;
 }) {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   if (!change) {
     if (!unavailableNote) return null;
@@ -158,6 +162,7 @@ function Chip({
   disabled?: boolean;
   onPress?: () => void;
 }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -191,6 +196,8 @@ export function MetricSelector({
   onChange: (id: string) => void;
   label?: string;
 }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={{ gap: 5 }}>
       {label ? <Text style={typography.microCaps}>{label.toUpperCase()}</Text> : null}
@@ -229,6 +236,8 @@ export function PeriodSelector({
   onChange: (code: string | null) => void;
   label?: string;
 }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={{ gap: 5 }}>
       {label ? <Text style={typography.microCaps}>{label.toUpperCase()}</Text> : null}
@@ -268,6 +277,8 @@ export function CoverageBadge({
   period?: string | null;
   source?: string | null;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const parts = [
     level ? t.sourceCoverageLevel.replace("{level}", level) : null,
@@ -296,6 +307,8 @@ export function DataWarning({
   text: string;
   tone?: "amber" | "slate";
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View
       style={[
@@ -341,6 +354,8 @@ export function SourceMethodSheet({
   extra?: ReactNode;
   title?: string;
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const heading = title ?? t.sourceMethodTitle;
   const [open, setOpen] = useState(false);
@@ -401,6 +416,7 @@ export function SourceMethodSheet({
 }
 
 function SheetRow({ label, value }: { label: string; value?: string | null }) {
+  const { colors, typography } = useTheme();
   if (!value) return null;
   return (
     <View style={{ flexDirection: "row", gap: spacing.sm }}>
@@ -429,6 +445,7 @@ export function DataSection({
   children: ReactNode;
   first?: boolean;
 }) {
+  const { colors, typography } = useTheme();
   return (
     <View
       style={{
@@ -450,7 +467,8 @@ export function DataSection({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,

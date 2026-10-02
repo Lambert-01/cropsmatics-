@@ -9,11 +9,18 @@ import { getHarvest } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { api } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { FacilityContext, FacilityContextResponse, StorageInfrastructure } from "../../src/types";
 import { formatQuantity } from "../../src/utils/units";
 
 export default function StorageOptionsScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
+  const rowBetween = useThemedStyles(makeRowBetween);
+  const badge = useThemedStyles(makeBadge);
+  const badgeText = useThemedStyles(makeBadgeText);
   const { harvestClientUuid, crop, district, quantity } = useLocalSearchParams<{
     harvestClientUuid?: string;
     crop?: string;
@@ -245,35 +252,40 @@ export default function StorageOptionsScreen() {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
-const rowBetween = {
-  flexDirection: "row" as const,
-  justifyContent: "space-between" as const,
-  alignItems: "center" as const,
-  gap: spacing.sm,
-  borderTopWidth: 1,
-  borderTopColor: colors.border,
-  paddingTop: spacing.sm,
-} as const;
+const makeRowBetween = (colors: Palette) =>
+  ({
+    flexDirection: "row" as const,
+    justifyContent: "space-between" as const,
+    alignItems: "center" as const,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+  }) as const;
 
-const badge = {
-  paddingHorizontal: spacing.sm,
-  paddingVertical: 2,
-  borderRadius: radius.pill,
-  backgroundColor: colors.tint,
-} as const;
+const makeBadge = (colors: Palette) =>
+  ({
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.tint,
+  }) as const;
 
-const badgeText = { fontSize: 10, fontWeight: "700" as const, color: colors.brandGreen };
+const makeBadgeText = (colors: Palette) =>
+  ({ fontSize: 10, fontWeight: "700" as const, color: colors.brandGreen }) as const;
 
 function Tile({ label, value, note }: { label: string; value: string; note: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View
       style={{

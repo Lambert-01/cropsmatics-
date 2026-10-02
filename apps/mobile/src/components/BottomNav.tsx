@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { strings } from "../i18n";
 import type { Strings } from "../i18n/en";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 /**
  * Primary navigation.
@@ -30,6 +30,7 @@ const ITEMS = [
 }[];
 
 export function BottomNav({ active }: { active: string }) {
+  const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = strings(useAppStore((s) => s.language));

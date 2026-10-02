@@ -14,11 +14,12 @@ import { strings } from "../../src/i18n";
 import { mapsApi } from "../../src/services/api";
 import type { MapMetric } from "../../src/services/api/maps";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, shadow, spacing, typography } from "../../src/theme";
+import { radius, shadow, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { formatValue } from "../../src/utils/analytics";
 import { layerRequiresCrop, linkPeriodToLayer, periodsCarryingLayer } from "../../src/utils/coverage";
 import {
-  NO_DATA_COLOR,
   bandPaletteIndex,
   bandsFor,
   formatBand,
@@ -40,6 +41,8 @@ const LAYERS: { id: MapMetric; labelKey: "metricGap" | "metricPriority" | "metri
 ];
 
 export default function MapsScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ crop?: string; district?: string; period?: string }>();
@@ -97,14 +100,14 @@ export default function MapsScreen() {
     for (const row of data?.districts ?? []) {
       if (!row.district_code) continue;
       if (row.value === null || row.value === undefined || !Number.isFinite(row.value)) {
-        out[row.district_code] = { value: null, color: NO_DATA_COLOR };
+        out[row.district_code] = { value: null, color: colors.missing };
         continue;
       }
       const palette = bandPaletteIndex(row.value, cuts, layerScale.colors.length);
       out[row.district_code] = { value: row.value, color: layerScale.colors[palette] };
     }
     return { values: out, scale: layerScale, bands: modelBands };
-  }, [data, metric]);
+  }, [data, metric, colors.missing]);
 
   const hasDistrictData = (data?.districts ?? []).some((row) => row.value !== null);
   const selectedRow = data?.districts.find((row) => row.district_code === selected) ?? null;
@@ -293,7 +296,7 @@ export default function MapsScreen() {
                     </View>
                   ))}
                   <View style={styles.legendItem}>
-                    <View style={[styles.swatch, { backgroundColor: NO_DATA_COLOR }]} />
+                    <View style={[styles.swatch, { backgroundColor: colors.missing }]} />
                     <Text style={styles.legendText}>{t.mapNoData}</Text>
                   </View>
                 </View>
@@ -336,7 +339,8 @@ export default function MapsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   controls: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.sm },
   controlRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
   chip: {

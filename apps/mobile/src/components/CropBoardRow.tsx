@@ -13,7 +13,9 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "../theme";
+import { spacing } from "../theme";
+import type { Palette, Typography } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { NationalBoardCrop } from "../types";
 import type { RawPoint } from "../utils/analytics";
 import { boardPoints, changeFromApi, formatValue, toSeriesPoints } from "../utils/analytics";
@@ -49,6 +51,8 @@ export function CropBoardRow({
   right?: ReactNode;
   loading?: boolean;
 }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const points: RawPoint[] = useMemo(
     () =>
       crop
@@ -129,7 +133,8 @@ export function CropBoardRow({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   /**
    * One stable height for every row so a board of 5, 15 or 30 crops scans as a
    * single grid instead of a ragged list. The value column is a fixed width so

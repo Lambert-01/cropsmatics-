@@ -7,7 +7,8 @@ import { Card, ListRow, SectionHeader } from "../../src/components/ui";
 import { features } from "../../src/config/features";
 import { strings, type Strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 const ITEMS: { title: keyof Strings; href: string; icon: "add-circle-outline" | "time-outline" | "bar-chart-outline" | "warning-outline" | "business-outline" | "sync-outline" | "notifications-outline" | "person-outline" | "share-social-outline" }[] = [
   { title: "registerHarvest", href: "/field-operations/register-harvest", icon: "add-circle-outline" },
@@ -22,6 +23,7 @@ const ITEMS: { title: keyof Strings; href: string; icon: "add-circle-outline" | 
 ];
 
 export default function FieldOperationsScreen() {
+  const { colors, typography } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
 

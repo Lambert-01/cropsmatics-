@@ -19,7 +19,8 @@ import { useAllCrops, useAllDistricts, usePeriods } from "../../src/hooks/querie
 import { strings } from "../../src/i18n";
 import { analyticsApi, mapsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { seriesColor, spacing, typography } from "../../src/theme";
+import { seriesColor, spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 import { alignIndexedSeries, toSeriesPoints, valueLookup } from "../../src/utils/analytics";
 import { periodsCarryingLayer } from "../../src/utils/coverage";
 import { slugifyEntity } from "../../src/utils/slug";
@@ -29,14 +30,6 @@ type Mode = "crops" | "districts";
  * Python calculation, not a locally derived number. */
 type CropMetric = "production_mt" | "harvested_area_ha" | "indexed_yield";
 type DistrictMetric = "yield_kg_ha" | "production_mt" | "harvested_area_ha" | "gap";
-
-interface PanelRow {
-  district?: string | null;
-  district_code?: string | null;
-  yield_kg_ha?: number | null;
-  production_mt?: number | null;
-  harvested_area_ha?: number | null;
-}
 
 const MAX_COMPARE_CROPS = 5;
 const MAX_COMPARE_DISTRICTS = 4;
@@ -54,6 +47,7 @@ const METRIC_UNIT: Record<DistrictMetric, string> = {
 };
 
 export default function CompareScreen() {
+  const { typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ crop?: string }>();
 
@@ -102,7 +96,8 @@ export default function CompareScreen() {
   });
 
   const panelRows = useMemo(
-    () => (panel.data?.rows ?? []) as unknown as PanelRow[],
+    // Typed from `PeriodProductivityResponse`; no cast is needed.
+    () => panel.data?.rows ?? [],
     [panel.data],
   );
 

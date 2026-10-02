@@ -24,27 +24,20 @@ import { strings } from "../../../src/i18n";
 import { analyticsApi, districtsApi, mapsApi } from "../../../src/services/api";
 import type { MetricValue } from "../../../src/services/api/districts";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { chart, colors, radius, spacing, typography } from "../../../src/theme";
+import { chart, radius, spacing } from "../../../src/theme";
+import type { Palette } from "../../../src/theme";
+import { useThemedStyles, useTheme } from "../../../src/theme/theme-context";
 import { changeFromApi, fromPeriodCoded, toSeriesPoints } from "../../../src/utils/analytics";
 import { periodsCarryingLayer } from "../../../src/utils/coverage";
 
 type Tab = "production" | "inputs" | "land";
 
-interface PanelRow {
-  canonical_crop_name?: string | null;
-  crop_code?: string | null;
-  district?: string | null;
-  district_code?: string | null;
-  cultivated_area_ha?: number | null;
-  harvested_area_ha?: number | null;
-  production_mt?: number | null;
-  yield_kg_ha?: number | null;
-}
-
 const SINGLE_RELEASE_NOTE =
   "District input, irrigation and erosion shares still come from a single release (2025 Season B). Selecting another period does not change them.";
 
 export default function DistrictDetailScreen() {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ districtCode: string }>();
   const slug = params.districtCode;
@@ -79,7 +72,8 @@ export default function DistrictDetailScreen() {
     enabled: Boolean(slug),
   });
 
-  const rows = useMemo(() => (panel.data?.rows ?? []) as unknown as PanelRow[], [panel.data]);
+  // Rows are typed from `PeriodProductivityResponse`; no cast is needed.
+  const rows = useMemo(() => panel.data?.rows ?? [], [panel.data]);
   const districtCode = rows.find((row) => row.district_code)?.district_code ?? profile.data?.district_code ?? null;
 
   // Default to the crop that carries the most production in this period, which
@@ -419,6 +413,8 @@ function Action({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.action}>
       <Ionicons name={icon} size={16} color={colors.primaryStrong} />
@@ -427,7 +423,8 @@ function Action({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   readouts: { flexDirection: "row", gap: spacing.md },
   action: {

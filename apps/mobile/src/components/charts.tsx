@@ -23,7 +23,9 @@ import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from "react-native-
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { chart, colors, radius, seriesColor, spacing, typography } from "../theme";
+import { chart, radius, seriesColor, spacing } from "../theme";
+import type { Palette } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { SeriesPoint } from "../utils/analytics";
 import {
   formatValue,
@@ -83,6 +85,7 @@ function Readout({
   index: number;
   unit?: string | null;
 }) {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const label = series[0]?.points[index]?.label ?? "—";
   return (
@@ -139,6 +142,7 @@ export function TimeSeriesChart({
   emptyNote,
   accessibilityLabel,
 }: TimeSeriesChartProps) {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const prepared = prepare(series);
   const [measured, setMeasured] = useState(0);
@@ -390,7 +394,7 @@ export function Sparkline({
   points,
   width: widthProp,
   height = 34,
-  color = colors.primary,
+  color,
   accessibilityLabel,
 }: {
   points: SeriesPoint[];
@@ -399,6 +403,8 @@ export function Sparkline({
   color?: string;
   accessibilityLabel?: string;
 }) {
+  const { colors } = useTheme();
+  const strokeColor = color ?? colors.primary;
   const [measured, setMeasured] = useState(0);
   const width = widthProp ?? measured;
   const domain = yDomain(points);
@@ -432,7 +438,7 @@ export function Sparkline({
                     return `${offset === 0 ? "M" : "L"} ${xAt(index)} ${yAt(point.value as number)}`;
                   })
                   .join(" ")}
-                stroke={color}
+                stroke={strokeColor}
                 strokeWidth={1.75}
                 fill="none"
                 strokeLinecap="round"
@@ -443,7 +449,7 @@ export function Sparkline({
                 cx={xAt(segment.start)}
                 cy={yAt(segment.points[0].value as number)}
                 r={2}
-                fill={color}
+                fill={strokeColor}
               />
             ),
           )}
@@ -480,6 +486,7 @@ export function StackedShareBar({
   sumOk?: boolean | null;
   note?: string;
 }) {
+  const { colors, typography } = useTheme();
   const published = segments.filter(
     (segment) => segment.value !== null && Number.isFinite(segment.value) && segment.value > 0,
   );
@@ -608,6 +615,7 @@ export function BarChart({
   unit?: string;
   width?: number;
 }) {
+  const { colors } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const [measured, setMeasured] = useState(0);
   if (!values.length) return <EmptyState title={t.chartNoData} icon="bar-chart-outline" />;
@@ -678,6 +686,8 @@ export function HorizontalBarChart({
   unit?: string;
   maxItems?: number;
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const rows = values.slice(0, maxItems);
   if (!rows.length) return <EmptyState title={t.chartNoData} icon="stats-chart-outline" />;
@@ -727,6 +737,8 @@ export interface DonutSlice {
 }
 
 export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?: string }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const real = slices.filter((slice) => (slice.value ?? 0) > 0);
   const total = real.reduce((sum, slice) => sum + (slice.value ?? 0), 0);
@@ -790,7 +802,7 @@ export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?
   );
 }
 
-const styles = {
+const makeStyles = (colors: Palette) => ({
   barTrack: {
     height: 8,
     borderRadius: 999,
@@ -804,4 +816,4 @@ const styles = {
     color: colors.forestDeep,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
-};
+});

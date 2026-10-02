@@ -1,9 +1,9 @@
-import type { DataSource } from "../../types";
+import type { DataSource, Provenance } from "../../types";
 import { request } from "./client";
 
 interface SourcesResponse {
   sources: DataSource[];
-  provenance: Record<string, unknown>;
+  provenance: Provenance;
 }
 
 export const sourcesApi = {

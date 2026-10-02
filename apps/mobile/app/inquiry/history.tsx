@@ -9,9 +9,13 @@ import { strings } from "../../src/i18n";
 import { inquiryApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
 import type { InquiryReceipt } from "../../src/types";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function InquiryHistoryScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const [receipts, setReceipts] = useState<InquiryReceipt[]>(() => {
     try {
@@ -72,7 +76,8 @@ export default function InquiryHistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   refresh: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
   refreshText: { color: colors.primaryStrong, fontWeight: "600", fontSize: 13 },
 });

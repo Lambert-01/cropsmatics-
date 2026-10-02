@@ -1,5 +1,5 @@
 import type { DistrictSummary } from "../../types";
-import { qs, request } from "./client";
+import { request } from "./client";
 
 export interface MetricValue {
   id: string;
@@ -34,8 +34,4 @@ export const districtsApi = {
     request<DistrictSummary>(`/geography/districts/${encodeURIComponent(slug)}`),
   profile: (slug: string) =>
     request<DistrictProfile>(`/mobile/districts/${encodeURIComponent(slug)}`),
-  productivity: (district: string) => request<Record<string, unknown>>(`/analytics/productivity${qs({ district })}`),
-  factors: (district: string) => request<Record<string, unknown>>(`/analytics/factors${qs({ district })}`),
-  irrigation: (district: string) => request<Record<string, unknown>>(`/analytics/irrigation${qs({ district })}`),
-  erosion: (district: string) => request<Record<string, unknown>>(`/analytics/erosion${qs({ district })}`),
 };

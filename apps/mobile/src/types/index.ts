@@ -216,6 +216,32 @@ export interface PeriodsResponse {
   notes: string[];
 }
 
+/**
+ * One district x crop row of the canonical productivity panel.
+ *
+ * The fields mirror the backend's ``_ROW_COLUMNS`` exactly. Every amount is
+ * nullable because a blank official cell stays null instead of becoming 0.
+ */
+export interface PeriodProductivityRow {
+  period_code?: string | null;
+  year?: number | null;
+  season?: string | null;
+  geography_level?: string | null;
+  district?: string | null;
+  district_code?: string | null;
+  province?: string | null;
+  agro_ecological_zone?: string | null;
+  farmer_scale?: string | null;
+  crop_code?: string | null;
+  canonical_crop_name?: string | null;
+  cultivated_area_ha?: number | null;
+  harvested_area_ha?: number | null;
+  production_mt?: number | null;
+  yield_kg_ha?: number | null;
+  source_id?: string | null;
+  source_sheets?: string | null;
+}
+
 /** One period of the canonical multi-period productivity panel. */
 export interface PeriodProductivityResponse {
   period_code: string;
@@ -226,7 +252,7 @@ export interface PeriodProductivityResponse {
   n_districts: number;
   n_crops: number;
   available_periods: string[];
-  rows: Record<string, string | number | null>[];
+  rows: PeriodProductivityRow[];
   provenance: Provenance;
 }
 

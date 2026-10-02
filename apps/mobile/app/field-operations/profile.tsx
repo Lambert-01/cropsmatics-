@@ -8,10 +8,16 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { listFarms, listHarvests, listPendingOutbox } from "../../src/database";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { LocalFarm } from "../../src/types";
 
 export default function ProfileScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
+  const secondaryButton = useThemedStyles(makeSecondaryButton);
+  const disabledButton = { ...secondaryButton, opacity: 0.6 };
   const router = useRouter();
   const { language, setLanguage } = useAppStore();
   const t = strings(language);
@@ -138,14 +144,15 @@ export default function ProfileScreen() {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
 const rowBetween = {
   flexDirection: "row" as const,
@@ -154,20 +161,20 @@ const rowBetween = {
   gap: spacing.sm,
 } as const;
 
-const secondaryButton = {
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  justifyContent: "center" as const,
-  gap: spacing.xs,
-  padding: spacing.sm,
-  borderRadius: radius.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-} as const;
-
-const disabledButton = { ...secondaryButton, opacity: 0.6 } as const;
+const makeSecondaryButton = (colors: Palette) =>
+  ({
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  }) as const;
 
 function Row({ label, value }: { label: string; value: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={rowBetween}>
       <Text style={typography.caption}>{label}</Text>

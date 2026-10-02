@@ -2,7 +2,8 @@ import type { ReactElement, ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import { useTheme } from "../theme/theme-context";
 import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
 
@@ -33,6 +34,7 @@ export function ScreenLayout({
   /** Floating action rendered above the bottom navigation. */
   fab?: ReactNode;
 }) {
+  const { colors } = useTheme();
   const body = scroll ? (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}

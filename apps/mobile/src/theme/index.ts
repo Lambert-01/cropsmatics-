@@ -34,6 +34,10 @@ export const colors = {
   slate: "#334155",
   muted: "#64748B",
 
+  // Tinted surfaces for semantic badges
+  positiveSoft: "#E7F7EF",
+  negativeSoft: "#FEECEC",
+
   // Data-surface neutrals. A analytical interface separates sections with thin
   // rules rather than lifting every block onto its own card.
   hairline: "#E4EBE7",
@@ -45,6 +49,8 @@ export const colors = {
   // Surfaces
   border: "#DDE7E2",
   surface: "#FFFFFF",
+  /** A surface raised above `surface` (sheets, selected rows, popovers). */
+  elevated: "#FFFFFF",
   background: "#F7FAF8",
   white: "#FFFFFF",
 
@@ -101,10 +107,16 @@ export const darkColors: typeof colors = {
   axis: "#7C8F87",
   missing: "#3A4A44",
 
+  // Tinted surfaces for semantic badges
+  positiveSoft: "#12312A",
+  negativeSoft: "#3A1A1A",
+
   // Surfaces
   border: "#243A33",
   surface: "#111C18",
-  background: "#0A1410",
+  /** A surface raised above `surface` (sheets, selected rows, popovers). */
+  elevated: "#16251F",
+  background: "#07140F",
 
   // Risk bands (icon + text + colour — never colour alone)
   riskLow: "#34D399",
@@ -117,6 +129,19 @@ export const palettes: Record<"light" | "dark", Palette> = {
   light: colors,
   dark: darkColors,
 };
+
+/**
+ * Hero scrim over the Rwanda landscape.
+ *
+ * A two-stop forest-green overlay: light at the top so the image reads, dark at
+ * the bottom so white hero copy stays legible. Kept here so mobile and web tune
+ * the same artwork the same way.
+ */
+export const heroScrim = {
+  top: "rgba(3,32,25,0.18)",
+  middle: "rgba(3,32,25,0.55)",
+  bottom: "rgba(3,32,25,0.90)",
+} as const;
 
 /**
  * Categorical series palette, in assignment order.
@@ -177,7 +202,16 @@ export const radius = {
   pill: 999,
 };
 
-export const typography = {
+/**
+ * Typography for a palette.
+ *
+ * Colours are baked into the text styles, so typography is a function of the
+ * active palette rather than a constant: in dark mode every text style must
+ * resolve to the dark foreground, and a frozen object would keep light ink on a
+ * near-black surface. Components read it from `useTheme().typography`.
+ */
+export function makeTypography(colors: Palette) {
+  return {
   display: { fontSize: 28, fontWeight: "700" as const, color: colors.forestDeep },
   h1: { fontSize: 24, fontWeight: "700" as const, color: colors.forestDeep },
   h2: { fontSize: 18, fontWeight: "700" as const, color: colors.forest },
@@ -229,7 +263,13 @@ export const typography = {
     color: colors.slate500,
     letterSpacing: 0,
   },
-};
+  };
+}
+
+export type Typography = ReturnType<typeof makeTypography>;
+
+/** Light-mode typography, for non-React modules only. Components use `useTheme()`. */
+export const typography: Typography = makeTypography(colors);
 
 export const shadow = {
   card: {

@@ -30,7 +30,9 @@ import { strings } from "../../src/i18n";
 import { askApi } from "../../src/services/api";
 import type { AskAnswer } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette, Typography } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { askProgressStages, describeAskFailure, type AskFailure, type AskFailureKind } from "../../src/utils/askFailure";
 import { slugifyEntity } from "../../src/utils/slug";
 
@@ -75,6 +77,8 @@ const FAILURE_IS_FAULT: Record<AskFailureKind, boolean> = {
 };
 
 export default function AskScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const language = useAppStore((s) => s.language);
@@ -354,7 +358,8 @@ export default function AskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   askIcon: {
     width: 56,

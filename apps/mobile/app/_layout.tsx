@@ -8,13 +8,28 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
-import { colors } from "../src/theme";
 import { ThemeProvider, useTheme } from "../src/theme/theme-context";
 
 /** Status-bar content follows the active scheme (light text on a dark surface). */
 function ThemedStatusBar() {
   const { mode } = useTheme();
   return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+}
+
+/**
+ * Navigation shell.
+ *
+ * Lives below `ThemeProvider` so the per-screen fallback background is read
+ * from the active palette. If the Stack were rendered in `RootLayout` itself
+ * it would sit above the provider and always paint the light background.
+ */
+function ThemedStack() {
+  const { colors } = useTheme();
+  return (
+    <Stack
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
+    />
+  );
 }
 
 /**
@@ -30,6 +45,7 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
+  const { colors } = useTheme();
   const [client] = useState(
     () =>
       new QueryClient({
@@ -96,7 +112,7 @@ export default function RootLayout() {
       <ThemeProvider>
         <QueryClientProvider client={client}>
           <ThemedStatusBar />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+          <ThemedStack />
           {!splashDone ? (
             <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
           ) : null}
