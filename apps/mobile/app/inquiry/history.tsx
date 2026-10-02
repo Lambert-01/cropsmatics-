@@ -37,7 +37,7 @@ export default function InquiryHistoryScreen() {
 
   return (
     <ScreenLayout back>
-      <SectionHeader title={t.inquiryHistory} subtitle="Only inquiries you submitted from this device" />
+      <SectionHeader title={t.inquiryHistory} subtitle={t.inquiryHistorySubtitle} />
       {receipts.length ? (
         receipts.map((receipt) => (
           <Card key={receipt.id} style={{ gap: spacing.sm }}>
@@ -45,22 +45,26 @@ export default function InquiryHistoryScreen() {
               <Text style={{ ...typography.h3, flex: 1 }}>{receipt.reference}</Text>
               <Badge text={receipt.status} />
             </View>
-            <Text style={typography.micro}>Submitted {receipt.created_at?.slice(0, 10)}</Text>
+            <Text style={typography.micro}>
+              {t.inquirySubmittedOn.replace("{date}", receipt.created_at?.slice(0, 10) ?? "")}
+            </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Refresh status"
+              accessibilityLabel={t.inquiryRefreshStatus}
               onPress={() => void refresh(receipt)}
               style={styles.refresh}
             >
               <Ionicons name="refresh" size={15} color={colors.primaryStrong} />
-              <Text style={styles.refreshText}>{refreshing === receipt.id ? "Checking…" : "Check status"}</Text>
+              <Text style={styles.refreshText}>
+                {refreshing === receipt.id ? t.inquiryChecking : t.inquiryCheckStatus}
+              </Text>
             </Pressable>
           </Card>
         ))
       ) : (
         <EmptyState
           title={t.inquiryNoHistory}
-          message="Submit an information request and its reference will appear here."
+          message={t.inquiryHistoryEmptyMessage}
           icon="document-text-outline"
         />
       )}

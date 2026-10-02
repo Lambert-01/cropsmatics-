@@ -13,6 +13,8 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
 import { colors, radius, spacing, typography } from "../theme";
 import type { ChangeResult } from "../utils/analytics";
 import { formatPercent, formatValue } from "../utils/analytics";
@@ -39,6 +41,7 @@ export function MetricReadout({
   size?: "large" | "medium";
   tone?: "neutral" | "positive" | "negative";
 }) {
+  const t = strings(useAppStore((s) => s.language));
   const published = value !== null && value !== undefined && Number.isFinite(value);
   return (
     <View style={{ gap: 3, flex: 1, minWidth: 0 }}>
@@ -58,7 +61,7 @@ export function MetricReadout({
               : colors.slate500,
           }}
         >
-          {published ? formatValue(value, precision) : "Not published"}
+          {published ? formatValue(value, precision) : t.notPublished}
         </Text>
         {published && unit ? <Text style={typography.unit}>{unit}</Text> : null}
       </View>
@@ -90,6 +93,7 @@ export function ChangeIndicator({
   unavailableNote?: string;
   compact?: boolean;
 }) {
+  const t = strings(useAppStore((s) => s.language));
   if (!change) {
     if (!unavailableNote) return null;
     return (
@@ -121,8 +125,10 @@ export function ChangeIndicator({
       </Text>
       <Text style={typography.micro}>
         {compact
-          ? `vs ${change.previous.label}`
-          : `same season ${change.previous.label} (${formatValue(change.previous.value)})`}
+          ? t.changeVsPrevious.replace("{label}", change.previous.label)
+          : t.changeSameSeason
+              .replace("{label}", change.previous.label)
+              .replace("{value}", formatValue(change.previous.value))}
       </Text>
     </View>
   );
@@ -262,7 +268,12 @@ export function CoverageBadge({
   period?: string | null;
   source?: string | null;
 }) {
-  const parts = [level ? `${level} coverage` : null, period, source].filter(Boolean) as string[];
+  const t = strings(useAppStore((s) => s.language));
+  const parts = [
+    level ? t.sourceCoverageLevel.replace("{level}", level) : null,
+    period,
+    source,
+  ].filter(Boolean) as string[];
   if (!parts.length) return null;
   return (
     <View style={styles.badge}>
@@ -318,7 +329,7 @@ export function SourceMethodSheet({
   limitations,
   notes,
   extra,
-  title = "Source & method",
+  title,
 }: {
   source?: string | null;
   period?: string | null;
@@ -330,6 +341,8 @@ export function SourceMethodSheet({
   extra?: ReactNode;
   title?: string;
 }) {
+  const t = strings(useAppStore((s) => s.language));
+  const heading = title ?? t.sourceMethodTitle;
   const [open, setOpen] = useState(false);
 
   return (
@@ -337,12 +350,12 @@ export function SourceMethodSheet({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={title}
+        accessibilityLabel={heading}
         onPress={() => setOpen((current) => !current)}
         style={styles.sheetHeader}
       >
         <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
-        <Text style={{ ...typography.microCaps, flex: 1 }}>{title.toUpperCase()}</Text>
+        <Text style={{ ...typography.microCaps, flex: 1 }}>{heading.toUpperCase()}</Text>
         <Text numberOfLines={1} style={{ ...typography.micro, maxWidth: "52%" }}>
           {[coverage, period].filter(Boolean).join(" · ") || source || "—"}
         </Text>
@@ -355,14 +368,14 @@ export function SourceMethodSheet({
 
       {open ? (
         <View style={{ gap: 6, paddingBottom: spacing.sm }}>
-          <SheetRow label="Source" value={source} />
-          <SheetRow label="Period" value={period} />
-          <SheetRow label="Coverage" value={coverage} />
-          <SheetRow label="Unit" value={unit} />
-          <SheetRow label="Method" value={method} />
+          <SheetRow label={t.sheetSource} value={source} />
+          <SheetRow label={t.sheetPeriod} value={period} />
+          <SheetRow label={t.sheetCoverage} value={coverage} />
+          <SheetRow label={t.sheetUnit} value={unit} />
+          <SheetRow label={t.sheetMethod} value={method} />
           {limitations?.length ? (
             <View style={{ gap: 2 }}>
-              <Text style={typography.microCaps}>LIMITATIONS</Text>
+              <Text style={typography.microCaps}>{t.sheetLimitations}</Text>
               {limitations.map((item) => (
                 <Text key={item} style={typography.micro}>
                   • {item}
@@ -372,7 +385,7 @@ export function SourceMethodSheet({
           ) : null}
           {notes?.length ? (
             <View style={{ gap: 2 }}>
-              <Text style={typography.microCaps}>NOTES</Text>
+              <Text style={typography.microCaps}>{t.sheetNotes}</Text>
               {notes.map((item) => (
                 <Text key={item} style={typography.micro}>
                   • {item}

@@ -24,7 +24,7 @@ export default function MapDistrictScreen() {
 
   return (
     <ScreenLayout back active="map">
-      <SectionHeader title={profile.data?.district ?? slug} subtitle="Agricultural map context" />
+      <SectionHeader title={profile.data?.district ?? slug} subtitle={t.districtMapSubtitle} />
       {profile.isError ? (
         <ErrorState message={t.errorGeneric} onRetry={() => void profile.refetch()} />
       ) : profile.isLoading ? (
@@ -39,8 +39,11 @@ export default function MapDistrictScreen() {
             />
             <Text style={{ ...typography.micro, textAlign: "center" }}>
               {row && row.value !== null
-                ? `Productivity gap: ${row.value.toLocaleString()} ${metrics.data?.unit ?? ""} (${metrics.data?.period ?? "—"})`
-                : "No verified district value for the selected indicator."}
+                ? t.mapGapReadout
+                    .replace("{value}", row.value.toLocaleString())
+                    .replace("{unit}", metrics.data?.unit ?? "")
+                    .replace("{period}", metrics.data?.period ?? "—")
+                : t.mapNoVerifiedValue}
             </Text>
           </Card>
 
@@ -50,8 +53,8 @@ export default function MapDistrictScreen() {
               <Badge text={profile.data?.province ?? "—"} />
               <Badge text={profile.data?.period_label ?? "—"} tone="blue" />
             </View>
-            <InfoRow label="Crops with data" value={String(profile.data?.n_crops_with_data ?? 0)} />
-            <InfoRow label="Largest production crop" value={profile.data?.largest_production_crops[0]?.crop ?? "Not available"} />
+            <InfoRow label={t.cropsWithData} value={String(profile.data?.n_crops_with_data ?? 0)} />
+            <InfoRow label={t.largestProductionCrop} value={profile.data?.largest_production_crops[0]?.crop ?? t.notAvailable} />
             <PrimaryButton label={t.viewDistrictDetails} onPress={() => router.push(("/explore/district/" + slug) as never)} />
           </Card>
         </>

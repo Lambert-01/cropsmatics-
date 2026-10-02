@@ -6,29 +6,20 @@ import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { colors, typography } from "../../src/theme";
 
-const POINTS = [
-  "Browsing public agricultural intelligence does not require an account or any personal farm information.",
-  "Inquiry contact fields are optional. If you provide them, only you can read your inquiry back using your private receipt token.",
-  "Saved items and Ask history stay on this device unless you explicitly share them.",
-  "Location, photos and documents are only requested inside Field Operations, never during Explore.",
-  "The public API cannot list other people's inquiries or contact details.",
-];
+const POINTS = ["privacyPoint1", "privacyPoint2", "privacyPoint3", "privacyPoint4", "privacyPoint5"] as const;
 
 export default function PrivacyScreen() {
   const t = strings(useAppStore((s) => s.language));
   return (
     <ScreenLayout back>
-      <SectionHeader title={t.privacy} subtitle="What Cropmatics does — and does not — collect" />
+      <SectionHeader title={t.privacy} subtitle={t.privacySubtitle} />
       {POINTS.map((point) => (
         <Card key={point}>
-          <Text style={typography.body}>{point}</Text>
+          <Text style={typography.body}>{t[point]}</Text>
         </Card>
       ))}
       <Card style={{ backgroundColor: colors.mintSoft }}>
-        <Text style={typography.caption}>
-          This page describes behavior that is actually implemented. Cropmatics does not promise policies it has not
-          built.
-        </Text>
+        <Text style={typography.caption}>{t.privacyHonestyNote}</Text>
       </Card>
     </ScreenLayout>
   );

@@ -173,17 +173,17 @@ export default function StorageOptionsScreen() {
               <Tile
                 label={t.nationalTotals.split("—")[0].trim()}
                 value={String(infrastructure.totals.total_number ?? "—")}
-                note="facilities"
+                note={t.storageFacilities}
               />
               <Tile
-                label="Total capacity"
+                label={t.storageTotalCapacity}
                 value={String(infrastructure.totals.total_capacity_mt ?? "—")}
-                note="metric tonnes"
+                note={t.storageMetricTonnes}
               />
             </View>
             <Text style={typography.caption}>
-              New in {infrastructure.totals.period ?? "period"}:{" "}
-              {infrastructure.totals.new_number ?? "—"} facilities ·{" "}
+              {t.storageNewInPeriod.replace("{period}", infrastructure.totals.period ?? "—")}{" "}
+              {infrastructure.totals.new_number ?? "—"} ·{" "}
               {infrastructure.totals.new_capacity_mt ?? "—"} mt
             </Text>
           </>

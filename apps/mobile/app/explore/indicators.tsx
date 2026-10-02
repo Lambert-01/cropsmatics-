@@ -137,10 +137,10 @@ export default function IndicatorsScreen() {
                   ? items.map((indicator) => (
                       <View key={indicator.id} style={styles.indicator}>
                         <Text style={typography.h3}>{indicator.label}</Text>
-                        <InfoRow label="Unit" value={indicator.unit ?? "—"} />
-                        <InfoRow label="Period" value={indicator.period ?? "—"} />
-                        <InfoRow label="Coverage" value={indicator.coverage_level ?? "—"} />
-                        <InfoRow label="Aggregation" value={indicator.aggregation.replace(/_/g, " ")} />
+                        <InfoRow label={t.sheetUnit} value={indicator.unit ?? "—"} />
+                        <InfoRow label={t.sheetPeriod} value={indicator.period ?? "—"} />
+                        <InfoRow label={t.sheetCoverage} value={indicator.coverage_level ?? "—"} />
+                        <InfoRow label={t.aggregation} value={indicator.aggregation.replace(/_/g, " ")} />
                         <SourceCard sourceLabel={indicator.source_label} period={indicator.period} coverage={indicator.coverage_level} />
                       </View>
                     ))

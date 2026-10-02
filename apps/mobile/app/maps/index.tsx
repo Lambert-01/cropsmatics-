@@ -235,7 +235,7 @@ export default function MapsScreen() {
                   </View>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Close"
+                    accessibilityLabel={t.close}
                     onPress={() => setSelected(null)}
                     hitSlop={10}
                     style={styles.close}

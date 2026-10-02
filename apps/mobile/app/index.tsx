@@ -279,7 +279,7 @@ export default function HomeScreen() {
             ) : null}
 
             {home.data?.featured_topics?.length ? (
-              <DataSection title="Featured insights" subtitle="Derived by the Cropmatics service">
+              <DataSection title={t.featuredInsightsTitle} subtitle={t.featuredInsightsSubtitle}>
                 {home.data.featured_topics.slice(0, 2).map((topic) => (
                   <ListRow
                     key={topic.id}

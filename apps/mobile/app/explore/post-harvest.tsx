@@ -95,21 +95,19 @@ export default function PostHarvestScreen() {
             value={row.post_harvest_losses_pct != null ? `${row.post_harvest_losses_pct.toFixed(2)}%` : t.notPublished}
             note={row.risk_band ?? undefined}
           />
-          <DataWarning text="National crop-level shares. This table carries no district dimension, so no district breakdown can be shown." />
+          <DataWarning text={t.postHarvestNoDistrictNote} />
           <Text style={typography.micro}>
-            The loss band is a documented threshold on the reported share, not a calibrated probability of loss.
+            {t.postHarvestLossNote}
           </Text>
         </DataSection>
       ) : (
         <DataSection title={t.useOfProduction} subtitle={release} first>
-          <Text style={typography.caption}>
-            Pick a crop to see how its production was used. The comparison below ranks the crops the release reports.
-          </Text>
+          <Text style={typography.caption}>{t.postHarvestPickCropNote}</Text>
         </DataSection>
       )}
 
       {crop === null && summary.data?.crops?.length ? (
-        <DataSection title={t.losses} subtitle="Share of production reported lost, by crop">
+        <DataSection title={t.losses} subtitle={t.postHarvestLossesSubtitle}>
           <HorizontalBarChart
             values={summary.data.crops
               .filter((item) => item.post_harvest_losses_pct != null)
@@ -121,12 +119,12 @@ export default function PostHarvestScreen() {
         </DataSection>
       ) : null}
 
-      <DataSection title={t.nationalContext} subtitle="MINAGRI published totals">
+      <DataSection title={t.nationalContext} subtitle={t.postHarvestNationalSubtitle}>
         {storage.isLoading ? (
           <LoadingSkeleton height={140} />
         ) : items.length ? (
           <>
-            <DataWarning text="National totals across the whole country. These are not facility capacities and are not attached to any district." />
+            <DataWarning text={t.postHarvestNationalWarning} />
             {items.slice(0, 6).map((item) => (
               <InfoRow
                 key={item.infrastructure_type}
@@ -141,16 +139,13 @@ export default function PostHarvestScreen() {
         )}
       </DataSection>
 
-      <DataSection title={t.programCoverage} subtitle="Verified program context">
+      <DataSection title={t.programCoverage} subtitle={t.postHarvestProgramSubtitle}>
         <Text style={typography.body}>
           {program?.program_districts?.length
-            ? `Program districts: ${program.program_districts.join(", ")}.`
-            : "Program districts are not published for this selection."}
+            ? t.postHarvestProgramDistricts.replace("{districts}", program.program_districts.join(", "))
+            : t.postHarvestProgramNone}
         </Text>
-        <DataWarning
-          tone="slate"
-          text="Facility-level capacities and exact coordinates are not published, so none are shown."
-        />
+        <DataWarning tone="slate" text={t.postHarvestFacilityNote} />
       </DataSection>
     </ScreenLayout>
   );

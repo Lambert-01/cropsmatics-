@@ -22,6 +22,8 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
 import { colors, spacing } from "../theme";
 
 const SPLASH_LOGO = require("../../assets/branding/splash-logo.png");
@@ -37,6 +39,7 @@ export function AnimatedSplash({
   onDone: () => void;
   reducedMotion?: boolean;
 }) {
+  const t = strings(useAppStore((s) => s.language));
   const overlay = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.84)).current;
@@ -144,7 +147,7 @@ export function AnimatedSplash({
           }}
         >
           <Text style={styles.wordmark}>Cropmatics</Text>
-          <Text style={styles.tagline}>Crop Intelligence from Data to Action</Text>
+          <Text style={styles.tagline}>{t.tagline}</Text>
         </Animated.View>
       </View>
 
@@ -152,7 +155,7 @@ export function AnimatedSplash({
         <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
       </View>
 
-      <Text style={styles.footer}>Rwanda agricultural intelligence</Text>
+      <Text style={styles.footer}>{t.splashFooter}</Text>
     </Animated.View>
   );
 }

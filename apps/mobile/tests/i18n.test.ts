@@ -9,6 +9,24 @@ describe("i18n", () => {
     expect(Object.keys(rw).sort()).toEqual(Object.keys(en).sort());
   });
 
+  it("has no empty or whitespace-only values", () => {
+    for (const [key, value] of Object.entries(en)) {
+      expect(value.trim(), `en.${key}`).not.toBe("");
+    }
+    for (const [key, value] of Object.entries(rw)) {
+      expect(value.trim(), `rw.${key}`).not.toBe("");
+    }
+  });
+
+  it("preserves placeholder tokens across languages", () => {
+    const tokens = (value: string) => (value.match(/\{[a-zA-Z]+\}/g) ?? []).sort();
+    for (const key of Object.keys(en) as (keyof typeof en)[]) {
+      // A translated string must keep every {placeholder} the English carries,
+      // otherwise a .replace() at the call site silently does nothing.
+      expect(tokens(rw[key]), `rw.${key}`).toEqual(tokens(en[key]));
+    }
+  });
+
   it("resolves language and falls back safely", () => {
     expect(strings("rw").save).toBe(rw.save);
     // @ts-expect-error unknown language falls back to English

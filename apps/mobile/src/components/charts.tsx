@@ -21,6 +21,8 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
 
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
 import { chart, colors, radius, seriesColor, spacing, typography } from "../theme";
 import type { SeriesPoint } from "../utils/analytics";
 import {
@@ -81,6 +83,7 @@ function Readout({
   index: number;
   unit?: string | null;
 }) {
+  const t = strings(useAppStore((s) => s.language));
   const label = series[0]?.points[index]?.label ?? "—";
   return (
     <View style={{ gap: 3 }}>
@@ -97,7 +100,7 @@ function Readout({
               {item.label}
             </Text>
             {value === null ? (
-              <Text style={{ ...typography.numericSmall, color: colors.slate500 }}>No data</Text>
+              <Text style={{ ...typography.numericSmall, color: colors.slate500 }}>{t.chartNoDataShort}</Text>
             ) : (
               <>
                 <Text style={typography.numeric}>{formatValue(value)}</Text>
@@ -136,6 +139,7 @@ export function TimeSeriesChart({
   emptyNote,
   accessibilityLabel,
 }: TimeSeriesChartProps) {
+  const t = strings(useAppStore((s) => s.language));
   const prepared = prepare(series);
   const [measured, setMeasured] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -164,7 +168,7 @@ export function TimeSeriesChart({
 
   const readoutText =
     count === 0
-      ? "No periods published"
+      ? t.chartNoPeriods
       : `${labels[activeIndex] ?? ""}: ${prepared
           .map((item) => {
             const value = item.points[activeIndex]?.value ?? null;
@@ -196,7 +200,7 @@ export function TimeSeriesChart({
         accessibilityRole="adjustable"
         accessibilityLabel={accessibilityLabel ?? "Time series chart"}
         accessibilityValue={{ text: readoutText }}
-        accessibilityHint="Swipe up or down to move between published periods."
+        accessibilityHint={t.chartsPeriodSwipeHint}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
         onAccessibilityAction={(event) => {
           if (event.nativeEvent.actionName === "increment") step(1);
@@ -582,7 +586,8 @@ export function LineChart({
   width?: number;
   height?: number;
 }) {
-  if (!values.length) return <EmptyState title="No trend data available." icon="trending-up-outline" />;
+  const t = strings(useAppStore((s) => s.language));
+  if (!values.length) return <EmptyState title={t.chartNoTrendData} icon="trending-up-outline" />;
   return (
     <TimeSeriesChart
       series={[{ key: "series", label: "Value", points: values }]}
@@ -603,8 +608,9 @@ export function BarChart({
   unit?: string;
   width?: number;
 }) {
+  const t = strings(useAppStore((s) => s.language));
   const [measured, setMeasured] = useState(0);
-  if (!values.length) return <EmptyState title="No data available." icon="bar-chart-outline" />;
+  if (!values.length) return <EmptyState title={t.chartNoData} icon="bar-chart-outline" />;
   const width = widthProp ?? measured;
   const domain = yDomain(values);
   const { max } = { max: Math.max(domain.max, 0) };
@@ -672,8 +678,9 @@ export function HorizontalBarChart({
   unit?: string;
   maxItems?: number;
 }) {
+  const t = strings(useAppStore((s) => s.language));
   const rows = values.slice(0, maxItems);
-  if (!rows.length) return <EmptyState title="No data available." icon="stats-chart-outline" />;
+  if (!rows.length) return <EmptyState title={t.chartNoData} icon="stats-chart-outline" />;
   const max = Math.max(...rows.map((row) => row.value ?? 0), 1);
 
   return (
@@ -720,10 +727,11 @@ export interface DonutSlice {
 }
 
 export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?: string }) {
+  const t = strings(useAppStore((s) => s.language));
   const real = slices.filter((slice) => (slice.value ?? 0) > 0);
   const total = real.reduce((sum, slice) => sum + (slice.value ?? 0), 0);
   if (!real.length || total <= 0) {
-    return <EmptyState title="No composition data available." icon="pie-chart-outline" />;
+    return <EmptyState title={t.chartNoComposition} icon="pie-chart-outline" />;
   }
 
   const size = 160;

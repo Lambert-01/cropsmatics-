@@ -2,6 +2,7 @@ export const en = {
   // ---- Brand ---------------------------------------------------------------
   appName: "Cropmatics Rwanda",
   tagline: "Crop Intelligence from Data to Action",
+  splashFooter: "Rwanda agricultural intelligence",
 
   // ---- Navigation ----------------------------------------------------------
   home: "Home",
@@ -541,6 +542,217 @@ export const en = {
     "This build talks to a demo machine on the local network. Install it while you are on the same Wi-Fi.",
   apiNotePublic:
     "This build talks to the public Cropmatics API — it works on any internet connection.",
+
+  // ---- Inquiry (extended) --------------------------------------------------
+  inquiryHistorySubtitle: "Only inquiries you submitted from this device",
+  inquiryRefreshStatus: "Refresh status",
+  inquiryCheckStatus: "Check status",
+  inquiryChecking: "Checking…",
+  inquirySubmittedOn: "Submitted {date}",
+  inquiryHistoryEmptyMessage: "Submit an information request and its reference will appear here.",
+  inquiryNewSubtitle:
+    "Can't find what you need? Send an information request to the Cropmatics team.",
+  inquiryMessagePlaceholder: "Describe the information you need…",
+  inquiryMessageTooShort: "Please describe what you need in a little more detail.",
+  inquiryQueued: "Waiting to send. Your inquiry is saved on this device.",
+  inquiryDraftsQueued: "{count} draft(s) queued.",
+  inquiryContextOptional: "Context (optional)",
+  inquiryContactOptional: "Contact (optional)",
+  inquiryReferenceNumber: "Reference number",
+  inquiryReceiptNote:
+    "Keep this reference. Your receipt is stored privately on this device, and only you can read your own inquiry status.",
+
+  // ---- Help ----------------------------------------------------------------
+  helpSubtitle: "How to get the most out of Cropmatics",
+  helpExploreTitle: "Explore data",
+  helpExploreBody:
+    "Browse crops and districts, or use the unified search to jump straight to an entity.",
+  helpMapsTitle: "Use maps",
+  helpMapsBody:
+    "Pick a metric, then tap any district that has a verified value. Grey districts have no data for that selection.",
+  helpCompareTitle: "Compare data",
+  helpCompareBody:
+    "Compare crops on absolute metrics, or districts on the same crop, period and indicator.",
+  helpAskTitle: "Ask Cropmatics",
+  helpAskBody:
+    "Ask in English or Kinyarwanda. If the published data cannot answer, Cropmatics says so instead of guessing.",
+  helpInquiryTitle: "Submit an inquiry",
+  helpInquiryBody:
+    "Request information the app does not cover. Your receipt is private to this device.",
+  helpOfflineTitle: "Offline usage",
+  helpOfflineBody:
+    "Home, saved items and Ask history stay available offline. New statistical questions need a connection.",
+  helpSourcesTitle: "Understand sources",
+  helpSourcesBody:
+    "Every analytical view shows the source, period and coverage. The Data Sources page lists what is verified.",
+
+  // ---- Privacy -------------------------------------------------------------
+  privacySubtitle: "What Cropmatics does — and does not — collect",
+  privacyPoint1:
+    "Browsing public agricultural intelligence does not require an account or any personal farm information.",
+  privacyPoint2:
+    "Inquiry contact fields are optional. If you provide them, only you can read your inquiry back using your private receipt token.",
+  privacyPoint3:
+    "Saved items and Ask history stay on this device unless you explicitly share them.",
+  privacyPoint4:
+    "Location, photos and documents are only requested inside Field Operations, never during Explore.",
+  privacyPoint5:
+    "The public API cannot list other people's inquiries or contact details.",
+  privacyHonestyNote:
+    "This page describes behavior that is actually implemented. Cropmatics does not promise policies it has not built.",
+
+  // ---- Methodology ---------------------------------------------------------
+  methodologyTitle: "Methodology",
+  methodologyCleanTitle: "How data are cleaned",
+  methodologyCleanBody:
+    "Official NISR/MINAGRI releases are extracted, validated against documented row counts and published as processed tables. A value that fails validation is dropped, never guessed.",
+  methodologyIndicatorsTitle: "How indicators are calculated",
+  methodologyIndicatorsBody:
+    "Each indicator declares how it may be aggregated. Shares of farmers use an unweighted mean of published district rows; indicators that depend on a crop must name that crop first.",
+  methodologyGapTitle: "What the productivity gap means",
+  methodologyGapBody:
+    "The gap index compares an observed district-crop yield against a benchmark (the national median for the same crop). It describes an association, not a proven cause.",
+  methodologyNationalTitle: "Why some periods are national-only",
+  methodologyNationalBody:
+    "Some official tables are published only at national level. Where that is the case, the app says so and never colours a district as if district data existed.",
+  methodologyCausationTitle: "Why associations are not causation",
+  methodologyCausationBody:
+    "District aggregates describe patterns across many farms and conditions. They cannot prove that changing one practice would cause a yield change.",
+  methodologyAskTitle: "How Ask Cropmatics is grounded",
+  methodologyAskBody:
+    "Every answer is composed from retrieved, validated values. The assistant cannot invent a figure, and it refuses questions the published statistics cannot support.",
+  methodologyNoClaimNote:
+    "No market prices, weather forecasts, pest forecasts, credit scoring or facility capacities are claimed unless a verified integrated dataset exists.",
+
+  // ---- More ----------------------------------------------------------------
+  moreGroupExploreData: "Explore data",
+  moreGroupMyInformation: "My information",
+  moreGroupCropmatics: "Cropmatics",
+  moreGroupAbout: "About",
+  moreGroupFieldOperations: "Field Operations",
+  moreFieldOperations: "Field operations",
+  moreFooterNote:
+    "Cropmatics transforms Rwanda's official agricultural data into information anyone can explore.",
+
+  // ---- Field operations (extended) -----------------------------------------
+  fieldOperationsTitle: "Field Operations",
+  fieldOperationsSubtitle: "Secondary tools for field data collection",
+  fieldOperationsDisabled:
+    "Field Operations is disabled in this build. Set EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS=true to enable it.",
+  fieldOperationsFooter:
+    "Field Operations records harvests on this device and is separate from the public intelligence experience. Location and photos are only requested here.",
+  harvestRisk: "Harvest risk",
+  sync: "Sync",
+  syncConnection: "Connection",
+  syncOnline: "online",
+  syncOffline: "offline",
+  syncIdempotentNote:
+    "Sync is idempotent: each record carries a locally generated id that the server treats as an idempotency key, so a repeated send never creates a duplicate.",
+
+  // ---- Small shared labels -------------------------------------------------
+  savedSubtitle: "Saved on this device",
+  askHistorySubtitle: "Stored on this device",
+  askStatusGrounded: "Grounded",
+  askStatusUnavailable: "Not available",
+  askKeyFigures: "Key figures",
+  close: "Close",
+  notAvailable: "Not available",
+
+  // ---- Map / district detail -----------------------------------------------
+  districtMapSubtitle: "Agricultural map context",
+  cropsWithData: "Crops with data",
+  largestProductionCrop: "Largest production crop",
+  mapGapReadout: "Productivity gap: {value} {unit} ({period})",
+  mapNoVerifiedValue: "No verified district value for the selected indicator.",
+  districtInputsSubtitle: "Share of farmers reporting adoption",
+  districtIrrigationSubtitle: "Irrigation methods and water sources",
+  districtSoilErosionSubtitle: "Land use and erosion-control practices",
+  districtInputsNote: "These are shares of farmers, not of cultivated area.",
+
+  // ---- Indicators ----------------------------------------------------------
+  aggregation: "Aggregation",
+
+  // ---- Home ----------------------------------------------------------------
+  featuredInsightsTitle: "Featured insights",
+  featuredInsightsSubtitle: "Derived by the Cropmatics service",
+
+  // ---- Data sources --------------------------------------------------------
+  dataSourcesHowWeUseTitle: "How Cropmatics uses these sources",
+  dataSourcesHowWeUseBody:
+    "Only verified, integrated sources appear here. CHIRPS and other planned sources are not listed until they are actually connected.",
+  dataSourcesLimitationsLabel: "Limitations",
+  dataSourcesOpenSource: "Open {name}",
+
+  // ---- Storage options -----------------------------------------------------
+  storageTotalCapacity: "Total capacity",
+  storageFacilities: "facilities",
+  storageMetricTonnes: "metric tonnes",
+  storageNewInPeriod: "New in {period}:",
+
+  // ---- Compare -------------------------------------------------------------
+  comparePickTwoCropsTitle: "Pick at least two crops",
+  comparePickTwoCropsMessage:
+    "Raw yield is not compared across crops because they do not share a natural scale. Choose indexed yield to compare the shape of each crop's change instead.",
+  compareNoEligibleIndex: "No selected crop meets the eligibility rules for an index.",
+  compareIndexBaselineNote: "100 = {baseline}. Each crop is indexed separately.",
+  compareIndexA11y: "Indexed yield comparison of {crops}",
+  compareNotIndexed: "Not indexed: {items}.",
+  compareAbsoluteA11y: "Comparison of {crops} over published periods",
+  compareAbsolutesOnlyNote:
+    "Absolute metrics only. Raw yield is deliberately not compared across crops: different species do not share a natural yield scale.",
+  compareCoverageEligible: "national · {count} eligible crops",
+  compareCoverageNationalCrop: "national crop series",
+  comparePickTwoDistrictsTitle: "Pick at least two districts",
+  comparePickTwoDistrictsMessage:
+    "Every district is measured on the same crop, the same metric and one published period.",
+  compareCropsSelected: "{selected} of {max} crops selected",
+  compareDistrictsSelected: "{selected} of {max} districts selected",
+  compareDistrictHint: "{count} districts",
+  compareGapBenchmarkNote:
+    "A gap is relative to the selected crop's own published benchmark, so it is comparable between these districts and not between crops.",
+
+  // ---- Post-harvest (extended) ---------------------------------------------
+  postHarvestLossesSubtitle: "Share of production reported lost, by crop",
+  postHarvestNationalSubtitle: "MINAGRI published totals",
+  postHarvestProgramSubtitle: "Verified program context",
+  postHarvestLossNote:
+    "The loss band is a documented threshold on the reported share, not a calibrated probability of loss.",
+  postHarvestPickCropNote:
+    "Pick a crop to see how its production was used. The comparison below ranks the crops the release reports.",
+  postHarvestNoDistrictNote:
+    "National crop-level shares. This table carries no district dimension, so no district breakdown can be shown.",
+  postHarvestNationalWarning:
+    "National totals across the whole country. These are not facility capacities and are not attached to any district.",
+  postHarvestProgramDistricts: "Program districts: {districts}.",
+  postHarvestProgramNone: "Program districts are not published for this selection.",
+  postHarvestFacilityNote:
+    "Facility-level capacities and exact coordinates are not published, so none are shown.",
+
+  // ---- Source & method sheet -----------------------------------------------
+  sourceMethodTitle: "Source & method",
+  sheetSource: "Source",
+  sheetPeriod: "Period",
+  sheetCoverage: "Coverage",
+  sheetUnit: "Unit",
+  sheetMethod: "Method",
+  sheetLimitations: "LIMITATIONS",
+  sheetNotes: "NOTES",
+  sourceCoverageTitle: "Source & coverage",
+  sourceCoveragePeriod: "Period {period}",
+  sourceCoverageLevel: "{level} coverage",
+  sourceCoverageLimitations: "Limitations: {items}",
+
+  // ---- Change indicators ---------------------------------------------------
+  changeVsPrevious: "vs {label}",
+  changeSameSeason: "same season {label} ({value})",
+
+  // ---- Charts --------------------------------------------------------------
+  chartsPeriodSwipeHint: "Swipe up or down to move between published periods.",
+  chartNoPeriods: "No periods published",
+  chartNoDataShort: "No data",
+  chartNoTrendData: "No trend data available.",
+  chartNoData: "No data available.",
+  chartNoComposition: "No composition data available.",
 } as const;
 
 export type Strings = Record<keyof typeof en, string>;

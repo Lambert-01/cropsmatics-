@@ -35,14 +35,11 @@ export default function InquirySuccessScreen() {
 
         <Card style={{ gap: spacing.sm }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-            <Text style={{ ...typography.h3, flex: 1 }}>Reference number</Text>
+            <Text style={{ ...typography.h3, flex: 1 }}>{t.inquiryReferenceNumber}</Text>
             <Badge text={receipt?.status ?? "RECEIVED"} />
           </View>
           <Text style={styles.reference}>{receipt?.reference ?? "—"}</Text>
-          <Text style={typography.caption}>
-            Keep this reference. Your receipt is stored privately on this device, and only you can read your own
-            inquiry status.
-          </Text>
+          <Text style={typography.caption}>{t.inquiryReceiptNote}</Text>
         </Card>
 
         <PrimaryButton label={t.inquiryHistory} icon="time-outline" onPress={() => router.replace("/inquiry/history")} />

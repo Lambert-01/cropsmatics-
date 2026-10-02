@@ -344,14 +344,14 @@ export default function DistrictDetailScreen() {
       ) : null}
 
       {tab === "inputs" ? (
-        <DataSection title={t.inputs} subtitle="Share of farmers reporting adoption" first>
+        <DataSection title={t.inputs} subtitle={t.districtInputsSubtitle} first>
           <DataWarning text={SINGLE_RELEASE_NOTE} />
           {percentRows(data.factors).length ? (
             <HorizontalBarChart values={percentRows(data.factors)} unit="%" maxItems={10} />
           ) : (
             <EmptyState title={t.noDataAvailable} />
           )}
-          <Text style={typography.micro}>These are shares of farmers, not of cultivated area.</Text>
+          <Text style={typography.micro}>{t.districtInputsNote}</Text>
           <SourceMethodSheet
             title={t.sourceAndMethod}
             source={data.provenance.source_id}
@@ -365,7 +365,7 @@ export default function DistrictDetailScreen() {
 
       {tab === "land" ? (
         <>
-          <DataSection title={t.irrigation} subtitle="Irrigation methods and water sources" first>
+          <DataSection title={t.irrigation} subtitle={t.districtIrrigationSubtitle} first>
             <DataWarning text={SINGLE_RELEASE_NOTE} />
             {percentRows(data.irrigation.methods).length ? (
               <HorizontalBarChart values={percentRows(data.irrigation.methods)} unit="%" />
@@ -376,7 +376,7 @@ export default function DistrictDetailScreen() {
               <HorizontalBarChart values={percentRows(data.irrigation.sources)} unit="%" />
             ) : null}
           </DataSection>
-          <DataSection title={t.soilErosion} subtitle="Land use and erosion-control practices">
+          <DataSection title={t.soilErosion} subtitle={t.districtSoilErosionSubtitle}>
             {data.land.filter((item) => item.value != null).length ? (
               <HorizontalBarChart
                 values={data.land

@@ -7,41 +7,41 @@ import { AppHeader } from "../../src/components/AppHeader";
 import { BottomNav } from "../../src/components/BottomNav";
 import { Card, ListRow, SectionHeader } from "../../src/components/ui";
 import { features } from "../../src/config/features";
-import { strings } from "../../src/i18n";
+import { strings, type Strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { colors, spacing, typography } from "../../src/theme";
 
-const GROUPS = [
+const GROUPS: { title: keyof Strings; items: { label: keyof Strings; href: string; icon: keyof typeof Ionicons.glyphMap }[] }[] = [
   {
-    title: "Explore data",
+    title: "moreGroupExploreData",
     items: [
-      { label: "explore", href: "/explore", icon: "compass-outline" as const },
-      { label: "askCropmatics", href: "/ask", icon: "chatbubble-ellipses-outline" as const },
+      { label: "explore", href: "/explore", icon: "compass-outline" },
+      { label: "askCropmatics", href: "/ask", icon: "chatbubble-ellipses-outline" },
     ],
   },
   {
-    title: "My information",
+    title: "moreGroupMyInformation",
     items: [
-      { label: "savedItems", href: "/saved", icon: "bookmark-outline" as const },
-      { label: "askHistory", href: "/ask/history", icon: "time-outline" as const },
-      { label: "myInquiries", href: "/inquiry/history", icon: "document-text-outline" as const },
-      { label: "inquiryTitle", href: "/inquiry/new", icon: "mail-outline" as const },
+      { label: "savedItems", href: "/saved", icon: "bookmark-outline" },
+      { label: "askHistory", href: "/ask/history", icon: "time-outline" },
+      { label: "myInquiries", href: "/inquiry/history", icon: "document-text-outline" },
+      { label: "inquiryTitle", href: "/inquiry/new", icon: "mail-outline" },
     ],
   },
   {
-    title: "Cropmatics",
+    title: "moreGroupCropmatics",
     items: [
-      { label: "dataSources", href: "/more/data-sources", icon: "shield-checkmark-outline" as const },
-      { label: "methodology" as never, href: "/more/methodology", icon: "flask-outline" as const },
-      { label: "settings", href: "/more/settings", icon: "settings-outline" as const },
-      { label: "help", href: "/more/help", icon: "help-circle-outline" as const },
+      { label: "dataSources", href: "/more/data-sources", icon: "shield-checkmark-outline" },
+      { label: "methodologyTitle", href: "/more/methodology", icon: "flask-outline" },
+      { label: "settings", href: "/more/settings", icon: "settings-outline" },
+      { label: "help", href: "/more/help", icon: "help-circle-outline" },
     ],
   },
   {
-    title: "About",
+    title: "moreGroupAbout",
     items: [
-      { label: "aboutCropmatics", href: "/more/about", icon: "information-circle-outline" as const },
-      { label: "privacy", href: "/more/privacy", icon: "lock-closed-outline" as const },
+      { label: "aboutCropmatics", href: "/more/about", icon: "information-circle-outline" },
+      { label: "privacy", href: "/more/privacy", icon: "lock-closed-outline" },
     ],
   },
 ];
@@ -50,10 +50,7 @@ export default function MoreScreen() {
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
 
-  const label = (key: string): string => {
-    if (key === "methodology") return "Methodology";
-    return (t as Record<string, string>)[key] ?? key;
-  };
+  const label = (key: keyof Strings): string => t[key];
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -62,7 +59,7 @@ export default function MoreScreen() {
         <SectionHeader title={t.moreTitle} subtitle={t.tagline} />
         {GROUPS.map((group) => (
           <View key={group.title} style={{ gap: spacing.sm }}>
-            <Text style={styles.groupTitle}>{group.title.toUpperCase()}</Text>
+            <Text style={styles.groupTitle}>{t[group.title].toUpperCase()}</Text>
             <Card style={{ paddingVertical: 0 }}>
               {group.items.map((item) => (
                 <ListRow
@@ -78,9 +75,9 @@ export default function MoreScreen() {
 
         {features.fieldOperations ? (
           <View style={{ gap: spacing.sm }}>
-            <Text style={styles.groupTitle}>FIELD OPERATIONS</Text>
+            <Text style={styles.groupTitle}>{t.moreGroupFieldOperations.toUpperCase()}</Text>
             <Card style={{ paddingVertical: 0 }}>
-              <ListRow title="Field operations" icon="leaf-outline" onPress={() => router.push("/field-operations")} />
+              <ListRow title={t.moreFieldOperations} icon="leaf-outline" onPress={() => router.push("/field-operations")} />
             </Card>
           </View>
         ) : null}
@@ -88,9 +85,7 @@ export default function MoreScreen() {
         <Card>
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
             <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
-            <Text style={{ ...typography.caption, flex: 1 }}>
-              Cropmatics transforms Rwanda's official agricultural data into information anyone can explore.
-            </Text>
+            <Text style={{ ...typography.caption, flex: 1 }}>{t.moreFooterNote}</Text>
           </View>
         </Card>
       </ScrollView>

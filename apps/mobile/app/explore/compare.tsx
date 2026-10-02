@@ -186,7 +186,12 @@ export default function CompareScreen() {
               />
             ))}
           </View>
-          <Text style={typography.micro}>{`${selectedCrops.length}/${MAX_COMPARE_CROPS} · ${t.publishedCoverage}`}</Text>
+          <Text style={typography.micro}>
+            {t.compareCropsSelected
+              .replace("{selected}", String(selectedCrops.length))
+              .replace("{max}", String(MAX_COMPARE_CROPS))}{" "}
+            · {t.publishedCoverage}
+          </Text>
 
           <MetricSelector
             label={t.selectIndicator}
@@ -201,8 +206,8 @@ export default function CompareScreen() {
 
           {selectedCrops.length < 2 ? (
             <EmptyState
-              title="Pick at least two crops"
-              message="Raw yield is not compared across crops because they do not share a natural scale. Choose indexed yield to compare the shape of each crop's change instead."
+              title={t.comparePickTwoCropsTitle}
+              message={t.comparePickTwoCropsMessage}
               icon="git-compare-outline"
             />
           ) : activeQuery.isError ? (
@@ -216,23 +221,29 @@ export default function CompareScreen() {
                   series={indexedSeriesList}
                   unit="index"
                   height={240}
-                  note={`100 = ${indexed.data?.baseline_definition ?? "the crop's own published baseline"}. Each crop is indexed separately.`}
-                  accessibilityLabel={`Indexed yield comparison of ${selectedCrops.join(", ")}`}
+                  note={t.compareIndexBaselineNote.replace(
+                    "{baseline}",
+                    indexed.data?.baseline_definition ?? "the crop's own published baseline",
+                  )}
+                  accessibilityLabel={t.compareIndexA11y.replace("{crops}", selectedCrops.join(", "))}
                 />
               ) : (
-                <EmptyState title={t.noDataAvailable} message="No selected crop meets the eligibility rules for an index." />
+                <EmptyState title={t.noDataAvailable} message={t.compareNoEligibleIndex} />
               )}
               <DataWarning text={t.indexedYieldNote} />
               {ineligible.length ? (
                 <DataWarning
-                  text={`Not indexed: ${ineligible.map((item) => `${item.crop} (${item.reason ?? "ineligible"})`).join("; ")}.`}
+                  text={t.compareNotIndexed.replace(
+                    "{items}",
+                    ineligible.map((item) => `${item.crop} (${item.reason ?? "ineligible"})`).join("; "),
+                  )}
                 />
               ) : null}
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={indexed.data?.provenance?.source_id}
                 period={indexed.data?.provenance?.source_period ?? null}
-                coverage={`national · ${indexedSeriesList.length} eligible crops`}
+                coverage={t.compareCoverageEligible.replace("{count}", String(indexedSeriesList.length))}
                 unit={indexed.data?.unit ?? "index"}
                 method={indexed.data?.provenance?.method}
                 limitations={indexed.data?.provenance?.limitations}
@@ -244,14 +255,14 @@ export default function CompareScreen() {
                 series={seriesList}
                 unit={compareTrends.data?.metric_units?.[`${cropMetric}:${selectedCrops[0]}`] ?? ABSOLUTE_METRIC_UNIT[cropMetric]}
                 height={240}
-                accessibilityLabel={`Comparison of ${selectedCrops.join(", ")} over published periods`}
+                accessibilityLabel={t.compareAbsoluteA11y.replace("{crops}", selectedCrops.join(", "))}
               />
-              <DataWarning text="Absolute metrics only. Raw yield is deliberately not compared across crops: different species do not share a natural yield scale." />
+              <DataWarning text={t.compareAbsolutesOnlyNote} />
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={compareTrends.data?.provenance?.source_id}
                 period={trendPoints.map((point) => point.period).join(", ")}
-                coverage="national crop series"
+                coverage={t.compareCoverageNationalCrop}
                 unit={compareTrends.data?.metric_units?.[`${cropMetric}:${selectedCrops[0]}`]}
                 method={compareTrends.data?.provenance?.method}
                 limitations={compareTrends.data?.provenance?.limitations}
@@ -280,7 +291,11 @@ export default function CompareScreen() {
                 label={t.selectPeriod}
                 value={activePeriod}
                 onChange={setPeriodCode}
-                options={districtPeriods.map((period) => ({ id: period.period_code, label: period.label, hint: `${period.n_districts} districts` }))}
+                options={districtPeriods.map((period) => ({
+                  id: period.period_code,
+                  label: period.label,
+                  hint: t.compareDistrictHint.replace("{count}", String(period.n_districts)),
+                }))}
               />
 
               <MetricSelector
@@ -305,17 +320,25 @@ export default function CompareScreen() {
                   />
                 ))}
               </View>
-              <Text style={typography.micro}>{`${selectedDistricts.length}/${MAX_COMPARE_DISTRICTS} districts selected`}</Text>
+              <Text style={typography.micro}>
+                {t.compareDistrictsSelected
+                  .replace("{selected}", String(selectedDistricts.length))
+                  .replace("{max}", String(MAX_COMPARE_DISTRICTS))}
+              </Text>
 
               {selectedDistricts.length < 2 ? (
-                <EmptyState title="Pick at least two districts" message="Every district is measured on the same crop, the same metric and one published period." icon="git-compare-outline" />
+                <EmptyState
+                  title={t.comparePickTwoDistrictsTitle}
+                  message={t.comparePickTwoDistrictsMessage}
+                  icon="git-compare-outline"
+                />
               ) : districtMetric === "gap" ? (
                 gapLayer.isLoading ? (
                   <LoadingSkeleton height={200} />
                 ) : comparisonRows.length ? (
                   <>
                     <HorizontalBarChart values={comparisonRows} unit="%" />
-                    <DataWarning text="A gap is relative to the selected crop's own published benchmark, so it is comparable between these districts and not between crops." />
+                    <DataWarning text={t.compareGapBenchmarkNote} />
                   </>
                 ) : (
                   <EmptyState title={gapLayer.data?.message ?? t.noDataAvailable} />

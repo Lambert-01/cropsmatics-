@@ -11,6 +11,8 @@ import {
   type ViewStyle,
 } from "react-native";
 
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
 import { colors, radius, shadow, spacing, typography } from "../theme";
 
 // ---- layout ---------------------------------------------------------------
@@ -319,11 +321,12 @@ export function EmptyState({
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const t = strings(useAppStore((s) => s.language));
   return (
     <View style={styles.state}>
       <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
       <Text style={{ ...typography.h3, textAlign: "center" }}>{message}</Text>
-      {onRetry ? <SecondaryButton label="Try Again" onPress={onRetry} icon="refresh" /> : null}
+      {onRetry ? <SecondaryButton label={t.tryAgain} onPress={onRetry} icon="refresh" /> : null}
     </View>
   );
 }
@@ -354,21 +357,27 @@ export function SourceCard({
   coverage?: string | null;
   limitations?: string[];
 }) {
+  const t = strings(useAppStore((s) => s.language));
   if (!sourceLabel && !period && !coverage) return null;
   return (
     <View style={styles.sourceCard}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
-        <Text style={styles.sourceTitle}>Source &amp; coverage</Text>
+        <Text style={styles.sourceTitle}>{t.sourceCoverageTitle}</Text>
       </View>
       {sourceLabel ? <Text style={typography.caption}>{sourceLabel}</Text> : null}
       <Text style={styles.sourceMeta}>
-        {[period ? `Period ${period}` : null, coverage ? `${coverage} coverage` : null]
+        {[
+          period ? t.sourceCoveragePeriod.replace("{period}", period) : null,
+          coverage ? t.sourceCoverageLevel.replace("{level}", coverage) : null,
+        ]
           .filter(Boolean)
           .join(" · ")}
       </Text>
       {limitations?.length ? (
-        <Text style={styles.sourceMeta}>Limitations: {limitations.join("; ")}</Text>
+        <Text style={styles.sourceMeta}>
+          {t.sourceCoverageLimitations.replace("{items}", limitations.join("; "))}
+        </Text>
       ) : null}
     </View>
   );

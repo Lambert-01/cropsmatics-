@@ -45,9 +45,9 @@ export default function SyncScreen() {
     <ScreenLayout back>
       <View style={panel}>
         <View style={rowBetween}>
-          <Text style={typography.caption}>Connection</Text>
+          <Text style={typography.caption}>{t.syncConnection}</Text>
           <Text style={{ color: online ? colors.success : colors.amber, fontWeight: "700" }}>
-            {online === null ? "…" : online ? "online" : "offline"}
+            {online === null ? "…" : online ? t.syncOnline : t.syncOffline}
           </Text>
         </View>
         <View style={rowBetween}>
@@ -97,10 +97,7 @@ export default function SyncScreen() {
       ) : null}
 
       <Text style={typography.caption}>{t.syncOnOpen}</Text>
-      <Text style={typography.caption}>
-        Sync is idempotent: each record carries a locally generated id that the server treats as an
-        idempotency key, so a repeated send never creates a duplicate.
-      </Text>
+      <Text style={typography.caption}>{t.syncIdempotentNote}</Text>
     </ScreenLayout>
   );
 }

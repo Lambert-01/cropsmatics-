@@ -37,7 +37,7 @@ export default function NewInquiryScreen() {
 
   const submit = async () => {
     if (message.trim().length < 5) {
-      setError("Please describe what you need in a little more detail.");
+      setError(t.inquiryMessageTooShort);
       return;
     }
     setError(null);
@@ -83,15 +83,17 @@ export default function NewInquiryScreen() {
       <AppHeader back />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <SectionHeader title={t.inquiryTitle} subtitle="Can't find what you need? Send an information request to the Cropmatics team." />
+          <SectionHeader title={t.inquiryTitle} subtitle={t.inquiryNewSubtitle} />
 
           {queued ? (
             <Card style={{ backgroundColor: colors.amberSoft }}>
               <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
                 <Ionicons name="cloud-upload-outline" size={18} color={colors.amber} />
-                <Text style={{ ...typography.body, flex: 1 }}>Waiting to send. Your inquiry is saved on this device.</Text>
+                <Text style={{ ...typography.body, flex: 1 }}>{t.inquiryQueued}</Text>
               </View>
-              <Text style={typography.micro}>{pendingDrafts} draft(s) queued.</Text>
+              <Text style={typography.micro}>
+                {t.inquiryDraftsQueued.replace("{count}", String(pendingDrafts))}
+              </Text>
             </Card>
           ) : null}
 
@@ -109,7 +111,7 @@ export default function NewInquiryScreen() {
           </Card>
 
           <Card>
-            <Text style={typography.h3}>Context (optional)</Text>
+            <Text style={typography.h3}>{t.inquiryContextOptional}</Text>
             <Text style={typography.caption}>{t.inquiryCrop}</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
               {(crops.data ?? []).slice(0, 8).map((item) => (
@@ -142,13 +144,13 @@ export default function NewInquiryScreen() {
               value={message}
               onChangeText={setMessage}
               multiline
-              placeholder="Describe the information you need…"
+              placeholder={t.inquiryMessagePlaceholder}
               placeholderTextColor={colors.slate500}
             />
           </Card>
 
           <Card>
-            <Text style={typography.h3}>Contact (optional)</Text>
+            <Text style={typography.h3}>{t.inquiryContactOptional}</Text>
             <Text style={typography.caption}>{t.inquiryPrivacyNote}</Text>
             <TextInput style={styles.input} value={name} onChangeText={setName} placeholder={t.inquiryName} placeholderTextColor={colors.slate500} />
             <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder={t.inquiryEmail} placeholderTextColor={colors.slate500} keyboardType="email-address" autoCapitalize="none" />

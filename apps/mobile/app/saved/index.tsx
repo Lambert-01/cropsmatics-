@@ -50,7 +50,7 @@ export default function SavedScreen() {
 
   return (
     <ScreenLayout back>
-      <SectionHeader title={t.savedTitle} subtitle="Saved on this device" />
+      <SectionHeader title={t.savedTitle} subtitle={t.savedSubtitle} />
       <View style={styles.chips}>
         {(["all", "crop", "district", "question", "indicator"] as const).map((value) => (
           <FilterChip

@@ -256,7 +256,7 @@ export default function AskScreen() {
 
                   {turn.answer.grounded && turn.answer.key_figures.length ? (
                     <View style={{ gap: 4 }}>
-                      <Text style={styles.blockTitle}>Key figures</Text>
+                      <Text style={styles.blockTitle}>{t.askKeyFigures}</Text>
                       {turn.answer.key_figures.map((figure) => (
                         <View key={figure.label} style={styles.figureRow}>
                           <Text style={{ ...typography.caption, flex: 1 }}>{figure.label}</Text>
