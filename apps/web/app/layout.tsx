@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { PreferencesProvider } from "@/components/providers/PreferencesProvider";
 import { LanguageProvider } from "@/lib/i18n";
 
 import "./globals.css";
@@ -25,11 +26,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
-          <LanguageProvider>
-            <Suspense fallback={null}>
-              <AppShell>{children}</AppShell>
-            </Suspense>
-          </LanguageProvider>
+          <PreferencesProvider>
+            <LanguageProvider>
+              <Suspense fallback={null}>
+                <AppShell>{children}</AppShell>
+              </Suspense>
+            </LanguageProvider>
+          </PreferencesProvider>
         </Providers>
       </body>
     </html>

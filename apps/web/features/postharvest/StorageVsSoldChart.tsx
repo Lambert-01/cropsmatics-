@@ -13,7 +13,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { fmtNumber } from "@/lib/format";
 import type { PostHarvestCrop } from "@/types";
 
@@ -25,6 +25,8 @@ export function StorageVsSoldChart({
   crops: PostHarvestCrop[];
   isLoading?: boolean;
 }) {
+  const motion = useChartMotion();
+
   if (isLoading) return <ChartSkeleton height={340} />;
 
   const data = crops
@@ -69,8 +71,8 @@ export function StorageVsSoldChart({
                 height={24}
                 formatter={(v) => (v === "stored" ? "Stored" : "Sold")}
               />
-              <Bar dataKey="stored" fill={CHART.primary} radius={[0, 3, 3, 0]} />
-              <Bar dataKey="sold" fill={CHART.amber} radius={[0, 3, 3, 0]} />
+              <Bar {...motion} dataKey="stored" fill={CHART.primary} radius={[0, 3, 3, 0]} />
+              <Bar {...motion} dataKey="sold" fill={CHART.amber} radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

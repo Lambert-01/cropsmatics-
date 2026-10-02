@@ -1,0 +1,10 @@
+# Generated / native / vendor output is never linted by the JS linter.
+node_modules/
+android/
+ios/
+.expo/
+.expo-shared/
+dist/
+build/
+coverage/
+web-build/

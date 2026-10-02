@@ -2,11 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Database, ShieldCheck } from "lucide-react";
+import { useMemo } from "react";
 
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { EmptyState, TableSkeleton } from "@/components/ui/States";
 import { api } from "@/lib/api";
+import { coverageLimitations, type CoverageDetailRow } from "@/lib/coverage";
 import { benchmarkLabel, periodLabel } from "@/lib/format";
 import { useCoverage, useDataVersion, useModels, useSources } from "@/services/hooks/useReference";
 
@@ -16,8 +18,14 @@ const AI_USAGE = [
   "The assistant is forbidden from inventing yield, production, price, capacity, loss or accuracy values.",
 ];
 
-const LIMITATIONS = [
-  "District-level data exist only for NISR 2025 Season B; other periods are national context.",
+/**
+ * Limitations that do not depend on the coverage matrix.
+ *
+ * The coverage statement itself is generated from `/meta/data-coverage` at
+ * render time, because a hand-written version of it went stale: it claimed
+ * district data existed only for one season while eight were published.
+ */
+const STATIC_LIMITATIONS = [
   "All results describe associations and priorities for investigation, not causal effects.",
   "Storage capacity is not verified in any public facility source used here.",
   "Benchmark choice materially changes the productivity gap; the strategy is always reported.",
@@ -29,6 +37,14 @@ export default function TransparencyPage() {
   const models = useModels();
   const dataVersion = useDataVersion();
   const algorithms = useQuery({ queryKey: ["algorithms"], queryFn: api.algorithms });
+
+  const limitations = useMemo(
+    () => [
+      ...coverageLimitations((coverage.data?.details ?? []) as CoverageDetailRow[]),
+      ...STATIC_LIMITATIONS,
+    ],
+    [coverage.data],
+  );
 
   return (
     <div className="space-y-5">
@@ -321,7 +337,7 @@ export default function TransparencyPage() {
         <Card>
           <CardHeader title="Limitations" subtitle="Stated plainly, not buried" />
           <ul className="px-4 pb-4 pt-3 ml-4 list-disc space-y-1 text-sm text-slate-700">
-            {LIMITATIONS.map((l) => (
+            {limitations.map((l) => (
               <li key={l}>{l}</li>
             ))}
           </ul>

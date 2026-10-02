@@ -27,6 +27,46 @@ class GapResponse(BaseModel):
     provenance: Provenance
 
 
+class IndexedYieldPoint(BaseModel):
+    """One published period of one crop's index.
+
+    ``value`` is the published national yield in t/ha; ``index`` is that value
+    against the crop's own baseline. Both are null for a period the release did
+    not tabulate, so the gap survives to the chart.
+    """
+
+    period: str
+    label: str
+    value: float | None = None
+    index: float | None = None
+
+
+class IndexedYieldSeries(BaseModel):
+    """One crop's eligibility and index series."""
+
+    crop: str
+    eligible: bool
+    #: ``eligible`` | ``ineligible`` - an enum-shaped string for the client.
+    availability: str
+    baseline: float | None = None
+    n_observations: int = 0
+    #: Why the crop is ineligible. Present whenever ``eligible`` is false.
+    reason: str | None = None
+    points: list[IndexedYieldPoint] = Field(default_factory=list)
+
+
+class IndexedYieldResponse(BaseModel):
+    """Per-crop yield index, each against that crop's own published baseline."""
+
+    metric: str
+    unit: str
+    baseline_definition: str
+    min_periods: int
+    periods: list[str] = Field(default_factory=list)
+    series: list[IndexedYieldSeries] = Field(default_factory=list)
+    provenance: Provenance
+
+
 class FactorAssociation(BaseModel):
     factor: str
     correlation_with_yield: float | None = None
@@ -52,14 +92,36 @@ class PriorityRow(BaseModel):
     gap: float
     vulnerability: float
     affected_scale: float
-    readiness: float
-    cost_constraint: float
+    #: Normalized component the engine used. ``None`` means the component has no
+    #: measured value for the selected period, so its weight was redistributed
+    #: rather than applied to a neutral constant.
+    readiness: float | None = None
+    cost_constraint: float | None = None
+
+
+class ComponentAvailability(BaseModel):
+    """What one priority component is actually made of, for the selected period.
+
+    ``status`` is one of ``measured`` / ``proxy`` / ``unavailable`` /
+    ``undetermined``. A component that is ``unavailable`` must be reported as a
+    missing value, never as a constant.
+    """
+
+    component: str
+    label: str
+    status: str
+    source_period: str | None = None
+    note: str | None = None
 
 
 class PriorityResponse(BaseModel):
     weights: dict
     rows: list[PriorityRow]
     proxy_notes: list[str] = Field(default_factory=list)
+    #: Components whose weight was redistributed over the components that do have
+    #: measured data for the selected period.
+    components_unavailable: list[str] = Field(default_factory=list)
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
     provenance: Provenance
 
 

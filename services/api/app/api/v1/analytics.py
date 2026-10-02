@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.analytics.productivity_gap import STRATEGIES
 from app.schemas.analytics import (
     GapResponse,
+    IndexedYieldResponse,
     PriorityRequest,
     PriorityResponse,
 )
@@ -20,6 +21,7 @@ from app.schemas.common import Provenance
 from app.schemas.dashboard import (
     FactorsResponse,
     HeatmapResponse,
+    NationalBoardResponse,
     PostHarvestResponse,
     ProductivityResponse,
     TrendResponse,
@@ -28,6 +30,8 @@ from app.schemas.filters import AnalyticsFilters, analytics_filters
 from app.schemas.storage import StorageInfrastructureResponse
 from app.services import (
     analytics_service,
+    indexed_yield_service,
+    national_board_service,
     postharvest_service,
     storage_service,
     trend_service,
@@ -39,7 +43,11 @@ _GAP_LIMITATIONS = [
     "observational district aggregates, not plot-level evidence",
     "associations are not causation",
     "benchmark choice materially affects the gap",
-    "district data only exist for 2025 Season B",
+    # District productivity exists for every published period (2024A-2026B); the
+    # district input/practice tables used by the factor analysis are still a
+    # single-release (2025 Season B) extract. See /api/v1/meta/periods.
+    "district productivity covers 2024A-2026B; district input/practice, "
+    "irrigation and erosion tables cover 2025 Season B only",
 ]
 
 
@@ -68,15 +76,34 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
     result = analytics_service.productivity(f)
     return ProductivityResponse(
         period=result["period"],
+        period_code=result.get("period_code"),
         n_observations=result["n_observations"],
         kpis=result["kpis"],
+        primary_kpis=result.get("primary_kpis", []),
+        secondary_kpis=result.get("secondary_kpis", []),
+        yoy=result.get("yoy"),
+        gap_bands=result.get("gap_bands", []),
+        gap_summary=result.get("gap_summary"),
         rows=result["rows"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period=result["period"],
+            source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
+            source_period=f.period_code or result["period"],
             benchmark_strategy=f.benchmark_strategy,
-            method="district aggregation of processed district x crop table",
-            limitations=_GAP_LIMITATIONS,
+            method=(
+                "district aggregation of the canonical multi-period productivity "
+                "panel; no cross-crop yield is computed"
+                if f.period_code
+                else "district aggregation of processed district x crop table; "
+                "no cross-crop yield is computed"
+            ),
+            limitations=_GAP_LIMITATIONS
+            + [
+                "the same-season change compares one season with the same season "
+                "one year earlier; consecutive seasons are not a time series "
+                "because they differ agronomically",
+                "the gap distribution counts districts into bands whose cut points "
+                "are returned with the counts",
+            ],
         ),
     )
 
@@ -88,6 +115,9 @@ def factors(f: AnalyticsFilters = Depends(analytics_filters)) -> FactorsResponse
         crop=result["crop"],
         district=result["district"],
         factors=result["factors"],
+        note=analytics_service.single_release_note(
+            f, "district_factors", "district input/practice factor data"
+        ),
         provenance=Provenance(
             source_id="NISR_SAS_2025B_DISTRICT_FACTORS",
             source_period="2025-B",
@@ -117,7 +147,12 @@ def heatmap(
         min_value=result["min_value"],
         unit=result["unit"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
+            source_id=(
+                f"NISR_SAS_{f.period_code}"
+                if f.period_code
+                else "NISR_SAS_2025B_DISTRICT_CROP"
+            ),
+            source_period=f.period_code,
             benchmark_strategy=f.benchmark_strategy,
             method="median district x crop value",
             limitations=_GAP_LIMITATIONS[:3],
@@ -161,9 +196,106 @@ def trends(
             ),
             limitations=[
                 "national series, not district estimates",
+                trend_service.BREAKDOWN_LIMITATION,
                 "periods available depend on the published releases",
                 "compare view excludes yield: raw yields are not comparable across crop species",
             ],
+        ),
+    )
+
+
+@router.get("/national-board", response_model=NationalBoardResponse)
+def national_board(
+    crops: str | None = Query(
+        None,
+        description=(
+            "Comma-separated crop names to restrict the board to, e.g. "
+            "Maize,Beans. Omit for every non-aggregate crop."
+        ),
+    ),
+) -> NationalBoardResponse:
+    """The whole national crop board in one read.
+
+    Every crop's series is returned on one shared period axis (null for a period
+    the release did not tabulate), and the same-season delta is computed here.
+    The mobile board uses this instead of one request per crop, so the numbers
+    stay authoritative and the client only presents them.
+    """
+    names: list[str] | None = None
+    if crops:
+        names = [c.strip() for c in crops.split(",") if c.strip()]
+        if not (2 <= len(names) <= 40):
+            raise HTTPException(
+                status_code=422,
+                detail="national-board accepts between 2 and 40 comma-separated crop names",
+            )
+
+    result = national_board_service.board(names)
+    return NationalBoardResponse(
+        **result,
+        provenance=Provenance(
+            source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+            source_period="-".join([result["periods"][0], result["periods"][-1]])
+            if result["periods"]
+            else None,
+            method=(
+                "published per-crop national series, aligned to one period axis; "
+                "same-season delta computed server-side from two published "
+                "observations; official aggregate groups excluded"
+            ),
+            limitations=[
+                "national series only, never a district value",
+                trend_service.BREAKDOWN_LIMITATION,
+                "a period the release did not tabulate is returned as null and "
+                "is never interpolated",
+                "the same-season comparison is only reported when both the "
+                "current and the previous-year observation exist",
+                "raw yield is published per crop and is never compared across "
+                "crop species",
+            ],
+        ),
+    )
+
+
+@router.get("/indexed-yield", response_model=IndexedYieldResponse)
+def indexed_yield(
+    crops: str | None = Query(
+        None,
+        description=(
+            "Comma-separated 2-5 crop names, e.g. Maize,Beans. Omit for every "
+            "non-aggregate crop the national trend table carries."
+        ),
+    ),
+) -> IndexedYieldResponse:
+    """Per-crop yield index against each crop's own published baseline.
+
+    Raw yields are not comparable across crop species, so this endpoint never
+    averages them. Each crop is indexed to the median of its own published
+    national yields (= 100), which is the only way to show several crops on one
+    axis without inventing a common scale. Eligibility rules and limitations are
+    part of the response, not an afterthought.
+    """
+    names: list[str] | None = None
+    if crops:
+        names = [c.strip() for c in crops.split(",") if c.strip()]
+        if not (2 <= len(names) <= 5):
+            raise HTTPException(
+                status_code=422,
+                detail="indexed-yield accepts 2 to 5 comma-separated crop names",
+            )
+
+    result = indexed_yield_service.indexed_yield(names)
+    return IndexedYieldResponse(
+        **result,
+        provenance=Provenance(
+            source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+            source_period="2024B-2026A",
+            method=(
+                "index = 100 * published national yield / the crop's own median "
+                "published national yield; computed per crop, never pooled "
+                "across crops"
+            ),
+            limitations=indexed_yield_service.LIMITATIONS,
         ),
     )
 
@@ -221,11 +353,14 @@ def irrigation(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     result = analytics_service.irrigation_summary(f)
     return {
         **result,
+        "note": analytics_service.single_release_note(
+            f, "irrigation_water", "district irrigation and water-source data"
+        ),
         "provenance": Provenance(
             source_id="NISR_SAS_2025B_IRRIGATION_WATER",
             source_period=result["period"],
             method="official district irrigation technique and water-source shares",
-            limitations=["district shares only for 2025 Season B"],
+            limitations=["district shares cover 2025 Season B only"],
         ).model_dump(),
     }
 
@@ -235,13 +370,35 @@ def erosion(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     result = analytics_service.erosion_summary(f)
     return {
         **result,
+        "note": analytics_service.single_release_note(
+            f, "erosion_control", "district erosion-control data"
+        ),
         "provenance": Provenance(
             source_id="NISR_SAS_2025B_EROSION",
             source_period=result["period"],
             method="official district erosion-control technique and severity shares",
-            limitations=["district shares only for 2025 Season B"],
+            limitations=["district shares cover 2025 Season B only"],
         ).model_dump(),
     }
+
+
+def _priority_limitations(result: dict) -> list[str]:
+    """Proxy notes plus an explicit statement of what was excluded, and why.
+
+    A reader must be able to tell from the response itself that an excluded
+    component was not scored, instead of inferring it from a component that
+    happens to be zero.
+    """
+    limitations = list(result["proxy_notes"])
+    unavailable = result.get("components_unavailable") or []
+    if unavailable:
+        limitations.append(
+            "the following components carry no measured value for the selected "
+            f"period and were excluded from the score: {', '.join(unavailable)}. "
+            "Their weight was redistributed over the components that do have data, "
+            "so no neutral constant enters the score."
+        )
+    return limitations
 
 
 @router.get("/intervention-priorities", response_model=PriorityResponse)
@@ -254,11 +411,16 @@ def intervention_priorities(
         weights=result["weights"],
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
+        components_unavailable=result["components_unavailable"],
+        component_availability=result["component_availability"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period="2025-B",
+            source_id=(
+                result.get("source_id")
+                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
+            ),
+            source_period=f.period_code or "2025-B",
             method="weighted transparent score over normalized components",
-            limitations=result["proxy_notes"],
+            limitations=_priority_limitations(result),
         ),
     )
 
@@ -275,10 +437,15 @@ def intervention_priorities_weighted(
         weights=result["weights"],
         rows=result["rows"],
         proxy_notes=result["proxy_notes"],
+        components_unavailable=result["components_unavailable"],
+        component_availability=result["component_availability"],
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_CROP",
-            source_period="2025-B",
+            source_id=(
+                result.get("source_id")
+                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
+            ),
+            source_period=f.period_code or "2025-B",
             method="user-adjusted weights over transparent normalized components",
-            limitations=result["proxy_notes"],
+            limitations=_priority_limitations(result),
         ),
     )

@@ -1,0 +1,10 @@
+﻿,,,,,,,,
+,Table 78: ampling Errors for major crops at the national level from SAS 2023/24 Season C data,,,,,,,
+,Crop name,Estimate,SE,CV,95% Confidence Interval,,DEFF,No. observations (plots)
+,,,,,Lower,Upper,,
+,Sweet potato,4429,333.2,0.075,3775,5084,1.852,634
+,Irish potato,8846,1228.3,0.139,6433,11259,2.835,362
+,Bush bean,2734,356.2,0.13,2034,3434,1.139,267
+,Pea,527,158.7,0.301,215,839,3.888,63
+,Soybean,576,213.5,0.371,157,996,2.309,67
+,Vegetables,5738,536.2,0.093,4685,6792,0.451,594

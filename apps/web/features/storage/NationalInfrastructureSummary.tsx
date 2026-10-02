@@ -16,7 +16,7 @@ import { DataBadge } from "@/components/ui/DataBadge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { fmtNumber } from "@/lib/format";
 import type { StorageInfrastructureResponse } from "@/types";
 
@@ -34,6 +34,8 @@ export function NationalInfrastructureSummary({
   data?: StorageInfrastructureResponse;
   isLoading?: boolean;
 }) {
+  const motion = useChartMotion();
+
   if (isLoading) return <ChartSkeleton height={280} />;
 
   const items = data?.items ?? [];
@@ -154,8 +156,8 @@ export function NationalInfrastructureSummary({
                     name === "added" ? "new in period" : "existing",
                   ]}
                 />
-                <Bar dataKey="existing" stackId="cap" fill={CHART.primary} />
-                <Bar dataKey="added" stackId="cap" radius={[0, 4, 4, 0]}>
+                <Bar {...motion} dataKey="existing" stackId="cap" fill={CHART.primary} />
+                <Bar {...motion} dataKey="added" stackId="cap" radius={[0, 4, 4, 0]}>
                   {chartData.map((d) => (
                     <Cell key={d.name} fill={d.added > 0 ? CHART.amber : CHART.primary} />
                   ))}

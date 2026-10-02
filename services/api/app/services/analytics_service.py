@@ -8,6 +8,8 @@ benchmark). Associations are never presented as causal effects.
 
 from __future__ import annotations
 
+from dataclasses import replace as dc_replace
+
 import numpy as np
 import pandas as pd
 
@@ -15,12 +17,52 @@ from app.analytics import intervention_priority as ip
 from app.analytics.productivity_gap import STRATEGIES, compute_gaps
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
+from app.services import period_service
 
 # MVP proxies for priority components that official 2025B tables do not carry.
 # Documented so the weighting is never a black box (docs/11_INTERVENTION_ENGINE.md).
 _PERISHABILITY = {"high": 1.0, "medium": 0.5, "low": 0.2}
 
+# Columns that only the 2025B joined training table carries. When a frame comes
+# from the canonical panel (any other period) these columns are absent, so the
+# components that depend on them are explicitly unavailable rather than filled
+# with a neutral constant that would look like measured data.
+_READINESS_COL = "erosion_protection_farmers_pct"
+_COST_COL = "agricultural_land_000ha"
+
 HIGH_GAP_PCT = 25.0  # |gap_index| at/above this is flagged "high gap" in the UI
+
+# Yield-gap distribution bands. Thresholds are explicit and returned with the
+# counts so the UI can print the actual cut points instead of a vague "low to
+# high" legend. ``min_pct`` is exclusive, ``max_pct`` inclusive.
+GAP_BANDS: tuple[dict, ...] = (
+    {"id": "above_benchmark", "label": "At or above benchmark", "min_pct": None, "max_pct": 0.0},
+    {"id": "near_benchmark", "label": "Near benchmark", "min_pct": 0.0, "max_pct": 10.0},
+    {"id": "moderate_gap", "label": "Moderate gap", "min_pct": 10.0, "max_pct": HIGH_GAP_PCT},
+    {"id": "high_gap", "label": "High gap", "min_pct": HIGH_GAP_PCT, "max_pct": None},
+)
+
+# --- primary KPI policy ----------------------------------------------------
+# No surface may present more than four headline KPI cards, and the headline
+# strip must describe one analytical scope and one period - never a 2025B
+# context figure sitting next to a 2026B observation. Pages therefore name the
+# KPI ids they consider primary, in order; everything else is secondary and
+# belongs in a detail panel, table or "more metrics" disclosure.
+MAX_PRIMARY_KPIS = 4
+
+
+def split_kpis(kpis: list[dict], primary_ids: list[str]) -> tuple[list[dict], list[dict]]:
+    """``(primary, secondary)`` with primary capped at four, in requested order.
+
+    A primary KPI whose value is unavailable is still returned so the UI shows
+    an explicit "no verified data" state; it is never swapped for a value from
+    a different period to fill the slot.
+    """
+    by_id = {k["id"]: k for k in kpis}
+    primary = [by_id[i] for i in primary_ids if i in by_id][:MAX_PRIMARY_KPIS]
+    chosen = {k["id"] for k in primary}
+    secondary = [k for k in kpis if k["id"] not in chosen]
+    return primary, secondary
 
 FACTOR_COLUMNS = [
     "improved_seed_farmers_pct",
@@ -45,12 +87,225 @@ FACTOR_LABELS = {
     "agricultural_land_000ha": "Agricultural land area",
 }
 
+# --- component availability policy (v2) -------------------------------------
+#
+# The priority score is a weighted sum over five components. Three of them come
+# from the productivity rows of the *selected period*; two - readiness
+# (erosion-protection adoption) and cost constraint (agricultural-land share) -
+# exist only in the 2025 Season B district practice/land survey.
+#
+# Policy: a component that has no measured value for the selected period is
+# **excluded**, and its weight is redistributed proportionally over the
+# components that do have data. It is never filled with a neutral constant and
+# never borrowed from another release inside the same score, because both would
+# put a number on screen that the selected period did not produce. Every surface
+# therefore reports, per component, whether it is measured, a documented proxy,
+# unavailable or undetermined - and an unavailable component is reported as
+# ``null``, never as ``0`` or ``0.5``.
+#
+# See docs/11_INTERVENTION_ENGINE.md for the worked example and the alternative
+# (join the 2025B survey in as a labelled reference period) that was rejected.
+COMPONENT_ORDER: tuple[str, ...] = (
+    "gap_index",
+    "vulnerability",
+    "affected_scale",
+    "readiness",
+    "cost_constraint",
+)
+
+COMPONENT_LABELS: dict[str, str] = {
+    "gap_index": "Productivity gap",
+    "vulnerability": "Vulnerability / exposure",
+    "affected_scale": "Affected scale",
+    "readiness": "Readiness",
+    "cost_constraint": "Cost constraint",
+}
+
+#: Component status vocabulary, used verbatim in API responses and the UI.
+MEASURED = "measured"
+PROXY = "proxy"
+UNAVAILABLE = "unavailable"
+UNDETERMINED = "undetermined"
+
+#: The release that carries the two single-release components.
+REFERENCE_FACTOR_PERIOD = "2025B"
+
+_GAP_NOTE = (
+    "gap is computed from this period's published district yield against the "
+    "selected benchmark strategy"
+)
+_VULNERABILITY_NOTE = (
+    "vulnerability uses crop perishability as a proxy (no verified post-harvest "
+    "loss join per district yet)"
+)
+_AFFECTED_SCALE_NOTE = (
+    "affected scale uses harvested area as a proxy for the number of farmers exposed"
+)
+
+_READINESS_MEASURED_NOTE = (
+    "readiness uses measured erosion-protection adoption "
+    f"({REFERENCE_FACTOR_PERIOD}) as a proxy for existing practice uptake"
+)
+_COST_MEASURED_NOTE = (
+    "cost constraint uses measured agricultural-land share "
+    f"({REFERENCE_FACTOR_PERIOD}) as an inverse cost proxy"
+)
+_READINESS_UNAVAILABLE_NOTE = (
+    "readiness is unavailable for this period: district erosion-protection data are "
+    f"{REFERENCE_FACTOR_PERIOD} only, so the readiness weight is redistributed over "
+    "the components that do have data instead of being filled with a constant"
+)
+_COST_UNAVAILABLE_NOTE = (
+    "cost constraint is unavailable for this period: district agricultural-land data "
+    f"are {REFERENCE_FACTOR_PERIOD} only, so the cost weight is redistributed over "
+    "the components that do have data instead of being filled with a constant"
+)
+_UNDETERMINED_NOTE = (
+    "no rows for this selection, so whether this component carries measured data "
+    "cannot be determined"
+)
+
+# Legacy constant kept for callers that import it directly (the 2025B release,
+# where both single-release components are measured).
 PROXY_NOTES = [
-    "vulnerability uses crop perishability as a proxy (no verified post-harvest loss join per district yet)",
-    "readiness uses erosion-protection adoption as a proxy for existing practice uptake",
-    "cost constraint uses agricultural-land share as an inverse cost proxy",
-    "affected scale uses harvested area as a proxy for the number of farmers exposed",
+    _VULNERABILITY_NOTE,
+    _AFFECTED_SCALE_NOTE,
+    _READINESS_MEASURED_NOTE,
+    _COST_MEASURED_NOTE,
 ]
+
+
+def has_readiness(df: pd.DataFrame) -> bool:
+    """True when the frame carries measured erosion-protection adoption values."""
+    return _READINESS_COL in df.columns and df[_READINESS_COL].notna().any()
+
+
+def has_cost(df: pd.DataFrame) -> bool:
+    """True when the frame carries measured agricultural-land area values."""
+    return _COST_COL in df.columns and df[_COST_COL].notna().any()
+
+
+def _single_release_status(df: pd.DataFrame, present: bool) -> str:
+    """Status of a 2025B-only component, given whether its column is populated."""
+    if present:
+        return MEASURED
+    return UNDETERMINED if df.empty else UNAVAILABLE
+
+
+def component_availability(df: pd.DataFrame | None = None) -> list[dict]:
+    """Per-component status for a frame, in the engine's component order.
+
+    One entry per component: ``{component, label, status, source_period, note}``
+    where ``status`` is one of ``measured`` / ``proxy`` / ``unavailable`` /
+    ``undetermined``. This is the single source of truth for the "what is this
+    number made of" question, so no surface has to infer availability from the
+    presence of a column - or, worse, from a component value that happened to be
+    filled with a constant.
+    """
+    frame = df if df is not None else pd.DataFrame()
+    readiness = _single_release_status(frame, has_readiness(frame))
+    cost = _single_release_status(frame, has_cost(frame))
+    readiness_note = {
+        MEASURED: _READINESS_MEASURED_NOTE,
+        UNAVAILABLE: _READINESS_UNAVAILABLE_NOTE,
+        UNDETERMINED: _UNDETERMINED_NOTE,
+    }[readiness]
+    cost_note = {
+        MEASURED: _COST_MEASURED_NOTE,
+        UNAVAILABLE: _COST_UNAVAILABLE_NOTE,
+        UNDETERMINED: _UNDETERMINED_NOTE,
+    }[cost]
+    empty_status = UNDETERMINED if frame.empty else None
+
+    return [
+        {
+            "component": "gap_index",
+            "label": COMPONENT_LABELS["gap_index"],
+            "status": empty_status or MEASURED,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _GAP_NOTE,
+        },
+        {
+            "component": "vulnerability",
+            "label": COMPONENT_LABELS["vulnerability"],
+            "status": empty_status or PROXY,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _VULNERABILITY_NOTE,
+        },
+        {
+            "component": "affected_scale",
+            "label": COMPONENT_LABELS["affected_scale"],
+            "status": empty_status or PROXY,
+            "source_period": None,
+            "note": _UNDETERMINED_NOTE if frame.empty else _AFFECTED_SCALE_NOTE,
+        },
+        {
+            "component": "readiness",
+            "label": COMPONENT_LABELS["readiness"],
+            "status": readiness,
+            "source_period": REFERENCE_FACTOR_PERIOD if readiness == MEASURED else None,
+            "note": readiness_note,
+        },
+        {
+            "component": "cost_constraint",
+            "label": COMPONENT_LABELS["cost_constraint"],
+            "status": cost,
+            "source_period": REFERENCE_FACTOR_PERIOD if cost == MEASURED else None,
+            "note": cost_note,
+        },
+    ]
+
+
+def components_unavailable(df: pd.DataFrame) -> list[str]:
+    """Names of priority components that have no measured data in this frame."""
+    return [c["component"] for c in component_availability(df) if c["status"] == UNAVAILABLE]
+
+
+def proxy_notes_for(df: pd.DataFrame) -> list[str]:
+    """Period-aware proxy notes: only mention components that are actually present."""
+    return [_VULNERABILITY_NOTE, _AFFECTED_SCALE_NOTE] + [
+        entry["note"]
+        for entry in component_availability(df)
+        if entry["component"] in ("readiness", "cost_constraint")
+    ]
+
+
+def adjusted_weights(weights: dict | None, unavailable: list[str]) -> dict:
+    """Redistribute excluded component weights proportionally to the rest.
+
+    When a component has no measured data its weight is not silently applied to
+    a neutral constant. Instead the weight is distributed proportionally across
+    the components that do have data, so the score remains a weighted sum of
+    verified inputs and the total still sums to 1.
+
+    The mapping from component names to engine weight keys is:
+        gap_index  -> wg   vulnerability -> wv   affected_scale -> wf
+        readiness  -> wr   cost_constraint -> wc
+    """
+    base = {**ip.DEFAULT_WEIGHTS, **(weights or {})}
+    key_map = {
+        "readiness": "wr",
+        "cost_constraint": "wc",
+    }
+    excluded_keys = {key_map[c] for c in unavailable if c in key_map}
+    if not excluded_keys:
+        return base
+    excluded_total = sum(base[k] for k in excluded_keys)
+    remaining = {k: v for k, v in base.items() if k not in excluded_keys}
+    remaining_total = sum(remaining.values()) or 1.0
+    redistributed = {
+        k: round(v + v / remaining_total * excluded_total, 6)
+        for k, v in remaining.items()
+    }
+    # Zero out excluded keys so the engine receives a valid simplex.
+    for k in excluded_keys:
+        redistributed[k] = 0.0
+    # Rounding must not break the simplex: the largest remaining weight absorbs
+    # the residual, so the reported weighting still sums to exactly 1.
+    largest = max(remaining, key=lambda key: redistributed[key])
+    others = sum(v for k, v in redistributed.items() if k != largest)
+    redistributed[largest] = round(max(0.0, 1.0 - others), 6)
+    return redistributed
 
 
 def records(df: pd.DataFrame, columns: list[str] | None = None) -> list[dict]:
@@ -64,8 +319,84 @@ def valid_yield(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["yield_kg_ha"].fillna(0) > 0].copy()
 
 
+LEGACY_SOURCE_ID = "NISR_SAS_2025B_DISTRICT_CROP"
+
+
+def frame_source_id(df: pd.DataFrame) -> str:
+    """Source id of the rows actually used, taken from the rows themselves."""
+    if "source_id" in df.columns:
+        ids = sorted({str(v) for v in df["source_id"].dropna() if str(v)})
+        if ids:
+            return ",".join(ids)
+    return LEGACY_SOURCE_ID
+
+
+def frame_period_code(df: pd.DataFrame) -> str | None:
+    """The single period a frame covers, or None when it spans several."""
+    if "period_code" in df.columns:
+        codes = sorted({str(v) for v in df["period_code"].dropna() if str(v)})
+        if len(codes) == 1:
+            return codes[0]
+        return None
+    if {"year", "season"}.issubset(df.columns):
+        pairs = {
+            (int(y), str(s)) for y, s in zip(df["year"], df["season"], strict=False) if str(s)
+        }
+        if len(pairs) == 1:
+            year, season = pairs.pop()
+            return f"{year}{season}"
+    return None
+
+
 def _factor_cols(df: pd.DataFrame) -> list[str]:
     return [c for c in FACTOR_COLUMNS if c in df.columns]
+
+
+def legacy_periods() -> set[str]:
+    """Periods the joined training table actually carries (a single release)."""
+    try:
+        df = repo.training_dataset()
+    except Exception:
+        return set()
+    if df.empty or not {"year", "season"}.issubset(df.columns):
+        return set()
+    return {
+        f"{int(y)}{str(s).upper()}"
+        for y, s in zip(df["year"], df["season"], strict=False)
+        if str(s)
+    }
+
+
+def productivity_frame(f: AnalyticsFilters | None = None) -> pd.DataFrame:
+    """The productivity rows a filter should read.
+
+    Without a period selection this stays the joined training table, so existing
+    analytics keep exactly the behaviour they had (including the factor columns
+    only that table has). For a period the training table does not cover - the
+    other seven published periods - it reads the canonical panel, district rows
+    only, so a national row can never be reported as a district observation.
+    """
+    if f is None:
+        return repo.training_dataset()
+
+    key = f.period_key()
+    if not key or key in legacy_periods():
+        return repo.training_dataset()
+
+    try:
+        panel = repo.crop_productivity()
+    except Exception:
+        return repo.training_dataset()
+    if "period_code" not in panel.columns:
+        return repo.training_dataset()
+    frame = panel[panel["period_code"].astype(str) == key]
+    if "geography_level" in frame.columns:
+        frame = frame[frame["geography_level"] == "DISTRICT"]
+    if frame.empty:
+        # The period exists but has no district rows: fall back to the training
+        # table, whose apply_filters then yields an honest empty selection.
+        return repo.training_dataset()
+    return frame.copy()
 
 
 def period_of(df: pd.DataFrame) -> str | None:
@@ -91,7 +422,13 @@ def gapped(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
 def priority_frame(
     df: pd.DataFrame, strategy: str = "national_crop_median", weights: dict | None = None
 ) -> pd.DataFrame:
-    """Attach priority components and a normalized priority score/band per row."""
+    """Attach priority components and a normalized priority score/band per row.
+
+    When the 2025B factor columns (readiness, cost) are absent from the frame
+    the corresponding weights are redistributed to the components that do have
+    measured data. The score is never computed from a neutral constant that
+    would look like an observed value.
+    """
     g = compute_gaps(valid_yield(df), strategy=strategy)
     if g.empty:
         return g
@@ -99,11 +436,22 @@ def priority_frame(
     perish = g.get("perishability", pd.Series(index=g.index, dtype=object))
     g["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
     g["affected_scale"] = g.get("harvested_area_ha", pd.Series(0.0, index=g.index)).fillna(0.0)
-    g["readiness"] = (
-        g.get("erosion_protection_farmers_pct", pd.Series(50.0, index=g.index)).fillna(50.0) / 100.0
-    )
-    land = g.get("agricultural_land_000ha", pd.Series(index=g.index, dtype=float))
-    g["cost_constraint"] = 1.0 - (land / land.max()) if land.notna().any() and land.max() else 0.0
+
+    # Readiness: use measured values when present; NaN otherwise (not a neutral constant).
+    if has_readiness(g):
+        g["readiness"] = g[_READINESS_COL].fillna(g[_READINESS_COL].median()) / 100.0
+    else:
+        g["readiness"] = 0.0  # excluded via weight redistribution below
+
+    # Cost constraint: use measured values when present; 0.0 otherwise (excluded).
+    land = g.get(_COST_COL, pd.Series(dtype=float))
+    if has_cost(g):
+        g["cost_constraint"] = 1.0 - (land / land.max())
+    else:
+        g["cost_constraint"] = 0.0  # excluded via weight redistribution below
+
+    unavailable = components_unavailable(g)
+    effective_weights = adjusted_weights(weights, unavailable)
 
     norm = {}
     for metric in ["gap_index", "vulnerability", "affected_scale", "readiness", "cost_constraint"]:
@@ -118,7 +466,7 @@ def priority_frame(
             affected_scale=norm["affected_scale"].get(idx, 0.0),
             readiness=norm["readiness"].get(idx, 0.0),
             cost_constraint=norm["cost_constraint"].get(idx, 0.0),
-            weights=weights,
+            weights=effective_weights,
         )
         scores.append(r.score)
         bands.append(r.band)
@@ -150,16 +498,30 @@ def gap_report(strategy: str = "national_crop_median", limit: int = 100) -> dict
 
 def productivity(f: AnalyticsFilters) -> dict:
     """KPI + district ranking for the Productivity Intelligence page."""
-    df = apply_filters(repo.training_dataset(), f)
+    df = apply_filters(productivity_frame(f), f)
     g = gapped(df, f.benchmark_strategy)
     if g.empty:
-        return {"period": None, "kpis": [], "rows": [], "n_observations": 0}
+        # The crop was not tabulated for this period. Report no KPIs at all
+        # rather than manufactured zeros, but still explain the missing
+        # same-season comparison so a client can say why.
+        return {
+            "period": None,
+            "period_code": f.period_code,
+            "kpis": [],
+            "primary_kpis": [],
+            "secondary_kpis": [],
+            "yoy": same_season_yoy(f, f.period_code),
+            "gap_bands": [],
+            "gap_summary": gap_summary(pd.Series(dtype=float)),
+            "rows": [],
+            "n_observations": 0,
+        }
 
     valid = g[g["gap_index"].notna()]
     benchmark_median = float(valid["benchmark_yield_kg_ha"].median()) if not valid.empty else None
-    gap_median = float(valid["gap_index"].median()) if not valid.empty else None
-    above = int((valid["gap_index"] <= 0).sum())
-    below = int((valid["gap_index"] > 0).sum())
+    summary = gap_summary(valid["gap_index"] if not valid.empty else pd.Series(dtype=float))
+    period_code = frame_period_code(g)
+    source_id = frame_source_id(g)
 
     rows = (
         valid.groupby("district", dropna=False)
@@ -177,24 +539,286 @@ def productivity(f: AnalyticsFilters) -> dict:
     )
     rows = rows.head(f.limit)
 
-    kpis = [
-        {"id": "mean_yield", "label": "Mean observed yield",
-         "value": round(float(valid["yield_kg_ha"].mean()), 1), "unit": "kg/ha"},
-        {"id": "benchmark_yield", "label": "Median benchmark yield",
-         "value": None if benchmark_median is None else round(benchmark_median, 1), "unit": "kg/ha"},
-        {"id": "median_gap", "label": "Median productivity gap",
-         "value": None if gap_median is None else round(gap_median, 1), "unit": "%"},
-        {"id": "districts_above", "label": "Observations at/above benchmark",
-         "value": above, "unit": "district-crops"},
-        {"id": "districts_below", "label": "Observations below benchmark",
-         "value": below, "unit": "district-crops"},
-    ]
+    # Same-season year-on-year change and the gap distribution both describe the
+    # selection the caller is looking at, so they are computed here rather than
+    # in the browser.
+    yoy = same_season_yoy(f, period_code)
+    bands = gap_distribution(rows)
+
+    kpis: list[dict] = []
+    # Raw yields are only comparable within a crop. Without a crop selection no
+    # yield KPI is produced at all - an "all crops yield" would average across
+    # biologically different crops and is never presented.
+    if f.crop:
+        # A headline must answer "what crop is this?" on its own, so the crop is
+        # in the label rather than only in surrounding context.
+        kpis.append(
+            {
+                "id": "mean_yield", "label": f"Observed {f.crop} yield",
+                "value": round(float(valid["yield_kg_ha"].mean()), 1)
+                if not valid.empty else None,
+                "unit": "kg/ha", "period_code": period_code, "source_id": source_id,
+                "note": f"{f.crop} only",
+            }
+        )
+        kpis.append(
+            {
+                "id": "benchmark_yield", "label": f"Benchmark {f.crop} yield",
+                "value": None if benchmark_median is None else round(benchmark_median, 1),
+                "unit": "kg/ha", "period_code": period_code, "source_id": source_id,
+                "note": f"{f.crop} only · {f.benchmark_strategy} benchmark",
+            }
+        )
+    shortfall = summary["typical_shortfall"]
+    n_below = summary["districts_below"]
+    kpis.extend(
+        [
+            # The informative gap figure: how far the districts that ARE below
+            # benchmark typically sit below it.
+            {"id": "gap_shortfall", "label": "Typical yield gap",
+             "value": None if shortfall is None else round(shortfall, 1),
+             "unit": "%", "period_code": period_code, "source_id": source_id,
+             "note": (
+                 f"median shortfall across the {n_below} districts below benchmark"
+                 if n_below
+                 else "no district is below the benchmark for this selection"
+             )},
+            {"id": "below_benchmark_share", "label": "Districts below benchmark",
+             "value": summary["below_share_pct"], "unit": "%",
+             "period_code": period_code, "source_id": source_id,
+             "note": f"{n_below} of {summary['total']}"},
+            # Kept for compatibility, but flagged when it is a structural zero so
+            # a client can never present it as "no gap anywhere".
+            {"id": "median_gap", "label": "Median productivity gap",
+             "value": None if summary["median_gap"] is None else round(summary["median_gap"], 1),
+             "unit": "%", "period_code": period_code, "source_id": source_id,
+             "note": (
+                 "0 by construction: the benchmark is itself a distribution "
+                 "median, so use the typical yield gap and the share below benchmark"
+                 if summary["median_is_degenerate"]
+                 else f"{f.benchmark_strategy} benchmark"
+             )},
+            {"id": "districts_above", "label": "Observations at/above benchmark",
+             "value": summary["districts_above"], "unit": "district-crops",
+             "period_code": period_code, "source_id": source_id},
+            {"id": "districts_below", "label": "Observations below benchmark",
+             "value": n_below, "unit": "district-crops",
+             "period_code": period_code, "source_id": source_id},
+            {"id": "crops", "label": "Crops analysed",
+             "value": int(valid["canonical_crop_name"].nunique()) if not valid.empty else 0,
+             "unit": "crops", "period_code": period_code, "source_id": source_id},
+        ]
+    )
+
+    if f.crop:
+        available = bool(yoy and yoy.get("available"))
+        kpis.append(
+            {
+                "id": "yoy_yield",
+                "label": "Same-season change",
+                "value": yoy.get("change_pct") if available else None,
+                "unit": "%",
+                "period_code": period_code,
+                "source_id": source_id,
+                "note": (
+                    f"{f.crop} vs {yoy['previous_period_label']} "
+                    f"({yoy['previous_period_code']})"
+                    if available
+                    else (yoy or {}).get("reason", "not available for this selection")
+                ),
+            }
+        )
+
+    # Yield Intelligence headlines: observed yield, benchmark, the typical gap
+    # and the same-season change. "Median productivity gap" is deliberately not a
+    # headline: it is structurally 0 for a median benchmark (see gap_summary).
+    primary_ids = (
+        ["mean_yield", "benchmark_yield", "gap_shortfall", "yoy_yield"]
+        if f.crop
+        else ["gap_shortfall", "below_benchmark_share", "districts_below", "crops"]
+    )
+    primary, secondary = split_kpis(kpis, primary_ids)
+
     return {
         "period": period_of(g),
+        "period_code": period_code,
+        "source_id": source_id,
         "kpis": kpis,
+        "primary_kpis": primary,
+        "secondary_kpis": secondary,
+        "yoy": yoy,
+        "gap_bands": bands,
+        "gap_summary": summary,
         "rows": records(rows),
         "n_observations": int(len(valid)),
     }
+
+
+def gap_summary(gap_index: pd.Series) -> dict:
+    """Summarise a gap distribution without headlining a degenerate median.
+
+    ``gap_index = 100 * (1 - yield / benchmark)`` is a monotone-decreasing
+    transform of yield, so whenever the benchmark is itself a median of the same
+    population ``median(gap_index)`` is *identically 0* - not "no gap", but a
+    property of the estimator. Reporting it as "Median productivity gap: 0.0%"
+    while half the districts sit below the benchmark is exactly the kind of
+    number that reads as meaningful and is not.
+
+    This returns the median (kept for compatibility) **plus** the two figures
+    that do carry information: the typical shortfall among districts that are
+    actually below benchmark, and the share of districts below benchmark.
+    """
+    series = gap_index.dropna()
+    total = int(len(series))
+    if total == 0:
+        return {
+            "median_gap": None,
+            "typical_shortfall": None,
+            "districts_below": 0,
+            "districts_above": 0,
+            "total": 0,
+            "below_share_pct": None,
+            "median_is_degenerate": False,
+        }
+
+    median_gap = float(series.median())
+    below = series[series > 0]
+    n_below = int(len(below))
+    return {
+        "median_gap": median_gap,
+        "typical_shortfall": float(below.median()) if n_below else None,
+        "districts_below": n_below,
+        "districts_above": int(total - n_below),
+        "total": total,
+        "below_share_pct": round(100.0 * n_below / total, 1),
+        # A structural zero, not a measured absence of gaps.
+        "median_is_degenerate": abs(median_gap) < 1e-9 and n_below > 0,
+    }
+
+
+def gap_distribution(rows: pd.DataFrame) -> list[dict]:
+    """Count districts into the documented yield-gap bands.
+
+    Bands are counted over the district rows the page actually shows (one
+    median gap per district), and every band reports its own cut points so the
+    classification is auditable rather than a black box.
+    """
+    if rows.empty or "gap_index" not in rows.columns:
+        return []
+    series = rows["gap_index"].dropna()
+    total = int(len(series))
+    out: list[dict] = []
+    for band in GAP_BANDS:
+        low, high = band["min_pct"], band["max_pct"]
+        mask = pd.Series(True, index=series.index)
+        if low is not None:
+            mask &= series > low
+        if high is not None:
+            mask &= series <= high
+        count = int(mask.sum())
+        out.append(
+            {
+                "id": band["id"],
+                "label": band["label"],
+                "min_pct": low,
+                "max_pct": high,
+                "count": count,
+                "share_pct": None if total == 0 else round(100.0 * count / total, 1),
+            }
+        )
+    return out
+
+
+def _mean_yield_for(f: AnalyticsFilters, period_code: str) -> float | None:
+    """Mean observed yield of the same selection in one period, or None."""
+    probe = dc_replace(f, period_code=period_code)
+    frame = apply_filters(productivity_frame(probe), probe)
+    if frame.empty or "yield_kg_ha" not in frame.columns:
+        return None
+    present = frame["yield_kg_ha"].dropna()
+    present = present[present > 0]
+    if present.empty:
+        return None
+    return float(present.mean())
+
+
+def same_season_yoy(f: AnalyticsFilters, period_code: str | None) -> dict | None:
+    """Same-season, previous-year change for the current selection.
+
+    Agricultural seasons differ, so an A -> B -> C step is not a time series.
+    The honest comparison is the same season one year earlier (2025B vs 2026B),
+    which is what this computes. Returns ``None`` when no crop is selected (a
+    cross-crop mean yield is meaningless) and a structured "not published"
+    result when the previous year has no release for the crop.
+    """
+    if not f.crop or not period_code:
+        return None
+    try:
+        year, season = period_service.parse(period_code)
+    except period_service.UnknownPeriodError:
+        return None
+
+    previous = f"{year - 1}{season}"
+    if previous not in period_service.period_codes():
+        return {
+            "available": False,
+            "reason": (
+                f"{period_service.label(previous)} has not been published, so no "
+                "same-season comparison exists"
+            ),
+            "period_code": period_code,
+            "previous_period_code": previous,
+        }
+
+    current_value = _mean_yield_for(f, period_code)
+    previous_value = _mean_yield_for(f, previous)
+    if current_value is None or previous_value is None or previous_value == 0:
+        return {
+            "available": False,
+            "reason": (
+                f"{f.crop} has no published yield for "
+                f"{period_service.label(previous)} in this selection"
+            ),
+            "period_code": period_code,
+            "previous_period_code": previous,
+        }
+
+    return {
+        "available": True,
+        "period_code": period_code,
+        "period_label": period_service.label(period_code),
+        "previous_period_code": previous,
+        "previous_period_label": period_service.label(previous),
+        "current_yield_kg_ha": round(current_value, 1),
+        "previous_yield_kg_ha": round(previous_value, 1),
+        "change_pct": round(100.0 * (current_value - previous_value) / previous_value, 1),
+        "crop": f.crop,
+        "district": f.district,
+        "province": f.province,
+        "note": (
+            "same-season year-on-year comparison of mean observed yield; seasons "
+            "are not comparable in sequence because they differ agronomically"
+        ),
+    }
+
+
+def single_release_note(f: AnalyticsFilters, dataset: str, what: str) -> str | None:
+    """Explain, honestly, why a period selection has no rows for a dataset.
+
+    District input/practice, irrigation and erosion tables are still a
+    single-release extract, so any other period genuinely has no such data.
+    Saying so is better than an empty result that reads as "nothing measured".
+    """
+    if not f.period_code:
+        return None
+    covers = any(d["dataset"] == dataset for d in period_service.datasets_for(f.period_code))
+    if covers:
+        return None
+    return (
+        f"{what} is not published for {f.period_code}; the district "
+        f"{dataset.replace('_', ' ')} table covers 2025 Season B only, so this "
+        "period returns no rows"
+    )
 
 
 def factor_associations(f: AnalyticsFilters) -> dict:
@@ -243,7 +867,7 @@ def factor_associations(f: AnalyticsFilters) -> dict:
 
 def heatmap(f: AnalyticsFilters, metric: str = "gap") -> dict:
     """district x crop matrix for a chosen metric."""
-    g = gapped(apply_filters(repo.training_dataset(), f), f.benchmark_strategy)
+    g = gapped(apply_filters(productivity_frame(f), f), f.benchmark_strategy)
     if g.empty:
         return {"metric": metric, "districts": [], "crops": [], "cells": [],
                 "max_value": None, "min_value": None, "unit": None}
@@ -289,28 +913,71 @@ def erosion_summary(f: AnalyticsFilters) -> dict:
     return {"districts": records(df), "period": period_of(df)}
 
 
-def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
-    df = repo.training_dataset()
-    if f is not None:
-        df = apply_filters(df, f)
+def normalise_weights(weights: dict | None) -> dict:
+    """The fully-specified weighting actually used, defaults filled in."""
+    return {**ip.DEFAULT_WEIGHTS, **(weights or {})}
+
+
+def candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
+    """Rows carrying the **raw** priority components, before any weighting.
+
+    Kept as the single source for the candidate set. The sensitivity sweep needs
+    the un-normalized components, because it re-normalizes and re-weights the
+    same candidates many times; feeding it the already-normalized values the API
+    exposes would normalize twice and silently change every score.
+
+    When the 2025B factor columns are absent the readiness and cost components
+    are carried as 0.0 **as an engine placeholder only** and flagged via
+    ``components_unavailable``. The ranking and sweep callers then call
+    ``adjusted_weights``, which zeroes those weights, so the placeholder can never
+    change a score - and the API never reports it as a component value (it is
+    returned as ``None``).
+    """
+    df = apply_filters(productivity_frame(f), f) if f is not None else repo.training_dataset()
     gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
     gapped_df = gapped_df[gapped_df["yield_kg_ha"].fillna(0) > 0].copy()
     if gapped_df.empty:
-        return {"weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})}, "rows": [],
-                "proxy_notes": PROXY_NOTES}
+        return gapped_df
 
     perish = gapped_df.get("perishability", pd.Series(index=gapped_df.index, dtype=object))
     gapped_df["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
     gapped_df["affected_scale"] = gapped_df.get(
         "harvested_area_ha", pd.Series(0, index=gapped_df.index)
     ).fillna(0)
-    gapped_df["readiness"] = (
-        gapped_df.get("erosion_protection_farmers_pct", pd.Series(50.0, index=gapped_df.index))
-        .fillna(50.0) / 100.0
-    )
-    land = gapped_df.get("agricultural_land_000ha", pd.Series(index=gapped_df.index, dtype=float))
-    gapped_df["cost_constraint"] = 1.0 - (land / land.max()) if land.notna().any() and land.max() else 0.0
 
+    # Readiness: measured when the 2025B factor column is present; 0.0 otherwise.
+    if has_readiness(gapped_df):
+        gapped_df["readiness"] = (
+            gapped_df[_READINESS_COL].fillna(gapped_df[_READINESS_COL].median()) / 100.0
+        )
+    else:
+        gapped_df["readiness"] = 0.0
+
+    # Cost constraint: measured when the 2025B land column is present; 0.0 otherwise.
+    land = gapped_df.get(_COST_COL, pd.Series(dtype=float))
+    if has_cost(gapped_df):
+        gapped_df["cost_constraint"] = 1.0 - (land / land.max())
+    else:
+        gapped_df["cost_constraint"] = 0.0
+
+    return gapped_df
+
+
+def priority_candidates_with_source(
+    f: AnalyticsFilters | None = None,
+) -> tuple[list[dict], str | None, list[str]]:
+    """The candidates, the source id, and the list of unavailable components.
+
+    The source is read from the frame that actually produced the candidates, so a
+    ranking's provenance can never name a different dataset than the one ranked.
+    The unavailable list names components whose weights must be redistributed
+    before scoring (see ``adjusted_weights``).
+    """
+    gapped_df = candidate_frame(f)
+    if gapped_df.empty:
+        return [], None, []
+
+    unavailable = components_unavailable(gapped_df)
     candidates = []
     for _, row in gapped_df.iterrows():
         cid = f"{row.get('district_code', row['district'])}::{row['canonical_crop_name']}"
@@ -332,22 +999,57 @@ def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters
             "readiness": float(row["readiness"]),
             "cost_constraint": float(row["cost_constraint"]),
         })
+    return candidates, frame_source_id(gapped_df), unavailable
 
-    ranked = ip.rank(candidates, weights=weights)[:limit]
+
+def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
+    """The district x crop candidates, with raw (un-normalized) components."""
+    return priority_candidates_with_source(f)[0]
+
+
+def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
+    candidates, source_id, unavailable = priority_candidates_with_source(f)
+    effective_weights = adjusted_weights(weights, unavailable)
+    df_for_notes = candidate_frame(f)
+    availability = component_availability(df_for_notes)
+    unavailable_set = set(unavailable)
+    if not candidates:
+        return {
+            "weights": effective_weights,
+            "rows": [],
+            "proxy_notes": proxy_notes_for(df_for_notes),
+            "components_unavailable": unavailable,
+            "component_availability": availability,
+            "source_id": None,
+        }
+
+    ranked = ip.rank(candidates, weights=effective_weights)[:limit]
     rows = [{
         "id": r["id"], "district": r["district"], "crop": r["crop"],
         "score": r["score"], "band": r["band"],
         "yield_kg_ha": r.get("yield_kg_ha"),
         "benchmark_yield_kg_ha": r.get("benchmark_yield_kg_ha"),
         "harvested_area_ha": r.get("harvested_area_ha"),
+        # `gap` is a raw component while the others are normalized, because gap is
+        # reported to users in its own units. Callers that need a consistent set
+        # (the sensitivity sweep) use `priority_candidates` instead.
         "gap": round(r["gap"], 4), "vulnerability": r["vulnerability_component"],
         "affected_scale": r["affected_scale_component"],
-        "readiness": r["readiness_component"], "cost_constraint": r["cost_component"],
+        # An unavailable component is reported as None - the engine placeholder
+        # (0.0, normalized to a constant) must never reach a client as a value.
+        "readiness": None if "readiness" in unavailable_set else r["readiness_component"],
+        "cost_constraint": (
+            None if "cost_constraint" in unavailable_set else r["cost_component"]
+        ),
     } for r in ranked]
+
     return {
-        "weights": {**ip.DEFAULT_WEIGHTS, **(weights or {})},
+        "weights": effective_weights,
         "rows": rows,
-        "proxy_notes": PROXY_NOTES,
+        "proxy_notes": proxy_notes_for(df_for_notes),
+        "components_unavailable": unavailable,
+        "component_availability": availability,
+        "source_id": source_id,
     }
 
 

@@ -6,6 +6,7 @@ import { PriorityBadge } from "@/components/ui/Badge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { cn } from "@/lib/cn";
 import { fmtNumber } from "@/lib/format";
+import { unavailableSummary } from "@/lib/priority";
 import type { PriorityRow } from "@/types";
 
 const COMPONENTS: { key: keyof PriorityRow; label: string }[] = [
@@ -19,9 +20,11 @@ const COMPONENTS: { key: keyof PriorityRow; label: string }[] = [
 export function DistrictRationale({
   row,
   proxyNotes,
+  unavailable = [],
 }: {
   row: PriorityRow | null;
   proxyNotes: string[];
+  unavailable?: string[];
 }) {
   return (
     <Card>
@@ -48,26 +51,39 @@ export function DistrictRationale({
 
           <dl className="mt-3 space-y-2">
             {COMPONENTS.map((c) => {
-              const value = row[c.key] as number;
+              const value = row[c.key] as number | null;
+              const excluded = value === null || value === undefined;
               return (
                 <div key={c.key}>
                   <div className="flex items-center justify-between text-xs">
                     <dt className="text-slate-600">{c.label}</dt>
-                    <dd className="tabular-nums text-slate-500">{fmtNumber(value, 2)}</dd>
+                    <dd className={excluded ? "text-amber" : "tabular-nums text-slate-500"}>
+                      {excluded ? "not available for this period" : fmtNumber(value, 2)}
+                    </dd>
                   </div>
                   <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-forest/10">
                     <div
                       className={cn(
                         "h-full rounded-full",
-                        c.key === "cost_constraint" ? "bg-amber" : "bg-primary",
+                        excluded
+                          ? "bg-transparent"
+                          : c.key === "cost_constraint"
+                            ? "bg-amber"
+                            : "bg-primary",
                       )}
-                      style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
+                      style={{ width: excluded ? "0%" : `${Math.max(0, Math.min(1, value)) * 100}%` }}
                     />
                   </div>
                 </div>
               );
             })}
           </dl>
+
+          {unavailable.length ? (
+            <p className="mt-3 rounded-lg border border-amber/25 bg-amber/[0.06] p-3 text-[11px] text-slate-600">
+              {unavailableSummary(unavailable)}
+            </p>
+          ) : null}
 
           <div className="mt-3 rounded-lg border border-info/20 bg-info/[0.05] p-3">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold text-info">
@@ -83,7 +99,8 @@ export function DistrictRationale({
       )}
       <SourceNote>
         Values are the component terms the Python engine actually used — the ranking is fully
-        auditable.
+        auditable. A component this period cannot measure is shown as unavailable, never as a
+        zero, because its weight is redistributed instead of being scored.
       </SourceNote>
     </Card>
   );

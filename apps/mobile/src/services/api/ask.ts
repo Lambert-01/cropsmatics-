@@ -1,5 +1,11 @@
 import type { AskAnswer, AskQuery } from "../../types";
-import { request } from "./client";
+import { qs, request } from "./client";
+
+interface SuggestionsResponse {
+  questions: string[];
+  intents: string[];
+  note: string;
+}
 
 export const askApi = {
   query: (payload: AskQuery) =>
@@ -7,4 +13,6 @@ export const askApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  suggestions: (limit = 6) =>
+    request<SuggestionsResponse>(`/assistant/suggestions${qs({ limit })}`),
 };

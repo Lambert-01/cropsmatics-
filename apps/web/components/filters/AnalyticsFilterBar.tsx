@@ -3,9 +3,9 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { SEASONS } from "@/lib/constants";
+import { splitPeriod } from "@/lib/filters";
 import { cn } from "@/lib/cn";
-import { useCrops, useCoverage, useDistricts } from "@/services/hooks/useReference";
+import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
 
 /**
@@ -18,7 +18,14 @@ import { useFilters } from "@/services/hooks/useFilters";
  * (section C): national datasets say which filters do not apply.
  */
 
-export type FilterKey = "year" | "season" | "crop" | "province" | "district" | "benchmark";
+export type FilterKey =
+  | "period"
+  | "year"
+  | "season"
+  | "crop"
+  | "province"
+  | "district"
+  | "benchmark";
 export type SupportedFilter = FilterKey | "all";
 
 interface Props {
@@ -278,24 +285,36 @@ export function AnalyticsFilterBar({
   const { filters, setFilters, reset } = useFilters();
   const { data: districts } = useDistricts();
   const { data: crops } = useCrops();
-  const { data: coverage } = useCoverage();
+  const { data: periodsData } = usePeriods();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const supportedList = Array.isArray(supported) ? supported : [supported];
   const has = (f: SupportedFilter) =>
     supportedList.includes("all") || supportedList.includes(f);
 
-  // Years actually present in the coverage matrix — never invented.
-  const years = useMemo(() => {
-    const keys = Object.keys(coverage?.coverage?.district_crop_productivity ?? {});
-    const national = Object.keys(coverage?.coverage?.national_crop_trends ?? {});
-    const set = new Set<string>();
-    [...keys, ...national].forEach((k) => {
-      const m = /^(\d{4})/.exec(k);
-      if (m) set.add(m[1]);
-    });
-    return Array.from(set).sort();
-  }, [coverage]);
+  const periods = useMemo(() => periodsData?.periods ?? [], [periodsData]);
+  const publishedCodes = useMemo(
+    () => new Set(periods.map((p) => p.period_code)),
+    [periods],
+  );
+
+  /**
+   * The period selector is data-driven: only periods that genuinely carry rows
+   * are offered, so an unpublished season (2026 Season C) can never be picked.
+   * The option label names the season, e.g. "2026 Season B".
+   */
+  const periodOptions = useMemo(
+    () =>
+      periods.map((p) => ({
+        value: p.period_code,
+        label: p.label,
+        hint: p.is_latest_district ? "latest district data" : undefined,
+      })),
+    [periods],
+  );
+
+  /** The canonical code for the current year+season selection, when published. */
+  const selectedPeriod = filters.period ?? null;
 
   const cropOptions = useMemo(
     () =>
@@ -335,10 +354,48 @@ export function AnalyticsFilterBar({
     if (!stillValid) setFilters({ district: undefined });
   }, [filters.district, filters.province, districts, setFilters]);
 
+  /**
+   * Keep the canonical period and the legacy year/season pair in step.
+   *
+   * - A selected period always resolves to its year and season.
+   * - A year+season pair that names an unpublished period is invalid, so the
+   *   season is cleared automatically (e.g. 2026 Season C does not exist).
+   * - A valid pair is canonicalised to its period code so period-aware
+   *   endpoints receive ``period_code``.
+   */
+  useEffect(() => {
+    if (periods.length === 0) return;
+    if (filters.period) {
+      const { year, season } = splitPeriod(filters.period);
+      if (year && season && (filters.year !== year || filters.season !== season)) {
+        setFilters({ year, season });
+      }
+      return;
+    }
+    if (filters.year && filters.season) {
+      const code = `${filters.year}${filters.season}`;
+      if (publishedCodes.has(code)) {
+        setFilters({ period: code });
+      } else {
+        setFilters({ season: undefined });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.period, filters.year, filters.season, periods, publishedCodes]);
+
   const activeChips = useMemo(() => {
     const chips: { key: FilterKey; label: string; value: string }[] = [];
-    if (filters.year) chips.push({ key: "year", label: "Year", value: String(filters.year) });
-    if (filters.season) chips.push({ key: "season", label: "Season", value: filters.season });
+    const periodLabel =
+      periods.find((p) => p.period_code === filters.period)?.label ?? filters.period;
+    if (filters.period && periodLabel) {
+      chips.push({ key: "period", label: "Period", value: periodLabel });
+    } else if (filters.year || filters.season) {
+      // Legacy link that named year/season without a period code.
+      const legacy = [filters.year, filters.season && `Season ${filters.season}`]
+        .filter(Boolean)
+        .join(" ");
+      if (legacy) chips.push({ key: "year", label: "Period", value: legacy });
+    }
     if (filters.crop) chips.push({ key: "crop", label: "Crop", value: filters.crop });
     if (filters.province)
       chips.push({ key: "province", label: "Province", value: filters.province });
@@ -347,20 +404,25 @@ export function AnalyticsFilterBar({
     if (filters.benchmark && filters.benchmark !== "national_crop_median")
       chips.push({ key: "benchmark", label: "Benchmark", value: filters.benchmark });
     return chips;
-  }, [filters]);
+  }, [filters, periods]);
 
   const activeCount = activeChips.length;
 
-  /** One-line human summary, e.g. "2025 · Season B · Maize · Eastern · Bugesera". */
+  /** One-line human summary, e.g. "2026 Season B · Maize · Eastern · Bugesera". */
   const scopeSummary = useMemo(() => {
     const parts: string[] = [];
-    if (filters.year) parts.push(String(filters.year));
-    if (filters.season) parts.push(`Season ${filters.season}`);
+    const periodLabel =
+      periods.find((p) => p.period_code === filters.period)?.label ??
+      filters.period ??
+      [filters.year, filters.season && `Season ${filters.season}`]
+        .filter(Boolean)
+        .join(" ");
+    parts.push(periodLabel || "All periods");
     parts.push(filters.crop ?? "All crops");
     if (filters.province) parts.push(filters.province);
-    parts.push(filters.district ?? (filters.province ? "All districts" : "All districts"));
+    parts.push(filters.district ?? "All districts");
     return parts.join(" · ");
-  }, [filters]);
+  }, [filters, periods]);
 
   const coverageBadgeText = coverageLabel ?? null;
 
@@ -372,28 +434,14 @@ export function AnalyticsFilterBar({
   /* ------------------------------------------------------------- */
   const controls = (idsPrefix: string) => (
     <>
-      {has("year") ? (
-        <FilterSelect
-          label="Year"
-          value={filters.year ? String(filters.year) : ""}
-          onChange={(v) => set({ year: v ? Number(v) : undefined })}
-          options={[
-            { value: "", label: "All years" },
-            ...years.map((y) => ({ value: y, label: y })),
-          ]}
-          className={idsPrefix === "m" ? "flex-1" : undefined}
-        />
-      ) : null}
-
-      {has("season") ? (
-        <FilterSelect
-          label="Season"
-          value={filters.season ?? ""}
-          onChange={(v) => set({ season: v || undefined })}
-          options={[
-            { value: "", label: "All seasons" },
-            ...SEASONS.map((s) => ({ value: s, label: `Season ${s}` })),
-          ]}
+      {has("year") || has("season") ? (
+        <SearchableSelect
+          label="Period"
+          value={selectedPeriod ?? ""}
+          onChange={(v) => set({ period: v || undefined, year: undefined, season: undefined })}
+          options={periodOptions}
+          placeholder="Latest period"
+          emptyText="No published periods"
           className={idsPrefix === "m" ? "flex-1" : undefined}
         />
       ) : null}
@@ -543,7 +591,12 @@ export function AnalyticsFilterBar({
             key={chip.key}
             label={chip.label}
             value={chip.value}
-            onRemove={() => set({ [chip.key]: undefined } as never)}
+            onRemove={() =>
+              chip.key === "period" || chip.key === "year"
+                ? // Clearing the period clears the derived year/season with it.
+                  set({ period: undefined, year: undefined, season: undefined })
+                : set({ [chip.key]: undefined } as never)
+            }
           />
         ))}
         {activeCount > 0 ? (

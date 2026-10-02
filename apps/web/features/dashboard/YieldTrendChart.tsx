@@ -16,7 +16,7 @@ import {
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { fmtCompact, fmtNumber, periodLabel } from "@/lib/format";
 import type { TrendResponse } from "@/types";
 
@@ -31,6 +31,7 @@ export function YieldTrendChart({
   isLoading?: boolean;
   crop?: string;
 }) {
+  const motion = useChartMotion();
   const isCompare = data?.kind === "crop_trends_compare";
 
   const points = useMemo(
@@ -102,6 +103,7 @@ export function YieldTrendChart({
               {isCompare
                 ? compareSeries.map((s, i) => (
                     <Line
+                      {...motion}
                       key={s.key}
                       yAxisId="left"
                       dataKey={s.key}
@@ -115,6 +117,7 @@ export function YieldTrendChart({
                 : (
                   <>
                     <Bar
+                      {...motion}
                       yAxisId="left"
                       dataKey="production_mt"
                       name="Production (metric tonnes)"
@@ -123,6 +126,7 @@ export function YieldTrendChart({
                       maxBarSize={38}
                     />
                     <Line
+                      {...motion}
                       yAxisId="right"
                       dataKey="yield_t_ha"
                       name="Yield (t/ha)"

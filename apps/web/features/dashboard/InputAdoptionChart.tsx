@@ -15,7 +15,7 @@ import {
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { periodLabel } from "@/lib/format";
 import type { TrendResponse } from "@/types";
 
@@ -35,6 +35,8 @@ export function InputAdoptionChart({
   data?: TrendResponse;
   isLoading?: boolean;
 }) {
+  const motion = useChartMotion();
+
   const points = useMemo(
     () =>
       (data?.points ?? []).map((p) => ({
@@ -68,6 +70,7 @@ export function InputAdoptionChart({
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {SERIES.map((s) => (
                 <Line
+                  {...motion}
                   key={s.key}
                   type="monotone"
                   dataKey={s.key}

@@ -93,6 +93,45 @@ export const en = {
   nationalDataOnly: "National data only for this period.",
   districtDataAvailable: "District data available.",
   mapLegend: "Legend",
+  map: "Map",
+  mapNoData: "No verified value",
+  legendHigherIsBetter:
+    "Darker shading marks a higher value — the more favourable end of this scale.",
+  legendHigherIsWorse:
+    "Darker shading marks a higher value — the less favourable end of this scale.",
+  search: "Search",
+  filterAll: "All",
+  filterSaved: "Saved",
+  moversTitle: "Crop movers",
+  moversSubtitle: "Largest same-season production change versus the previous published period",
+  inputAdoptionTitle: "Input & practice adoption",
+  inputAdoptionSubtitle: "Share of farmers reporting each practice — national, by published period",
+  inputAdoptionNote: "National coverage. Crop and district filters do not apply to this layer.",
+  factorsTitle: "Factors associated with yield",
+  factorsSubtitle: "District practice adoption vs yield · Pearson correlation",
+  associationNotCausation: "Association, not causation",
+  factorObservations: "observations",
+  noFactorAssociation: "No factor association could be estimated for this crop.",
+  factorSmallSample: "small sample — indicative only",
+  factorsDistrictScope:
+    "Estimated across all districts for this crop — not this district alone, which has no cross-district variation to correlate.",
+  insightsTitle: "Insights",
+  latestInsightTitle: "Latest insight",
+  seeAllInsights: "See all insights",
+  insightsFeedSubtitle: "Derived from the latest published national data",
+  insightProduceRising: "{crop} production is up {pct}% versus {prev}.",
+  insightProduceFalling: "{crop} production is down {pct}% versus {prev}.",
+  insightNoMover: "No comparable production change is published yet.",
+  insightAdoption: "{practice} adoption is at {value}% ({period}).",
+  insightLoss: "Reported post-harvest loss is {value}% ({period}).",
+  insightLocalSummary: "{count} local harvest records · {quantity}.",
+  insightNoLocal: "No harvests registered on this device yet.",
+  alertsReview: "Review",
+  alertsViewHarvest: "View harvest",
+  alertsSeeChanges: "See changes",
+  alertsNeedsAttention: "Needs attention",
+  alertsUpcoming: "Upcoming",
+  alertsUpdates: "Data updates",
 
   // ---- Post-harvest --------------------------------------------------------
   useOfProduction: "Use of Production",
@@ -124,6 +163,31 @@ export const en = {
   askNotGrounded: "Cropmatics does not currently have verified data to answer this question.",
   askNoHistory: "No questions yet.",
   askDeleteHistory: "Delete History",
+  // Transport/answer states. A failed request is not an answer, so these are
+  // never rendered as if the question had been judged unsupported.
+  askErrorOfflineTitle: "No internet connection",
+  askErrorOfflineMessage: "Reconnect and try again.",
+  askErrorTimeoutTitle: "Request timed out",
+  askErrorTimeoutMessage: "Cropmatics is taking longer than expected. Try again.",
+  askErrorServerTitle: "Service unavailable",
+  askErrorServerMessage:
+    "Cropmatics services are temporarily unavailable. Your question was not interpreted as unsupported.",
+  askErrorValidationTitle: "Question not accepted",
+  askErrorValidationMessage: "Please refine your question.",
+  askErrorUnsupportedTitle: "No verified evidence",
+  askErrorUnsupportedMessage: "Cropmatics does not have verified evidence for that question.",
+  askErrorNotFoundTitle: "No data for this selection",
+  askErrorNotFoundMessage: "No verified observation is available for this selection.",
+  askErrorUnknownTitle: "Something went wrong",
+  askErrorUnknownMessage: "Something went wrong. Try again.",
+  // Client-side progress cue while one request is in flight. These describe the
+  // stage the product is working through; they never claim a tool finished.
+  askProgressUnderstanding: "Understanding your question…",
+  askProgressCheckingData: "Checking available Cropmatics data…",
+  askProgressResolving: "Resolving crop and district…",
+  askProgressComparingPeriods: "Comparing published periods…",
+  askProgressReviewingEvidence: "Reviewing verified evidence…",
+  askProgressPreparing: "Preparing explanation…",
 
   // ---- Saved ---------------------------------------------------------------
   savedTitle: "Saved Items",
@@ -216,6 +280,56 @@ export const en = {
   english: "English",
   kinyarwanda: "Kinyarwanda",
   continueButton: "Continue",
+
+  // ---- Analytical workspace ------------------------------------------------
+  // Metric names, selector labels and the vocabulary of the data surfaces.
+  // A metric is always rendered with the unit the API published it in.
+  metricYield: "Yield",
+  metricProduction: "Production",
+  metricArea: "Harvested area",
+  metricGap: "Yield gap",
+  metricInputAdoption: "Input adoption",
+  metricIrrigation: "Irrigation",
+  metricErosion: "Erosion protection",
+  metricPriority: "Intervention priority",
+  allPublishedPeriods: "All published periods",
+  sameSeasonView: "Same season",
+  latestPublished: "Latest published",
+  notPublished: "Not published",
+  noComparableChange: "No comparable earlier published period.",
+  sourceAndMethod: "Source & method",
+  cropBoard: "Crop board",
+  cropBoardSubtitle: "Published value, same-season change and trend by crop",
+  nationalSeries: "National series",
+  districtSeries: "District series",
+  pickDistrict: "Pick a district",
+  pickCropFirst: "Select a crop first.",
+  publishedCoverage: "Published coverage",
+  pulseTitle: "Agricultural pulse",
+  pulseSubtitle: "Published national crop production and harvested area",
+  indexedYield: "Indexed yield",
+  indexedYieldNote:
+    "Each crop is indexed to its own published baseline, so crops with different natural yield scales can share one axis.",
+  compareCrops: "Compare crops",
+  compareDistricts: "Compare districts",
+  compareSelectCropAndPeriod:
+    "Select a crop and one published district period to compare districts like for like.",
+  noLayerForPeriod: "This indicator is not published for the selected period.",
+  tapForReadout: "Drag the chart to read a published period.",
+  // ---- Data-honesty notes --------------------------------------------------
+  // These state what the published data can and cannot support. They are never
+  // hidden behind a collapsible sheet, and they never imply a missing
+  // comparison is a zero.
+  gapBenchmarkNote:
+    "Gap is measured against a benchmark yield defined per crop by the API. A larger gap is not a better result.",
+  singlePointNote:
+    "One published period only. A single value is not a trend, and no change can be computed for it.",
+  sameSeasonNotSeries:
+    "One point per year for the same season. Seasons differ agronomically, so this is not a continuous series.",
+  errorNoDistrictPeriod: "No published district period is available for this crop.",
+  nationalOnlyCropLevel: "National crop-level shares. Not district level.",
+  seasonWord: "Season",
+  onlySuffix: "only",
 
   // ---- Errors & empty states -----------------------------------------------
   errorGeneric: "We couldn't load this information right now.",

@@ -20,8 +20,15 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Marks routes that render a professional "coming in next module" screen. */
-  comingSoon?: boolean;
+  /**
+   * Capability a destination needs before it is offered in the navigation.
+   *
+   * There is deliberately no "coming soon" flag: a destination is either backed
+   * by data the platform can serve, or it is not in the navigation at all.
+   * `market_prices` is the only capability today — Market Intelligence stays
+   * hidden until verified price observations are actually loaded.
+   */
+  capability?: "market_prices";
 }
 
 export interface NavGroup {
@@ -35,7 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
       { href: "/productivity", label: "Productivity", icon: TrendingUp },
-      { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat, comingSoon: true },
+      { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat },
       { href: "/interventions", label: "Interventions", icon: Wrench },
     ],
   },
@@ -44,7 +51,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/post-harvest", label: "Post-Harvest", icon: Package },
       { href: "/storage", label: "Storage & Aggregation", icon: Warehouse },
-      { href: "/markets", label: "Markets", icon: ShoppingBasket, comingSoon: true },
+      { href: "/markets", label: "Markets", icon: ShoppingBasket, capability: "market_prices" },
     ],
   },
   {
@@ -60,8 +67,8 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Workspace",
     items: [
       { href: "/assistant", label: "AI Assistant", icon: Bot },
+      { href: "/settings", label: "Settings", icon: Settings },
       { href: "/install", label: "Get the app", icon: Smartphone },
-      { href: "/settings", label: "Settings", icon: Settings, comingSoon: true },
     ],
   },
 ];

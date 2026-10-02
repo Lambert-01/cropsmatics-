@@ -1,132 +1,162 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { countPendingOutbox } from "../database";
-import { SUPPORTED_LANGUAGES, strings } from "../i18n";
+import { useAlertsCount } from "../hooks/useAlertsCount";
+import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { colors, spacing, typography } from "../theme";
-import { BrandMark, InitialsAvatar } from "./BrandMark";
+import { colors, spacing, touch, typography } from "../theme";
+import { BrandMark } from "./BrandMark";
 
-export function AppHeader({ back = false }: { back?: boolean }) {
+/** A header icon that always meets the minimum touch target. */
+function HeaderAction({
+  icon,
+  label,
+  onPress,
+  badge,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  badge?: number;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={badge ? `${label} (${badge})` : label}
+      onPress={onPress}
+      hitSlop={8}
+      style={{
+        minWidth: touch.minTarget,
+        minHeight: touch.minTarget,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Ionicons name={icon} size={22} color={colors.forest} />
+      {badge && badge > 0 ? (
+        <View
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            minWidth: 16,
+            height: 16,
+            paddingHorizontal: 3,
+            borderRadius: 999,
+            backgroundColor: colors.danger,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Text style={{ color: colors.white, fontSize: 9, fontWeight: "800" }}>
+            {badge > 9 ? "9+" : badge}
+          </Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+/**
+ * Compact analytical header.
+ *
+ * Brand on the left; global search and the notification bell on the right. The
+ * language switch lives in More → Settings and the tagline is gone, so the
+ * header no longer competes with the data below it. `showInfo` is kept as the
+ * public prop name for the right-hand actions so existing screens keep working.
+ *
+ * `context` is the optional second row — a compact one-line summary of the
+ * active data context, e.g. "Latest published period • National".
+ */
+export function AppHeader({
+  back = false,
+  showInfo = true,
+  context,
+}: {
+  back?: boolean;
+  showInfo?: boolean;
+  context?: string | null;
+}) {
   const router = useRouter();
-  const { language, setLanguage } = useAppStore();
-  const t = strings(language);
-  const [badge, setBadge] = useState(0);
-
-  // Notification badge counts real pending records, not a decorative number.
-  useEffect(() => {
-    let active = true;
-    try {
-      if (active) setBadge(countPendingOutbox());
-    } catch {
-      if (active) setBadge(0);
-    }
-    return () => {
-      active = false;
-    };
-  }, []);
+  const t = strings(useAppStore((state) => state.language));
+  const alertsCount = useAlertsCount();
 
   return (
     <View
       style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: spacing.sm,
-        paddingHorizontal: spacing.md,
-        paddingVertical: 10,
         backgroundColor: colors.surface,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
       }}
     >
-      {back ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t.back}
-          onPress={() => router.back()}
-          hitSlop={8}
-        >
-          <Ionicons name="arrow-back" size={22} color={colors.forest} />
-        </Pressable>
-      ) : (
-        <BrandMark size={34} />
-      )}
-
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={{ ...typography.h2, fontSize: 15 }}>
-          {t.appName}
-        </Text>
-        <Text numberOfLines={1} style={{ ...typography.caption, fontSize: 10 }}>
-          {t.tagline}
-        </Text>
-      </View>
-
-      <View style={{ flexDirection: "row", borderRadius: 8, backgroundColor: colors.background }}>
-        {SUPPORTED_LANGUAGES.map((item) => (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: spacing.sm,
+          paddingHorizontal: spacing.md,
+          minHeight: 52,
+        }}
+      >
+        {back ? (
           <Pressable
-            key={item.code}
             accessibilityRole="button"
-            accessibilityLabel={`${t.language}: ${item.label}`}
-            onPress={() => setLanguage(item.code)}
+            accessibilityLabel={t.back}
+            onPress={() => router.back()}
+            hitSlop={8}
             style={{
-              paddingHorizontal: 7,
-              paddingVertical: 5,
-              borderRadius: 8,
-              backgroundColor: language === item.code ? colors.forest : colors.background,
+              minWidth: touch.minTarget,
+              minHeight: touch.minTarget,
+              alignItems: "center",
+              justifyContent: "center",
+              marginLeft: -spacing.sm,
             }}
           >
-            <Text
-              style={{
-                fontSize: 11,
-                fontWeight: "700",
-                color: language === item.code ? colors.white : colors.slate,
-              }}
-            >
-              {item.code.toUpperCase()}
-            </Text>
+            <Ionicons name="arrow-back" size={22} color={colors.forest} />
           </Pressable>
-        ))}
+        ) : (
+          <BrandMark size={28} />
+        )}
+
+        <Text numberOfLines={1} style={{ ...typography.h2, fontSize: 16, flex: 1 }}>
+          {t.appName}
+        </Text>
+
+        {showInfo ? (
+          <>
+            <HeaderAction
+              icon="search-outline"
+              label={t.search}
+              onPress={() => router.push("/explore/search")}
+            />
+            <HeaderAction
+              icon="notifications-outline"
+              label={t.alerts}
+              badge={alertsCount}
+              onPress={() => router.push("/field-operations/alerts")}
+            />
+          </>
+        ) : null}
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t.alerts}${badge ? `, ${badge}` : ""}`}
-        onPress={() => router.push("/alerts")}
-      >
-        <View>
-          <Ionicons name="notifications-outline" size={21} color={colors.forest} />
-          {badge > 0 ? (
-            <View
-              style={{
-                position: "absolute",
-                top: -4,
-                right: -6,
-                minWidth: 15,
-                height: 15,
-                paddingHorizontal: 3,
-                borderRadius: 8,
-                backgroundColor: colors.danger,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ color: colors.white, fontSize: 9, fontWeight: "700" }}>
-                {badge > 9 ? "9+" : badge}
-              </Text>
-            </View>
-          ) : null}
+      {context ? (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingHorizontal: spacing.md,
+            paddingBottom: spacing.sm,
+            marginTop: -2,
+          }}
+        >
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary }} />
+          <Text numberOfLines={1} style={{ ...typography.micro, flex: 1, color: colors.slate700 }}>
+            {context}
+          </Text>
         </View>
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t.profile}
-        onPress={() => router.push("/profile")}
-      >
-        <InitialsAvatar size={28} />
-      </Pressable>
+      ) : null}
     </View>
   );
 }

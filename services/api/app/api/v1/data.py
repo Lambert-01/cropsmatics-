@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.schemas.dataset import DatasetInfo, DatasetListResponse, DatasetResponse
-from app.services import dataset_service
+from app.services import dataset_service, period_service
 
 router = APIRouter(prefix="/meta/dataset", tags=["data"])
 
@@ -23,6 +23,13 @@ def get_dataset(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     search: str | None = None,
+    period_code: str | None = Query(
+        None,
+        description=(
+            "published period, e.g. 2025B; supported by datasets that carry a "
+            "period dimension (see /api/v1/meta/periods)"
+        ),
+    ),
     year: int | None = Query(None, ge=2000, le=2100),
     season: str | None = Query(None, description="A, B or C"),
     crop: str | None = Query(None),
@@ -37,7 +44,15 @@ def get_dataset(
     rejects others with a 400), and sorting is limited to real columns with an
     asc/desc direction — no arbitrary expressions ever reach Pandas.
     """
+    canonical_period: str | None = None
+    if period_code:
+        try:
+            canonical_period = period_service.require(period_code)
+        except period_service.UnknownPeriodError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     requested_filters = {
+        "period_code": canonical_period or "",
         "year": str(year) if year is not None else "",
         "season": season or "",
         "crop": crop or "",

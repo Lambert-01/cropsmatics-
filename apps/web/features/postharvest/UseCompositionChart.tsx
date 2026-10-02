@@ -13,7 +13,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import type { PostHarvestCrop } from "@/types";
 
 const SERIES = [
@@ -32,6 +32,8 @@ export function UseCompositionChart({
   crops: PostHarvestCrop[];
   isLoading?: boolean;
 }) {
+  const motion = useChartMotion();
+
   if (isLoading) return <ChartSkeleton height={340} />;
 
   const data = crops.map((c) => ({
@@ -72,7 +74,7 @@ export function UseCompositionChart({
               <Tooltip {...TOOLTIP_STYLE} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {SERIES.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} stackId="use" fill={s.color} />
+                <Bar {...motion} key={s.key} dataKey={s.key} name={s.label} stackId="use" fill={s.color} />
               ))}
             </BarChart>
           </ResponsiveContainer>

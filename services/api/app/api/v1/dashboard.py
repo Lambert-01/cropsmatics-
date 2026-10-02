@@ -16,4 +16,10 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/overview", response_model=OverviewResponse)
 def overview(f: AnalyticsFilters = Depends(analytics_filters)) -> OverviewResponse:
+    """National or district overview for the selected period.
+
+    ``primary_kpis`` holds at most four figures that share one analytical scope
+    and one period; ``secondary_kpis`` carries everything else (including
+    context figures from other releases, which are marked ``scope="context"``).
+    """
     return OverviewResponse(**dashboard_service.overview(f))

@@ -169,8 +169,24 @@ the big screen at a demo: attendees scan it and install.
 ```bash
 make data           # validate + normalize + build processed tables
 make data-validate  # validation report only
-python scripts/data/load_database.py   # load processed tables into Postgres
+make migrate        # apply the canonical schema (Alembic)
+make load           # upsert processed tables into the canonical PostgreSQL tables
+make load-dry       # report exactly what a load would change, writing nothing
+make bootstrap      # deploy step: migrate, load only if the version changed, verify
+make bootstrap-dry  # show what the deploy step would do, writing nothing
 ```
+
+The loader is idempotent: re-running it reports rows as *unchanged* instead of
+duplicating them, records a `dataset_version` and one `data_ingestion_run` per
+target table, and never deletes. `scripts/data/load_database.py` is kept as an
+alias for backwards compatibility.
+
+**PostgreSQL is the production analytical authority.** `CANONICAL_DATA_MODE`
+decides which layer answers a read: `required` (production default — the
+canonical database must serve it), `preferred` (database first, explicit file
+fallback), or `file` (development only). The deploy step and CI are documented in
+[`docs/P0_DATABASE_AUTHORITY.md`](docs/P0_DATABASE_AUTHORITY.md), which also
+classifies the storage decision for every data domain.
 
 ### ML
 

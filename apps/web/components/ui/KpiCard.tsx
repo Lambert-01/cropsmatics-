@@ -28,6 +28,13 @@ export function KpiCard({
     success: "bg-success/10 text-success",
   };
 
+  // Prefer the canonical period_code; fall back to the display string.
+  const periodText = kpi.period_code
+    ? periodLabel(kpi.period_code)
+    : kpi.period
+      ? periodLabel(kpi.period)
+      : null;
+
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between gap-2">
@@ -41,11 +48,21 @@ export function KpiCard({
         ) : null}
       </div>
       <p className="metric mt-2">{value}</p>
-      <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
+      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
         {kpi.unit && kpi.unit !== "%" ? <span>{kpi.unit}</span> : null}
-        {kpi.period ? <span>· {periodLabel(kpi.period)}</span> : null}
+        {periodText ? <span>· {periodText}</span> : null}
+        {kpi.scope === "context" ? (
+          <span className="rounded-sm bg-amber/10 px-1 font-semibold text-amber">
+            other release
+          </span>
+        ) : null}
       </div>
       {kpi.note ? <p className="mt-1 text-[11px] leading-snug text-slate-400">{kpi.note}</p> : null}
+      {kpi.source_id ? (
+        <p className="mt-1 truncate text-[10px] text-slate-300" title={kpi.source_id}>
+          {kpi.source_id}
+        </p>
+      ) : null}
     </div>
   );
 }

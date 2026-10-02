@@ -19,9 +19,23 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# How the analytical read paths resolve their data.
+#
+#   required  - PostgreSQL must be ready. Readiness fails otherwise and no
+#               production request is answered from the processed files.
+#   preferred - PostgreSQL first; an explicit, *reported* fallback to the
+#               processed files when the database cannot serve the request.
+#   file      - processed files only. Development/testing only.
+#
+# Production defaults to ``required`` so a deploy can never quietly serve stale
+# CSV artefacts while claiming canonical authority. See ``canonical_mode``.
+CanonicalDataMode = Literal["required", "preferred", "file"]
+CANONICAL_DATA_MODES: tuple[str, ...] = ("required", "preferred", "file")
 
 # services/api/app/core/config.py -> repo root is parents[4].
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -60,6 +74,32 @@ class Settings(BaseSettings):
     # --- data ---
     data_raw_dir: str = "data/raw"
     data_processed_dir: str = "data/processed"
+    # Optional override; when unset the mode is derived from `environment` below.
+    canonical_data_mode: str | None = None
+
+    @field_validator("canonical_data_mode")
+    @classmethod
+    def _validate_canonical_data_mode(cls, value: str | None) -> str | None:
+        if value is None or not str(value).strip():
+            return None
+        mode = str(value).strip().lower()
+        if mode not in CANONICAL_DATA_MODES:
+            raise ValueError(
+                f"CANONICAL_DATA_MODE must be one of {CANONICAL_DATA_MODES}, got {value!r}"
+            )
+        return mode
+
+    @property
+    def canonical_mode(self) -> CanonicalDataMode:
+        """Effective canonical data mode.
+
+        An explicit ``CANONICAL_DATA_MODE`` always wins. Otherwise production
+        requires the database and everything else may fall back to files, so a
+        fresh clone and CI keep working without a PostgreSQL instance.
+        """
+        if self.canonical_data_mode is not None:
+            return self.canonical_data_mode  # type: ignore[return-value]
+        return "required" if self.is_production else "preferred"
 
     @property
     def cors_origin_list(self) -> list[str]:

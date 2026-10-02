@@ -6,7 +6,8 @@ import { ResponsiveTable, type Column } from "@/components/table/ResponsiveTable
 import { PriorityBadge } from "@/components/ui/Badge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
-import { fmtNumber } from "@/lib/format";
+import { fmtNumber, periodLabel } from "@/lib/format";
+import { componentText } from "@/lib/priority";
 import type { PriorityRow } from "@/types";
 
 /**
@@ -20,11 +21,14 @@ export function PriorityTable({
   onSelectDistrict,
   limit = 12,
   benchmarkStrategy,
+  period,
 }: {
   rows: PriorityRow[];
   onSelectDistrict?: (district: string) => void;
   limit?: number;
   benchmarkStrategy?: string | null;
+  /** The period actually scored, from the response provenance. Never assumed. */
+  period?: string | null;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const top = rows.slice(0, limit);
@@ -169,12 +173,16 @@ export function PriorityTable({
         </div>
       )}
       {expandedId ? (
-        <ExpandedDetails row={top.find((r) => r.id === expandedId)!} benchmarkStrategy={benchmarkStrategy} />
+        <ExpandedDetails
+          row={top.find((r) => r.id === expandedId)!}
+          benchmarkStrategy={benchmarkStrategy}
+          period={period}
+        />
       ) : null}
       <SourceNote>
         Yield and benchmark in kg/ha; gap = productivity gap index (%). Weights and component values
-        are transparent and adjustable on the Interventions page. Computed by Python from NISR 2025
-        Season B district tables.
+        are transparent and adjustable on the Interventions page. Computed by Python from the NISR
+        SAS crop productivity panel{period ? ` (${periodLabel(period)})` : ""}.
       </SourceNote>
     </Card>
   );
@@ -183,16 +191,18 @@ export function PriorityTable({
 function ExpandedDetails({
   row,
   benchmarkStrategy,
+  period,
 }: {
   row: PriorityRow;
   benchmarkStrategy?: string | null;
+  period?: string | null;
 }) {
   const items: { label: string; value: string }[] = [
     { label: "Priority score", value: `${Math.round(row.score * 100)} / 100` },
     { label: "Vulnerability", value: fmtNumber(row.vulnerability, 3) },
     { label: "Affected scale", value: fmtNumber(row.affected_scale, 3) },
-    { label: "Readiness", value: fmtNumber(row.readiness, 3) },
-    { label: "Cost constraint", value: fmtNumber(row.cost_constraint, 3) },
+    { label: "Readiness", value: componentText(row.readiness) },
+    { label: "Cost constraint", value: componentText(row.cost_constraint) },
     {
       label: "Harvested area",
       value: row.harvested_area_ha != null ? `${fmtNumber(row.harvested_area_ha, 0)} ha` : "—",
@@ -202,7 +212,7 @@ function ExpandedDetails({
       value: row.benchmark_yield_kg_ha != null ? `${fmtNumber(row.benchmark_yield_kg_ha, 0)} kg/ha` : "—",
     },
     { label: "Benchmark strategy", value: benchmarkStrategy ?? "national crop median" },
-    { label: "Period", value: "2025 Season B (latest district data)" },
+    { label: "Period", value: period ? periodLabel(period) : "—" },
   ];
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-forest/10 bg-forest/[0.03] px-4 py-3 text-xs sm:grid-cols-3">

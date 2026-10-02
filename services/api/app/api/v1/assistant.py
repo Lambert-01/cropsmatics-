@@ -1,112 +1,196 @@
 """Grounded AI explanation endpoint.
 
-The assistant is an **explanation layer**, not a source of numbers. It resolves a
-district and crop from the question, retrieves validated analytics, and composes
-an answer strictly from those values. If it cannot ground the question it says so
-instead of guessing. No LLM is required for this MVP behaviour; an LLM can be
-added later as a rephrasing layer over the same retrieved evidence.
+This module is now an **adapter**. It owns the public wire contract and the
+language rendering, and delegates everything else to ``app.ai``:
+
+    services/api/app/ai/     routing, tools, evidence, providers, guards
+
+The contract is unchanged. Every field that existed before still exists with the
+same meaning and the same values, so existing web and mobile clients keep working.
+New fields (``trace_id``, ``answer_mode``, ``citations``, ``evidence_count``,
+``tools_used``, ``validation``) are additive, and a client that does not know them
+can ignore them.
+
+The engine guarantees that no number in an answer is produced by a model: the
+deterministic grounded explanation is computed first and returned whenever a
+provider is unavailable or produces an unsupported figure.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+import json
 
-from app.analytics.productivity_gap import compute_gaps
-from app.repositories import dataset_repository as repo
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from app.ai import numeric_guard
+from app.ai.intent_router import INTENTS
+from app.ai.orchestrator import answer as engine_answer
+from app.ai.orchestrator import stream_answer as engine_stream
+from app.ai.schemas import AIContext, AIRequest
+from app.services import assistant_language, mobile_service
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
+NOT_GROUNDED = "Cropmatics does not currently have verified data to answer this question."
+
+
+class QueryContext(BaseModel):
+    """Structured evidence supplied by the calling page.
+
+    A contextual action such as "Explain this yield pattern" must ground its
+    answer in the selection the page is actually showing, not in whichever
+    release happens to be the default. The context therefore only *names*
+    entities (period, crop, district, metric); it can never carry a value, so it
+    cannot be used to inject a figure into an answer.
+    """
+
+    page: str | None = Field(None, description="originating screen, e.g. yield-intelligence")
+    metric: str | None = None
+    period_code: str | None = Field(None, description="published period, e.g. 2026B")
+    crop: str | None = None
+    district: str | None = None
+    province: str | None = None
+    benchmark_strategy: str | None = None
+
 
 class QueryIn(BaseModel):
-    question: str
+    question: str = Field(min_length=2, max_length=500)
     language: str = "en"
+    context: QueryContext | None = None
 
 
 class QueryOut(BaseModel):
     answer: str
     grounded: bool
-    evidence: dict
-    limitations: list[str]
+    intent: str = "unsupported"
+    evidence: dict = Field(default_factory=dict)
+    # Normalized figures for the answer, so the mobile client can render "key
+    # figures" without parsing prose. Identical across languages.
+    key_figures: list[dict] = Field(default_factory=list)
+    # --- language metadata --------------------------------------------------
+    language: str = "en"
+    # None on English; otherwise how the Kinyarwanda text was produced.
+    translation_status: str | None = None
+    # --- grounding metadata (always present on a grounded answer) -----------
+    source: str | None = None
+    period: str | None = None
+    coverage: str | None = None
+    limitations: list[str] = Field(default_factory=list)
+
+    # --- engine metadata (additive; safe for older clients to ignore) -------
+    trace_id: str | None = Field(None, description="correlation id for this answer")
+    #: "deterministic" when the published-evidence answer was returned,
+    #: "llm" when a configured provider's validated text was used instead.
+    answer_mode: str = "deterministic"
+    #: Evidence ids the answer is grounded in. Every one names a retrieved value.
+    citations: list[str] = Field(default_factory=list)
+    evidence_count: int = 0
+    tools_used: list[str] = Field(default_factory=list)
+    validation: dict = Field(default_factory=dict)
 
 
-def _resolve(question: str) -> tuple[str | None, str | None]:
-    q = question.lower()
-    districts = repo.districts()
-    crops = repo.crops()
-    district = next((d for d in districts["district"] if str(d).lower() in q), None)
-    crop = next(
-        (c for c in crops["crop_name"] if str(c).lower() in q),
-        None,
+def _to_context(context: QueryContext | None) -> AIContext | None:
+    if context is None:
+        return None
+    return AIContext(
+        page=context.page,
+        metric=context.metric,
+        period_code=context.period_code,
+        crop=context.crop,
+        district=context.district,
+        province=context.province,
+        benchmark_strategy=context.benchmark_strategy,
     )
-    if crop is None:
-        # match on Kinyarwanda names too
-        crop = next(
-            (row["crop_name"] for _, row in crops.iterrows()
-             if str(row.get("kinyarwanda_name", "")).lower() in q),
-            None,
-        )
-    return district, crop
+
+
+@router.get("/suggestions")
+def suggestions(limit: int = 6) -> dict:
+    """Questions guaranteed to be answerable from the published data."""
+    return {
+        "questions": mobile_service.suggested_questions(limit=limit),
+        "intents": list(INTENTS),
+        "note": "generated from real observations so every suggestion is groundable",
+    }
 
 
 @router.post("/query", response_model=QueryOut)
-def query(payload: QueryIn) -> QueryOut:
-    district, crop = _resolve(payload.question)
-    limitations = ["uses aggregate district data; not farm-specific", "association, not causation"]
+async def query(payload: QueryIn) -> QueryOut:
+    """Answer a question strictly from validated Cropmatics data.
 
-    if district is None or crop is None:
-        return QueryOut(
-            answer=(
-                "I can only explain results from validated data. Please name a known "
-                "district and crop (for example: 'Why is maize yield low in Gasabo?')."
-            ),
-            grounded=False,
-            evidence={},
-            limitations=limitations + ["question not grounded to a district and crop"],
+    Intent resolution, evidence retrieval and numeric computation happen once; the
+    requested language only changes the rendered prose (never the evidence).
+    """
+    result = await engine_answer(
+        AIRequest(
+            question=payload.question,
+            language=payload.language,
+            context=_to_context(payload.context),
         )
-
-    try:
-        df = repo.training_dataset()
-    except Exception:
-        return QueryOut(
-            answer="The analytical dataset is not available yet. Run the data pipeline first.",
-            grounded=False,
-            evidence={},
-            limitations=limitations + ["training dataset not built"],
-        )
-
-    gapped = compute_gaps(df, strategy="national_crop_median")
-    row = gapped[
-        (gapped["district"] == district) & (gapped["canonical_crop_name"] == crop)
-    ]
-    if row.empty:
-        return QueryOut(
-            answer=f"No validated observation found for {crop} in {district}.",
-            grounded=False,
-            evidence={},
-            limitations=limitations,
-        )
-
-    r = row.iloc[0]
-    observed = r["yield_kg_ha"]
-    benchmark = r["benchmark_yield_kg_ha"]
-    gap = r["gap_index"]
-    direction = "below" if gap and gap > 0 else "above"
-    answer = (
-        f"In 2025 Season B, {crop} yield in {district} was {observed:.0f} kg/ha, "
-        f"{direction} the national {crop} median of {benchmark:.0f} kg/ha "
-        f"(productivity gap index {gap:.1f}). This is an association between the "
-        f"district's observed practices and its yield, not proof that changing any "
-        f"single factor would cause this difference."
     )
-    evidence = {
-        "district": district,
-        "crop": crop,
-        "observed_yield_kg_ha": float(observed),
-        "benchmark_yield_kg_ha": float(benchmark),
-        "benchmark_strategy": "national_crop_median",
-        "gap_index": float(gap) if gap is not None else None,
-        "source_id": r.get("source_id"),
-        "source_period": r.get("source_period"),
-    }
-    return QueryOut(answer=answer, grounded=True, evidence=evidence, limitations=limitations)
+
+    language = assistant_language.normalize_language(payload.language)
+    rendered, translation_status = assistant_language.render(
+        answer_en=result.answer,
+        grounded=result.grounded,
+        language=language,
+    )
+
+    # A translated rendering is checked too. Templates preserve numbers, but if a
+    # template ever introduced one, the English grounded answer is returned rather
+    # than a translation the evidence cannot support.
+    if language != "en" and result.bundle is not None:
+        if not numeric_guard.check(rendered, result.bundle).ok:
+            rendered = result.answer
+            translation_status = "TEMPORARY_ENGLISH_FALLBACK"
+
+    return QueryOut(
+        answer=rendered,
+        grounded=result.grounded,
+        intent=result.intent,
+        evidence=result.evidence,
+        key_figures=result.key_figures,
+        language=language,
+        translation_status=translation_status,
+        source=result.source,
+        period=result.period,
+        coverage=result.coverage,
+        limitations=result.limitations,
+        trace_id=result.trace_id,
+        answer_mode=result.answer_mode,
+        citations=result.citations,
+        evidence_count=result.evidence_count,
+        tools_used=result.tools_used,
+        validation=result.validation,
+    )
+
+
+def _sse(event: str, payload: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@router.post("/stream")
+async def stream(payload: QueryIn) -> StreamingResponse:
+    """Server-sent events for the same answer.
+
+    Optional: ``/query`` remains the contract. Progress events describe what the
+    platform is doing in user-safe terms ("checking yield observations"), and the
+    whole validated answer is emitted as a single token event so a rejected answer
+    is never partially displayed. No internal reasoning is exposed.
+    """
+
+    async def generator():
+        request = AIRequest(
+            question=payload.question,
+            language=payload.language,
+            context=_to_context(payload.context),
+        )
+        async for event, data in engine_stream(request):
+            yield _sse(event, data)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

@@ -14,7 +14,7 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
-import { AXIS_PROPS, CHART, TOOLTIP_STYLE } from "@/features/dashboard/chartTheme";
+import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { fmtNumber } from "@/lib/format";
 import type { FactorsResponse } from "@/types";
 
@@ -27,6 +27,8 @@ export function FactorAssociationChart({
   isLoading?: boolean;
   crop?: string;
 }) {
+  const motion = useChartMotion();
+
   if (!crop) {
     return (
       <Card>
@@ -77,7 +79,7 @@ export function FactorAssociationChart({
                 {...TOOLTIP_STYLE}
                 formatter={(value) => [fmtNumber(Number(value), 3), "correlation"]}
               />
-              <Bar dataKey="correlation" radius={[0, 4, 4, 0]}>
+              <Bar {...motion} dataKey="correlation" radius={[0, 4, 4, 0]}>
                 {factors.map((f) => (
                   <Cell
                     key={f.factor}

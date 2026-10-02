@@ -1,12 +1,7 @@
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { SettingsView } from "@/features/settings/SettingsView";
 
 export const metadata = { title: "Settings — Cropmatics Rwanda" };
 
 export default function SettingsPage() {
-  return (
-    <ComingSoon
-      title="Settings"
-      description="Account, role and notification preferences arrive with database-backed authentication. Public analytical views stay open in the demo build."
-    />
-  );
+  return <SettingsView />;
 }

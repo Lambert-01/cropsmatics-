@@ -13,14 +13,45 @@ from app.schemas.dashboard import (
     SourceItem,
     SourcesResponse,
 )
-from app.services import analytics_service, meta_service
+from app.schemas.data_status import IndicatorItem, IndicatorsResponse
+from app.schemas.periods import PeriodsResponse
+from app.services import analytics_service, data_status_service, meta_service, period_service
 
 router = APIRouter(prefix="/meta", tags=["system"])
+
+
+@router.get("/indicators", response_model=IndicatorsResponse)
+def indicators() -> IndicatorsResponse:
+    """The machine-readable data dictionary.
+
+    Every indicator the platform can serve, with its unit, domain, the
+    geographic levels it is genuinely published at, and whether it carries a
+    crop dimension. Clients read this instead of hard-coding indicator names.
+    """
+    payload = data_status_service.indicators()
+    return IndicatorsResponse(
+        indicators=[IndicatorItem(**item) for item in payload["indicators"]],
+        source=payload["source"],
+        generated_at=payload["generated_at"],
+        count=payload["count"],
+    )
 
 
 @router.get("/data-coverage", response_model=CoverageResponse)
 def data_coverage() -> CoverageResponse:
     return CoverageResponse(**meta_service.coverage())
+
+
+@router.get("/periods", response_model=PeriodsResponse)
+def periods() -> PeriodsResponse:
+    """The published period dimension, derived from the processed tables.
+
+    Returns every period that actually carries rows (2024A-2026B as of the 2026
+    releases; 2026 Season C has not been published), newest last, with the
+    coverage level and contributing datasets for each. Clients should read this
+    instead of hard-coding a period.
+    """
+    return PeriodsResponse(**period_service.catalog())
 
 
 @router.get("/sources", response_model=SourcesResponse)
@@ -69,6 +100,38 @@ def algorithms() -> dict:
             {"id": s, "label": s.replace("_", " ").title()} for s in STRATEGIES
         ],
         "priority_weights": analytics_service.ip.DEFAULT_WEIGHTS,
+        # The platform default weighting's documented proxies (the 2025B release,
+        # where every component is measured). Other periods exclude the components
+        # they cannot measure - see `priority_component_policy`.
         "proxies": analytics_service.PROXY_NOTES,
+        "priority_components": [
+            {
+                "component": name,
+                "label": analytics_service.COMPONENT_LABELS[name],
+                "weight_key": key,
+            }
+            for name, key in zip(
+                analytics_service.COMPONENT_ORDER,
+                ("wg", "wv", "wf", "wr", "wc"),
+                strict=True,
+            )
+        ],
+        "priority_component_policy": {
+            "policy": "exclude-and-reweight",
+            "statement": (
+                "A component with no measured value for the selected period is "
+                "excluded and its weight is redistributed proportionally over the "
+                "components that do have data. No component is ever scored as a "
+                "neutral constant, and no score mixes two releases."
+            ),
+            "statuses": [
+                analytics_service.MEASURED,
+                analytics_service.PROXY,
+                analytics_service.UNAVAILABLE,
+                analytics_service.UNDETERMINED,
+            ],
+            "reference_period": analytics_service.REFERENCE_FACTOR_PERIOD,
+            "single_release_components": ["readiness", "cost_constraint"],
+        },
         "high_gap_threshold_pct": analytics_service.HIGH_GAP_PCT,
     }

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { usePreferences } from "@/components/providers/PreferencesProvider";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
-import { MapSkeleton } from "@/components/ui/States";
+import { EmptyState, MapSkeleton } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
 import { DistrictChoropleth } from "@/features/maps/DistrictChoropleth";
 import { FacilityDistrictMarkers, FacilityLayer } from "@/features/maps/FacilityLayer";
@@ -12,8 +13,10 @@ import { MapControls } from "@/features/maps/MapControls";
 import { MapLegend } from "@/features/maps/MapLegend";
 import { MapTooltip } from "@/features/maps/MapTooltip";
 import { buildProjection, type GeoCollection, type GeoFeature } from "@/features/maps/geo";
+import { cn } from "@/lib/cn";
 import { METRIC_SEMANTICS, type MapMetricId } from "@/lib/constants";
 import { periodLabel } from "@/lib/format";
+import { unavailableSummary } from "@/lib/priority";
 import type { FacilityItem, MapMetricsResponse } from "@/types";
 
 const VIEW_W = 1000;
@@ -41,8 +44,12 @@ export function RwandaDistrictMap({
 }) {
   const [collection, setCollection] = useState<GeoCollection | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showLabels, setShowLabels] = useState(false);
+  // `null` means "follow the stored preference"; a local toggle overrides it for
+  // this view without changing what the reader has saved in Settings.
+  const [labelOverride, setLabelOverride] = useState<boolean | null>(null);
   const [showFacilities, setShowFacilities] = useState(false);
+  const { preferences } = usePreferences();
+  const showLabels = labelOverride ?? preferences.mapLabels;
   const [hovered, setHovered] = useState<{ feature: GeoFeature; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -121,13 +128,25 @@ export function RwandaDistrictMap({
     return <MapSkeleton height={height} />;
   }
 
+  // The service refuses to colour a layer it cannot answer for the current
+  // selection: a raw yield with no crop, or a single-release adoption layer on
+  // another period. Render its explanation instead of a misleading map.
+  const blocked = Boolean(data?.message) && (data?.districts?.length ?? 0) === 0;
+  const blockedHint = data?.available_period
+    ? `${data.metric_label} is published as a single district release. Switch the period to ${periodLabel(
+        data.available_period,
+      )} to see it on the map.`
+    : "Yield is a crop-specific measure. Pick a crop in the filters above, then choose the Yield metric.";
+
   return (
     <Card>
       <CardHeader
         title={title}
         subtitle={
           data
-            ? `${data.metric_label} · ${data.crop ?? "all crops"} · ${periodLabel(data.period)}`
+            ? `${data.metric_label} · ${data.crop ?? "all crops"} · ${periodLabel(
+                data.period_code ?? data.period,
+              )}`
             : "Loading map metric…"
         }
       />
@@ -136,9 +155,10 @@ export function RwandaDistrictMap({
           metric={metric}
           onMetric={onMetricChange}
           showLabels={showLabels}
-          onToggleLabels={setShowLabels}
+          onToggleLabels={setLabelOverride}
           showFacilities={showFacilities}
           onToggleFacilities={setShowFacilities}
+          cropSelected={Boolean(data?.crop)}
         />
         <p className="mt-2 text-[11px] text-slate-500">
           {METRIC_SEMANTICS[metric].note}. Hatched districts have a productivity gap of at least{" "}
@@ -146,9 +166,33 @@ export function RwandaDistrictMap({
         </p>
       </div>
 
+      {blocked ? (
+        <div className="px-4 pb-4 pt-2">
+          <EmptyState
+            title={data?.message ?? "No verified data for this selection."}
+            hint={blockedHint}
+          />
+        </div>
+      ) : null}
+
+      {data?.components_unavailable?.length ? (
+        <p className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
+          <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber">
+            Not in this score
+          </span>{" "}
+          {unavailableSummary(data.components_unavailable)}
+          {data.available_period
+            ? ` ${periodLabel(data.available_period)} carries them — select that period to include them.`
+            : ""}
+        </p>
+      ) : null}
+
       <div
         ref={containerRef}
-        className="relative mx-auto mt-2 w-full max-w-[820px] px-2"
+        className={cn(
+          "relative mx-auto mt-2 w-full max-w-[820px] px-2",
+          blocked && "hidden",
+        )}
         style={{ minHeight: height * 0.55 }}
       >
         <DistrictChoropleth

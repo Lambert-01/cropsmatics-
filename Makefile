@@ -87,8 +87,20 @@ db-init: ## Create the database schema from models (dev convenience)
 	cd $(API_DIR) && .venv/bin/python -m app.db.init_db
 
 .PHONY: load
-load: ## Load processed CSVs into PostgreSQL
+load: ## Load processed CSVs into the canonical PostgreSQL tables
 	bash scripts/dev.sh load
+
+.PHONY: load-dry
+load-dry: ## Report exactly what a canonical load would change (writes nothing)
+	bash scripts/dev.sh load --dry-run
+
+.PHONY: bootstrap
+bootstrap: ## Deploy step: migrate, load only if the dataset version changed, verify
+	$(PYTHON) scripts/data/canonical_bootstrap.py
+
+.PHONY: bootstrap-dry
+bootstrap-dry: ## Show what the deploy bootstrap would do (writes nothing)
+	$(PYTHON) scripts/data/canonical_bootstrap.py --dry-run
 
 # ---------- quality ----------
 .PHONY: lint

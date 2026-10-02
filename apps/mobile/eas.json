@@ -4,17 +4,44 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://localhost:8000/api/v1",
+        "EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS": "true"
+      }
+    },
     "preview": {
-      "description": "Shareable Android APK — installs directly on any phone from a link, no Play Store needed. API URL is read from apps/mobile/.env (EXPO_PUBLIC_API_BASE_URL).",
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://cropsmatics-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS": "true"
+      }
+    },
+    "release-apk": {
+      "environment": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://cropsmatics-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS": "true"
       }
     },
     "production": {
-      "description": "Play Store build (.aab).",
+      "environment": "production",
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://cropsmatics-api.onrender.com/api/v1",
+        "EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS": "true"
       }
     }
   },

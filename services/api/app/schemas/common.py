@@ -33,6 +33,15 @@ class ReadinessOut(BaseModel):
     row_counts: dict[str, int | None] = Field(default_factory=dict)
     dictionaries: bool = False
     database: str = "optional/unavailable"
+    # Whether the canonical PostgreSQL tables are serving data, and why not when
+    # they are not. Distinct from `database`: a reachable database whose
+    # canonical schema has not been migrated is not serving canonical reads.
+    canonical: dict = Field(default_factory=dict)
+    # The effective CANONICAL_DATA_MODE (required / preferred / file) and the deep
+    # canonical probe: migrations applied, tables present, dataset loaded, and
+    # whether the loaded dataset version matches the processed manifest.
+    canonical_data_mode: str = "preferred"
+    canonical_state: dict = Field(default_factory=dict)
     model: str = "unavailable"
     checks: list[dict] = Field(default_factory=list)
 
@@ -59,6 +68,11 @@ class Provenance(BaseModel):
 
     source_id: str | None = None
     source_period: str | None = None
+    # Set when a result mixes a period-specific input with a single-release one
+    # (e.g. a 2026B productivity map whose readiness component comes from the
+    # 2025 Season B practice survey). Clients should render this as a
+    # "REFERENCE PERIOD" badge so the difference is never silent.
+    reference_period: str | None = None
     model_version: str | None = None
     benchmark_strategy: str | None = None
     method: str | None = None

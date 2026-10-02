@@ -11,19 +11,32 @@ import pandas as pd
 
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
-from app.services import meta_service, trend_service
-from app.services.analytics_service import FACTOR_COLUMNS, HIGH_GAP_PCT, gapped, period_of
+from app.services import meta_service, period_service, trend_service
+from app.services.analytics_service import (
+    FACTOR_COLUMNS,
+    HIGH_GAP_PCT,
+    frame_period_code,
+    frame_source_id,
+    gap_summary,
+    gapped,
+    period_of,
+    productivity_frame,
+    split_kpis,
+)
 
 
 def _period_key(f: AnalyticsFilters) -> str | None:
-    if f.year and f.season:
-        return f"{f.year}{f.season}"
-    if f.year:
-        return str(f.year)
-    return None
+    return f.period_key() or (str(f.year) if f.year else None)
 
 
 def available_periods() -> list[str]:
+    """The published period dimension, from the data (never a fixed list)."""
+    try:
+        codes = period_service.period_codes()
+        if codes:
+            return codes
+    except Exception:
+        pass
     levels = meta_service.coverage()["coverage"]
     periods = {period for dataset in levels.values() for period in dataset if len(period) == 5}
     return sorted(periods)
@@ -59,28 +72,38 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
     source = "NISR_SAS_2024_2026_NATIONAL_TRENDS"
     kpis = [
         {"id": "national_production", "label": "National production", "value": round(production, 1) if trend_points else None,
-         "unit": "metric tonnes", "period": period, "source_id": source},
+         "unit": "metric tonnes", "period": period, "period_code": f.period_code,
+         "source_id": source},
         {"id": "national_area", "label": "National harvested area", "value": round(area, 1) if trend_points else None,
-         "unit": "ha", "period": period, "source_id": source},
-        {"id": "national_yield", "label": "National yield", "value": round(yield_value, 3) if yield_value is not None else None,
-         "unit": "t/ha", "period": period, "source_id": source,
-         "note": "production / harvested area across reported crops"},
+         "unit": "ha", "period": period, "period_code": f.period_code,
+         "source_id": source},
+        # Production-weighted across reported crops. Kept as context, never as a
+        # headline "yield" figure - raw crop yields are not comparable.
+        {"id": "national_yield", "label": "National yield (production / area)",
+         "value": round(yield_value, 3) if yield_value is not None else None,
+         "unit": "t/ha", "period": period, "period_code": f.period_code,
+         "source_id": source, "scope": "context",
+         "note": "production-weighted across reported crops; not a comparable crop yield"},
         {"id": "national_seed", "label": "Improved seed use", "value": seed,
-         "unit": "% of farmers", "period": period,
-         "source_id": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS"},
+         "unit": "% of farmers", "period": period, "period_code": f.period_code,
+         "source_id": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS", "scope": "context"},
     ]
+    primary = [k for k in kpis if k["id"] in {"national_production", "national_area"}]
     return {
-        "filters": {"year": f.year, "season": f.season, "crop": f.crop,
-                    "province": f.province, "district": f.district,
+        "filters": {"period_code": f.period_code, "year": f.year, "season": f.season,
+                    "crop": f.crop, "province": f.province, "district": f.district,
                     "benchmark_strategy": f.benchmark_strategy},
         "period": period,
+        "period_code": f.period_code,
         "available_periods": available_periods(),
         "coverage": coverage,
         "coverage_level": level,
         "n_observations": 0,
         "kpis": kpis,
+        "primary_kpis": primary,
+        "secondary_kpis": [k for k in kpis if k not in primary],
         "provenance": {
-            "source_id": source, "source_period": period,
+            "source_id": source, "source_period": f.period_code or period,
             "method": "published national series; all-crop yield = total production / total harvested area",
             "limitations": ["national context only; no district estimates for this period"],
         },
@@ -90,15 +113,26 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
 def overview(f: AnalyticsFilters) -> dict:
     all_coverage = meta_service.coverage()["coverage"]
     coverage = all_coverage.get("district_crop_productivity", {})
-    level = _coverage_level(f, coverage)
-    if level is None and f.year and f.season:
-        key = _period_key(f)
-        if any(key in periods for periods in all_coverage.values()):
+    panel_coverage = all_coverage.get("crop_productivity", {})
+
+    selected = f.period_code or _period_key(f)
+    if selected:
+        # A period is district-level when either the multi-period panel or the
+        # legacy pack genuinely carries district rows for it.
+        if panel_coverage.get(selected) == "district":
+            level = "district"
+        elif coverage.get(selected) == "district":
+            level = "district"
+        elif any(selected in periods for periods in all_coverage.values()):
             level = "national"
+        else:
+            level = None
+    else:
+        level = _coverage_level(f, coverage)
     if level != "district":
         return _national_overview(f, coverage, level)
 
-    df = apply_filters(repo.training_dataset(), f)
+    df = apply_filters(productivity_frame(f), f)
     g = gapped(df, f.benchmark_strategy)
     valid = g[g["yield_kg_ha"].fillna(0) > 0]
     period = period_of(g if not g.empty else df)
@@ -107,7 +141,10 @@ def overview(f: AnalyticsFilters) -> dict:
     adoption = float(valid[factor_cols].mean(axis=1).mean()) if factor_cols and not valid.empty else None
 
     gap_series = valid["gap_index"].dropna() if "gap_index" in valid else pd.Series(dtype=float)
-    median_gap = float(gap_series.median()) if not gap_series.empty else None
+    # A median benchmark makes median(gap_index) identically zero, so the
+    # headline gap figure is the typical shortfall among districts that are
+    # actually below benchmark (see analytics_service.gap_summary).
+    gap_stats = gap_summary(gap_series)
     high_gap = int((gap_series >= HIGH_GAP_PCT).sum()) if not gap_series.empty else 0
 
     try:
@@ -122,62 +159,132 @@ def overview(f: AnalyticsFilters) -> dict:
     except Exception:
         storage_districts = 0
 
-    kpis = [
-        {"id": "avg_yield", "label": "Average yield",
-         "value": None if valid.empty else round(float(valid["yield_kg_ha"].mean()), 1),
-         "unit": "kg/ha", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
-        {"id": "median_gap", "label": "Median productivity gap",
-         "value": None if median_gap is None else round(median_gap, 1),
-         "unit": "%", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
-         "note": f"{f.benchmark_strategy} benchmark"},
-        {"id": "high_gap", "label": "High productivity-gap observations",
-         "value": high_gap, "unit": "district-crops", "period": period,
-         "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
-         "note": f"gap index >= {HIGH_GAP_PCT:.0f}% below benchmark"},
-        {"id": "crops", "label": "Crops analysed",
-         "value": int(valid["canonical_crop_name"].nunique()) if not valid.empty else 0,
-         "unit": "crops", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
-        {"id": "districts", "label": "Districts covered",
-         "value": int(valid["district"].nunique()) if not valid.empty else 0,
-         "unit": "districts", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
-        {"id": "input_adoption", "label": "Average input adoption",
-         "value": None if adoption is None else round(adoption, 1),
-         "unit": "% of farmers", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_FACTORS"},
-        {"id": "postharvest_loss", "label": "Median post-harvest loss share",
-         "value": None if median_loss is None else round(median_loss, 2),
-         "unit": "% of production", "period": "2025-B",
-         "source_id": "NISR_SAS_2025B_POSTHARVEST_USE",
-         "note": "national crop-level values"},
-        {"id": "total_production", "label": "Total production in selection",
-         "value": None if valid.empty else round(float(valid["production_mt"].sum()), 1),
-         "unit": "metric tonnes", "period": period, "source_id": "NISR_SAS_2025B_DISTRICT_CROP"},
-        {"id": "storage_districts", "label": "Cold-chain program districts",
-         "value": storage_districts, "unit": "districts", "period": "2026",
-         "source_id": "MINAGRI_ACES_COLDCHAIN_2026",
-         "note": "capacity not verified"},
-    ]
+    # Report the rows actually used: the panel carries its own per-period source
+    # ids, so provenance cannot silently claim the legacy 2025B extract.
+    productivity_source = frame_source_id(valid if not valid.empty else df)
+    productivity_period = period
+    # Canonical YYYYS code for the rows actually used ("2026B"), falling back to
+    # the requested code so the response always names one period.
+    productivity_code = frame_period_code(valid if not valid.empty else df) or f.period_code
+
+    selection = {
+        "period": productivity_period,
+        "period_code": productivity_code,
+        "source_id": productivity_source,
+        "scope": "selection",
+    }
+
+    kpis: list[dict] = []
+    # A raw yield may only be shown for one named crop: averaging across
+    # biologically different crops is meaningless, so with no crop selected no
+    # yield KPI exists at all. The headline strip then reports totals instead.
+    if f.crop:
+        kpis.append(
+            {"id": "avg_yield", "label": f"Mean {f.crop} yield",
+             "value": None if valid.empty else round(float(valid["yield_kg_ha"].mean()), 1),
+             "unit": "kg/ha", "note": f"{f.crop} only", **selection}
+        )
+    kpis.extend(
+        [
+            {"id": "total_production", "label": "Total production in selection",
+             "value": None if valid.empty else round(float(valid["production_mt"].sum()), 1),
+             "unit": "metric tonnes", **selection},
+            {"id": "total_harvested_area", "label": "Total harvested area",
+             "value": None if valid.empty
+             else round(float(valid["harvested_area_ha"].sum()), 1),
+             "unit": "ha", **selection},
+            {"id": "gap_shortfall", "label": "Typical yield gap",
+             "value": None
+             if gap_stats["typical_shortfall"] is None
+             else round(gap_stats["typical_shortfall"], 1),
+             "unit": "%",
+             "note": (
+                 f"median shortfall across the {gap_stats['districts_below']} "
+                 "district-crops below benchmark"
+                 if gap_stats["districts_below"]
+                 else "nothing is below the benchmark for this selection"
+             ),
+             **selection},
+            {"id": "below_benchmark_share", "label": "Below benchmark",
+             "value": gap_stats["below_share_pct"], "unit": "%",
+             "note": f"{gap_stats['districts_below']} of {gap_stats['total']} district-crops",
+             **selection},
+            {"id": "median_gap", "label": "Median productivity gap",
+             "value": None if gap_stats["median_gap"] is None else round(gap_stats["median_gap"], 1),
+             "unit": "%",
+             "note": (
+                 "0 by construction: the benchmark is itself a distribution median"
+                 if gap_stats["median_is_degenerate"]
+                 else f"{f.benchmark_strategy} benchmark"
+             ),
+             **selection},
+            {"id": "high_gap", "label": "High productivity-gap observations",
+             "value": high_gap, "unit": "district-crops",
+             "note": f"gap index >= {HIGH_GAP_PCT:.0f}% below benchmark", **selection},
+            {"id": "crops", "label": "Crops analysed",
+             "value": int(valid["canonical_crop_name"].nunique()) if not valid.empty else 0,
+             "unit": "crops", **selection},
+            {"id": "districts", "label": "Districts covered",
+             "value": int(valid["district"].nunique()) if not valid.empty else 0,
+             "unit": "districts", **selection},
+        ]
+    )
+    # Context figures come from other releases. They carry their own period and
+    # scope="context" so no client can present them as part of this selection's
+    # headline strip.
+    kpis.extend(
+        [
+            {"id": "input_adoption", "label": "Average input adoption",
+             "value": None if adoption is None else round(adoption, 1),
+             "unit": "% of farmers", "period": "2025 Season B", "period_code": "2025B",
+             "scope": "context", "source_id": "NISR_SAS_2025B_DISTRICT_FACTORS",
+             "note": "district practice adoption is a 2025 Season B release"},
+            {"id": "postharvest_loss", "label": "Median post-harvest loss share",
+             "value": None if median_loss is None else round(median_loss, 2),
+             "unit": "% of production", "period": "2025 Season B", "period_code": "2025B",
+             "scope": "context", "source_id": "NISR_SAS_2025B_POSTHARVEST_USE",
+             "note": "national crop-level values, 2025 Season B"},
+            {"id": "storage_districts", "label": "Cold-chain program districts",
+             "value": storage_districts, "unit": "districts", "period": "2026",
+             "period_code": None, "scope": "context",
+             "source_id": "MINAGRI_ACES_COLDCHAIN_2026",
+             "note": "programme context for 2026; capacity not verified"},
+        ]
+    )
+
+    primary_ids = (
+        ["avg_yield", "total_production", "total_harvested_area", "gap_shortfall"]
+        if f.crop
+        else ["total_production", "total_harvested_area", "crops", "districts"]
+    )
+    primary, secondary = split_kpis(kpis, primary_ids)
 
     return {
         "filters": {
+            "period_code": f.period_code,
             "year": f.year, "season": f.season, "crop": f.crop,
             "province": f.province, "district": f.district,
             "benchmark_strategy": f.benchmark_strategy,
         },
         "period": period,
+        "period_code": productivity_code,
         "available_periods": available_periods(),
         "coverage": coverage,
         "coverage_level": level,
         "n_observations": int(len(valid)),
         "kpis": kpis,
+        "primary_kpis": primary,
+        "secondary_kpis": secondary,
         "provenance": {
-            "source_id": "NISR_SAS_2025B_DISTRICT_CROP",
-            "source_period": period,
+            "source_id": productivity_source,
+            "source_period": f.period_code or frame_period_code(df) or period,
             "benchmark_strategy": f.benchmark_strategy,
             "method": "aggregation of processed district x crop table; PGI = 100*(benchmark-observed)/benchmark",
             "limitations": [
                 "observational district aggregates, not plot-level evidence",
                 "associations are not causation",
-                "district data only exist for 2025 Season B",
+                "district productivity covers 2024A-2026B; district "
+                "input/practice, irrigation and erosion tables cover 2025 Season B only",
             ],
         },
     }

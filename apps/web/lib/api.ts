@@ -2,22 +2,38 @@ import { filtersToApiQuery, type DashboardFilters } from "@/lib/filters";
 import type {
   AllocationRequest,
   AllocationResponse,
+  AssistantContext,
+  AssistantResponse,
   CoverageResponse,
   Crop,
   DatasetInfo,
   DatasetResponse,
   DataVersionResponse,
   District,
+  DistrictSummaryResponse,
   FacilitiesResponse,
   FactorsResponse,
   HeatmapResponse,
   MapMetricsResponse,
+  MarketDispersionGroup,
+  MarketObservation,
+  MarketStatus,
+  MarketTrendSeries,
   ModelsResponse,
   OverviewResponse,
+  PeriodTrendResponse,
+  PeriodsResponse,
   PostHarvestResponse,
   PriorityResponse,
+  PriorityScenarioRequest,
+  PriorityScenarioResponse,
   ProductivityResponse,
   ReadinessResponse,
+  ReportCatalogEntry,
+  ScenarioRequest,
+  ScenarioResponse,
+  SensitivityRequest,
+  SensitivityResponse,
   SourcesResponse,
   StorageInfrastructureResponse,
   TrendResponse,
@@ -104,6 +120,8 @@ export const api = {
   facilities: (district?: string) =>
     get<FacilitiesResponse>("/facilities/context", district ? `district=${encodeURIComponent(district)}` : ""),
   coverage: () => get<CoverageResponse>("/meta/data-coverage"),
+  /** The published period dimension, derived from the data (never hard-coded). */
+  periods: () => get<PeriodsResponse>("/meta/periods"),
   sources: () => get<SourcesResponse>("/meta/sources"),
   models: () => get<ModelsResponse>("/meta/models"),
   dataVersion: () => get<DataVersionResponse>("/meta/data-version"),
@@ -138,23 +156,120 @@ export const api = {
     }
     return get<DatasetResponse>(`/meta/dataset/${key}`, params.toString());
   },
-  districtSummary: (district: string) =>
-    get<{ district: string; crops: Record<string, unknown>[] }>(
-      "/reports/district-summary",
-      `district=${encodeURIComponent(district)}`,
-    ),
+  districtSummary: (district: string, filters?: DashboardFilters) => {
+    const params = new URLSearchParams({ district });
+    if (filters) new URLSearchParams(filtersToApiQuery(filters)).forEach((v, k) => params.set(k, v));
+    return get<DistrictSummaryResponse>("/reports/district-summary", params.toString());
+  },
+  /**
+   * The backend report catalogue. Drives the Reports workspace so the list of
+   * available exports has exactly one definition, on the server.
+   */
+  reportCatalog: () => get<{ reports: ReportCatalogEntry[] }>("/reports/catalog"),
   storageAllocation: (body: AllocationRequest) =>
     post<AllocationResponse>("/optimization/storage-allocation", body),
 
-  assistant: (question: string, language = "en") =>
-    post<{ answer: string; grounded: boolean; evidence: Record<string, unknown>; limitations: string[] }>(
-      "/assistant/query",
-      { question, language },
+  /**
+   * Grounded explanation layer. ``context`` names the page's selection so a
+   * contextual action is answered from the same period/crop/district the user is
+   * viewing instead of the default release. It carries entities only, never a
+   * value, so it cannot inject a figure into an answer.
+   */
+  assistant: (question: string, language = "en", context?: AssistantContext) =>
+    post<AssistantResponse>("/assistant/query", { question, language, context }),
+
+  /** Canonical period-aware panel: one crop across published periods. */
+  productivityTrend: (crop: string, district?: string, season?: string) => {
+    const params = new URLSearchParams({ crop });
+    if (district) params.set("district", district);
+    if (season) params.set("season", season);
+    return get<PeriodTrendResponse>("/productivity/trend", params.toString());
+  },
+
+  /**
+   * Yield Scenario Lab. Re-computes published observations under two sets of
+   * assumptions. It is a POST because a scenario has six parameters, but it
+   * writes nothing — and it never returns a prediction.
+   */
+  scenario: (body: ScenarioRequest) =>
+    post<ScenarioResponse>("/scenarios/yield", body),
+
+  /**
+   * Intervention Priority Scenario Lab. Re-ranks the published district x crop
+   * candidates under two sets of reviewable planning weights. It writes nothing
+   * and never returns a budget or an intervention outcome.
+   */
+  priorityScenario: (body: PriorityScenarioRequest) =>
+    post<PriorityScenarioResponse>("/scenarios/priority", body),
+
+  /**
+   * Ranking sensitivity. Re-ranks the same candidates under a reproducible sweep
+   * of plausible weightings; the reported share is a robustness share, not a
+   * probability.
+   */
+  sensitivity: (body: SensitivityRequest) =>
+    post<SensitivityResponse>("/scenarios/sensitivity", body),
+
+  /**
+   * Market Intelligence. With no verified price feed loaded these answer
+   * honestly with `data_available: false` and a reason — they never return a
+   * sample price. Price types are always returned separately.
+   */
+  marketStatus: () => get<MarketStatus>("/markets/status"),
+  marketCommodities: () =>
+    get<{
+      data_available: boolean;
+      commodities: { commodity: string; commodity_code?: string | null; observations: number; price_types: string[]; markets: number }[];
+      reason: string | null;
+    }>("/markets/commodities"),
+  marketCoverage: () => get<Record<string, unknown>>("/markets/coverage"),
+  marketObservations: (params: Record<string, string> = {}) =>
+    get<{ data_available: boolean; total: number; rows: MarketObservation[]; reason: string | null }>(
+      "/markets/observations",
+      new URLSearchParams(params).toString(),
     ),
+  marketLatest: (params: Record<string, string> = {}) =>
+    get<{ data_available: boolean; rows: MarketObservation[]; note: string; reason: string | null }>(
+      "/markets/latest",
+      new URLSearchParams(params).toString(),
+    ),
+  marketTrend: (commodity: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ commodity, ...params });
+    return get<{
+      commodity: string;
+      data_available: boolean;
+      series: MarketTrendSeries[];
+      note: string;
+      reason: string | null;
+    }>("/markets/trend", query.toString());
+  },
+  marketDispersion: (commodity: string, params: Record<string, string> = {}) => {
+    const query = new URLSearchParams({ commodity, ...params });
+    return get<{
+      commodity: string;
+      data_available: boolean;
+      groups: MarketDispersionGroup[];
+      note: string;
+      reason: string | null;
+    }>("/markets/dispersion", query.toString());
+  },
 };
 
-/** Build a CSV download URL for a Python-generated report. */
-export function reportUrl(path: string, filters?: DashboardFilters): string {
-  const qs = filters ? filtersToApiQuery(filters) : "";
-  return `${BASE_URL}/reports${path}${qs ? `?${qs}` : ""}`;
+/**
+ * Build a download URL for a Python-generated report.
+ *
+ * Accepts either a bare path (`/yield-gaps.csv`) or a full report endpoint from
+ * the catalogue (`/reports/yield-gaps.csv`), so a caller cannot produce a
+ * doubled prefix by passing the value the API itself returned.
+ */
+export function reportUrl(
+  endpoint: string,
+  filters?: DashboardFilters,
+  format: "csv" | "json" = "csv",
+): string {
+  const path = endpoint.startsWith("/reports") ? endpoint : `/reports${endpoint}`;
+  const params = new URLSearchParams(filters ? filtersToApiQuery(filters) : "");
+  if (format === "json") params.set("format", "json");
+  const qs = params.toString();
+  return `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
 }

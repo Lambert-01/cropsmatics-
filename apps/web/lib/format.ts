@@ -1,10 +1,31 @@
 /** Presentation-only formatting helpers. These never compute analytics values. */
 
+export type NumberGrouping = "grouped" | "plain";
+
+/**
+ * Thousands-separator preference.
+ *
+ * `fmtNumber` is a pure helper called from dozens of components and tables, so
+ * the preference is held as one synced value here instead of being threaded
+ * through every call site as a prop. `PreferencesProvider` is the only writer,
+ * and it sets this whenever the stored preference changes.
+ */
+let numberGrouping: NumberGrouping = "grouped";
+
+export function setNumberGroupingPreference(value: NumberGrouping): void {
+  numberGrouping = value;
+}
+
+export function getNumberGroupingPreference(): NumberGrouping {
+  return numberGrouping;
+}
+
 export function fmtNumber(value: number | null | undefined, digits = 0): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   return value.toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
+    useGrouping: numberGrouping === "grouped",
   });
 }
 

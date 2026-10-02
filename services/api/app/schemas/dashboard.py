@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.schemas.analytics import ComponentAvailability
 from app.schemas.common import Provenance
 
 # --- dashboard overview ----------------------------------------------------
@@ -20,8 +21,14 @@ class KPI(BaseModel):
     value: float | None = None
     unit: str | None = None
     period: str | None = None
+    # Canonical YYYYS period this specific number describes. Present so a client
+    # can never present a 2025B value as if it belonged to the selected period.
+    period_code: str | None = None
     source_id: str | None = None
     note: str | None = None
+    # "selection" -> describes the current crop/period/geography selection.
+    # "context"   -> comes from a different release and must be shown separately.
+    scope: str = "selection"
 
 
 class CoverageNote(BaseModel):
@@ -32,18 +39,67 @@ class CoverageNote(BaseModel):
 class OverviewResponse(BaseModel):
     filters: dict
     period: str | None = None
+    period_code: str | None = None
     available_periods: list[str] = Field(default_factory=list)
     coverage: dict[str, str] = Field(default_factory=dict)
     coverage_level: str | None = None
     n_observations: int = 0
+    # Full metric set (kept for existing clients).
     kpis: list[KPI] = Field(default_factory=list)
+    # At most four KPIs that share one analytical scope and one period. A client
+    # renders these as the headline strip; everything else is secondary.
+    primary_kpis: list[KPI] = Field(default_factory=list)
+    secondary_kpis: list[KPI] = Field(default_factory=list)
     provenance: Provenance
+
+
+class GapBand(BaseModel):
+    """One band of the yield-gap distribution, with its own cut points."""
+
+    id: str
+    label: str
+    min_pct: float | None = None
+    max_pct: float | None = None
+    count: int = 0
+    share_pct: float | None = None
+
+
+class SameSeasonYoY(BaseModel):
+    """Same-season, previous-year yield change for one selection.
+
+    Seasons differ agronomically, so this compares the same season one year
+    earlier (2025B vs 2026B) instead of stepping A -> B -> C.
+    """
+
+    available: bool = False
+    reason: str | None = None
+    period_code: str | None = None
+    period_label: str | None = None
+    previous_period_code: str | None = None
+    previous_period_label: str | None = None
+    current_yield_kg_ha: float | None = None
+    previous_yield_kg_ha: float | None = None
+    change_pct: float | None = None
+    crop: str | None = None
+    district: str | None = None
+    province: str | None = None
+    note: str | None = None
 
 
 class ProductivityResponse(BaseModel):
     period: str | None = None
+    period_code: str | None = None
     n_observations: int = 0
     kpis: list[KPI] = Field(default_factory=list)
+    primary_kpis: list[KPI] = Field(default_factory=list)
+    secondary_kpis: list[KPI] = Field(default_factory=list)
+    # None when no crop is selected (a cross-crop mean yield is meaningless).
+    yoy: SameSeasonYoY | None = None
+    gap_bands: list[GapBand] = Field(default_factory=list)
+    # ``median_is_degenerate`` is True when median(gap) is structurally 0 because
+    # the benchmark is itself a distribution median; clients must not present
+    # that as "no gap anywhere".
+    gap_summary: dict | None = None
     rows: list[dict] = Field(default_factory=list)
     provenance: Provenance
 
@@ -66,10 +122,29 @@ class MapMetricsResponse(BaseModel):
     metric_label: str
     unit: str | None = None
     period: str | None = None
+    period_code: str | None = None
     crop: str | None = None
     min_value: float | None = None
     max_value: float | None = None
     districts: list[MapDistrictMetric] = Field(default_factory=list)
+    # True when the metric cannot be mapped without a crop (yield): the map must
+    # explain this instead of rendering an all-crop aggregate.
+    requires_crop: bool = False
+    message: str | None = None
+    # The release that does carry the metric when the selected period does not
+    # (single-release adoption/irrigation/erosion layers), or - for the priority
+    # metric - the release that carries components the selected period cannot
+    # measure.
+    available_period: str | None = None
+    # Set when a period-specific metric also consumes a single-release component
+    # (the priority score's readiness/cost proxies). Always null under the
+    # exclusion policy: no score is reported as a blend of two releases.
+    reference_period: str | None = None
+    #: Priority components with no measured value for the selected period, whose
+    #: weight was redistributed instead of being scored as a constant.
+    components_unavailable: list[str] = Field(default_factory=list)
+    component_availability: list[ComponentAvailability] = Field(default_factory=list)
+    source_id: str | None = None
     provenance: Provenance
 
 
@@ -81,6 +156,70 @@ class TrendPoint(BaseModel):
     year: int | None = None
     season: str | None = None
     values: dict[str, float | None] = Field(default_factory=dict)
+
+
+class SameSeasonChange(BaseModel):
+    """A same-season delta computed by the platform, not by a client.
+
+    ``available`` is false whenever the comparison cannot be made - the prior
+    year is absent, published blank, or a zero baseline - and ``reason`` says
+    which. A missing comparison is never reported as a 0 % change.
+    """
+
+    metric: str
+    unit: str | None = None
+    available: bool = False
+    reason: str | None = None
+    period_code: str | None = None
+    period_label: str | None = None
+    previous_period_code: str | None = None
+    previous_period_label: str | None = None
+    current_value: float | None = None
+    previous_value: float | None = None
+    change_pct: float | None = None
+    change_abs: float | None = None
+
+
+class NationalBoardCrop(BaseModel):
+    """One crop on the national board, aligned to the shared period axis."""
+
+    crop: str
+    coverage: str = "national"
+    n_published_periods: int = 0
+    latest_published_period: str | None = None
+    latest_published_label: str | None = None
+    #: metric -> value per position of ``NationalBoardResponse.periods``.
+    #: A null is a period the release did not tabulate for this crop.
+    series: dict[str, list[float | None]] = Field(default_factory=dict)
+    changes: dict[str, SameSeasonChange] = Field(default_factory=dict)
+
+
+class NationalBoardTotals(BaseModel):
+    """The national total across the crops that published a value.
+
+    Yield here is production over harvested area across the crops that published
+    both - never an average of per-crop yields, which would be meaningless.
+    Aligned to the same period axis as the per-crop series.
+    """
+
+    series: dict[str, list[float | None]] = Field(default_factory=dict)
+    changes: dict[str, SameSeasonChange] = Field(default_factory=dict)
+
+
+class NationalBoardResponse(BaseModel):
+    """Read-only national crop board.
+
+    One request for the whole board, with the period axis and the same-season
+    deltas decided here so the client only presents them.
+    """
+
+    metric_units: dict[str, str] = Field(default_factory=dict)
+    periods: list[str] = Field(default_factory=list)
+    period_labels: dict[str, str] = Field(default_factory=dict)
+    crops: list[NationalBoardCrop] = Field(default_factory=list)
+    #: The all-crop national total, on the same axis. Home leads with this.
+    national: NationalBoardTotals | None = None
+    provenance: Provenance
 
 
 class TrendResponse(BaseModel):
@@ -110,6 +249,9 @@ class FactorsResponse(BaseModel):
     crop: str | None = None
     district: str | None = None
     factors: list[FactorMetric] = Field(default_factory=list)
+    # Set when the requested period has no factor data at all, so an empty list
+    # is never mistaken for "no association measured".
+    note: str | None = None
     provenance: Provenance
 
 

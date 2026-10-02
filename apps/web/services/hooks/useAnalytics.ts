@@ -4,6 +4,12 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import type { DashboardFilters } from "@/lib/filters";
+import type {
+  AssistantContext,
+  PriorityScenarioRequest,
+  ScenarioRequest,
+  SensitivityRequest,
+} from "@/types";
 
 const FIVE_MIN = 5 * 60 * 1000;
 
@@ -21,6 +27,74 @@ export function useProductivity(filters: DashboardFilters, enabled = true) {
     queryFn: () => api.productivity(filters),
     staleTime: FIVE_MIN,
     enabled,
+  });
+}
+
+/**
+ * One crop across every published period, from the canonical panel. Used by the
+ * Yield Intelligence trend, where `season` restricts the series to a single
+ * season so it reads as a same-season year-on-year comparison.
+ */
+export function useProductivityTrend(
+  crop?: string,
+  district?: string,
+  season?: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["productivity-trend", crop ?? "", district ?? "", season ?? ""],
+    queryFn: () => api.productivityTrend(crop as string, district, season),
+    staleTime: FIVE_MIN,
+    enabled: enabled && Boolean(crop),
+  });
+}
+
+/**
+ * Grounded assistant. The page context names the current selection so the
+ * explanation is retrieved for the same period/crop/district being viewed.
+ */
+export function useAssistantMutation() {
+  return useMutation({
+    mutationFn: ({
+      question,
+      context,
+      language = "en",
+    }: {
+      question: string;
+      context?: AssistantContext;
+      language?: string;
+    }) => api.assistant(question, language, context),
+  });
+}
+
+/**
+ * Analytical yield scenario. Exposed as a mutation rather than a query because it
+ * is only run on an explicit "Run scenario" action, so the page never recomputes
+ * a comparison the user has not asked for.
+ */
+export function useScenario() {
+  return useMutation({
+    mutationFn: (body: ScenarioRequest) => api.scenario(body),
+  });
+}
+
+/**
+ * Priority scenario. A mutation for the same reason as the yield scenario: the
+ * comparison is only computed when the planner asks for it.
+ */
+export function usePriorityScenario() {
+  return useMutation({
+    mutationFn: (body: PriorityScenarioRequest) => api.priorityScenario(body),
+  });
+}
+
+/**
+ * Ranking sensitivity sweep. A mutation because it is an explicit "test the
+ * ranking's robustness" action over a chosen number of draws.
+ */
+export function useSensitivity() {
+  return useMutation({
+    mutationFn: (body: SensitivityRequest) => api.sensitivity(body),
   });
 }
 

@@ -27,6 +27,9 @@ from scripts.data.common import (
     DICTS_DIR,
     INTERIM_DIR,
     PIPELINE_VERSION,
+    PROCESSED_DIR,
+    PROCESSED_FILES,
+    VALID_PERIODS,
     log,
     raw_path,
 )
@@ -38,9 +41,25 @@ KNOWN_SEASONS = {"A", "B", "C"}
 # The package covers the NISR 2024-2026 releases. A year outside this range means
 # an unexpected release (or a typo) and is treated as an error.
 PLAUSIBLE_YEARS = {2024, 2025, 2026}
-# District-level tables exist for exactly one release. Any other period in a
-# district table would be silently rendered as a district estimate, so it fails.
-DISTRICT_RELEASE = (2025, "B")
+# The canonical period dimension: exactly the periods NISR has published as of
+# September 2026. A period outside this set is either a typo or a fabricated
+# season (2026C does not exist), so it fails.
+EXPECTED_PERIODS = frozenset(VALID_PERIODS)
+
+# Canonical market price types (see scripts/data/ingest_market_prices.py).
+MARKET_PRICE_TYPES = (
+    "FARMGATE",
+    "PRODUCER",
+    "WHOLESALE",
+    "RETAIL",
+    "ASSEMBLY",
+    "UNSPECIFIED",
+)
+
+# The legacy curated pack is a single-release district extract (2025 Season B).
+# It stays restricted to exactly that period - a 2024 district value appearing
+# in it would be silently presented as a 2025B observation.
+LEGACY_DISTRICT_PERIODS = frozenset({"2025B"})
 
 # Aggregate crop groups that must never be added to their own component crops.
 TREND_AGGREGATES = {"Cereals", "Tubers and Roots", "Legumes and Pulses", "Vegetables and Fruits"}
@@ -144,13 +163,19 @@ def _check_pct_sum(
         )
 
 
-def _check_period(name: str, df: pd.DataFrame, *, district_level: bool = False) -> None:
+def _check_period(
+    name: str,
+    df: pd.DataFrame,
+    *,
+    allowed_periods: frozenset[str] | set[str] | None = None,
+) -> None:
     """Validate season codes and years, and record the observed periods.
 
-    This checks *validity*, not a fixed allow-list: the national tables legitimately
-    publish different period sets from each other. District tables, by contrast,
-    must contain exactly the single district release, otherwise a district value
-    would be presented for a period that has no district data.
+    This checks *validity*: the national tables legitimately publish different
+    period sets from each other, so no allow-list is imposed unless the caller
+    passes ``allowed_periods``. District-keyed datasets do pass one, because a
+    district value published for a period with no district coverage would be
+    presented as a real district observation.
     """
     _check_columns(name, df, ["year", "season"])
     if not {"year", "season"}.issubset(df.columns):
@@ -170,20 +195,20 @@ def _check_period(name: str, df: pd.DataFrame, *, district_level: bool = False) 
     observed = sorted(set(periods))
     issue("info", name, f"periods observed: {observed}", len(observed))
 
-    if district_level:
-        unexpected = [p for p in observed if p != f"{DISTRICT_RELEASE[0]}{DISTRICT_RELEASE[1]}"]
+    if allowed_periods is not None:
+        unexpected = sorted(set(observed) - set(allowed_periods))
         if unexpected:
             issue(
                 "error",
                 name,
-                f"district table contains non-district periods {unexpected} "
-                f"(only {DISTRICT_RELEASE[0]}-{DISTRICT_RELEASE[1]} has district rows)",
+                f"unexpected periods {unexpected}; allowed={sorted(allowed_periods)}",
             )
         else:
             issue(
                 "info",
                 name,
-                f"district release confined to {DISTRICT_RELEASE[0]}-{DISTRICT_RELEASE[1]}",
+                f"period set within allowed {sorted(allowed_periods)}",
+                len(observed),
             )
 
 
@@ -208,7 +233,7 @@ def _validate_district_crop(known_districts: set[str], known_crops: set[str]) ->
         ],
     )
     _check_duplicate_keys(name, prod, ["year", "season", "district", "crop"])
-    _check_period(name, prod, district_level=True)
+    _check_period(name, prod, allowed_periods=LEGACY_DISTRICT_PERIODS)
     _dictionary_coverage(name, prod, "district", known_districts)
     _dictionary_coverage(name, prod, "crop", known_crops)
     _check_nonnegative(
@@ -324,7 +349,7 @@ def _validate_district_factors(known_districts: set[str]) -> None:
     factors = pd.read_csv(raw_path("district_factors"))
     _check_columns(name, factors, ["year", "season", "district"])
     _check_duplicate_keys(name, factors, ["year", "season", "district"])
-    _check_period(name, factors, district_level=True)
+    _check_period(name, factors, allowed_periods=LEGACY_DISTRICT_PERIODS)
     _dictionary_coverage(name, factors, "district", known_districts)
     _check_pct_range(name, factors)
 
@@ -357,7 +382,7 @@ def _validate_irrigation(known_districts: set[str]) -> None:
         ],
     )
     _check_duplicate_keys(name, df, ["year", "season", "district"])
-    _check_period(name, df, district_level=True)
+    _check_period(name, df, allowed_periods=LEGACY_DISTRICT_PERIODS)
     _dictionary_coverage(name, df, "district", known_districts)
     _check_nonnegative(name, df, _pct_columns(df))
     _check_pct_range(name, df)
@@ -415,7 +440,7 @@ def _validate_erosion(known_districts: set[str]) -> None:
 
     _check_columns(name, df, ["year", "season", "district"])
     _check_duplicate_keys(name, df, ["year", "season", "district"])
-    _check_period(name, df, district_level=True)
+    _check_period(name, df, allowed_periods=LEGACY_DISTRICT_PERIODS)
     _dictionary_coverage(name, df, "district", known_districts)
     _check_nonnegative(name, df, _pct_columns(df))
     _check_pct_range(name, df)
@@ -732,6 +757,202 @@ def _validate_cold_chain_network(known_districts: set[str]) -> None:
         issue("info", name, f"program districts verified: {names}", len(names))
 
 
+def _validate_crop_productivity(known_districts: set[str], known_crops: set[str]) -> None:
+    """Validate the multi-period canonical panel built from the SAS extraction.
+
+    This dataset spans every published period (2024A-2026B), so it is checked
+    against the canonical period dimension rather than a single release.
+    """
+    name = "crop_productivity (multi-period)"
+    path = PROCESSED_DIR / PROCESSED_FILES["crop_productivity"]
+    if not path.exists():
+        issue("info", name, "not built in this run (run build_crop_productivity.py)")
+        return
+
+    df = pd.read_csv(path)
+    _check_columns(
+        name,
+        df,
+        [
+            "period_code",
+            "year",
+            "season",
+            "geography_level",
+            "geography_code",
+            "crop_code",
+            "cultivated_area_ha",
+            "harvested_area_ha",
+            "production_mt",
+            "yield_kg_ha",
+            "source_id",
+        ],
+    )
+    if not {"year", "season"}.issubset(df.columns):
+        return
+
+    _check_period(name, df, allowed_periods=EXPECTED_PERIODS)
+    # ``farmer_scale`` is part of the key: the national total and the SSF/LSF
+    # breakdown are separate published series for the same geography and crop.
+    _check_duplicate_keys(
+        name,
+        df,
+        ["period_code", "geography_level", "geography_code", "crop_code", "farmer_scale"],
+    )
+    _dictionary_coverage(name, df, "district", known_districts)
+    # ``crop_name_raw`` holds the normalized published crop label, which the
+    # ingest resolves to the dictionary before the panel is assembled.
+    _dictionary_coverage(name, df, "crop_name_raw", known_crops)
+    _check_nonnegative(
+        name,
+        df,
+        ["cultivated_area_ha", "harvested_area_ha", "production_mt", "yield_kg_ha"],
+    )
+
+    categories = _pct_columns(df)
+    _check_pct_range(name, df, categories)
+
+    if "source_id" in df.columns:
+        blank = int(df["source_id"].isna().sum() + (df["source_id"].astype(str).str.strip() == "").sum())
+        if blank:
+            issue("error", name, "rows without source lineage", blank)
+        else:
+            issue("info", name, "every row carries a source_id")
+
+    # Yield consistency where both a yield and the inputs exist.
+    if {"production_mt", "harvested_area_ha", "yield_kg_ha"}.issubset(df.columns):
+        computed = (df["production_mt"] * 1000.0 / df["harvested_area_ha"]).replace(
+            [float("inf"), float("-inf")], pd.NA
+        )
+        mismatch = int(((computed - df["yield_kg_ha"]).abs() > 1.0).sum())
+        if mismatch:
+            issue(
+                "warn",
+                name,
+                "yield_kg_ha inconsistent with production/area (tolerance 1 kg/ha)",
+                mismatch,
+            )
+
+
+def _validate_market_prices() -> None:
+    """Validate the provider-neutral market observation table.
+
+    The rules that matter are the ones that protect meaning: an observation key
+    must be unique, a price type must be one of the canonical buckets, and a
+    RWF/kg figure may only exist when a documented mass conversion produced it.
+    """
+    name = "market_price_observation"
+    path = PROCESSED_DIR / PROCESSED_FILES["market_prices"]
+    if not path.exists():
+        issue(
+            "info",
+            name,
+            "not built in this run (run scripts.data.ingest_market_prices)",
+        )
+        return
+
+    df = pd.read_csv(path)
+    _check_columns(
+        name,
+        df,
+        [
+            "observation_key",
+            "observation_date",
+            "commodity_name_raw",
+            "price_value_original",
+            "currency_original",
+            "unit_original",
+            "price_type",
+            "source_id",
+        ],
+    )
+    if df.empty:
+        issue(
+            "info",
+            name,
+            "no market observations yet - no provider export has been placed "
+            "under data/raw/markets/ (the canonical schema is written with 0 rows)",
+        )
+        return
+
+    _check_duplicate_keys(name, df, ["observation_key"])
+    _check_nonnegative(name, df, ["price_value_original"])
+
+    unknown_types = sorted(set(df["price_type"].dropna()) - set(MARKET_PRICE_TYPES))
+    if unknown_types:
+        issue("error", name, f"price_type outside the canonical vocabulary: {unknown_types}")
+
+    if df["commodity_name_raw"].isna().any():
+        issue(
+            "error",
+            name,
+            "rows without the published commodity name",
+            int(df["commodity_name_raw"].isna().sum()),
+        )
+
+    blank_source = int(df["source_id"].isna().sum())
+    if blank_source:
+        issue("error", name, "rows without source lineage", blank_source)
+
+    # A canonical RWF/kg value is only legitimate with a conversion factor.
+    if {"price_rwf_per_kg", "conversion_to_kg"}.issubset(df.columns):
+        converted = df["price_rwf_per_kg"].notna()
+        without_factor = int((converted & df["conversion_to_kg"].isna()).sum())
+        if without_factor:
+            issue(
+                "error",
+                name,
+                "price_rwf_per_kg present without a documented kg conversion",
+                without_factor,
+            )
+
+        non_rwf = int((converted & (df["currency_original"].str.upper() != "RWF")).sum())
+        if non_rwf:
+            issue(
+                "error",
+                name,
+                "price_rwf_per_kg computed from a non-RWF price (FX rate missing)",
+                non_rwf,
+            )
+
+        without_basis = int(
+            (df["conversion_to_kg"].notna() & df["conversion_basis"].isna()).sum()
+        )
+        if without_basis:
+            issue(
+                "warn",
+                name,
+                "kg conversion without a recorded basis",
+                without_basis,
+            )
+
+    unknown_units = int(df["unit_original"].isna().sum())
+    if unknown_units:
+        issue("error", name, "rows without the published unit", unknown_units)
+
+    unmapped_commodities = sorted(
+        str(v)
+        for v in df.loc[df["commodity_code"].isna(), "commodity_name_raw"].unique()
+    ) if "commodity_code" in df.columns else []
+    if unmapped_commodities:
+        issue(
+            "info",
+            name,
+            "commodities kept with a null code (no dictionary match): "
+            f"{unmapped_commodities}",
+            len(unmapped_commodities),
+        )
+
+    providers = sorted(set(df["source_id"]))
+    canonical = int(df["price_rwf_per_kg"].notna().sum()) if "price_rwf_per_kg" in df.columns else 0
+    issue(
+        "info",
+        name,
+        f"{len(df)} observations from {providers}; "
+        f"{canonical} have a canonical RWF/kg value, "
+        f"{len(df) - canonical} keep only the published original",
+    )
+
+
 def main() -> int:
     log(f"validate_raw (pipeline v{PIPELINE_VERSION})")
 
@@ -750,6 +971,8 @@ def main() -> int:
     _validate_cold_chain(known_districts)
     _validate_postharvest_infrastructure()
     _validate_cold_chain_network(known_districts)
+    _validate_crop_productivity(known_districts, known_crops)
+    _validate_market_prices()
 
     report = {
         "pipeline_version": PIPELINE_VERSION,
