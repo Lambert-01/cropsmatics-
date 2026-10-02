@@ -8,7 +8,7 @@ They **skip by default**. No CI run and no developer machine should be able to
 reach a production database by accident, so a test database must be named
 explicitly:
 
-    CANONICAL_TEST_DATABASE_URL=postgresql+psycopg://user:pw@host/db \\
+    CANONICAL_TEST_DATABASE_URL=postgresql+psycopg://user:pw@host/db \
         pytest services/api/tests/test_canonical_integration.py -q
 
 Use a throwaway database. The fixture applies migrations and loads the pipeline
@@ -140,7 +140,6 @@ def test_reloading_is_idempotent(engine, loaded, loader):
     after = _scalar(engine, "SELECT count(*) FROM crop_productivity")
     assert after == before, "a second load duplicated rows"
 
-    # The second run must record the rows as unchanged, not as fresh inserts.
     from sqlalchemy import text
 
     with engine.connect() as connection:
@@ -217,10 +216,10 @@ def test_negative_metrics_are_refused_by_the_database(engine, loaded):
                 text(
                     "INSERT INTO crop_productivity "
                     "(id, period_id, year, season, geography_level, geography_code, crop_code, "
-                    " crop_name, crop_variant, farmer_scale, production_mt, source_id, "
+                    " crop_name, farmer_scale, production_mt, source_id, "
                     " dataset_version, quality_flag, is_synthetic, created_at, updated_at) "
                     "VALUES (gen_random_uuid(), '2026B', 2026, 'B', 'district', 'RW-EA-BUG', "
-                    " 'CROP-MAI', 'Maize', '', 'all', -1, "
+                    " 'CROP-MAI', 'Maize', 'all', -1, "
                     " (SELECT source_id FROM data_source LIMIT 1), "
                     " (SELECT version FROM dataset_version LIMIT 1), 'ok', false, now(), now())"
                 )
@@ -358,7 +357,6 @@ def test_inquiry_receipt_token_is_never_stored_in_plaintext(loaded, app_engine):
     assert stored != token
     assert stored == hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-    # The correct token reads the inquiry back; any other token does not.
     assert inquiry_service.get_by_receipt(created["id"], token) is not None
     assert inquiry_service.get_by_receipt(created["id"], "x" * 40) is None
 
@@ -385,7 +383,6 @@ def test_inquiry_client_uuid_is_idempotent_across_retries(loaded, app_engine):
     assert count == 1
 
 
-# The wide indicator files whose rows are stored in `agricultural_observation`.
 OBSERVATION_FILES = (
     "district_productivity_factors.csv",
     "irrigation_water.csv",
@@ -458,7 +455,6 @@ def test_observation_read_keeps_missing_values_missing(loaded, app_engine):
         assert int(frame[column].isna().sum()) == int(csv[column].isna().sum()), (
             f"{column}: blank count changed"
         )
-        # A blank must not have been coerced to zero on the way through the DB.
         assert int(frame[column].isna().sum()) > 0, f"{column}: blanks disappeared"
         assert int((frame[column] == 0).sum()) == int((csv[column] == 0).sum()), (
             f"{column}: zero count changed"
@@ -522,7 +518,6 @@ def test_a_multi_table_extract_keeps_its_reference_list(loaded, app_engine):
     if isinstance(metadata, str):
         metadata = json.loads(metadata)
     assert metadata["source_tables"] == ["Table 30", "Table 31"]
-    # Two tables -> a release-level row, never a single worksheet claim.
     assert granularity == "dataset"
 
 
