@@ -370,7 +370,7 @@ export function TimeSeriesChart({
             }}
           >
             <Text style={{ ...typography.caption, textAlign: "center" }}>
-              {emptyNote ?? "No published observations for this selection."}
+              {emptyNote ?? t.noPublishedObservations}
             </Text>
           </View>
         )}
@@ -404,6 +404,7 @@ export function Sparkline({
   accessibilityLabel?: string;
 }) {
   const { colors } = useTheme();
+  const t = strings(useAppStore((s) => s.language));
   const strokeColor = color ?? colors.primary;
   const [measured, setMeasured] = useState(0);
   const width = widthProp ?? measured;
@@ -422,7 +423,9 @@ export function Sparkline({
       accessibilityRole="image"
       accessibilityLabel={
         accessibilityLabel ??
-        (published ? `Trend, ${published} published periods` : "No published periods")
+        (published
+          ? t.trendSummaryA11y.replace("{count}", String(published))
+          : t.noPublishedPeriods)
       }
       style={{ height, alignSelf: "stretch" }}
     >
@@ -487,6 +490,7 @@ export function StackedShareBar({
   note?: string;
 }) {
   const { colors, typography } = useTheme();
+  const t = strings(useAppStore((s) => s.language));
   const published = segments.filter(
     (segment) => segment.value !== null && Number.isFinite(segment.value) && segment.value > 0,
   );
@@ -498,7 +502,7 @@ export function StackedShareBar({
   if (!published.length) {
     return (
       <View style={{ gap: 4 }}>
-        <Text style={typography.caption}>No published composition shares for this selection.</Text>
+        <Text style={typography.caption}>{t.noPublishedComposition}</Text>
         {note ? <Text style={typography.micro}>{note}</Text> : null}
       </View>
     );
@@ -542,7 +546,7 @@ export function StackedShareBar({
             </Text>
             <Text style={typography.numeric}>
               {segment.value === null || !Number.isFinite(segment.value)
-                ? "Not published"
+                ? t.notPublished
                 : `${segment.value.toFixed(2)}${unit}`}
             </Text>
           </View>

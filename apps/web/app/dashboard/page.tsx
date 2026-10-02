@@ -8,17 +8,19 @@ import { PageHero } from "@/components/layout/PageHero";
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
-import { GapHeatmap } from "@/features/dashboard/GapHeatmap";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
+import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
+import { GapDumbbell } from "@/features/productivity/GapDumbbell";
+import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import {
-  useHeatmap,
   useInputAdoption,
   useOverview,
   usePriorities,
+  useProductivity,
   useTrends,
 } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -31,7 +33,12 @@ export default function DashboardPage() {
   const priorities = usePriorities(filters, 16, districtMode);
   const trends = useTrends(filters.crop, filters.compare);
   const inputAdoption = useInputAdoption();
-  const heatmap = useHeatmap(filters, "gap", districtMode);
+  // The gap views read the productivity panel's own published columns (observed
+  // yield, benchmark, gap index) rather than deriving a shortfall locally, so
+  // the dashboard and the Productivity page can never disagree about a number.
+  const productivity = useProductivity(filters, districtMode);
+  const benchmarkStrategy =
+    productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
 
   return (
     <div className="space-y-5">
@@ -119,10 +126,28 @@ export default function DashboardPage() {
         <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
       </div>
 
+      {/* Gap diagnosis leads with the two questions a reader actually asks -
+          "who is furthest below benchmark" and "by how much" - and then offers
+          the full district x crop grid collapsed at the end. The matrix used to
+          dominate this row while the ranked answer did not exist at all. */}
       <div className="grid gap-5 xl:grid-cols-2">
-        <InputAdoptionChart data={inputAdoption.data} isLoading={inputAdoption.isLoading} />
-        <GapHeatmap data={heatmap.data} isLoading={heatmap.isLoading} />
+        <GapRankedBars
+          rows={productivity.data?.rows ?? []}
+          isLoading={productivity.isLoading}
+          period={productivity.data?.period}
+          benchmark={benchmarkStrategy}
+        />
+        <GapDumbbell
+          rows={productivity.data?.rows ?? []}
+          isLoading={productivity.isLoading}
+          period={productivity.data?.period}
+          benchmark={benchmarkStrategy}
+        />
       </div>
+
+      <InputAdoptionChart data={inputAdoption.data} isLoading={inputAdoption.isLoading} />
+
+      <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
       </> : null}
 
       {overview.data ? <ProvenanceCard provenance={overview.data.provenance} /> : null}

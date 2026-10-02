@@ -45,13 +45,17 @@ import type { Palette, Typography } from "../src/theme";
 import { useThemedStyles, useTheme } from "../src/theme/theme-context";
 import type { NationalBoardCrop } from "../src/types";
 import {
+  type ApiChange,
   type ChangeResult,
+  type RawPoint,
   boardPoints,
   changeFromApi,
   filterSeason,
   formatValue,
+  latestObservation,
   latestSeason,
   publishedCount,
+  sameSeasonChange,
   toSeriesPoints,
 } from "../src/utils/analytics";
 import {
@@ -85,6 +89,8 @@ type PeriodView = "all" | "same-season";
 
 const PREVIEW_CROPS = 5;
 const TOP_DISTRICTS = 5;
+/** The default filter state — what "Reset filters" restores. */
+const DEFAULT_METRIC: TrendMetric = "production_mt";
 /** Choropleth classes the home map uses, matching the dedicated map screen. */
 const CLASS_COUNT = 5;
 
@@ -99,22 +105,6 @@ function latestValue(series: readonly (number | null)[] | undefined): number | n
   if (!series) return null;
   for (let index = series.length - 1; index >= 0; index -= 1) {
     if (series[index] !== null && series[index] !== undefined) return series[index] as number;
-  }
-  return null;
-}
-
-/** The published period label of the newest non-null value of a series. */
-function latestLabel(
-  series: readonly (number | null)[] | undefined,
-  periods: readonly string[],
-  labels: Record<string, string>,
-): string | null {
-  if (!series) return null;
-  for (let index = series.length - 1; index >= 0; index -= 1) {
-    if (series[index] !== null && series[index] !== undefined) {
-      const code = periods[index];
-      return code ? labels[code] ?? code : null;
-    }
   }
   return null;
 }
@@ -205,12 +195,38 @@ export default function HomeScreen() {
   const { insights } = useNationalInsights();
 
   // ---- filters (all functional; each changes what the page shows) -----------
-  const [metric, setMetric] = useState<TrendMetric>("production_mt");
+  const [metric, setMetric] = useState<TrendMetric>(DEFAULT_METRIC);
   const [periodView, setPeriodView] = useState<PeriodView>("all");
   const [season, setSeason] = useState<SeasonFilter>("all");
   const [cropFilter, setCropFilter] = useState<string | null>(null);
   // Measured so the Rwanda map never overflows a 320px-wide screen.
   const [mapWidth, setMapWidth] = useState(0);
+
+  /**
+   * Selecting a season also clears the "same season" period view.
+   *
+   * The two describe one axis, not two. "Same season" means "one point per
+   * year for the latest published season"; once the user has named a season
+   * that view is already implied, and intersecting the two asks for
+   * "Season A, and also whichever season is newest" — empty whenever the
+   * chosen season is not the newest release. Arming them together is the
+   * impossible combination the filter model must not allow.
+   */
+  const selectSeason = useCallback((next: SeasonFilter) => {
+    setSeason(next);
+    setPeriodView("all");
+  }, []);
+
+  const canReset =
+    season !== "all" || periodView !== "all" || cropFilter !== null || metric !== DEFAULT_METRIC;
+
+  /** Back to the canonical default: newest published data, all crops, all seasons. */
+  const resetFilters = useCallback(() => {
+    setSeason("all");
+    setPeriodView("all");
+    setCropFilter(null);
+    setMetric(DEFAULT_METRIC);
+  }, []);
 
   const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
   const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
@@ -224,23 +240,76 @@ export default function HomeScreen() {
 
   const totals = board.data?.national ?? null;
 
+  // ---- which crop the analytical surfaces describe --------------------------
+  // A selected crop narrows the KPI grid and the trend to that crop's own
+  // national series. With nothing selected they describe the national total.
+  const entry = useMemo<NationalBoardCrop | null>(
+    () => board.data?.crops?.find((item) => item.crop === cropFilter) ?? null,
+    [board.data, cropFilter],
+  );
+
+  /**
+   * Apply the active period scope to a raw board series.
+   *
+   * One helper, used by the KPI grid and the trend, so a figure in a card can
+   * never disagree with the line drawn beneath it.
+   */
+  const applyScope = useCallback(
+    (raw: RawPoint[]): RawPoint[] => {
+      if (season !== "all") return filterSeason(raw, season);
+      if (periodView === "same-season") return filterSeason(raw, latestSeason(raw));
+      return raw;
+    },
+    [season, periodView],
+  );
+
+  /**
+   * The change badge must describe the series actually on screen.
+   *
+   * With no season filter the API's own same-season change is authoritative —
+   * eligibility is decided there, and its reason string is shown verbatim when
+   * it declines. Once the user narrows to a single season that API figure no
+   * longer describes what is drawn, so the change is recomputed from the
+   * displayed points. Either way a comparison that cannot be made renders as
+   * words, never as 0%.
+   */
+  const changeFor = useCallback(
+    (raw: RawPoint[], key: TrendMetric, apiChange: ApiChange | null | undefined) =>
+      season === "all" ? changeFromApi(apiChange) : sameSeasonChange(raw, key),
+    [season],
+  );
+
+  /** Raw points for one metric of the active crop (or national) series, scoped. */
+  const seriesFor = useCallback(
+    (key: TrendMetric): RawPoint[] => {
+      const series = cropFilter ? entry?.series : totals?.series;
+      if (!series) return [];
+      return applyScope(boardPoints({ periods, period_labels: periodLabels, series }, [key]));
+    },
+    [cropFilter, entry, totals, periods, periodLabels, applyScope],
+  );
+
   // ---- KPI grid -------------------------------------------------------------
   const kpi = useMemo(() => {
     const build = (key: TrendMetric) => {
-      if (!totals) return { value: null as number | null, points: [], period: null as string | null, change: null as ChangeResult | null };
-      const raw = boardPoints({ periods, period_labels: periodLabels, series: totals.series }, [key]);
+      const raw = seriesFor(key);
+      const observation = latestObservation(raw, key);
       return {
-        value: latestValue(totals.series[key]),
+        value: observation?.value ?? null,
+        period: observation?.label ?? null,
         points: toSeriesPoints(raw, key),
-        period: latestLabel(totals.series[key], periods, periodLabels),
-        change: changeFromApi(totals.changes?.[key]),
+        change: changeFor(
+          raw,
+          key,
+          cropFilter ? entry?.changes?.[key] : totals?.changes?.[key],
+        ),
       };
     };
     return {
       production: build("production_mt"),
       area: build("harvested_area_ha"),
     };
-  }, [totals, periods, periodLabels]);
+  }, [seriesFor, changeFor, cropFilter, entry, totals]);
 
   const cropsAnalysed = home.data?.crop_count ?? crops.data?.length ?? null;
   const districtsCovered = home.data?.district_count ?? null;
@@ -256,26 +325,79 @@ export default function HomeScreen() {
   }, [periods]);
 
   // ---- national trend -------------------------------------------------------
-  const entry = useMemo<NationalBoardCrop | null>(
-    () => board.data?.crops?.find((item) => item.crop === cropFilter) ?? null,
-    [board.data, cropFilter],
+  const trendRaw = useMemo(() => seriesFor(metric), [seriesFor, metric]);
+  const trendPoints = useMemo(() => toSeriesPoints(trendRaw, metric), [trendRaw, metric]);
+  const trendChange = useMemo(
+    () =>
+      changeFor(
+        trendRaw,
+        metric,
+        cropFilter ? entry?.changes?.[metric] : totals?.changes?.[metric],
+      ),
+    [trendRaw, metric, changeFor, cropFilter, entry, totals],
   );
-  const trendSource = cropFilter ? entry?.series : totals?.series;
-  const trendChange = cropFilter
-    ? changeFromApi(entry?.changes?.[metric])
-    : changeFromApi(totals?.changes?.[metric]);
-
-  const trendPoints = useMemo(() => {
-    if (!trendSource) return [];
-    const raw = boardPoints({ periods, period_labels: periodLabels, series: trendSource }, [metric]);
-    let filtered = raw;
-    if (periodView === "same-season") filtered = filterSeason(filtered, latestSeason(filtered));
-    if (season !== "all") filtered = filterSeason(filtered, season);
-    return toSeriesPoints(filtered, metric);
-  }, [trendSource, periods, periodLabels, metric, periodView, season]);
 
   const trendPublished = publishedCount(trendPoints);
   const trendUnit = metricUnits[metric] ?? null;
+
+  /**
+   * The filter state in words, e.g. "Maize · Season B · Same season".
+   *
+   * Used by every section subtitle, the KPI caption and the empty states, so a
+   * component always states which filters produced what it is showing. A card
+   * that is deliberately dataset-wide gets `coverageScopeNote` instead of this.
+   */
+  const scopeLabel = useMemo(
+    () =>
+      [
+        cropFilter ?? t.nationalSeries,
+        season !== "all" ? `${t.seasonWord} ${season}` : null,
+        periodView === "same-season" ? t.sameSeasonView : null,
+      ]
+        .filter(Boolean)
+        .join(" \u00b7 "),
+    [cropFilter, season, periodView, t],
+  );
+
+  /**
+   * The caption over the KPI grid.
+   *
+   * The two headline figures follow the crop and the season, so when the grid
+   * is not national-and-unfiltered it says what it is. Showing the national
+   * total under an active crop filter without saying so is the failure this
+   * caption exists to prevent.
+   */
+  const pulseScope = useMemo(
+    () =>
+      [
+        cropFilter ?? t.scopeNational,
+        season !== "all" ? `${t.seasonWord} ${season}` : null,
+      ]
+        .filter(Boolean)
+        .join(" \u00b7 "),
+    [cropFilter, season, t],
+  );
+
+  /** The metric's own label, for the empty state's sentence. */
+  const metricLabel = useMemo(
+    () => t[TREND_METRICS.find((item) => item.id === metric)?.labelKey ?? "metricProduction"],
+    [metric, t],
+  );
+
+  /** "No published <metric> data for <selection>." — never a silent zero. */
+  const noDataMessage = useMemo(
+    () =>
+      t.noPublishedSelection
+        .replace("{metric}", metricLabel)
+        .replace("{selection}", scopeLabel),
+    [t, metricLabel, scopeLabel],
+  );
+
+  /** The trend chart's screen-reader description, in the active language. */
+  const trendA11yLabel = useMemo(
+    () => t.trendChartA11y.replace("{metric}", metricLabel).replace("{selection}", scopeLabel),
+    [t, metricLabel, scopeLabel],
+  );
 
   // ---- crop watchlist -------------------------------------------------------
   const previewNames = useMemo(
@@ -420,30 +542,41 @@ export default function HomeScreen() {
               <FilterChip
                 label={t.seasonAll}
                 selected={season === "all"}
-                onPress={() => setSeason("all")}
+                onPress={() => selectSeason("all")}
               />
               {availableSeasons.map((letter) => (
                 <FilterChip
                   key={letter}
                   label={`${t.seasonWord} ${letter}`}
                   selected={season === letter}
-                  onPress={() => setSeason(letter)}
+                  onPress={() => selectSeason(letter)}
                 />
               ))}
 
-              <FilterChip
-                label={t.allPublishedPeriods}
-                selected={periodView === "all"}
-                onPress={() => setPeriodView("all")}
-              />
-              <FilterChip
-                label={t.sameSeasonView}
-                selected={periodView === "same-season"}
-                onPress={() => setPeriodView("same-season")}
-              />
+              {/*
+                The period view is offered only while no season is selected.
+                Season and period view describe the same axis, so offering both
+                at once lets the user ask for a combination that cannot have
+                data (Season A *and* the newest season) and then renders as an
+                empty chart the user cannot explain.
+              */}
+              {season === "all" ? (
+                <>
+                  <FilterChip
+                    label={t.allPublishedPeriods}
+                    selected={periodView === "all"}
+                    onPress={() => setPeriodView("all")}
+                  />
+                  <FilterChip
+                    label={t.sameSeasonView}
+                    selected={periodView === "same-season"}
+                    onPress={() => setPeriodView("same-season")}
+                  />
+                </>
+              ) : null}
 
               <FilterChip
-                label={t.crops}
+                label={t.filterAllCrops}
                 selected={cropFilter === null}
                 onPress={() => setCropFilter(null)}
               />
@@ -455,14 +588,35 @@ export default function HomeScreen() {
                   onPress={() => setCropFilter(item.crop)}
                 />
               ))}
+
+              {/* Always reachable once anything is off its default, so the
+                  user is never stranded in an empty selection. */}
+              {canReset ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t.resetFilters}
+                  onPress={resetFilters}
+                  hitSlop={8}
+                  style={styles.resetChip}
+                >
+                  <Ionicons name="refresh-outline" size={13} color={colors.primaryStrong} />
+                  <Text style={styles.resetChipText}>{t.resetFilters}</Text>
+                </Pressable>
+              ) : null}
             </ScrollView>
 
-            {/* ---- 2x2 KPI grid ------------------------------------------- */}
+            {/* The pulse follows the crop and season filters, so its caption
+                names them. These are national figures, never district ones. */}
+            <View style={styles.scopeRow}>
+              <Text style={typography.microCaps}>{t.pulseTitle.toUpperCase()}</Text>
+              <Text numberOfLines={1} style={styles.scopeValue}>
+                {pulseScope}
+              </Text>
+            </View>
+
             <View style={styles.kpiGrid}>
               {boardLoading ? (
                 <>
-                  <LoadingSkeleton height={112} />
-                  <LoadingSkeleton height={112} />
                   <LoadingSkeleton height={112} />
                   <LoadingSkeleton height={112} />
                 </>
@@ -495,27 +649,37 @@ export default function HomeScreen() {
                       setCropFilter(null);
                     }}
                   />
-                  <KpiCard
-                    icon="leaf-outline"
-                    label={t.kpiCropsAnalysed}
-                    value={cropsAnalysed}
-                    onPress={() => router.push("/explore/crops")}
-                  />
-                  <KpiCard
-                    icon="location-outline"
-                    label={t.kpiDistrictsCovered}
-                    value={districtsCovered}
-                    onPress={() => router.push("/explore/districts")}
-                  />
                 </>
               )}
             </View>
 
+            {/* Dataset coverage is a property of the release, not of the
+                selection, so it is captioned as such rather than left to look
+                filter-scoped. */}
+            <View style={styles.scopeRow}>
+              <Text style={typography.microCaps}>{t.publishedCoverage.toUpperCase()}</Text>
+              <Text numberOfLines={1} style={styles.scopeValue}>
+                {t.coverageScopeNote}
+              </Text>
+            </View>
+
+            <View style={styles.kpiGrid}>
+              <KpiCard
+                icon="leaf-outline"
+                label={t.kpiCropsAnalysed}
+                value={cropsAnalysed}
+                onPress={() => router.push("/explore/crops")}
+              />
+              <KpiCard
+                icon="location-outline"
+                label={t.kpiDistrictsCovered}
+                value={districtsCovered}
+                onPress={() => router.push("/explore/districts")}
+              />
+            </View>
+
             {/* ---- National crop trends ----------------------------------- */}
-            <DataSection
-              title={t.nationalTrendTitle}
-              subtitle={cropFilter ? `${cropFilter} \u00b7 ${t.nationalSeries}` : t.nationalSeries}
-            >
+            <DataSection title={t.nationalTrendTitle} subtitle={scopeLabel}>
               <MetricSelector
                 value={metric}
                 onChange={(id) => setMetric(id as TrendMetric)}
@@ -529,10 +693,10 @@ export default function HomeScreen() {
               {boardLoading ? (
                 <LoadingSkeleton height={chart.height} />
               ) : trendPublished === 0 ? (
-                <EmptyState
-                  title={t.noDataAvailable}
-                  message={`${cropFilter ?? t.nationalSeries} — ${t.notPublished.toLowerCase()}.`}
-                />
+                /* Names the selection that returned nothing. The previous copy
+                   said only "no data", which leaves the user guessing which of
+                   several active filters produced the gap. */
+                <EmptyState title={t.noDataAvailable} message={noDataMessage} />
               ) : (
                 <>
                   <TimeSeriesChart
@@ -545,10 +709,13 @@ export default function HomeScreen() {
                     ]}
                     unit={trendUnit}
                     height={chart.height}
-                    accessibilityLabel={`${cropFilter ?? t.nationalSeries} ${metric} trend`}
+                    accessibilityLabel={trendA11yLabel}
                   />
                   <ChangeIndicator change={trendChange} unavailableNote={t.noComparableChange} />
                   {trendPublished === 1 ? <DataWarning tone="slate" text={t.singlePointNote} /> : null}
+                  {periodView === "same-season" ? (
+                    <DataWarning tone="slate" text={t.sameSeasonNotSeries} />
+                  ) : null}
                 </>
               )}
             </DataSection>
@@ -736,8 +903,17 @@ export default function HomeScreen() {
   );
 }
 
-const makeStyles = (colors: Palette, typography: Typography) =>
-  StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) => {
+  /**
+   * Scale a size that is genuinely specific to this screen.
+   *
+   * Only for values with no token — everything else reads `typography`, which is
+   * already scaled by the active preference. A bare literal here would silently
+   * ignore "Larger text".
+   */
+  const s = (value: number) => Math.round(value * typography.scale);
+
+  return StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
 
   // Hero
@@ -759,15 +935,15 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   heroBody: { padding: spacing.md, gap: 5 },
   heroEyebrow: {
     color: colors.mint,
-    fontSize: 10,
+    fontSize: s(10),
     fontWeight: "700",
     letterSpacing: 1,
   },
-  heroHeadline: { color: colors.white, fontSize: 22, fontWeight: "700", lineHeight: 27 },
-  heroSupport: { color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 18 },
+  heroHeadline: { color: colors.white, fontSize: s(22), fontWeight: "700", lineHeight: s(27) },
+  heroSupport: { color: "rgba(255,255,255,0.85)", fontSize: s(13), lineHeight: s(18) },
   heroValues: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: 4 },
   heroValue: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroValueText: { color: colors.white, fontSize: 11, fontWeight: "600" },
+  heroValueText: { color: colors.white, fontSize: s(11), fontWeight: "600" },
 
   // Filter strip
   filterStrip: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
@@ -781,7 +957,22 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     backgroundColor: colors.mint,
     maxWidth: 190,
   },
-  contextChipText: { fontSize: 12, fontWeight: "700", color: colors.primaryStrong },
+  contextChipText: { fontSize: s(12), fontWeight: "700", color: colors.primaryStrong },
+  resetChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  resetChipText: { fontSize: s(12), fontWeight: "700", color: colors.primaryStrong },
+
+  // Section caption that names the scope a block of figures was computed for.
+  scopeRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  scopeValue: { ...typography.micro, flex: 1, color: colors.slate700 },
 
   // KPI grid
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
@@ -805,11 +996,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     justifyContent: "center",
   },
   kpiLabel: { ...typography.microCaps, flex: 1 },
-  kpiValue: {
-    ...typography.numericLarge,
-    fontSize: 24,
-    fontVariant: ["tabular-nums"] as ["tabular-nums"],
-  },
+  kpiValue: { ...typography.numericCard },
 
   // Sections
   sectionAction: { ...typography.micro, color: colors.primaryStrong, fontWeight: "700" },
@@ -819,7 +1006,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   legendBands: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, alignItems: "center" },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   swatch: { width: 12, height: 12, borderRadius: 3, borderWidth: 1, borderColor: colors.border },
-  legendText: { fontSize: 10, color: colors.slate700, fontVariant: ["tabular-nums"] },
+  legendText: { fontSize: s(10), color: colors.slate700, fontVariant: ["tabular-nums"] },
 
   // FAB
   fab: {
@@ -834,5 +1021,6 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     backgroundColor: colors.primary,
     ...shadow.strong,
   },
-  fabLabel: { color: colors.white, fontSize: 14, fontWeight: "700" },
-});
+  fabLabel: { color: colors.white, fontSize: s(14), fontWeight: "700" },
+  });
+};

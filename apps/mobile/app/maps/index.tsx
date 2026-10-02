@@ -248,7 +248,7 @@ export default function MapsScreen() {
                 </View>
 
                 <Text style={typography.numericLarge}>
-                  {selectedRow.value === null ? "Not published" : formatValue(selectedRow.value)}
+                  {selectedRow.value === null ? t.notPublished : formatValue(selectedRow.value)}
                   {selectedRow.value !== null && unit ? <Text style={typography.unit}>{` ${unit}`}</Text> : null}
                 </Text>
 

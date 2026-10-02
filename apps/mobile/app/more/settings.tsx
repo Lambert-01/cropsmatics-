@@ -86,7 +86,7 @@ export default function SettingsScreen() {
         >
           <Text style={{ color: colors.danger, fontWeight: "600" }}>{t.clearCachedData}</Text>
         </Pressable>
-        <Text style={typography.micro}>Saved items and Ask history are kept; only queued drafts are cleared.</Text>
+        <Text style={typography.micro}>{t.clearCacheNote}</Text>
       </Card>
 
       <Card>

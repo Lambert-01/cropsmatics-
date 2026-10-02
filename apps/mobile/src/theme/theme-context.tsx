@@ -3,7 +3,7 @@ import { useColorScheme } from "react-native";
 
 import { features } from "../config/features";
 import { useAppStore } from "../store/useAppStore";
-import { makeTypography, palettes, type Palette, type Typography } from "./index";
+import { LARGE_TEXT_SCALE, makeTypography, palettes, type Palette, type Typography } from "./index";
 
 export type ThemeMode = "light" | "dark";
 
@@ -25,27 +25,46 @@ const ThemeContext = createContext<ThemeValue>({
 });
 
 /**
- * Resolves the active colour scheme from the user's preference and the OS.
+ * Resolves the active colour scheme from the user's preference and the OS, and
+ * the type scale from the accessibility preference.
  *
  * Gated by `features.darkMode`: until every screen reads colours from this
  * context, forcing light keeps the app visually coherent instead of rendering
  * a dark shell around light screens. When the flag is on, `system` follows the
  * device and the explicit `light`/`dark` choices override it.
+ *
+ * Typography is rebuilt with the palette *and* the scale because both colours
+ * and sizes are baked into the text styles. Reading `settings.largerText` here
+ * rather than at each call site is what makes the settings toggle actually do
+ * something — a screen that pulls `useTheme().typography` gets the scaled type
+ * for free, and `useThemedStyles` rebuilds its styles from the new object.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const appearance = useAppStore((s) => s.settings.appearance);
+  const largerText = useAppStore((s) => s.settings.largerText);
   const system = useColorScheme();
 
   const value = useMemo<ThemeValue>(() => {
+    const scale = largerText ? LARGE_TEXT_SCALE : 1;
     if (!features.darkMode) {
       const colors = palettes.light;
-      return { colors, typography: makeTypography(colors), mode: "light", available: false };
+      return {
+        colors,
+        typography: makeTypography(colors, scale),
+        mode: "light",
+        available: false,
+      };
     }
     const resolved: ThemeMode =
       appearance === "system" ? (system === "dark" ? "dark" : "light") : appearance;
     const colors = palettes[resolved];
-    return { colors, typography: makeTypography(colors), mode: resolved, available: true };
-  }, [appearance, system]);
+    return {
+      colors,
+      typography: makeTypography(colors, scale),
+      mode: resolved,
+      available: true,
+    };
+  }, [appearance, largerText, system]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

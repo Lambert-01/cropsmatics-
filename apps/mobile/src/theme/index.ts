@@ -203,50 +203,87 @@ export const radius = {
 };
 
 /**
- * Typography for a palette.
+ * The "Larger text" step.
+ *
+ * Settings exposes a larger-text preference (see `useAppStore.settings`). A
+ * comfortable reading step is 1.18 — big enough to be obviously different,
+ * small enough that the densest surface in the app (a 2x2 KPI grid on a 320px
+ * screen) still fits without reflowing.
+ *
+ * Deliberately NOT a screen `transform: scale()`. Scaling the whole view scales
+ * hit targets, hairline borders and chart geometry too, so a control that met
+ * the 44pt touch minimum stops looking like it does and a 1px rule smears. Only
+ * type grows here; spacing, radii and chart metrics stay put.
+ */
+export const LARGE_TEXT_SCALE = 1.18;
+
+/**
+ * Typography for a palette, optionally scaled.
  *
  * Colours are baked into the text styles, so typography is a function of the
  * active palette rather than a constant: in dark mode every text style must
  * resolve to the dark foreground, and a frozen object would keep light ink on a
  * near-black surface. Components read it from `useTheme().typography`.
+ *
+ * `scale` multiplies every size. Spacing is intentionally untouched — a label
+ * that grows while its container keeps its padding is a legible label; a label
+ * that grows *and* pushes its container apart breaks the grid.
  */
-export function makeTypography(colors: Palette) {
+export function makeTypography(colors: Palette, scale = 1) {
+  /** Rounded so half-pixels never reach the text renderer on Android. */
+  const size = (value: number) => Math.round(value * scale);
+
   return {
-  display: { fontSize: 28, fontWeight: "700" as const, color: colors.forestDeep },
-  h1: { fontSize: 24, fontWeight: "700" as const, color: colors.forestDeep },
-  h2: { fontSize: 18, fontWeight: "700" as const, color: colors.forest },
-  h3: { fontSize: 16, fontWeight: "600" as const, color: colors.forest },
-  body: { fontSize: 15, color: colors.slate },
-  bodySmall: { fontSize: 14, color: colors.slate },
-  caption: { fontSize: 13, color: colors.muted },
-  micro: { fontSize: 12, color: colors.muted },
-  metric: { fontSize: 22, fontWeight: "700" as const, color: colors.forestDeep },
-  label: { fontSize: 13, fontWeight: "600" as const, color: colors.slate700 },
+  /**
+   * The active multiplier.
+   *
+   * Exposed so a screen with a deliberately bespoke size can opt in
+   * (`Math.round(22 * typography.scale)`) instead of holding a literal that
+   * silently ignores the preference.
+   */
+  scale,
+  display: { fontSize: size(28), fontWeight: "700" as const, color: colors.forestDeep },
+  h1: { fontSize: size(24), fontWeight: "700" as const, color: colors.forestDeep },
+  h2: { fontSize: size(18), fontWeight: "700" as const, color: colors.forest },
+  h3: { fontSize: size(16), fontWeight: "600" as const, color: colors.forest },
+  body: { fontSize: size(15), color: colors.slate },
+  bodySmall: { fontSize: size(14), color: colors.slate },
+  caption: { fontSize: size(13), color: colors.muted },
+  micro: { fontSize: size(12), color: colors.muted },
+  metric: { fontSize: size(22), fontWeight: "700" as const, color: colors.forestDeep },
+  label: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate700 },
 
   // ---- Numeric hierarchy ---------------------------------------------------
   // Tabular figures keep columns of numbers aligned and stop a value from
   // reflowing while the user drags a chart crosshair.
   numericLarge: {
-    fontSize: 30,
+    fontSize: size(30),
+    fontWeight: "700" as const,
+    color: colors.forestDeep,
+    fontVariant: ["tabular-nums"] as ["tabular-nums"],
+  },
+  /** The figure that heads a KPI card: a step below `numericLarge`. */
+  numericCard: {
+    fontSize: size(24),
     fontWeight: "700" as const,
     color: colors.forestDeep,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numeric: {
-    fontSize: 17,
+    fontSize: size(17),
     fontWeight: "700" as const,
     color: colors.forestDeep,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numericSmall: {
-    fontSize: 13,
+    fontSize: size(13),
     fontWeight: "600" as const,
     color: colors.slate700,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
-  unit: { fontSize: 13, fontWeight: "600" as const, color: colors.slate500 },
+  unit: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate500 },
   axisLabel: {
-    fontSize: 10,
+    fontSize: size(10),
     color: colors.slate500,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
@@ -258,7 +295,7 @@ export function makeTypography(colors: Palette) {
    * label that has to line up with a figure below it.
    */
   microCaps: {
-    fontSize: 10,
+    fontSize: size(10),
     fontWeight: "700" as const,
     color: colors.slate500,
     letterSpacing: 0,

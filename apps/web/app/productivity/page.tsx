@@ -9,6 +9,9 @@ import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
+import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
+import { GapDumbbell } from "@/features/productivity/GapDumbbell";
+import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
@@ -25,6 +28,8 @@ export default function ProductivityPage() {
   const factors = useFactors(filters, districtMode && Boolean(filters.crop));
   const trends = useTrends(filters.crop, filters.compare);
   const inputs = useInputAdoption();
+  const benchmarkStrategy =
+    productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
 
   return (
     <div className="space-y-5">
@@ -102,6 +107,23 @@ export default function ProductivityPage() {
       ) : null}
 
       {districtMode ? <>
+      {/* Ranked shortfalls and benchmark pairs before the map: they state the
+          answer in numbers, then the map places it geographically. */}
+      <div className="grid gap-5 xl:grid-cols-2">
+        <GapRankedBars
+          rows={productivity.data?.rows ?? []}
+          isLoading={productivity.isLoading}
+          period={productivity.data?.period}
+          benchmark={benchmarkStrategy}
+        />
+        <GapDumbbell
+          rows={productivity.data?.rows ?? []}
+          isLoading={productivity.isLoading}
+          period={productivity.data?.period}
+          benchmark={benchmarkStrategy}
+        />
+      </div>
+
       <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
         <ProductivityRiskMap
           filters={filters}
@@ -118,6 +140,9 @@ export default function ProductivityPage() {
         />
         <ModelPerformancePanel />
       </div>
+
+      {/* The dense matrix, collapsed and fetched on demand. */}
+      <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
 
       {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
       </> : null}

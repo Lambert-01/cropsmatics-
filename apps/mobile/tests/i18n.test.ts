@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { CROPS, DISTRICTS } from "../src/constants/reference";
 import { en, rw, strings } from "../src/i18n";
+import { PENDING_KINYARWANDA_REVIEW, SHARED_BY_DESIGN } from "../src/i18n/pending-review";
 import { uuidv4 } from "../src/utils/uuid";
+
+/** Keys whose Kinyarwanda value is byte-identical to the English one. */
+const untranslatedKeys = Object.keys(en).filter((key) => en[key as keyof typeof en] === rw[key as keyof typeof rw]);
 
 describe("i18n", () => {
   it("has matching keys in every language", () => {
@@ -25,6 +29,46 @@ describe("i18n", () => {
       // otherwise a .replace() at the call site silently does nothing.
       expect(tokens(rw[key]), `rw.${key}`).toEqual(tokens(en[key]));
     }
+  });
+
+  // ---- Kinyarwanda coverage -------------------------------------------------
+  //
+  // Key parity alone does not prove a language is translated: a Kinyarwanda
+  // dictionary that is entirely English satisfies it. These two assertions turn
+  // the remaining gap into an explicit ledger (src/i18n/pending-review.ts) that
+  // cannot silently grow *or* silently go stale.
+
+  it("has no untranslated key that is not on the ledger", () => {
+    const ledger = new Set([...PENDING_KINYARWANDA_REVIEW, ...SHARED_BY_DESIGN]);
+    const untracked = untranslatedKeys.filter((key) => !ledger.has(key));
+    expect(
+      untracked,
+      `New string(s) shipped with English text in the Kinyarwanda build: ${untracked.join(", ")}. ` +
+        "Translate them, or add them to PENDING_KINYARWANDA_REVIEW with a reason.",
+    ).toEqual([]);
+  });
+
+  it("keeps the ledger free of keys that have since been translated", () => {
+    const stillUntranslated = new Set(untranslatedKeys);
+    const stale = [...PENDING_KINYARWANDA_REVIEW, ...SHARED_BY_DESIGN].filter(
+      (key) => !stillUntranslated.has(key),
+    );
+    expect(
+      stale,
+      `Stale ledger entry (the value now differs from English, so remove it): ${stale.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("keeps every ledger entry a real key", () => {
+    const keys = new Set(Object.keys(en));
+    for (const key of [...PENDING_KINYARWANDA_REVIEW, ...SHARED_BY_DESIGN]) {
+      expect(keys.has(key), `ledger entry "${key}" is not a key in en.ts`).toBe(true);
+    }
+  });
+
+  it("transcribes its own ledger", () => {
+    // Docs claim the ledger is alphabetical; an unsorted one is unreviewable.
+    expect([...PENDING_KINYARWANDA_REVIEW]).toEqual([...PENDING_KINYARWANDA_REVIEW].sort());
   });
 
   it("resolves language and falls back safely", () => {

@@ -261,6 +261,7 @@ export const en = {
   dataSettings: "Data",
   offlineCache: "Offline cache",
   clearCachedData: "Clear cached data",
+  clearCacheNote: "Saved items and Ask history are kept; only queued drafts are cleared.",
   notifications: "Notifications",
   notificationsInfo: "Information updates",
   notificationsInquiry: "Inquiry responses",
@@ -316,7 +317,26 @@ export const en = {
   sameSeasonView: "Same season",
   latestPublished: "Latest published",
   notPublished: "Not published",
+  /** Board row / map readout: the selection has periods, none of them published. */
+  noPublishedPeriod: "No published period",
+  noPublishedPeriods: "No published periods",
+  noPublishedObservations: "No published observations for this selection.",
+  noPublishedComposition: "No published composition shares for this selection.",
+  /** {count} is a number of published periods. */
+  trendSummaryA11y: "Trend, {count} published periods",
   noComparableChange: "No comparable earlier published period.",
+  // ---- Filter controls ----------------------------------------------------
+  resetFilters: "Reset filters",
+  filterAllCrops: "All crops",
+  /** Says outright that a caption is dataset-wide, so no filter is implied. */
+  coverageScopeNote: "Whole published dataset — not narrowed by the filters above.",
+  /** {metric} and {selection} are filled from the active filter state. */
+  noPublishedSelection: "No published {metric} data for {selection}.",
+  /**
+   * Screen-reader description of a trend chart. It restates the metric and the
+   * active selection, because a chart is only meaningful inside its filters.
+   */
+  trendChartA11y: "{metric} trend chart for {selection}",
   sourceAndMethod: "Source & method",
   cropBoard: "Crop board",
   cropBoardSubtitle: "Published value, same-season change and trend by crop",

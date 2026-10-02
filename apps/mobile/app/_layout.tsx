@@ -1,19 +1,56 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as NavigationBar from "expo-navigation-bar";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
 import { ThemeProvider, useTheme } from "../src/theme/theme-context";
 
-/** Status-bar content follows the active scheme (light text on a dark surface). */
-function ThemedStatusBar() {
-  const { mode } = useTheme();
-  return <StatusBar style={mode === "dark" ? "light" : "dark"} />;
+/**
+ * Push the resolved theme onto the native system surfaces.
+ *
+ * The Android theme built by `plugins/with-analytical-theme.js` already covers
+ * the System case on its own: `expo-system-ui` puts AppCompatDelegate in
+ * MODE_NIGHT_FOLLOW_SYSTEM, so `res/values-night/` resolves without any help
+ * from JS. What the native theme *cannot* do is honour an explicit Light/Dark
+ * choice that disagrees with the device — AppCompatDelegate only ever follows
+ * the OS here. That is what this component is for, and it is why both bars are
+ * asserted rather than just the status bar.
+ *
+ * On iOS and web the native theme owns this and both calls are no-ops.
+ */
+function ThemedSystemBars() {
+  const { colors, mode } = useTheme();
+  // "light" here means light *content*: white icons on a dark bar.
+  const content = mode === "dark" ? "light" : "dark";
+
+  useEffect(() => {
+    // Root view behind the React tree. Removes the frame of app.json's light
+    // background between the native splash being hidden and the first themed
+    // screen painting in dark mode.
+    if (Platform.OS !== "android") return;
+    void SystemUI.setBackgroundColorAsync(colors.background).catch(() => {
+      // Older Android without the API, or no native module: not fatal.
+    });
+  }, [colors.background]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    void NavigationBar.setBackgroundColorAsync(colors.surface).catch(() => {
+      // Immersive/edge-to-edge modes reject this; the theme colour stands.
+    });
+    void NavigationBar.setButtonStyleAsync(content).catch(() => {
+      // Bar not present (gesture navigation): nothing to tint.
+    });
+  }, [colors.surface, content]);
+
+  return <StatusBar style={content} backgroundColor={colors.surface} />;
 }
 
 /**
@@ -111,7 +148,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={client}>
-          <ThemedStatusBar />
+          <ThemedSystemBars />
           <ThemedStack />
           {!splashDone ? (
             <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />

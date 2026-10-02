@@ -18,7 +18,7 @@ import { EmptyState, ErrorState, LoadingSkeleton } from "../../../src/components
 import { PANEL_UNITS } from "../../../src/constants/metrics";
 import { getSavedItem, removeSavedItem, saveItem } from "../../../src/database";
 import { useNationalBoard, usePeriods } from "../../../src/hooks/queries";
-import { strings } from "../../../src/i18n";
+import { strings, type Strings } from "../../../src/i18n";
 import { analyticsApi, cropsApi, mapsApi, postHarvestApi } from "../../../src/services/api";
 import { useAppStore } from "../../../src/store/useAppStore";
 import { chart, radius, spacing } from "../../../src/theme";
@@ -42,6 +42,32 @@ type NationalMetric = (typeof NATIONAL_METRICS)[number];
 /** District cross-section metrics: the canonical panel, plus the Python gap. */
 const DISTRICT_METRICS = ["yield_kg_ha", "production_mt", "harvested_area_ha", "gap"] as const;
 type DistrictMetric = (typeof DISTRICT_METRICS)[number];
+
+/**
+ * The display name of a board/panel metric key.
+ *
+ * One lookup for the national selector, the district selector and every
+ * "no published …" sentence. The two selectors previously each carried their
+ * own nested ternary, so a new metric had to be added in three places or the
+ * screens disagreed about what a column was called.
+ *
+ * Note the two yield keys are deliberately not the same label: `yield_mt_ha`
+ * (t/ha, national board) and `yield_kg_ha` (kg/ha, district panel) are separate
+ * published columns, and the unit beside the label is what distinguishes them.
+ */
+function metricLabelFor(t: Strings, metric: NationalMetric | DistrictMetric): string {
+  switch (metric) {
+    case "yield_mt_ha":
+    case "yield_kg_ha":
+      return t.metricYield;
+    case "production_mt":
+      return t.metricProduction;
+    case "harvested_area_ha":
+      return t.metricArea;
+    case "gap":
+      return t.metricGap;
+  }
+}
 
 type PeriodView = "all" | "same-season";
 
@@ -282,12 +308,7 @@ export default function CropTerminalScreen() {
         <MetricSelectorRow
           options={NATIONAL_METRICS.map((metric) => ({
             id: metric,
-            label:
-              metric === "yield_mt_ha"
-                ? t.metricYield
-                : metric === "production_mt"
-                  ? t.metricProduction
-                  : t.metricArea,
+            label: metricLabelFor(t, metric),
             unit: board.data?.metric_units?.[metric] ?? null,
           }))}
           value={nationalMetric}
@@ -310,7 +331,12 @@ export default function CropTerminalScreen() {
           <LoadingSkeleton height={chart.tallHeight} />            ) : !entry || nationalPublished === 0 ? (
           <EmptyState
             title={t.noDataAvailable}
-            message={`${name ?? slug} — ${t.notPublished.toLowerCase()}.`}
+            /* Names the selection. `.toLowerCase()` on a translated string is
+               also wrong: it is a no-op in Kinyarwanda and mangles German-style
+               nouns, so the sentence is composed from a template instead. */
+            message={t.noPublishedSelection
+              .replace("{metric}", metricLabelFor(t, nationalMetric))
+              .replace("{selection}", name ?? slug)}
           />
         ) : (
           <>
@@ -319,7 +345,7 @@ export default function CropTerminalScreen() {
             <View style={styles.figureRow}>
               <Text style={styles.figureValue}>
                 {nationalPublished === 0 || latestIndex < 0
-                  ? "Not published"
+                  ? t.notPublished
                   : (nationalPoints[latestIndex].value ?? 0).toLocaleString(undefined, {
                       maximumFractionDigits: 2,
                     })}
@@ -342,7 +368,9 @@ export default function CropTerminalScreen() {
               series={[{ key: nationalMetric, label: name ?? slug, points: nationalPoints }]}
               unit={nationalUnit}
               height={chart.tallHeight}
-              accessibilityLabel={`${name ?? slug} ${nationalMetric} national series`}
+              accessibilityLabel={t.trendChartA11y
+                .replace("{metric}", metricLabelFor(t, nationalMetric))
+                .replace("{selection}", name ?? slug)}
             />
 
             <View style={styles.changeRow}>
@@ -386,14 +414,7 @@ export default function CropTerminalScreen() {
         <MetricSelectorRow
           options={DISTRICT_METRICS.map((metric) => ({
             id: metric,
-            label:
-              metric === "yield_kg_ha"
-                ? t.metricYield
-                : metric === "production_mt"
-                  ? t.metricProduction
-                  : metric === "harvested_area_ha"
-                    ? t.metricArea
-                    : t.metricGap,
+            label: metricLabelFor(t, metric),
             unit: metric === "gap" ? "%" : PANEL_UNITS[metric],
           }))}
           value={districtMetric}
@@ -436,7 +457,9 @@ export default function CropTerminalScreen() {
               ) : districtSeries.isError || districtPublished === 0 ? (
                 <EmptyState
                   title={t.noDataAvailable}
-                  message={`${selectedDistrictName ?? ""} — ${districtMetricKey} ${t.notPublished.toLowerCase()}.`}
+                  message={t.noPublishedSelection
+                    .replace("{metric}", metricLabelFor(t, districtMetric))
+                    .replace("{selection}", selectedDistrictName ?? "")}
                 />
               ) : districtPublished === 1 ? (
                 /* One published point. Shown as a value, never as a trend and
@@ -466,7 +489,12 @@ export default function CropTerminalScreen() {
                     ]}
                     unit={districtUnit}
                     height={chart.height}
-                    accessibilityLabel={`${selectedDistrictName ?? "District"} ${districtMetricKey} series`}
+                    accessibilityLabel={t.trendChartA11y
+                      .replace("{metric}", metricLabelFor(t, districtMetric))
+                      .replace(
+                        "{selection}",
+                        selectedDistrictName ?? t.districtSeries,
+                      )}
                   />
                   <ChangeIndicator change={districtChange} unavailableNote={t.noComparableChange} />
                 </>

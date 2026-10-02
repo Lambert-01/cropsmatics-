@@ -13,6 +13,8 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
 import { spacing } from "../theme";
 import type { Palette, Typography } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
@@ -53,6 +55,7 @@ export function CropBoardRow({
 }) {
   const { typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const t = strings(useAppStore((s) => s.language));
   const points: RawPoint[] = useMemo(
     () =>
       crop
@@ -78,7 +81,7 @@ export function CropBoardRow({
   const latestLabel = latestPeriod ? (periodLabels[latestPeriod] ?? latestPeriod) : null;
   const reason = crop?.changes?.[metric]?.reason ?? null;
 
-  const valueText = latestValue === null ? "Not published" : formatValue(latestValue);
+  const valueText = latestValue === null ? t.notPublished : formatValue(latestValue);
 
   return (
     <Pressable
@@ -105,7 +108,7 @@ export function CropBoardRow({
             {crop?.crop ?? "—"}
           </Text>
           <Text numberOfLines={1} style={styles.seriesNote}>
-            {latestLabel ?? (loading ? "Loading…" : "No published period")}
+            {latestLabel ?? (loading ? t.loading : t.noPublishedPeriod)}
           </Text>
         </View>
         {right}
@@ -120,7 +123,12 @@ export function CropBoardRow({
         </View>
       </View>
 
-      <Sparkline points={seriesPoints} accessibilityLabel={`${crop?.crop ?? ""} ${metricLabel} trend`} />
+      <Sparkline
+        points={seriesPoints}
+        accessibilityLabel={t.trendChartA11y
+          .replace("{metric}", metricLabel)
+          .replace("{selection}", crop?.crop ?? "")}
+      />
 
       {change ? (
         <ChangeIndicator change={change} />
