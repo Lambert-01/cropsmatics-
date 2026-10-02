@@ -4,6 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { listHarvests, listPendingOutbox } from "../../src/database";
+import { listConflictOutbox } from "../../src/database/outboxQueries";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { flushOutbox, isOnline, type FlushSummary } from "../../src/sync/queue";
@@ -20,9 +21,8 @@ export default function SyncScreen() {
   const [summary, setSummary] = useState<FlushSummary | null>(null);
 
   function refreshLocal() {
-    const items = listPendingOutbox();
-    setPending(items.length);
-    setConflicts(items.filter((item) => item.status === "CONFLICT").length);
+    setPending(listPendingOutbox().length);
+    setConflicts(listConflictOutbox().length);
     setTotal(listHarvests().length);
   }
 
