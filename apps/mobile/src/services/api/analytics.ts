@@ -44,11 +44,16 @@ export const analyticsApi = {
     ),
   postHarvest: (params?: { crop?: string }) =>
     request<Record<string, unknown>>(`/analytics/post-harvest${qs({ crop: params?.crop })}`),
-  trends: (params?: { crop?: string; district?: string; compare?: string }) =>
+  /**
+   * National crop trends. The backend accepts only ``crop`` and ``compare``;
+   * district time series belong to ``/productivity/trend`` instead. Keeping the
+   * client signature exact prevents a district selector from appearing to work
+   * while the server silently ignores it.
+   */
+  trends: (params?: { crop?: string; compare?: string }) =>
     request<TrendResponse>(
       `/analytics/trends${qs({
         crop: params?.crop,
-        district: params?.district,
         compare: params?.compare,
       })}`,
     ),
