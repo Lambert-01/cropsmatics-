@@ -31,6 +31,29 @@ export function useProductivity(filters: DashboardFilters, enabled = true) {
 }
 
 /**
+ * The productivity panel forced to one explicit period code.
+ *
+ * Used by the two-period district change view: it needs the same district/crop
+ * selection measured against two different releases, so the canonical `period`
+ * is pinned here and any derived `year`/`season` on the current filters is
+ * dropped — otherwise the stale pair would win and both panels would resolve to
+ * the same release, silently erasing the comparison.
+ */
+export function useProductivityAtPeriod(
+  filters: DashboardFilters,
+  periodCode: string | undefined,
+  enabled = true,
+) {
+  const pinned: DashboardFilters = { ...filters, period: periodCode, year: undefined, season: undefined };
+  return useQuery({
+    queryKey: ["productivity-at", pinned],
+    queryFn: () => api.productivity(pinned),
+    staleTime: FIVE_MIN,
+    enabled: enabled && Boolean(periodCode),
+  });
+}
+
+/**
  * One crop across every published period, from the canonical panel. Used by the
  * Yield Intelligence trend, where `season` restricts the series to a single
  * season so it reads as a same-season year-on-year comparison.

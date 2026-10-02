@@ -1,35 +1,12 @@
 <resources>
+  <color name="splashscreen_background">#032D23</color>
+  <color name="iconBackground">#032D23</color>
   <color name="colorPrimary">#087F5B</color>
-  <!--
-    Old-Android status-bar tint. Superseded by the explicit
-    android:statusBarColor in styles.xml; kept on the brand green so the two
-    never disagree.
-  -->
   <color name="colorPrimaryDark">#032D23</color>
-
-  <!--
-    Bars and surfaces. These mirror the light palette in src/theme/index.ts and
-    the light half of plugins/with-analytical-theme.js; res/values-night/colors.xml
-    carries the dark values under the same names. Referenced by name from
-    styles.xml so a scheme change never needs a style edit.
-  -->
   <color name="app_background">#F7FAF8</color>
   <color name="app_surface">#FFFFFF</color>
   <color name="status_bar">#FFFFFF</color>
   <color name="nav_bar">#FFFFFF</color>
   <color name="app_text">#0F172A</color>
-
-  <!--
-    Startup window background. Defined here so the native launch window matches
-    expo.splash.backgroundColor in app.json (#032D23, the Cropmatics brand
-    green). The launch window is intentionally brand-dark: the splash logo is a
-    bright mark on transparency, so the dark green makes it read as a deliberate
-    branded launch rather than a flash. The app shell itself uses
-    app_background (@color/app_background) once the first React Native frame is
-    reached.
-
-    The night value is deliberately the SAME dark green - see
-    res/values-night/colors.xml.
-  -->
-  <color name="splashscreen_background">#032D23</color>
+  <color name="activityBackground">#F7FAF8</color>
 </resources>

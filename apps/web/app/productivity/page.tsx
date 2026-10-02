@@ -7,6 +7,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
+import { DistrictChangePanel } from "@/features/productivity/DistrictChangePanel";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
@@ -140,6 +141,9 @@ export default function ProductivityPage() {
         />
         <ModelPerformancePanel />
       </div>
+
+      {/* Two-period change: "who improved or worsened between A and B?" */}
+      <DistrictChangePanel filters={filters} />
 
       {/* The dense matrix, collapsed and fetched on demand. */}
       <GapAdvancedMatrix filters={filters} districtMode={districtMode} />

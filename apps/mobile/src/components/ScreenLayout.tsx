@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, type RefreshControlProps } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { spacing } from "../theme";
@@ -30,7 +30,7 @@ export function ScreenLayout({
   /** One-line data-context summary under the header, e.g. "2025 Season B • National". */
   context?: string | null;
   /** A `RefreshControl`, so analytics screens can pull to refresh. */
-  refreshControl?: ReactElement;
+  refreshControl?: ReactElement<RefreshControlProps>;
   /** Floating action rendered above the bottom navigation. */
   fab?: ReactNode;
 }) {

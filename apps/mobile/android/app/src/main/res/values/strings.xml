@@ -1,23 +1,6 @@
 <resources>
-  <string name="app_name">Cropmatics</string>
-  <!--
-    Read by expo-system-ui's SystemUIReactActivityLifecycleListener on every
-    Activity create, and passed straight to
-    AppCompatDelegate.setDefaultNightMode():
-        "automatic" -> MODE_NIGHT_FOLLOW_SYSTEM
-        "light"     -> MODE_NIGHT_NO
-        "dark"      -> MODE_NIGHT_YES
-
-    The library ships `light` as its own default. That default is what this app
-    inherited, which is why the "System" appearance option did nothing and
-    React Native's useColorScheme() never reported `dark`, no matter what
-    app.json said.
-
-    This file is the effective source of truth rather than app.json, because
-    `android/` is committed: with a native project present EAS Build does not
-    run config plugins, so `userInterfaceStyle` in app.json is never synced into
-    this resource at build time. plugins/with-analytical-theme.js writes the same
-    value on `expo prebuild` to keep the two in step.
-  -->
+  <string name="app_name">Cropmatics Rwanda</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
   <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
 </resources>

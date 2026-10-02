@@ -1,6 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+// SDK 54 replaced the default `expo-file-system` API with a class-based one.
+// The legacy `getInfoAsync` helper still ships (and is maintained) at
+// `expo-file-system/legacy`; importing it here keeps attachment size checks
+// working without a rewrite.
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { Alert, Pressable, Text, View } from "react-native";
 
@@ -101,7 +105,9 @@ export function AttachmentFields({
     let size = asset.size ?? null;
     if (size == null) {
       try {
-        const info = await FileSystem.getInfoAsync(asset.uri, { size: true });
+        // In the SDK 54 legacy API `size` is always returned; the old
+        // `{ size: true }` option no longer exists.
+        const info = await FileSystem.getInfoAsync(asset.uri);
         if (info.exists && "size" in info) size = info.size ?? null;
       } catch {
         size = null; // size unknown: the server still enforces its own limit

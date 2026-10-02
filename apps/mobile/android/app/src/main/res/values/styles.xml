@@ -1,49 +1,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-  <!--
-    App shell theme.
-
-    Generation note: `AppTheme` MUST descend from a `*DayNight*` parent.
-    `expo-system-ui` implements `userInterfaceStyle` by calling
-    `AppCompatDelegate.setDefaultNightMode()`; under a Light-only parent that
-    call is inert, the whole of res/values-night/ is ignored, and React Native's
-    `useColorScheme()` can never report `dark`. See
-    plugins/with-analytical-theme.js, which is the source of truth for every
-    value below and re-applies them on `expo prebuild`.
-
-    The light scheme lives here; res/values-night/styles.xml carries the
-    icon-tint overrides and res/values-night/colors.xml the colours.
-  -->
   <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-    <item name="android:textColor">@color/app_text</item>
-    <item name="android:editTextStyle">@style/ResetEditText</item>
+    <item name="android:enforceNavigationBarContrast" tools:targetApi="29">true</item>
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     <item name="colorPrimary">@color/colorPrimary</item>
-    <item name="android:windowBackground">@color/app_background</item>
     <item name="android:statusBarColor">@color/status_bar</item>
+    <item name="android:windowBackground">@color/activityBackground</item>
     <item name="android:navigationBarColor">@color/nav_bar</item>
-    <!--
-      true = dark system-bar icons, i.e. the light scheme. The night variant
-      flips both to false so light icons sit on the dark bars.
-    -->
     <item name="android:windowLightStatusBar">true</item>
     <item name="android:windowLightNavigationBar">true</item>
-  </style>
-  <style name="ResetEditText" parent="@android:style/Widget.EditText">
-    <item name="android:padding">0dp</item>
-    <item name="android:textColorHint">#c8c8c8</item>
     <item name="android:textColor">@color/app_text</item>
   </style>
-  <!--
-    Launch window. Brand green with light icons in BOTH schemes: the splash mark
-    is a bright green on transparency, so a fixed dark launch is the deliberate
-    branded start rather than a flash. Identical in light and dark = no white
-    flash when the device, or the preference, is dark.
-  -->
-  <style name="Theme.App.SplashScreen" parent="AppTheme">
+  <style name="Theme.App.SplashScreen" parent="Theme.SplashScreen">
+    <item name="windowSplashScreenBackground">@color/splashscreen_background</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreen_logo</item>
+    <item name="postSplashScreenTheme">@style/AppTheme</item>
+    <item name="android:windowSplashScreenBehavior">icon_preferred</item>
     <item name="android:windowBackground">@drawable/splashscreen</item>
     <item name="android:statusBarColor">@color/splashscreen_background</item>
     <item name="android:navigationBarColor">@color/splashscreen_background</item>
     <item name="android:windowLightStatusBar">false</item>
     <item name="android:windowLightNavigationBar">false</item>
+  </style>
+  <style name="ResetEditText" parent="Theme.AppCompat.Light.NoActionBar">
+    <item name="android:textColor">@color/app_text</item>
   </style>
 </resources>
