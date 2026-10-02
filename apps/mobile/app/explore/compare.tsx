@@ -38,6 +38,9 @@ interface PanelRow {
   harvested_area_ha?: number | null;
 }
 
+const MAX_COMPARE_CROPS = 5;
+const MAX_COMPARE_DISTRICTS = 4;
+
 const ABSOLUTE_METRIC_UNIT: Record<Exclude<CropMetric, "indexed_yield">, string> = {
   production_mt: PANEL_UNITS.production_mt,
   harvested_area_ha: PANEL_UNITS.harvested_area_ha,
@@ -67,9 +70,6 @@ export default function CompareScreen() {
   const districts = useAllDistricts();
   const periods = usePeriods();
 
-  // --- crops over time ------------------------------------------------------
-  // The query key carries the selected crops and the metric, so a change really
-  // refetches instead of reusing a stale comparison.
   const compareTrends = useQuery({
     queryKey: ["compare-trends", selectedCrops, cropMetric],
     queryFn: () => analyticsApi.trends({ compare: selectedCrops.join(",") }),
@@ -82,7 +82,6 @@ export default function CompareScreen() {
     enabled: mode === "crops" && selectedCrops.length >= 2 && cropMetric === "indexed_yield",
   });
 
-  // --- districts, like for like --------------------------------------------
   const districtPeriods = useMemo(
     () => periodsCarryingLayer(periods.data?.periods ?? [], districtMetric === "gap" ? "gap" : "yield"),
     [periods.data, districtMetric],
@@ -134,9 +133,6 @@ export default function CompareScreen() {
   );
 
   const trendPoints = compareTrends.data?.points ?? [];
-  // The service aligns every series to one period axis; alignIndexedSeries
-  // verifies that contract and repairs it if it does not hold, so two crops
-  // with different available periods can never be plotted by array position.
   const indexedSeriesList = useMemo(
     () =>
       alignIndexedSeries(
@@ -186,11 +182,11 @@ export default function CompareScreen() {
                 key={crop.crop_code}
                 label={crop.crop_name}
                 selected={selectedCrops.includes(crop.crop_name)}
-                onPress={() => toggle(selectedCrops, setSelectedCrops, crop.crop_name, 4)}
+                onPress={() => toggle(selectedCrops, setSelectedCrops, crop.crop_name, MAX_COMPARE_CROPS)}
               />
             ))}
           </View>
-          <Text style={typography.micro}>{`${selectedCrops.length}/4 · ${t.publishedCoverage}`}</Text>
+          <Text style={typography.micro}>{`${selectedCrops.length}/${MAX_COMPARE_CROPS} · ${t.publishedCoverage}`}</Text>
 
           <MetricSelector
             label={t.selectIndicator}
@@ -224,17 +220,12 @@ export default function CompareScreen() {
                   accessibilityLabel={`Indexed yield comparison of ${selectedCrops.join(", ")}`}
                 />
               ) : (
-                <EmptyState
-                  title={t.noDataAvailable}
-                  message="No selected crop meets the eligibility rules for an index."
-                />
+                <EmptyState title={t.noDataAvailable} message="No selected crop meets the eligibility rules for an index." />
               )}
               <DataWarning text={t.indexedYieldNote} />
               {ineligible.length ? (
                 <DataWarning
-                  text={`Not indexed: ${ineligible
-                    .map((item) => `${item.crop} (${item.reason ?? "ineligible"})`)
-                    .join("; ")}.`}
+                  text={`Not indexed: ${ineligible.map((item) => `${item.crop} (${item.reason ?? "ineligible"})`).join("; ")}.`}
                 />
               ) : null}
               <SourceMethodSheet
@@ -289,11 +280,7 @@ export default function CompareScreen() {
                 label={t.selectPeriod}
                 value={activePeriod}
                 onChange={setPeriodCode}
-                options={districtPeriods.map((period) => ({
-                  id: period.period_code,
-                  label: period.label,
-                  hint: `${period.n_districts} districts`,
-                }))}
+                options={districtPeriods.map((period) => ({ id: period.period_code, label: period.label, hint: `${period.n_districts} districts` }))}
               />
 
               <MetricSelector
@@ -314,18 +301,14 @@ export default function CompareScreen() {
                     key={district.district_code}
                     label={district.district}
                     selected={selectedDistricts.includes(district.district_code)}
-                    onPress={() => toggle(selectedDistricts, setSelectedDistricts, district.district_code, 4)}
+                    onPress={() => toggle(selectedDistricts, setSelectedDistricts, district.district_code, MAX_COMPARE_DISTRICTS)}
                   />
                 ))}
               </View>
-              <Text style={typography.micro}>{`${selectedDistricts.length}/4 districts selected`}</Text>
+              <Text style={typography.micro}>{`${selectedDistricts.length}/${MAX_COMPARE_DISTRICTS} districts selected`}</Text>
 
               {selectedDistricts.length < 2 ? (
-                <EmptyState
-                  title="Pick at least two districts"
-                  message="Every district is measured on the same crop, the same metric and one published period."
-                  icon="git-compare-outline"
-                />
+                <EmptyState title="Pick at least two districts" message="Every district is measured on the same crop, the same metric and one published period." icon="git-compare-outline" />
               ) : districtMetric === "gap" ? (
                 gapLayer.isLoading ? (
                   <LoadingSkeleton height={200} />
@@ -342,14 +325,8 @@ export default function CompareScreen() {
               ) : comparisonRows.length ? (
                 <>
                   <HorizontalBarChart values={comparisonRows} unit={METRIC_UNIT[districtMetric]} />
-                  <CoverageBadge
-                    level="district"
-                    period={panel.data?.label ?? activePeriod}
-                    source={panel.data?.provenance?.source_id ?? null}
-                  />
-                  <Text style={typography.micro}>
-                    {`Coverage metadata: ${panel.data?.n_crops ?? 0} crops carry published district rows for this period.`}
-                  </Text>
+                  <CoverageBadge level="district" period={panel.data?.label ?? activePeriod} source={panel.data?.provenance?.source_id ?? null} />
+                  <Text style={typography.micro}>{`Coverage metadata: ${panel.data?.n_crops ?? 0} crops carry published district rows for this period.`}</Text>
                   <SourceMethodSheet
                     title={t.sourceAndMethod}
                     source={panel.data?.provenance?.source_id}
@@ -365,9 +342,7 @@ export default function CompareScreen() {
               )}
 
               {missingRows.length ? (
-                <DataWarning
-                  text={`Not published for this crop and period: ${missingRows.map((row) => row.label).join(", ")}. Nothing is inferred for them.`}
-                />
+                <DataWarning text={`Not published for this crop and period: ${missingRows.map((row) => row.label).join(", ")}. Nothing is inferred for them.`} />
               ) : null}
             </>
           )}
