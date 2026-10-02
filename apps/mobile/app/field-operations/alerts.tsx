@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { listHarvests, listPendingOutbox } from "../../src/database";
+import { listConflictOutbox } from "../../src/database/outboxQueries";
 import { strings } from "../../src/i18n";
 import type { Strings } from "../../src/i18n/en";
 import { api } from "../../src/services/api";
@@ -48,7 +49,7 @@ export default function AlertsScreen() {
       try {
         const pending = listPendingOutbox();
         const failed = pending.filter((item) => item.status === "FAILED");
-        const conflicts = pending.filter((item) => item.status === "CONFLICT");
+        const conflicts = listConflictOutbox();
         if (failed.length) {
           next.push({
             id: "sync-failed",
