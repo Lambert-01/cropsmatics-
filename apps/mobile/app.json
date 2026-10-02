@@ -22,6 +22,15 @@
     "plugins": [
       "expo-router",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/branding/splash-logo.png",
+          "imageWidth": 190,
+          "resizeMode": "contain",
+          "backgroundColor": "#032D23"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Cropmatics attaches a photo to a harvest you register. Photos stay on your device until you sync.",
