@@ -11,6 +11,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 
 import { listHarvests, listPendingOutbox } from "../database";
+import { listConflictOutbox } from "../database/outboxQueries";
 import { isValidIsoDate, todayIso } from "../utils/dates";
 
 /** A harvest within this many days is flagged as approaching. */
@@ -23,10 +24,8 @@ export function useAlertsCount(): number {
     useCallback(() => {
       let total = 0;
       try {
-        const pending = listPendingOutbox();
-        total += pending.filter(
-          (item) => item.status === "FAILED" || item.status === "CONFLICT",
-        ).length;
+        total += listPendingOutbox().filter((item) => item.status === "FAILED").length;
+        total += listConflictOutbox().length;
 
         const today = todayIso();
         for (const harvest of listHarvests()) {
