@@ -87,7 +87,16 @@ export function DistrictChoropleth({
                 x={x}
                 y={y}
                 textAnchor="middle"
-                className="fill-forest-deep text-[7px] font-medium"
+                // The scale palette is theme-independent, so the label colour is
+                // too: a fixed dark ink with a white halo reads on every fill in
+                // both themes. `fill-forest-deep` would invert to near-white and
+                // vanish on the light middle of the scale.
+                fill="#032D23"
+                stroke="#ffffff"
+                strokeWidth={2.2}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+                className="text-[7px] font-semibold"
               >
                 {feature.properties.district}
               </text>

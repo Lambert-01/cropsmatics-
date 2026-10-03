@@ -472,6 +472,9 @@ export const rw: Strings = {
   clearCachedData: "Clear cached data",
   clearCacheNote:
     "Ibyabitswe n'amateka y'ibibazo biragumaho; gusa ibitegereje koherezwa bisibwa.",
+  cacheStatusUpdated: "Amakuru yabitswe yavuguruwe {age}",
+  cacheStatusEmpty: "Nta makuru yabitswe kuri iki gikoresho.",
+  cacheDisabled: "Ububiko bw'amakuru offline buzimye.",
   notifications: "Notifications",
   notificationsInfo: "Information updates",
   notificationsInquiry: "Inquiry responses",
@@ -544,6 +547,9 @@ export const rw: Strings = {
     "Hitamo igihingwa n'igihe kimwe cy'akarere cyatangajwe kugira ngo ugereranye uturere.",
   noLayerForPeriod: "Iki kipimo ntabwo cyatangajwe mu gihe cyahiswemo.",
   tapForReadout: "Kurura imbonerahamwe usome igihe cyatangajwe.",
+  // Reuses this file's established term for the yield benchmark ("urugero").
+  gapAboveBenchmark: "Hejuru y'urugero",
+  gapBelowBenchmark: "Munsi y'urugero",
   // ---- Data-honesty notes --------------------------------------------------
   gapBenchmarkNote:
     "Icyuho kipimwa ku musaruro ngereranyo wagenwe ku gihingwa na API. Icyuho kinini ntabwo bisobanura igisubizo cyiza kurusha ibindi.",

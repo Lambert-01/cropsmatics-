@@ -4,10 +4,12 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { hydrateOfflineCache, startPersisting } from "../src/cache/offline";
+import { clearPersistedCache, writeCacheMeta } from "../src/cache/persister";
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
 import { ThemeProvider, useTheme } from "../src/theme/theme-context";
@@ -67,6 +69,46 @@ function ThemedStack() {
       screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
     />
   );
+}
+
+/**
+ * Connect the persisted analytical cache to the live React Query client.
+ *
+ * Renders nothing. It hydrates the cache once, on the first frame after the local
+ * store has loaded (so the stored Offline cache preference is respected), then
+ * keeps the payload on disk in step with the client while the setting is on.
+ * Turning the setting off removes the payload already written — the honest
+ * reading of "off" — while leaving the in-memory results in place for the rest
+ * of the session. Mutations and the field-operations store are never involved.
+ */
+function OfflineAnalyticsCache({ client }: { client: QueryClient }) {
+  const hydrated = useAppStore((s) => s.hydrated);
+  const enabled = useAppStore((s) => s.settings.offlineCacheEnabled);
+  const attempted = useRef(false);
+
+  useEffect(() => {
+    if (!hydrated || attempted.current) return;
+    attempted.current = true;
+    if (!enabled) return;
+    void hydrateOfflineCache(client)
+      .then((meta) => writeCacheMeta(meta))
+      .catch(() => {
+        // A failed restore is not fatal: the app simply has no cached data.
+      });
+  }, [hydrated, enabled, client]);
+
+  useEffect(() => {
+    if (!hydrated || !enabled) return;
+    return startPersisting(client);
+  }, [hydrated, enabled, client]);
+
+  useEffect(() => {
+    if (!hydrated || enabled) return;
+    // Disabling must not leave a stale payload behind for a future launch.
+    void clearPersistedCache();
+  }, [hydrated, enabled]);
+
+  return null;
 }
 
 /**
@@ -148,6 +190,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryClientProvider client={client}>
+          <OfflineAnalyticsCache client={client} />
           <ThemedSystemBars />
           <ThemedStack />
           {!splashDone ? (

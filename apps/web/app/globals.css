@@ -23,6 +23,18 @@
   --c-background: 247 250 248;
   --c-ink: 51 65 85;
 
+  /* Map / chart tooltips.
+     A tooltip floats over an arbitrary map fill, so it must be readable on its
+     own. In light mode it is a light card with dark ink; in dark mode a dark
+     card with light ink. Never leave these as raw `white`/`forest-deep`, which
+     invert independently and can produce white-on-white. */
+  --tooltip-background: 255 255 255;
+  --tooltip-foreground: 30 41 59;
+  --tooltip-title: 3 45 35;
+  --tooltip-muted: 100 116 139;
+  --tooltip-border: 7 61 45;
+  --tooltip-shadow: 0 10px 30px rgba(3, 45, 35, 0.18);
+
   /* Slate ramp = Tailwind defaults, so light mode is byte-for-byte unchanged. */
   --c-slate-50: 248 250 252;
   --c-slate-100: 241 245 249;
@@ -59,6 +71,13 @@ html.dark {
   --c-surface: 17 28 24;
   --c-background: 10 20 16;
   --c-ink: 203 213 225;
+
+  --tooltip-background: 17 28 24;
+  --tooltip-foreground: 226 232 240;
+  --tooltip-title: 209 250 229;
+  --tooltip-muted: 148 163 184;
+  --tooltip-border: 255 255 255;
+  --tooltip-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 
   --c-slate-50: 12 22 18;
   --c-slate-100: 18 30 25;
@@ -277,6 +296,34 @@ html.dark .map-district {
   }
   .responsive-table .rt-empty {
     @apply px-3 py-8 text-center text-sm text-slate-400;
+  }
+
+  /* ---- Floating tooltip surface -------------------------------------------
+     Used by map hover cards (and available to any chart popover). The colours
+     resolve from the tooltip tokens above, so light and dark themes are handled
+     by design rather than by a per-component `html.dark` override. */
+  .map-tooltip {
+    background-color: rgb(var(--tooltip-background));
+    color: rgb(var(--tooltip-foreground));
+    border: 1px solid rgb(var(--tooltip-border) / 0.15);
+    box-shadow: var(--tooltip-shadow);
+  }
+  html.dark .map-tooltip {
+    border-color: rgb(var(--tooltip-border) / 0.18);
+  }
+  .map-tooltip-title {
+    color: rgb(var(--tooltip-title));
+    @apply text-sm font-bold;
+  }
+  .map-tooltip-key {
+    color: rgb(var(--tooltip-muted));
+  }
+  .map-tooltip-value {
+    color: rgb(var(--tooltip-foreground));
+    @apply font-semibold;
+  }
+  .map-tooltip-divider {
+    border-color: rgb(var(--tooltip-border) / 0.15);
   }
 }
 

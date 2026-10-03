@@ -27,6 +27,7 @@ import { chart, radius, seriesColor, spacing } from "../theme";
 import type { Palette } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { SeriesPoint } from "../utils/analytics";
+import { divergingBar, hasNegative, maxMagnitude } from "../utils/diverging";
 import {
   formatValue,
   nearestIndex,
@@ -695,7 +696,19 @@ export function HorizontalBarChart({
   const t = strings(useAppStore((s) => s.language));
   const rows = values.slice(0, maxItems);
   if (!rows.length) return <EmptyState title={t.chartNoData} icon="stats-chart-outline" />;
-  const max = Math.max(...rows.map((row) => row.value ?? 0), 1);
+
+  const rowValues = rows.map((row) => row.value);
+  // A signed series (the productivity gap index is the only one) needs a zero
+  // baseline; scaling it as `value / max` collapsed every above-benchmark value
+  // into the same minimum-width stub. Unsigned series keep the original layout.
+  const diverging = hasNegative(rowValues);
+  const maxAbs = maxMagnitude(rowValues);
+  const max = Math.max(
+    ...rowValues.map((value) =>
+      typeof value === "number" && Number.isFinite(value) ? value : 0,
+    ),
+    1,
+  );
 
   return (
     <View
@@ -704,8 +717,15 @@ export function HorizontalBarChart({
       accessibilityLabel={`Horizontal bar chart. ${summary(rows, unit)}`}
       style={{ gap: spacing.sm }}
     >
+      {diverging ? (
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={typography.micro}>{t.gapAboveBenchmark}</Text>
+          <Text style={typography.micro}>{t.gapBelowBenchmark}</Text>
+        </View>
+      ) : null}
       {rows.map((row, index) => {
         const pct = row.value === null ? 0 : Math.max(2, (row.value / max) * 100);
+        const bar = divergingBar(row.value, maxAbs);
         return (
           <View key={`${row.label}-${index}`} style={{ gap: 3 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
@@ -717,15 +737,29 @@ export function HorizontalBarChart({
               </Text>
             </View>
             <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  {
-                    width: `${pct}%`,
-                    backgroundColor: row.value === null ? colors.missing : colors.primary,
-                  },
-                ]}
-              />
+              {diverging ? (
+                <>
+                  <View
+                    style={[
+                      styles.barFillAbs,
+                      bar.negative
+                        ? { right: "50%", width: `${bar.widthPct / 2}%`, backgroundColor: colors.success }
+                        : { left: "50%", width: `${bar.widthPct / 2}%`, backgroundColor: colors.danger },
+                    ]}
+                  />
+                  <View style={[styles.barCenter, { backgroundColor: colors.border }]} />
+                </>
+              ) : (
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      width: `${pct}%`,
+                      backgroundColor: row.value === null ? colors.missing : colors.primary,
+                    },
+                  ]}
+                />
+              )}
             </View>
           </View>
         );
@@ -812,8 +846,25 @@ const makeStyles = (colors: Palette) => ({
     borderRadius: 999,
     backgroundColor: colors.mintSoft,
     overflow: "hidden" as const,
+    position: "relative" as const,
   },
   barFill: { height: 8, borderRadius: 999, backgroundColor: colors.primary },
+  // Diverging fills are absolutely positioned against the 50 % baseline.
+  barFillAbs: {
+    position: "absolute" as const,
+    top: 0,
+    bottom: 0,
+    borderRadius: 999,
+  },
+  barCenter: {
+    position: "absolute" as const,
+    left: "50%" as const,
+    top: 0,
+    bottom: 0,
+    width: 1.5,
+    marginLeft: -0.75,
+    opacity: 0.8,
+  },
   barValue: {
     fontSize: 12,
     fontWeight: "700" as const,

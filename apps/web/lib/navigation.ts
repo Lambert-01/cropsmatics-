@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   ShoppingBasket,
   Smartphone,
+  Sprout,
   Table2,
   TrendingUp,
   Warehouse,
@@ -41,6 +42,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Intelligence",
     items: [
       { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+      { href: "/crops", label: "Crops", icon: Sprout },
       { href: "/productivity", label: "Productivity", icon: TrendingUp },
       { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat },
       { href: "/interventions", label: "Interventions", icon: Wrench },

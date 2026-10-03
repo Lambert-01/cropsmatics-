@@ -262,6 +262,10 @@ export const en = {
   offlineCache: "Offline cache",
   clearCachedData: "Clear cached data",
   clearCacheNote: "Saved items and Ask history are kept; only queued drafts are cleared.",
+  /** {age} is a human interval such as "3 h ago". */
+  cacheStatusUpdated: "Cached data updated {age}",
+  cacheStatusEmpty: "No cached data on this device yet.",
+  cacheDisabled: "Offline cache is off.",
   notifications: "Notifications",
   notificationsInfo: "Information updates",
   notificationsInquiry: "Inquiry responses",
@@ -313,6 +317,9 @@ export const en = {
   metricIrrigation: "Irrigation",
   metricErosion: "Erosion protection",
   metricPriority: "Intervention priority",
+  /** Diverging gap chart: which side of the zero baseline a district sits on. */
+  gapAboveBenchmark: "Above benchmark",
+  gapBelowBenchmark: "Below benchmark",
   allPublishedPeriods: "All published periods",
   sameSeasonView: "Same season",
   latestPublished: "Latest published",

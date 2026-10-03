@@ -1,6 +1,11 @@
+import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
+import { clearOfflineCache } from "../../src/cache/offline";
+import { readCacheMeta } from "../../src/cache/persister";
+import { describeCache } from "../../src/cache/status";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { Card, InfoRow, SectionHeader } from "../../src/components/ui";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
@@ -16,6 +21,20 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const { language, setLanguage, settings, updateSettings } = useAppStore();
+  const queryClient = useQueryClient();
+  // The human age of the persisted analytical payload, or null when there is
+  // none. Read once on mount and refreshed when the payload is cleared.
+  const [cacheAge, setCacheAge] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void readCacheMeta().then((meta) => {
+      if (active) setCacheAge(describeCache(meta.updatedAt).ageLabel);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <ScreenLayout back>
@@ -81,11 +100,19 @@ export default function SettingsScreen() {
             } catch {
               // storage unavailable
             }
+            void clearOfflineCache(queryClient).then(() => setCacheAge(null));
           }}
           style={styles.clear}
         >
           <Text style={{ color: colors.danger, fontWeight: "600" }}>{t.clearCachedData}</Text>
         </Pressable>
+        <Text style={typography.micro}>
+          {!settings.offlineCacheEnabled
+            ? t.cacheDisabled
+            : cacheAge
+              ? t.cacheStatusUpdated.replace("{age}", cacheAge)
+              : t.cacheStatusEmpty}
+        </Text>
         <Text style={typography.micro}>{t.clearCacheNote}</Text>
       </Card>
 

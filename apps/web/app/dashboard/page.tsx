@@ -13,6 +13,7 @@ import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
+import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
 import { GapDumbbell } from "@/features/productivity/GapDumbbell";
 import { GapRankedBars } from "@/features/productivity/GapRankedBars";
@@ -51,6 +52,7 @@ export default function DashboardPage() {
 
       <div className="flex flex-wrap items-center gap-2 px-1">
         <CompareCropsControl />
+        <CropEntryPoint crop={filters.crop} />
       </div>
 
       {filters.district ? (

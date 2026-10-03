@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { PageHeading } from "@/components/ui/PageHeading";
 import { MapSkeleton } from "@/components/ui/States";
+import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import type { MapMetricId } from "@/lib/constants";
@@ -23,6 +24,10 @@ export default function MapsPage() {
         title="Rwanda Maps"
         subtitle="Explore district-level productivity, gap and adoption across the country."
       />
+
+      <div className="px-1">
+        <CropEntryPoint crop={filters.crop} />
+      </div>
 
       {mapMetrics.isLoading ? (
         <MapSkeleton height={560} />

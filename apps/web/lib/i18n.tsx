@@ -13,6 +13,7 @@ export type Lang = "en" | "rw";
 const DICT: Record<Lang, Record<string, string>> = {
   en: {
     "nav.overview": "Overview",
+    "nav.crops": "Crops",
     "nav.productivity": "Productivity",
     "nav.yield-intelligence": "Yield Intelligence",
     "nav.interventions": "Interventions",
@@ -41,6 +42,7 @@ const DICT: Record<Lang, Record<string, string>> = {
   },
   rw: {
     "nav.overview": "Incamake",
+    "nav.crops": "Ibihingwa",
     "nav.productivity": "Umusaruro",
     "nav.yield-intelligence": "Ubwenge bw'umusaruro",
     "nav.interventions": "Ibikorwa",
