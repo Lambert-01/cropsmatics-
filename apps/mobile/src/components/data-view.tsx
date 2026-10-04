@@ -449,20 +449,32 @@ export function DataSection({
   return (
     <View
       style={{
-        gap: spacing.sm,
-        paddingTop: first ? 0 : spacing.md,
-        borderTopWidth: first ? 0 : 1,
-        borderTopColor: colors.hairline,
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: "hidden",
+        shadowColor: colors.forestDeep,
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
       }}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={typography.h3}>{title}</Text>
-          {subtitle ? <Text style={typography.caption}>{subtitle}</Text> : null}
+      {/* Accent top bar */}
+      <View style={{ height: 3, backgroundColor: colors.primary }} />
+      <View style={{ padding: spacing.md, gap: spacing.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ ...typography.h3, fontSize: 15, letterSpacing: -0.2 }}>{title}</Text>
+            {subtitle ? (
+              <Text style={{ ...typography.caption, marginTop: 1 }}>{subtitle}</Text>
+            ) : null}
+          </View>
+          {right}
         </View>
-        {right}
+        {children}
       </View>
-      {children}
     </View>
   );
 }

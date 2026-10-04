@@ -19,7 +19,7 @@
 import type { GestureResponderEvent, LayoutChangeEvent } from "react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
-import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
@@ -90,26 +90,59 @@ function Readout({
   const t = strings(useAppStore((s) => s.language));
   const label = series[0]?.points[index]?.label ?? "—";
   return (
-    <View style={{ gap: 3 }}>
+    <View
+      style={{
+        backgroundColor: colors.mintSoft,
+        borderRadius: radius.md,
+        padding: spacing.sm,
+        gap: 4,
+      }}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-        <Text style={typography.microCaps}>{String(label).toUpperCase()}</Text>
-        {unit ? <Text style={typography.axisLabel}>{unit}</Text> : null}
+        <Text style={{ ...typography.microCaps, color: colors.primaryStrong }}>
+          {String(label).toUpperCase()}
+        </Text>
+        {unit ? (
+          <View
+            style={{
+              backgroundColor: colors.primary,
+              borderRadius: radius.pill,
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+            }}
+          >
+            <Text style={{ fontSize: 9, fontWeight: "700", color: colors.white }}>{unit}</Text>
+          </View>
+        ) : null}
       </View>
       {series.map((item) => {
         const value = item.points[index]?.value ?? null;
         return (
-          <View key={item.key} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: item.color }} />
+          <View key={item.key} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 3,
+                backgroundColor: item.color,
+              }}
+            />
             <Text numberOfLines={1} style={{ ...typography.numericSmall, flex: 1 }}>
               {item.label}
             </Text>
             {value === null ? (
-              <Text style={{ ...typography.numericSmall, color: colors.slate500 }}>{t.chartNoDataShort}</Text>
+              <Text style={{ ...typography.numericSmall, color: colors.slate500 }}>
+                {t.chartNoDataShort}
+              </Text>
             ) : (
-              <>
-                <Text style={typography.numeric}>{formatValue(value)}</Text>
-                {unit ? <Text style={typography.unit}>{unit}</Text> : null}
-              </>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 3 }}>
+                <Text style={{ ...typography.numeric, color: colors.forestDeep }}>
+                  {formatValue(value)}
+                </Text>
+                {unit ? (
+                  <Text style={{ ...typography.unit, fontSize: 11 }}>{unit}</Text>
+                ) : null}
+              </View>
             )}
           </View>
         );
@@ -219,6 +252,22 @@ export function TimeSeriesChart({
       >
         {width > 0 && count > 0 && hasData ? (
           <Svg width={width} height={height}>
+            <Defs>
+              {prepared.map((item, i) => (
+                <LinearGradient
+                  key={`grad-${item.key}`}
+                  id={`areaGrad${i}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <Stop offset="0" stopColor={item.color} stopOpacity={0.22} />
+                  <Stop offset="1" stopColor={item.color} stopOpacity={0.01} />
+                </LinearGradient>
+              ))}
+            </Defs>
+
             {/* Horizontal grid + y tick labels */}
             {ticks.map((tick) => (
               <G key={`y-${tick}`}>
@@ -229,6 +278,7 @@ export function TimeSeriesChart({
                   y2={yAt(tick)}
                   stroke={colors.grid}
                   strokeWidth={1}
+                  strokeDasharray="4 3"
                 />
                 <SvgText
                   x={pad.left - 6}
@@ -236,6 +286,7 @@ export function TimeSeriesChart({
                   fontSize={10}
                   fill={colors.slate500}
                   textAnchor="end"
+                  fontWeight="600"
                 >
                   {formatValue(tick)}
                 </SvgText>
@@ -249,7 +300,7 @@ export function TimeSeriesChart({
                 x2={width - pad.right}
                 y2={yAt(0)}
                 stroke={colors.axis}
-                strokeWidth={1}
+                strokeWidth={1.5}
               />
             ) : null}
 
@@ -260,10 +311,36 @@ export function TimeSeriesChart({
               x2={width - pad.right}
               y2={pad.top + innerH}
               stroke={colors.border}
-              strokeWidth={1}
+              strokeWidth={1.5}
             />
 
-            {/* Crosshair sits under the series so it never hides a value. */}
+            {/* Filled area under each series */}
+            {prepared.map((item, i) => {
+              const segments = seriesSegments(item.points);
+              return segments.map((segment) => {
+                if (segment.points.length < 2) return null;
+                const linePts = segment.points.map((point, offset) => {
+                  const idx = segment.start + offset;
+                  return `${xAt(idx)},${yAt(point.value as number)}`;
+                });
+                const baseline = pad.top + innerH;
+                const firstX = xAt(segment.start);
+                const lastX = xAt(segment.start + segment.points.length - 1);
+                const areaD =
+                  `M ${firstX} ${baseline} ` +
+                  linePts.map((pt, offset) => `${offset === 0 ? "L" : "L"} ${pt}`).join(" ") +
+                  ` L ${lastX} ${baseline} Z`;
+                return (
+                  <Path
+                    key={`area-${item.key}-${segment.start}`}
+                    d={areaD}
+                    fill={`url(#areaGrad${i})`}
+                  />
+                );
+              });
+            })}
+
+            {/* Crosshair */}
             {selected !== null && count > 0 ? (
               <Line
                 x1={xAt(activeIndex)}
@@ -271,8 +348,8 @@ export function TimeSeriesChart({
                 x2={xAt(activeIndex)}
                 y2={pad.top + innerH}
                 stroke={colors.primary}
-                strokeWidth={1}
-                strokeDasharray="3 3"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
               />
             ) : null}
 
@@ -291,7 +368,7 @@ export function TimeSeriesChart({
                           })
                           .join(" ")}
                         stroke={item.color}
-                        strokeWidth={chart.strokeWidth}
+                        strokeWidth={chart.strokeWidth + 0.5}
                         fill="none"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -304,7 +381,7 @@ export function TimeSeriesChart({
                         key={`dot-${item.key}-${segment.start}`}
                         cx={xAt(segment.start)}
                         cy={yAt(segment.points[0].value as number)}
-                        r={chart.pointRadius}
+                        r={chart.pointRadius + 1}
                         fill={item.color}
                       />
                     ) : null,
@@ -317,7 +394,9 @@ export function TimeSeriesChart({
                             cx={xAt(index)}
                             cy={yAt(point.value)}
                             r={chart.pointRadius}
-                            fill={item.color}
+                            fill={colors.surface}
+                            stroke={item.color}
+                            strokeWidth={2}
                           />
                         ),
                       )
@@ -330,10 +409,10 @@ export function TimeSeriesChart({
                         <Circle
                           cx={xAt(activeIndex)}
                           cy={yAt(value)}
-                          r={chart.pointRadius + 1.5}
+                          r={chart.pointRadius + 3}
                           fill={colors.surface}
                           stroke={item.color}
-                          strokeWidth={2}
+                          strokeWidth={2.5}
                         />
                       );
                     })()
@@ -342,16 +421,16 @@ export function TimeSeriesChart({
               );
             })}
 
-            {/* X labels, thinned so they never collide on a narrow phone. */}
             {xLabels.map((label, index) =>
               label === null ? null : (
                 <SvgText
                   key={`x-${index}`}
                   x={xAt(index)}
-                  y={height - 8}
+                  y={height - 6}
                   fontSize={10}
                   fill={colors.slate500}
                   textAnchor="middle"
+                  fontWeight="600"
                 >
                   {label}
                 </SvgText>
@@ -842,13 +921,15 @@ export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?
 
 const makeStyles = (colors: Palette) => ({
   barTrack: {
-    height: 8,
+    height: 10,
     borderRadius: 999,
     backgroundColor: colors.mintSoft,
     overflow: "hidden" as const,
     position: "relative" as const,
+    borderWidth: 1,
+    borderColor: colors.hairline,
   },
-  barFill: { height: 8, borderRadius: 999, backgroundColor: colors.primary },
+  barFill: { height: 10, borderRadius: 999, backgroundColor: colors.primary },
   // Diverging fills are absolutely positioned against the 50 % baseline.
   barFillAbs: {
     position: "absolute" as const,

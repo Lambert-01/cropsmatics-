@@ -6,27 +6,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { strings } from "../i18n";
 import type { Strings } from "../i18n/en";
 import { useAppStore } from "../store/useAppStore";
+import { radius, shadow } from "../theme";
 import { useTheme } from "../theme/theme-context";
 
-/**
- * Primary navigation.
- *
- * Home leads with national intelligence; Crops and Compare are the analytical
- * watchlist and workspace; Map is district intelligence; More holds everything
- * else (Ask, Saved, Field Operations, Settings). Alerts live in the header bell
- * rather than a tab, so they stay contextual instead of a permanent destination.
- */
 const ITEMS = [
-  { id: "home", label: "home", href: "/", icon: "home-outline" as const },
-  { id: "crops", label: "crops", href: "/explore/crops", icon: "leaf-outline" as const },
-  { id: "compare", label: "compare", href: "/explore/compare", icon: "git-compare-outline" as const },
-  { id: "map", label: "map", href: "/maps", icon: "map-outline" as const },
-  { id: "more", label: "more", href: "/more", icon: "grid-outline" as const },
+  { id: "home", label: "home", href: "/", icon: "home" as const, iconOff: "home-outline" as const },
+  { id: "crops", label: "crops", href: "/explore/crops", icon: "leaf" as const, iconOff: "leaf-outline" as const },
+  { id: "compare", label: "compare", href: "/explore/compare", icon: "git-compare" as const, iconOff: "git-compare-outline" as const },
+  { id: "map", label: "map", href: "/maps", icon: "map" as const, iconOff: "map-outline" as const },
+  { id: "more", label: "more", href: "/more", icon: "grid" as const, iconOff: "grid-outline" as const },
 ] satisfies {
   id: string;
   label: keyof Strings;
   href: string;
   icon: keyof typeof Ionicons.glyphMap;
+  iconOff: keyof typeof Ionicons.glyphMap;
 }[];
 
 export function BottomNav({ active }: { active: string }) {
@@ -43,8 +37,10 @@ export function BottomNav({ active }: { active: string }) {
         borderTopWidth: 1,
         borderTopColor: colors.border,
         backgroundColor: colors.surface,
-        paddingBottom: Math.max(insets.bottom, 6),
-        paddingTop: 6,
+        paddingBottom: Math.max(insets.bottom, 8),
+        paddingTop: 8,
+        paddingHorizontal: 8,
+        ...shadow.card,
       }}
     >
       {ITEMS.map((item) => {
@@ -56,24 +52,38 @@ export function BottomNav({ active }: { active: string }) {
             accessibilityState={{ selected }}
             accessibilityLabel={t[item.label]}
             onPress={() => router.replace(item.href as never)}
-            style={{ flex: 1, alignItems: "center", gap: 3, minHeight: 48, paddingTop: 4 }}
+            style={({ pressed }) => ({
+              flex: 1,
+              alignItems: "center" as const,
+              gap: 3,
+              minHeight: 52,
+              paddingTop: 4,
+              opacity: pressed ? 0.7 : 1,
+            })}
           >
             <View
               style={{
-                paddingHorizontal: 12,
-                paddingVertical: 3,
-                borderRadius: 999,
-                backgroundColor: selected ? colors.mint : "transparent",
+                paddingHorizontal: 16,
+                paddingVertical: 5,
+                borderRadius: radius.pill,
+                backgroundColor: selected ? colors.primary : "transparent",
+                minWidth: 48,
+                alignItems: "center",
               }}
             >
-              <Ionicons name={item.icon} size={21} color={selected ? colors.primary : colors.slate500} />
+              <Ionicons
+                name={selected ? item.icon : item.iconOff}
+                size={22}
+                color={selected ? colors.white : colors.slate500}
+              />
             </View>
             <Text
               numberOfLines={1}
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: selected ? "700" : "500",
-                color: selected ? colors.primary : colors.slate500,
+                color: selected ? colors.primaryStrong : colors.slate500,
+                letterSpacing: 0.2,
               }}
             >
               {t[item.label]}

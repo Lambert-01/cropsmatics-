@@ -126,6 +126,7 @@ function KpiCard({
   points,
   tone = "neutral",
   onPress,
+  accent,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -136,47 +137,57 @@ function KpiCard({
   points?: { label: string; value: number | null }[];
   tone?: "neutral" | "positive";
   onPress?: () => void;
+  accent?: string;
 }) {
   const { colors, typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const published = value !== null && value !== undefined && value !== "—";
   const display = typeof value === "number" ? formatValue(value) : value ?? "—";
   const hasTrend = points ? publishedCount(points) > 1 : false;
+  const accentColor = accent ?? colors.primary;
 
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : "text"}
       accessibilityLabel={`${label}: ${display}${unit ? ` ${unit}` : ""}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.kpi, pressed && onPress ? { opacity: 0.85 } : null]}
+      style={({ pressed }) => [styles.kpi, pressed && onPress ? { opacity: 0.88 } : null]}
     >
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <View style={styles.kpiIcon}>
-          <Ionicons name={icon} size={14} color={colors.primary} />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+        <View style={[styles.kpiIcon, { backgroundColor: accentColor + "18" }]}>
+          <Ionicons name={icon} size={15} color={accentColor} />
         </View>
-        <Text numberOfLines={1} style={styles.kpiLabel}>
+        <Text numberOfLines={1} style={[styles.kpiLabel, { flex: 1 }]}>
           {label.toUpperCase()}
         </Text>
+        {onPress ? (
+          <Ionicons name="chevron-forward" size={13} color={colors.slate300} />
+        ) : null}
       </View>
 
-      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 2 }}>
         <Text numberOfLines={1} adjustsFontSizeToFit style={styles.kpiValue}>
           {published ? display : "—"}
         </Text>
-        {published && unit ? <Text style={typography.unit}>{unit}</Text> : null}
+        {published && unit ? (
+          <Text style={[typography.unit, { fontSize: 11 }]}>{unit}</Text>
+        ) : null}
       </View>
 
       {published && change ? (
         <ChangeIndicator change={change} tone={tone} />
       ) : period ? (
-        <Text numberOfLines={1} style={typography.micro}>
+        <Text numberOfLines={1} style={[typography.micro, { color: colors.slate500 }]}>
           {period}
         </Text>
       ) : null}
 
-      {/* A single published observation has no trend to show, so none is drawn. */}
       {hasTrend ? (
-        <Sparkline points={points as { label: string; value: number | null }[]} height={26} />
+        <Sparkline
+          points={points as { label: string; value: number | null }[]}
+          height={28}
+          color={accentColor}
+        />
       ) : null}
     </Pressable>
   );
@@ -457,7 +468,7 @@ export default function HomeScreen() {
   const failable = home.isError || board.isError;
 
   return (
-    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
+    <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.primary }}>
       <AppHeader
         context={
           home.data?.latest_period_label
@@ -498,27 +509,62 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* ---- Hero: the same Rwanda landscape the web uses ------------ */}
+            {/* ---- Hero: full-bleed Rwanda landscape -------------------- */}
             <ImageBackground
               source={require("../assets/images/rwanda-farm-hero-mobile.jpg")}
               resizeMode="cover"
               style={styles.hero}
               imageStyle={{ borderRadius: radius.lg }}
             >
-              {/* Two-stop forest-green scrim, so white copy stays legible. */}
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: heroScrim.top, borderRadius: radius.lg }]} />
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: heroScrim.middle, borderRadius: radius.lg }]} />
+              <View style={[StyleSheet.absoluteFillObject, styles.heroScrimTop, { borderRadius: radius.lg }]} />
+              <View style={[StyleSheet.absoluteFillObject, styles.heroScrimMid, { borderRadius: radius.lg }]} />
               <View style={[styles.heroBottom, { backgroundColor: heroScrim.bottom }]} />
 
+              {/* Top badge row */}
+              <View style={styles.heroBadgeRow}>
+                <View style={styles.heroBadge}>
+                  <Ionicons name="leaf" size={11} color={colors.primary} />
+                  <Text style={styles.heroBadgeText}>{t.homeEyebrow.toUpperCase()}</Text>
+                </View>
+                {home.data?.latest_period_label ? (
+                  <View style={[styles.heroBadge, { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+                    <Ionicons name="calendar-outline" size={11} color={colors.white} />
+                    <Text style={[styles.heroBadgeText, { color: colors.white }]}>
+                      {home.data.latest_period_label}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
               <View style={styles.heroBody}>
-                <Text style={styles.heroEyebrow}>{t.homeEyebrow.toUpperCase()}</Text>
                 <Text style={styles.heroHeadline}>{t.homeHeadline}</Text>
                 <Text style={styles.heroSupport}>{t.homeHeroBody}</Text>
+
+                {/* Stat pills */}
+                <View style={styles.heroStats}>
+                  {cropsAnalysed ? (
+                    <View style={styles.heroStatPill}>
+                      <Text style={styles.heroStatNum}>{cropsAnalysed}</Text>
+                      <Text style={styles.heroStatLbl}>Crops</Text>
+                    </View>
+                  ) : null}
+                  {districtsCovered ? (
+                    <View style={styles.heroStatPill}>
+                      <Text style={styles.heroStatNum}>{districtsCovered}</Text>
+                      <Text style={styles.heroStatLbl}>Districts</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.heroStatPill}>
+                    <Text style={styles.heroStatNum}>3</Text>
+                    <Text style={styles.heroStatLbl}>Seasons</Text>
+                  </View>
+                </View>
+
                 <View style={styles.heroValues}>
-                  {[t.homeValueDecisions, t.homeValueProductivity, t.homeValueFoodSystems].map((value) => (
-                    <View key={value} style={styles.heroValue}>
+                  {[t.homeValueDecisions, t.homeValueProductivity, t.homeValueFoodSystems].map((v) => (
+                    <View key={v} style={styles.heroValue}>
                       <Ionicons name="checkmark-circle" size={13} color={colors.mint} />
-                      <Text style={styles.heroValueText}>{value}</Text>
+                      <Text style={styles.heroValueText}>{v}</Text>
                     </View>
                   ))}
                 </View>
@@ -631,6 +677,7 @@ export default function HomeScreen() {
                     change={kpi.production.change}
                     points={kpi.production.points}
                     tone="positive"
+                    accent={colors.primary}
                     onPress={() => {
                       setMetric("production_mt");
                       setCropFilter(null);
@@ -644,6 +691,7 @@ export default function HomeScreen() {
                     period={kpi.area.period}
                     change={kpi.area.change}
                     points={kpi.area.points}
+                    accent={colors.blue}
                     onPress={() => {
                       setMetric("harvested_area_ha");
                       setCropFilter(null);
@@ -668,12 +716,14 @@ export default function HomeScreen() {
                 icon="leaf-outline"
                 label={t.kpiCropsAnalysed}
                 value={cropsAnalysed}
+                accent={colors.success}
                 onPress={() => router.push("/explore/crops")}
               />
               <KpiCard
                 icon="location-outline"
                 label={t.kpiDistrictsCovered}
                 value={districtsCovered}
+                accent={colors.amber}
                 onPress={() => router.push("/explore/districts")}
               />
             </View>
@@ -914,34 +964,65 @@ const makeStyles = (colors: Palette, typography: Typography) => {
   const s = (value: number) => Math.round(value * typography.scale);
 
   return StyleSheet.create({
-  content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+  content: { padding: spacing.md, gap: spacing.lg, paddingBottom: spacing.xl },
 
   // Hero
   hero: {
-    minHeight: 210,
+    minHeight: 270,
     borderRadius: radius.lg,
     overflow: "hidden",
     justifyContent: "flex-end",
+    ...shadow.strong,
   },
+  heroScrimTop: { backgroundColor: "rgba(3,32,25,0.10)" },
+  heroScrimMid: { backgroundColor: "rgba(3,32,25,0.42)" },
   heroBottom: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    height: 130,
+    height: 160,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
   },
-  heroBody: { padding: spacing.md, gap: 5 },
-  heroEyebrow: {
-    color: colors.mint,
-    fontSize: s(10),
-    fontWeight: "700",
-    letterSpacing: 1,
+  heroBadgeRow: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: "row",
+    gap: spacing.sm,
   },
-  heroHeadline: { color: colors.white, fontSize: s(22), fontWeight: "700", lineHeight: s(27) },
-  heroSupport: { color: "rgba(255,255,255,0.85)", fontSize: s(13), lineHeight: s(18) },
-  heroValues: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: 4 },
+  heroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.mint,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  heroBadgeText: { fontSize: s(10), fontWeight: "700", color: colors.primaryStrong },
+  heroBody: { padding: spacing.md, gap: 6 },
+  heroHeadline: { color: colors.white, fontSize: s(26), fontWeight: "800", lineHeight: s(31), letterSpacing: -0.5 },
+  heroSupport: { color: "rgba(255,255,255,0.82)", fontSize: s(13), lineHeight: s(19) },
+  heroStats: { flexDirection: "row", gap: spacing.sm, marginTop: 4 },
+  heroStatPill: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  heroStatNum: { color: colors.white, fontSize: s(16), fontWeight: "800" },
+  heroStatLbl: { color: "rgba(255,255,255,0.75)", fontSize: s(10), fontWeight: "600" },
+  heroValues: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: 2 },
   heroValue: { flexDirection: "row", alignItems: "center", gap: 4 },
   heroValueText: { color: colors.white, fontSize: s(11), fontWeight: "600" },
 
@@ -951,27 +1032,28 @@ const makeStyles = (colors: Palette, typography: Typography) => {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radius.pill,
-    backgroundColor: colors.mint,
-    maxWidth: 190,
+    backgroundColor: colors.primary,
+    maxWidth: 200,
   },
-  contextChipText: { fontSize: s(12), fontWeight: "700", color: colors.primaryStrong },
+  contextChipText: { fontSize: s(12), fontWeight: "700", color: colors.white },
   resetChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.primary,
+    backgroundColor: colors.mintSoft,
   },
   resetChipText: { fontSize: s(12), fontWeight: "700", color: colors.primaryStrong },
 
-  // Section caption that names the scope a block of figures was computed for.
-  scopeRow: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  // Section caption
+  scopeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   scopeValue: { ...typography.micro, flex: 1, color: colors.slate700 },
 
   // KPI grid
@@ -984,19 +1066,18 @@ const makeStyles = (colors: Palette, typography: Typography) => {
     borderColor: colors.border,
     borderRadius: radius.lg,
     padding: spacing.md,
-    gap: 6,
+    gap: 7,
     ...shadow.card,
   },
   kpiIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    backgroundColor: colors.mintSoft,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  kpiLabel: { ...typography.microCaps, flex: 1 },
-  kpiValue: { ...typography.numericCard },
+  kpiLabel: { ...typography.microCaps },
+  kpiValue: { ...typography.numericCard, fontSize: s(26) },
 
   // Sections
   sectionAction: { ...typography.micro, color: colors.primaryStrong, fontWeight: "700" },

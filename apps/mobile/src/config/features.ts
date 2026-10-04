@@ -6,5 +6,5 @@ export const features = {
   ask: true,
   maps: true,
   savedItems: true,
-  darkMode: true, // all screens read colours from the theme context
+  darkMode: false, // locked to light — rich visual design
 } as const;

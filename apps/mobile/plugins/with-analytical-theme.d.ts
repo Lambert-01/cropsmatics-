@@ -44,7 +44,11 @@ interface AnalyticalThemePlugin {
   APP_THEME_ITEMS: Record<string, string>;
   /** Style items applied to `Theme.App.SplashScreen` (brand launch, both schemes). */
   SPLASH_THEME_ITEMS: Record<string, string>;
-  /** The `AppTheme` overrides that live only in `values-night/styles.xml`. */
+  /**
+   * The complete `AppTheme` written to `values-night/styles.xml` — parent and
+   * every item included, because a night style *replaces* the light one rather
+   * than merging into it.
+   */
   APP_THEME_NIGHT_ITEMS: Record<string, string>;
   /** The edit-field overrides that keep native text legible in both schemes. */
   EDIT_TEXT_ITEMS: Record<string, string>;

@@ -148,7 +148,13 @@ export function ListRow({
         ) : null}
         {meta ? <Text style={styles.listMeta}>{meta}</Text> : null}
       </View>
-      {right ?? (onPress ? <Ionicons name="chevron-forward" size={18} color={colors.slate300} /> : null)}
+      {right ?? (
+        onPress ? (
+          <View style={styles.listChevron}>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
+        ) : null
+      )}
     </Pressable>
   );
 }
@@ -462,20 +468,30 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   listIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: colors.mintSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  listTitle: { ...typography.h3, fontSize: 14, fontWeight: "600" },
+  listMeta: { ...typography.micro, color: colors.slate500, marginTop: 1 },
+  listChevron: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
     backgroundColor: colors.mintSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  listTitle: { ...typography.h3, fontSize: 15 },
-  listMeta: { ...typography.micro, color: colors.slate500, marginTop: 1 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, alignSelf: "flex-start" },
   badgeText: { fontSize: 11, fontWeight: "700" },
   primaryButton: {
@@ -507,21 +523,26 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     alignItems: "center",
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
-    minHeight: 48,
+    minHeight: 52,
+    shadowColor: colors.forestDeep,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   searchInput: { flex: 1, fontSize: 15, color: colors.slate900, paddingVertical: 10 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },

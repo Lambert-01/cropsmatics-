@@ -15,7 +15,9 @@ import plugin, { type ResourceXML } from "../plugins/with-analytical-theme";
  *     `expo-system-ui` uses to implement `userInterfaceStyle` — from having any
  *     effect, so `useColorScheme()` could never report `dark`;
  *   - a white status bar and a white navigation bar in dark mode;
- *   - a light launch window in dark mode, i.e. a white flash on open.
+ *   - a light launch window in dark mode, i.e. a white flash on open;
+ *   - a `values-night` `AppTheme` with no `parent`, which drops the AppCompat
+ *     theme in dark mode and crashes `AppCompatActivity.onCreate` on launch.
  *
  * The committed `android/` tree is what EAS and CI actually compile, and
  * `plugins/with-analytical-theme.js` is what re-applies the same values on
@@ -49,6 +51,16 @@ function colorsOf(colors: ResourceXML): Record<string, string> {
 /** A strings file's `<string>`s as a name -> value map. */
 function stringsOf(xml: ResourceXML): Record<string, string> {
   return Object.fromEntries((xml.resources?.string ?? []).map((s) => [s.$.name, s._ ?? ""]));
+}
+
+/**
+ * Rough channel ratio of a `#rrggbb` literal: 0 is black, 1 is white.
+ *
+ * Not perceptual luminance — it only needs to separate a dark surface from a
+ * light one, which is what every "is this token dark?" assertion here asks.
+ */
+function hexLuminance(hex: string): number {
+  return parseInt(hex.slice(1), 16) / 0xffffff;
 }
 
 /**
@@ -153,6 +165,87 @@ describe("android AppTheme", () => {
   });
 });
 
+/**
+ * Dark mode used to crash the app on launch.
+ *
+ * Android resolves a style against exactly one configuration: a `<style>` in
+ * `values-night/` *replaces* its `values/` counterpart outright rather than
+ * merging into it. The night file therefore used to be a two-item style with
+ * no `parent`, which in night mode meant the activity theme was not an
+ * AppCompat theme at all — `AppCompatActivity.onCreate` threw
+ * "You need to use a Theme.AppCompat theme (or descendant) with this
+ * activity", and the OS killed the process. Reproduced on device as a
+ * zero-second cold start with `FATAL EXCEPTION` under `main`.
+ *
+ * The day file alone proves nothing: `values/styles.xml` carries a correct
+ * parent even when the night one does not, because they are independent
+ * resource entries, not an inheritance chain.
+ */
+describe("android night AppTheme", () => {
+  /** The `<style>` group itself, so `parent` can be asserted alongside items. */
+  const styleGroup = (styles: ResourceXML, name: string) =>
+    (styles.resources?.style ?? []).find((style) => style.$.name === name);
+
+  it("keeps an AppCompat parent in the night scheme", async () => {
+    const group = styleGroup(await readXml(res("values-night", "styles.xml")), "AppTheme");
+    expect(group?.$.parent).toBe("Theme.AppCompat.DayNight.NoActionBar");
+  });
+
+  it("declares the whole style in both schemes, not a subset", async () => {
+    const day = itemsOf(await readXml(res("values", "styles.xml")), "AppTheme");
+    const night = itemsOf(await readXml(res("values-night", "styles.xml")), "AppTheme");
+    // A style resolved in night mode is exactly what values-night declares, so
+    // any key present in values/ but missing here simply vanishes in dark mode.
+    expect(Object.keys(night).sort()).toEqual(Object.keys(day).sort());
+  });
+
+  it("differs from the light style only in the system-bar icon flags", async () => {
+    const day = itemsOf(await readXml(res("values", "styles.xml")), "AppTheme");
+    const night = itemsOf(await readXml(res("values-night", "styles.xml")), "AppTheme");
+    const flips = ["android:windowLightStatusBar", "android:windowLightNavigationBar"];
+    for (const key of flips) {
+      expect(day[key], key).toBe("true");
+      expect(night[key], key).toBe("false");
+    }
+    for (const key of Object.keys(day)) {
+      if (flips.includes(key)) continue;
+      // Everything else must be identical — the colours already resolve
+      // per-scheme through values-night/colors.xml.
+      expect(night[key], key).toBe(day[key]);
+    }
+  });
+
+  it("points the night window at a colour the night scheme actually defines", async () => {
+    const night = itemsOf(await readXml(res("values-night", "styles.xml")), "AppTheme");
+    const tokens = colorsOf(await readXml(res("values-night", "colors.xml")));
+    const token = /^@color\/(\w+)$/.exec(night["android:windowBackground"] ?? "")?.[1];
+    expect(token, "windowBackground must be a @color reference").toBeDefined();
+    // A day-only token resolves in night mode to its light value, which is a
+    // white window behind a dark UI — the very flash this theme exists to kill.
+    expect(Object.keys(tokens), token).toContain(token);
+    expect(hexLuminance(tokens[token!]), token).toBeLessThan(0.5);
+  });
+
+  it("generates that same file on prebuild", async () => {
+    // The committed file is what EAS compiles; NIGHT_STYLES_XML is what
+    // `expo prebuild` would write. They must be the same style, or the fix
+    // below only holds until the next prebuild.
+    const committed = itemsOf(await readXml(res("values-night", "styles.xml")), "AppTheme");
+    const generated = Object.fromEntries(
+      [...plugin.NIGHT_STYLES_XML.matchAll(/<item name="([^"]+)"[^>]*>([^<]*)</g)].map((m) => [
+        m[1],
+        m[2],
+      ]),
+    );
+    expect(
+      plugin.NIGHT_STYLES_XML,
+      "the plugin must emit an AppCompat parent or prebuild reintroduces the crash",
+    ).toContain('name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar"');
+    expect(generated).toEqual(plugin.APP_THEME_NIGHT_ITEMS);
+    expect(generated).toEqual(committed);
+  });
+});
+
 describe("system appearance", () => {
   /**
    * The most load-bearing assertion in this file.
@@ -236,13 +329,12 @@ describe("android colour tokens", () => {
 
   it("gives the dark scheme a dark surface, not a light one", async () => {
     const night = colorsOf(await readXml(res("values-night", "colors.xml")));
-    const luminance = (hex: string) => parseInt(hex.slice(1), 16) / 0xffffff;
     // Night bars and windows must be closer to black than to white.
     for (const token of ["app_background", "status_bar", "nav_bar"]) {
-      expect(luminance(night[token]), token).toBeLessThan(0.5);
+      expect(hexLuminance(night[token]), token).toBeLessThan(0.5);
     }
     // And the dark-scheme text must be light, or the dark surfaces are
     // unreadable.
-    expect(luminance(night.app_text)).toBeGreaterThan(0.5);
+    expect(hexLuminance(night.app_text)).toBeGreaterThan(0.5);
   });
 });
