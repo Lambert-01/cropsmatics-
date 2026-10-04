@@ -123,29 +123,16 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
   // No native splash on this platform (e.g. web); nothing to hold.
 });
 
-export default function RootLayout() {
+/**
+ * Inner shell — rendered inside ThemeProvider so every hook here can safely
+ * call useTheme(). RootLayout itself must NOT call useTheme() because it mounts
+ * ThemeProvider; calling the hook above its own provider crashes the app.
+ */
+function AppShell({ client }: { client: QueryClient }) {
   const { colors } = useTheme();
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            // Public intelligence changes slowly; cache aggressively and keep
-            // the last good data visible while refetching.
-            staleTime: 5 * 60 * 1000,
-            gcTime: 24 * 60 * 60 * 1000,
-            retry: 2,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
-  );
-
   const router = useRouter();
   const segments = useSegments();
   const { hydrated, onboardingComplete, hydrate, settings } = useAppStore();
-  // The native splash hands over to this animated overlay once the local store
-  // has hydrated, so the branded launch is continuous rather than a hard cut.
   const [splashDone, setSplashDone] = useState(false);
   const handleSplashDone = useCallback(() => setSplashDone(true), []);
 
@@ -155,9 +142,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!hydrated) return;
-    void SplashScreen.hideAsync().catch(() => {
-      // Already hidden, or no native splash: hiding twice is harmless.
-    });
+    void SplashScreen.hideAsync().catch(() => {});
   }, [hydrated]);
 
   useEffect(() => {
@@ -169,34 +154,51 @@ export default function RootLayout() {
   }, [hydrated, onboardingComplete, segments, router]);
 
   if (!hydrated) {
-    // Only reachable before hydration resolves. The view matches the native
-    // splash background (#032D23) so the handover is invisible on the rare
-    // frame where the native window has already gone.
     return (
       <View
         style={{
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: colors.forestDeep,
+          backgroundColor: "#032D23",
         }}
       >
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color="#ffffff" />
       </View>
     );
   }
 
   return (
+    <QueryClientProvider client={client}>
+      <OfflineAnalyticsCache client={client} />
+      <ThemedSystemBars />
+      <ThemedStack />
+      {!splashDone ? (
+        <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
+      ) : null}
+    </QueryClientProvider>
+  );
+}
+
+export default function RootLayout() {
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 5 * 60 * 1000,
+            gcTime: 24 * 60 * 60 * 1000,
+            retry: 2,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
+
+  return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <QueryClientProvider client={client}>
-          <OfflineAnalyticsCache client={client} />
-          <ThemedSystemBars />
-          <ThemedStack />
-          {!splashDone ? (
-            <AnimatedSplash reducedMotion={settings.reducedMotion} onDone={handleSplashDone} />
-          ) : null}
-        </QueryClientProvider>
+        <AppShell client={client} />
       </ThemeProvider>
     </SafeAreaProvider>
   );
