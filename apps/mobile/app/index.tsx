@@ -1032,9 +1032,9 @@ const makeStyles = (colors: Palette, typography: Typography) => {
   },
   heroBadgeRow: {
     position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    right: spacing.md,
+    top: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
