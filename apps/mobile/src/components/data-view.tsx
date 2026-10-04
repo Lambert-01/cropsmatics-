@@ -9,13 +9,14 @@
  */
 
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { radius, spacing } from "../theme";
+import { gradient, radius, shadow, spacing } from "../theme";
 import type { Palette } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { ChangeResult } from "../utils/analytics";
@@ -450,23 +451,25 @@ export function DataSection({
     <View
       style={{
         backgroundColor: colors.surface,
-        borderRadius: radius.lg,
+        borderRadius: radius.xl,
         borderWidth: 1,
         borderColor: colors.border,
         overflow: "hidden",
-        shadowColor: colors.forestDeep,
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        ...shadow.card,
       }}
     >
-      {/* Accent top bar */}
-      <View style={{ height: 3, backgroundColor: colors.primary }} />
+      {/* Gradient accent rule: a flat bar reads as a border, a gradient reads
+          as a deliberate mark, and it ties the section to the app's brand. */}
+      <LinearGradient
+        colors={gradient.brand}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ height: 4 }}
+      />
       <View style={{ padding: spacing.md, gap: spacing.sm }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ ...typography.h3, fontSize: 15, letterSpacing: -0.2 }}>{title}</Text>
+            <Text style={{ ...typography.h3, fontSize: 16, letterSpacing: -0.3 }}>{title}</Text>
             {subtitle ? (
               <Text style={{ ...typography.caption, marginTop: 1 }}>{subtitle}</Text>
             ) : null}

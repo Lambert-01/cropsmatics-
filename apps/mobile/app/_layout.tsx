@@ -129,7 +129,6 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
  * ThemeProvider; calling the hook above its own provider crashes the app.
  */
 function AppShell({ client }: { client: QueryClient }) {
-  const { colors } = useTheme();
   const router = useRouter();
   const segments = useSegments();
   const { hydrated, onboardingComplete, hydrate, settings } = useAppStore();

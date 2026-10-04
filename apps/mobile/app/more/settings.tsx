@@ -9,7 +9,6 @@ import { describeCache } from "../../src/cache/status";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { Card, InfoRow, SectionHeader } from "../../src/components/ui";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
-import { features } from "../../src/config/features";
 import { clearCachedData } from "../../src/database";
 import { useAppStore } from "../../src/store/useAppStore";
 import { radius, spacing } from "../../src/theme";
@@ -114,11 +113,6 @@ export default function SettingsScreen() {
               : t.cacheStatusEmpty}
         </Text>
         <Text style={typography.micro}>{t.clearCacheNote}</Text>
-      </Card>
-
-      <Card>
-        <Text style={typography.h3}>{t.appearance}</Text>
-        <Text style={typography.caption}>{t.appearanceUnavailable}</Text>
       </Card>
 
       <Card>

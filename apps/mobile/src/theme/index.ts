@@ -199,8 +199,60 @@ export const radius = {
   sm: 6,
   md: 10,
   lg: 16,
+  xl: 24,
+  xxl: 32,
   pill: 999,
 };
+
+/**
+ * Gradient stops, in draw order, ready for `LinearGradient.colors`.
+ *
+ * Named rather than inline so the same artwork reads identically everywhere it
+ * appears. Stops are literal `rgba()` strings: `expo-linear-gradient` accepts
+ * only a colour array, and interpolating between opaque hexes would produce a
+ * muddy midpoint instead of a scrim that fades to nothing.
+ */
+export const gradient = {
+  /** Full-bleed scrim over photography — transparent at the top, near-solid at the foot. */
+  hero: ["rgba(3,32,25,0.04)", "rgba(3,32,25,0.42)", "rgba(3,32,25,0.94)"],
+  /** Short scrim for a band that only carries a headline and one row of stats. */
+  heroCompact: ["rgba(3,32,25,0.10)", "rgba(3,32,25,0.88)"],
+  /** Brand wash for solid chrome and call-to-action fills. */
+  brand: ["#0FA374", "#087F5B", "#04543B"],
+  /** Cool counterpart so a paired accent does not read as "the same green twice". */
+  accent: ["#3B82F6", "#2563EB", "#1D4ED8"],
+  /** Warm accent for highlights and opportunity callouts. */
+  sun: ["#FBBF24", "#D97706", "#B45309"],
+  /** Tinted panel that lifts off the page without a hard edge. */
+  mint: ["#FFFFFF", "#EFFAF5", "#DDF5EB"],
+} as const;
+
+/**
+ * Frosted-panel surfaces.
+ *
+ * React Native has no backdrop blur, so "glass" here means the honest version:
+ * a translucent white plate with a brighter hairline that catches light along
+ * its top edge, sitting over photography or a gradient. `overPhoto` is tuned for
+ * dark imagery (white ink); `onPage` for the light page (dark ink).
+ */
+export const glass = {
+  overPhoto: {
+    fill: "rgba(255,255,255,0.16)",
+    border: "rgba(255,255,255,0.30)",
+    edge: "rgba(255,255,255,0.45)",
+    ink: "#FFFFFF",
+    inkMuted: "rgba(255,255,255,0.80)",
+    chip: "rgba(255,255,255,0.20)",
+  },
+  onPage: {
+    fill: "rgba(255,255,255,0.88)",
+    border: "rgba(255,255,255,0.95)",
+    edge: "rgba(3,32,25,0.05)",
+    ink: "#032D23",
+    inkMuted: "rgba(3,45,35,0.66)",
+    chip: "rgba(255,255,255,0.72)",
+  },
+} as const;
 
 /**
  * The "Larger text" step.
@@ -330,6 +382,22 @@ export const shadow = {
     shadowRadius: 18,
     shadowOffset: { width: 0, height: -3 },
     elevation: 12,
+  },
+  /** Deep, soft lift for a hero-scale card floating over imagery. */
+  floating: {
+    shadowColor: "#032D23",
+    shadowOpacity: 0.24,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+  },
+  /** Brand-coloured bloom, for a solid primary control. */
+  glow: {
+    shadowColor: "#087F5B",
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   /** No lift — flat analytical sections. */
   none: {

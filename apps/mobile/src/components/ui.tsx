@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -13,7 +14,7 @@ import {
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { radius, shadow, spacing } from "../theme";
+import { gradient, radius, shadow, spacing } from "../theme";
 import type { Palette, Typography } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
 
@@ -311,6 +312,14 @@ export function FilterChip({
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       style={[styles.chip, selected ? styles.chipSelected : null]}
     >
+      {selected ? (
+        <LinearGradient
+          colors={gradient.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{label}</Text>
       {onRemove ? (
         <Ionicons
@@ -523,18 +532,14 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     alignItems: "center",
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     paddingHorizontal: spacing.md,
-    minHeight: 52,
-    shadowColor: colors.forestDeep,
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    minHeight: 54,
+    ...shadow.strong,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.slate900, paddingVertical: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: colors.slate900, paddingVertical: 11 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -545,6 +550,8 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    // Clips the selected chip's gradient fill to the pill.
+    overflow: "hidden",
   },
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.slate700, fontWeight: "600" },

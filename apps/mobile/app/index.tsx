@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -40,7 +41,7 @@ import { useNationalInsights } from "../src/hooks/useNationalInsights";
 import { strings } from "../src/i18n";
 import { homeApi, mapsApi } from "../src/services/api";
 import { useAppStore } from "../src/store/useAppStore";
-import { chart, heroScrim, radius, shadow, spacing } from "../src/theme";
+import { chart, glass, gradient, radius, shadow, spacing } from "../src/theme";
 import type { Palette, Typography } from "../src/theme";
 import { useThemedStyles, useTheme } from "../src/theme/theme-context";
 import type { NationalBoardCrop } from "../src/types";
@@ -115,6 +116,41 @@ function seasonOf(code: string): SeasonFilter {
   return (SEASON_LETTERS as readonly string[]).includes(letter) ? (letter as SeasonFilter) : "all";
 }
 
+/**
+ * Hero stat-bar labels.
+ *
+ * Deliberately terse: the hero now carries one headline and one row of
+ * figures, so these stay short enough to sit side by side on a 320 px screen.
+ */
+const HERO_STAT_LABELS = {
+  crops: "Crops",
+  districts: "Districts",
+  seasons: "Seasons",
+} as const;
+
+/** One figure in the hero's frosted stat bar: big number, quiet caption. */
+function HeroStat({ value, label }: { value: number | null | undefined; label: string }) {
+  const published = typeof value === "number" && Number.isFinite(value);
+  return (
+    <View style={{ flex: 1, alignItems: "center", gap: 1 }}>
+      <Text style={{ fontSize: 21, fontWeight: "800", color: glass.overPhoto.ink }}>
+        {published ? formatValue(value as number) : "—"}
+      </Text>
+      <Text
+        numberOfLines={1}
+        style={{
+          fontSize: 9,
+          fontWeight: "700",
+          color: glass.overPhoto.inkMuted,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 /** One 2x2 KPI card: label, value, unit, period, change and a real sparkline. */
 function KpiCard({
   icon,
@@ -153,8 +189,18 @@ function KpiCard({
       onPress={onPress}
       style={({ pressed }) => [styles.kpi, pressed && onPress ? { opacity: 0.88 } : null]}
     >
+      {/* A tinted wash beats a flat white plate: the card still sits on the
+          page, but it no longer looks like an unstyled box. */}
+      <LinearGradient
+        colors={gradient.mint}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[styles.kpiAccent, { backgroundColor: accentColor }]} />
+
       <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
-        <View style={[styles.kpiIcon, { backgroundColor: accentColor + "18" }]}>
+        <View style={[styles.kpiIcon, { backgroundColor: accentColor + "1F" }]}>
           <Ionicons name={icon} size={15} color={accentColor} />
         </View>
         <Text numberOfLines={1} style={[styles.kpiLabel, { flex: 1 }]}>
@@ -514,59 +560,48 @@ export default function HomeScreen() {
               source={require("../assets/images/rwanda-farm-hero-mobile.jpg")}
               resizeMode="cover"
               style={styles.hero}
-              imageStyle={{ borderRadius: radius.lg }}
+              imageStyle={{ borderRadius: radius.xxl }}
             >
-              <View style={[StyleSheet.absoluteFillObject, styles.heroScrimTop, { borderRadius: radius.lg }]} />
-              <View style={[StyleSheet.absoluteFillObject, styles.heroScrimMid, { borderRadius: radius.lg }]} />
-              <View style={[styles.heroBottom, { backgroundColor: heroScrim.bottom }]} />
+              {/* One gradient scrim rather than three stacked layers: a single
+                  interpolation stays smooth where layered alpha bands band. */}
+              <LinearGradient
+                colors={gradient.hero}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={[StyleSheet.absoluteFillObject, styles.heroScrimEdge]}
+              />
 
               {/* Top badge row */}
               <View style={styles.heroBadgeRow}>
-                <View style={styles.heroBadge}>
-                  <Ionicons name="leaf" size={11} color={colors.primary} />
-                  <Text style={styles.heroBadgeText}>{t.homeEyebrow.toUpperCase()}</Text>
-                </View>
+                <LinearGradient
+                  colors={gradient.brand}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.heroBadgeSolid}
+                >
+                  <Ionicons name="leaf" size={11} color={colors.white} />
+                  <Text style={styles.heroBadgeSolidText}>{t.homeEyebrow.toUpperCase()}</Text>
+                </LinearGradient>
                 {home.data?.latest_period_label ? (
-                  <View style={[styles.heroBadge, { backgroundColor: "rgba(255,255,255,0.18)" }]}>
+                  <View style={styles.heroBadgeGlass}>
                     <Ionicons name="calendar-outline" size={11} color={colors.white} />
-                    <Text style={[styles.heroBadgeText, { color: colors.white }]}>
-                      {home.data.latest_period_label}
-                    </Text>
+                    <Text style={styles.heroBadgeGlassText}>{home.data.latest_period_label}</Text>
                   </View>
                 ) : null}
               </View>
 
               <View style={styles.heroBody}>
                 <Text style={styles.heroHeadline}>{t.homeHeadline}</Text>
-                <Text style={styles.heroSupport}>{t.homeHeroBody}</Text>
 
-                {/* Stat pills */}
-                <View style={styles.heroStats}>
-                  {cropsAnalysed ? (
-                    <View style={styles.heroStatPill}>
-                      <Text style={styles.heroStatNum}>{cropsAnalysed}</Text>
-                      <Text style={styles.heroStatLbl}>Crops</Text>
-                    </View>
-                  ) : null}
-                  {districtsCovered ? (
-                    <View style={styles.heroStatPill}>
-                      <Text style={styles.heroStatNum}>{districtsCovered}</Text>
-                      <Text style={styles.heroStatLbl}>Districts</Text>
-                    </View>
-                  ) : null}
-                  <View style={styles.heroStatPill}>
-                    <Text style={styles.heroStatNum}>3</Text>
-                    <Text style={styles.heroStatLbl}>Seasons</Text>
-                  </View>
-                </View>
-
-                <View style={styles.heroValues}>
-                  {[t.homeValueDecisions, t.homeValueProductivity, t.homeValueFoodSystems].map((v) => (
-                    <View key={v} style={styles.heroValue}>
-                      <Ionicons name="checkmark-circle" size={13} color={colors.mint} />
-                      <Text style={styles.heroValueText}>{v}</Text>
-                    </View>
-                  ))}
+                {/* Every figure in one frosted plate. Separate pills scattered
+                    under the headline read as decoration; a single bar with
+                    rules between the numbers reads as a stat strip. */}
+                <View style={styles.heroStatBar}>
+                  <HeroStat value={cropsAnalysed} label={HERO_STAT_LABELS.crops} />
+                  <View style={styles.heroStatRule} />
+                  <HeroStat value={districtsCovered} label={HERO_STAT_LABELS.districts} />
+                  <View style={styles.heroStatRule} />
+                  <HeroStat value={3} label={HERO_STAT_LABELS.seasons} />
                 </View>
               </View>
             </ImageBackground>
@@ -579,7 +614,13 @@ export default function HomeScreen() {
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.contextChip}>
-                <Ionicons name="calendar-outline" size={12} color={colors.primaryStrong} />
+                <LinearGradient
+                  colors={gradient.brand}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Ionicons name="calendar-outline" size={12} color={colors.white} />
                 <Text numberOfLines={1} style={styles.contextChipText}>
                   {home.data?.latest_period_label ?? t.latestData}
                 </Text>
@@ -945,6 +986,12 @@ export default function HomeScreen() {
           onPress={() => router.push("/field-operations/register-harvest")}
           style={({ pressed }) => [styles.fab, { bottom: 74 + insets.bottom }, pressed ? { opacity: 0.9 } : null]}
         >
+          <LinearGradient
+            colors={gradient.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
           <Ionicons name="add" size={20} color={colors.white} />
           <Text style={styles.fabLabel}>{t.registerHarvest}</Text>
         </Pressable>
@@ -968,22 +1015,20 @@ const makeStyles = (colors: Palette, typography: Typography) => {
 
   // Hero
   hero: {
-    minHeight: 270,
-    borderRadius: radius.lg,
+    minHeight: 330,
+    // Breaks out of the screen gutter so the photograph runs edge to edge and
+    // reads as a background rather than as a picture in a card. The sections
+    // below stay inset, which is what makes the hero feel like a billboard.
+    marginHorizontal: -spacing.md,
+    borderRadius: radius.xxl,
     overflow: "hidden",
     justifyContent: "flex-end",
-    ...shadow.strong,
+    ...shadow.floating,
   },
-  heroScrimTop: { backgroundColor: "rgba(3,32,25,0.10)" },
-  heroScrimMid: { backgroundColor: "rgba(3,32,25,0.42)" },
-  heroBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 160,
-    borderBottomLeftRadius: radius.lg,
-    borderBottomRightRadius: radius.lg,
+  /** Only the foot of the gradient needs rounding; the top is cut by the card. */
+  heroScrimEdge: {
+    borderBottomLeftRadius: radius.xxl,
+    borderBottomRightRadius: radius.xxl,
   },
   heroBadgeRow: {
     position: "absolute",
@@ -991,40 +1036,56 @@ const makeStyles = (colors: Palette, typography: Typography) => {
     left: spacing.md,
     right: spacing.md,
     flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
-  heroBadge: {
+  heroBadgeSolid: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: radius.pill,
-    backgroundColor: colors.mint,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    ...shadow.glow,
   },
-  heroBadgeText: { fontSize: s(10), fontWeight: "700", color: colors.primaryStrong },
-  heroBody: { padding: spacing.md, gap: 6 },
-  heroHeadline: { color: colors.white, fontSize: s(26), fontWeight: "800", lineHeight: s(31), letterSpacing: -0.5 },
-  heroSupport: { color: "rgba(255,255,255,0.82)", fontSize: s(13), lineHeight: s(19) },
-  heroStats: { flexDirection: "row", gap: spacing.sm, marginTop: 4 },
-  heroStatPill: {
+  heroBadgeSolidText: { fontSize: s(10), fontWeight: "800", color: colors.white },
+  heroBadgeGlass: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 11,
     paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: glass.overPhoto.chip,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: glass.overPhoto.border,
   },
-  heroStatNum: { color: colors.white, fontSize: s(16), fontWeight: "800" },
-  heroStatLbl: { color: "rgba(255,255,255,0.75)", fontSize: s(10), fontWeight: "600" },
-  heroValues: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: 2 },
-  heroValue: { flexDirection: "row", alignItems: "center", gap: 4 },
-  heroValueText: { color: colors.white, fontSize: s(11), fontWeight: "600" },
+  heroBadgeGlassText: { fontSize: s(10), fontWeight: "700", color: glass.overPhoto.ink },
+  heroBody: { padding: spacing.lg, gap: spacing.md },
+  heroHeadline: {
+    color: colors.white,
+    fontSize: s(30),
+    fontWeight: "800",
+    lineHeight: s(35),
+    letterSpacing: -0.7,
+  },
+  /** Frosted strip carrying every hero figure. */
+  heroStatBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: glass.overPhoto.fill,
+    borderWidth: 1,
+    borderColor: glass.overPhoto.border,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    overflow: "hidden",
+  },
+  heroStatRule: {
+    width: 1,
+    height: 28,
+    backgroundColor: glass.overPhoto.edge,
+  },
 
   // Filter strip
   filterStrip: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
@@ -1032,13 +1093,14 @@ const makeStyles = (colors: Palette, typography: Typography) => {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 8,
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    overflow: "hidden",
     maxWidth: 200,
+    ...shadow.glow,
   },
-  contextChipText: { fontSize: s(12), fontWeight: "700", color: colors.white },
+  contextChipText: { fontSize: s(12), fontWeight: "800", color: colors.white },
   resetChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -1061,23 +1123,33 @@ const makeStyles = (colors: Palette, typography: Typography) => {
   kpi: {
     flexBasis: "47%",
     flexGrow: 1,
-    backgroundColor: colors.surface,
+    minHeight: 130,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
     padding: spacing.md,
+    paddingTop: spacing.md + 3,
     gap: 7,
+    overflow: "hidden",
     ...shadow.card,
+  },
+  /** Accent rules the card's category off without another block of copy. */
+  kpiAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   kpiIcon: {
     width: 30,
     height: 30,
-    borderRadius: 9,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   kpiLabel: { ...typography.microCaps },
-  kpiValue: { ...typography.numericCard, fontSize: s(26) },
+  kpiValue: { ...typography.numericCard, fontSize: s(27) },
 
   // Sections
   sectionAction: { ...typography.micro, color: colors.primaryStrong, fontWeight: "700" },
@@ -1095,12 +1167,13 @@ const makeStyles = (colors: Palette, typography: Typography) => {
     right: spacing.md,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     paddingHorizontal: spacing.md,
-    height: 48,
+    height: 50,
     borderRadius: 999,
-    backgroundColor: colors.primary,
-    ...shadow.strong,
+    overflow: "hidden",
+    ...shadow.glow,
   },
   fabLabel: { color: colors.white, fontSize: s(14), fontWeight: "700" },
   });

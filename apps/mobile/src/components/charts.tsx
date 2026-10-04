@@ -18,12 +18,23 @@
 
 import type { GestureResponderEvent, LayoutChangeEvent } from "react-native";
 import { useState } from "react";
-import { Text, View } from "react-native";
-import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
+import { StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  Line,
+  LinearGradient as SvgGradient,
+  Path,
+  Rect,
+  Stop,
+  Text as SvgText,
+} from "react-native-svg";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { chart, radius, seriesColor, spacing } from "../theme";
+import { chart, gradient, radius, seriesColor, shadow, spacing } from "../theme";
 import type { Palette } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { SeriesPoint } from "../utils/analytics";
@@ -74,8 +85,13 @@ function lastPublishedIndex(series: PreparedSeries[], count: number): number {
 }
 
 /**
- * Period + value readout. This is simultaneously the legend, the crosshair
- * readout and the screen reader's value, so the three can never disagree.
+ * Period + value readout.
+ *
+ * This is simultaneously the legend, the crosshair readout and the screen
+ * reader's value, so the three can never disagree. Visually it is a plate in
+ * its own right — a gradient period chip, then one row per series with a
+ * colour lozenge and the figure set large — because it is the part of a chart
+ * a user reads first.
  */
 function Readout({
   series,
@@ -92,42 +108,58 @@ function Readout({
   return (
     <View
       style={{
-        backgroundColor: colors.mintSoft,
-        borderRadius: radius.md,
-        padding: spacing.sm,
-        gap: 4,
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.hairline,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        gap: 6,
+        ...shadow.card,
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-        <Text style={{ ...typography.microCaps, color: colors.primaryStrong }}>
-          {String(label).toUpperCase()}
-        </Text>
+        <LinearGradient
+          colors={gradient.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 3 }}
+        >
+          <Text style={{ fontSize: 10, fontWeight: "800", color: colors.white }}>
+            {String(label).toUpperCase()}
+          </Text>
+        </LinearGradient>
         {unit ? (
           <View
             style={{
-              backgroundColor: colors.primary,
+              backgroundColor: colors.mint,
               borderRadius: radius.pill,
-              paddingHorizontal: 6,
-              paddingVertical: 1,
+              paddingHorizontal: 7,
+              paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 9, fontWeight: "700", color: colors.white }}>{unit}</Text>
+            <Text style={{ fontSize: 10, fontWeight: "700", color: colors.primaryStrong }}>
+              {unit}
+            </Text>
           </View>
         ) : null}
       </View>
       {series.map((item) => {
         const value = item.points[index]?.value ?? null;
         return (
-          <View key={item.key} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <View
+            key={item.key}
+            style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}
+          >
             <View
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 3,
+                width: 22,
+                height: 8,
+                borderRadius: radius.pill,
                 backgroundColor: item.color,
               }}
             />
-            <Text numberOfLines={1} style={{ ...typography.numericSmall, flex: 1 }}>
+            <Text numberOfLines={1} style={{ ...typography.bodySmall, flex: 1 }}>
               {item.label}
             </Text>
             {value === null ? (
@@ -136,12 +168,10 @@ function Readout({
               </Text>
             ) : (
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 3 }}>
-                <Text style={{ ...typography.numeric, color: colors.forestDeep }}>
+                <Text style={{ ...typography.numericLarge, fontSize: 19 }}>
                   {formatValue(value)}
                 </Text>
-                {unit ? (
-                  <Text style={{ ...typography.unit, fontSize: 11 }}>{unit}</Text>
-                ) : null}
+                {unit ? <Text style={typography.unit}>{unit}</Text> : null}
               </View>
             )}
           </View>
@@ -248,13 +278,30 @@ export function TimeSeriesChart({
         onMoveShouldSetResponder={() => count > 0}
         onResponderGrant={select}
         onResponderMove={select}
-        style={{ alignSelf: "stretch" }}
+        style={{
+          alignSelf: "stretch",
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: colors.hairline,
+          backgroundColor: colors.surface,
+          overflow: "hidden",
+          ...shadow.card,
+        }}
       >
         {width > 0 && count > 0 && hasData ? (
-          <Svg width={width} height={height}>
+          <View style={{ height, position: "relative" }}>
+            {/* Tinted plot plate: a gradient wash reads as depth where a flat
+                fill reads as an empty box. */}
+            <LinearGradient
+              colors={gradient.mint}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Svg width={width} height={height}>
             <Defs>
               {prepared.map((item, i) => (
-                <LinearGradient
+                <SvgGradient
                   key={`grad-${item.key}`}
                   id={`areaGrad${i}`}
                   x1="0"
@@ -262,9 +309,10 @@ export function TimeSeriesChart({
                   x2="0"
                   y2="1"
                 >
-                  <Stop offset="0" stopColor={item.color} stopOpacity={0.22} />
-                  <Stop offset="1" stopColor={item.color} stopOpacity={0.01} />
-                </LinearGradient>
+                  <Stop offset="0" stopColor={item.color} stopOpacity={0.4} />
+                  <Stop offset="0.55" stopColor={item.color} stopOpacity={0.14} />
+                  <Stop offset="1" stopColor={item.color} stopOpacity={0.02} />
+                </SvgGradient>
               ))}
             </Defs>
 
@@ -278,7 +326,6 @@ export function TimeSeriesChart({
                   y2={yAt(tick)}
                   stroke={colors.grid}
                   strokeWidth={1}
-                  strokeDasharray="4 3"
                 />
                 <SvgText
                   x={pad.left - 6}
@@ -340,23 +387,53 @@ export function TimeSeriesChart({
               });
             })}
 
-            {/* Crosshair */}
+            {/* Crosshair — solid and soft rather than dashed, so it reads as a
+                selection cursor and not as another grid line. */}
             {selected !== null && count > 0 ? (
-              <Line
-                x1={xAt(activeIndex)}
-                y1={pad.top}
-                x2={xAt(activeIndex)}
-                y2={pad.top + innerH}
-                stroke={colors.primary}
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-              />
+              <G>
+                <Line
+                  x1={xAt(activeIndex)}
+                  y1={pad.top}
+                  x2={xAt(activeIndex)}
+                  y2={pad.top + innerH}
+                  stroke={colors.primary}
+                  strokeWidth={2}
+                  strokeOpacity={0.35}
+                />
+                <Circle
+                  cx={xAt(activeIndex)}
+                  cy={pad.top}
+                  r={4}
+                  fill={colors.primary}
+                />
+              </G>
             ) : null}
 
             {prepared.map((item) => {
               const segments = seriesSegments(item.points);
               return (
                 <G key={item.key}>
+                  {/* A pale halo under the line lifts it off the gradient and
+                      off the grid without changing the series colour. */}
+                  {segments.map((segment) =>
+                    segment.points.length > 1 ? (
+                      <Path
+                        key={`halo-${item.key}-${segment.start}`}
+                        d={segment.points
+                          .map((point, offset) => {
+                            const index = segment.start + offset;
+                            return `${offset === 0 ? "M" : "L"} ${xAt(index)} ${yAt(point.value as number)}`;
+                          })
+                          .join(" ")}
+                        stroke={colors.surface}
+                        strokeOpacity={0.8}
+                        strokeWidth={chart.strokeWidth + 3.5}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    ) : null,
+                  )}
                   {segments.map((segment) =>
                     segment.points.length > 1 ? (
                       <Path
@@ -368,7 +445,7 @@ export function TimeSeriesChart({
                           })
                           .join(" ")}
                         stroke={item.color}
-                        strokeWidth={chart.strokeWidth + 0.5}
+                        strokeWidth={chart.strokeWidth + 1}
                         fill="none"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -401,22 +478,20 @@ export function TimeSeriesChart({
                         ),
                       )
                     : null}
-                  {selected !== null ? (
-                    (() => {
-                      const value = item.points[activeIndex]?.value ?? null;
-                      if (value === null) return null;
-                      return (
-                        <Circle
-                          cx={xAt(activeIndex)}
-                          cy={yAt(value)}
-                          r={chart.pointRadius + 3}
-                          fill={colors.surface}
-                          stroke={item.color}
-                          strokeWidth={2.5}
-                        />
-                      );
-                    })()
-                  ) : null}
+                  {selected !== null
+                    ? (() => {
+                        const value = item.points[activeIndex]?.value ?? null;
+                        if (value === null) return null;
+                        const cx = xAt(activeIndex);
+                        const cy = yAt(value);
+                        return (
+                          <G>
+                            <Circle cx={cx} cy={cy} r={16} fill={item.color} opacity={0.16} />
+                            <Circle cx={cx} cy={cy} r={6.5} fill={colors.surface} stroke={item.color} strokeWidth={3} />
+                          </G>
+                        );
+                      })()
+                    : null}
                 </G>
               );
             })}
@@ -426,27 +501,26 @@ export function TimeSeriesChart({
                 <SvgText
                   key={`x-${index}`}
                   x={xAt(index)}
-                  y={height - 6}
+                  y={height - 7}
                   fontSize={10}
-                  fill={colors.slate500}
+                  fill={index === activeIndex ? colors.primaryStrong : colors.slate500}
                   textAnchor="middle"
-                  fontWeight="600"
+                  fontWeight={index === activeIndex ? "800" : "600"}
                 >
                   {label}
                 </SvgText>
               ),
             )}
-          </Svg>
+            </Svg>
+          </View>
         ) : (
           <View
             style={{
               height,
-              borderRadius: radius.md,
-              borderWidth: 1,
-              borderColor: colors.hairline,
               alignItems: "center",
               justifyContent: "center",
               padding: spacing.md,
+              backgroundColor: colors.mint,
             }}
           >
             <Text style={{ ...typography.caption, textAlign: "center" }}>
@@ -469,7 +543,12 @@ export function MultiSeriesChart(props: TimeSeriesChartProps) {
 /**
  * Minimal inline trend line. No axes, no interaction — used in board rows where
  * the exact numbers are already printed next to it.
+ *
+ * Carries a gradient area under the stroke so a row of sparklines reads as a
+ * field of trends rather than a row of stray wires.
  */
+let sparklineSeq = 0;
+
 export function Sparkline({
   points,
   width: widthProp,
@@ -487,6 +566,7 @@ export function Sparkline({
   const t = strings(useAppStore((s) => s.language));
   const strokeColor = color ?? colors.primary;
   const [measured, setMeasured] = useState(0);
+  const [gradId] = useState(() => `spark-${(sparklineSeq += 1)}`);
   const width = widthProp ?? measured;
   const domain = yDomain(points);
   const segments = seriesSegments(points);
@@ -511,6 +591,30 @@ export function Sparkline({
     >
       {width > 0 && published > 0 ? (
         <Svg width={width} height={height}>
+          <Defs>
+            <SvgGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={strokeColor} stopOpacity={0.34} />
+              <Stop offset="1" stopColor={strokeColor} stopOpacity={0.02} />
+            </SvgGradient>
+          </Defs>
+          {segments.map((segment) =>
+            segment.points.length > 1 ? (
+              <Path
+                key={`spa-${segment.start}`}
+                d={
+                  `M ${xAt(segment.start)} ${height} ` +
+                  segment.points
+                    .map((point, offset) => {
+                      const index = segment.start + offset;
+                      return `L ${xAt(index)} ${yAt(point.value as number)}`;
+                    })
+                    .join(" ") +
+                  ` L ${xAt(segment.start + segment.points.length - 1)} ${height} Z`
+                }
+                fill={`url(#${gradId})`}
+              />
+            ) : null,
+          )}
           {segments.map((segment) =>
             segment.points.length > 1 ? (
               <Path
@@ -522,16 +626,17 @@ export function Sparkline({
                   })
                   .join(" ")}
                 stroke={strokeColor}
-                strokeWidth={1.75}
+                strokeWidth={2}
                 fill="none"
                 strokeLinecap="round"
+                strokeLinejoin="round"
               />
             ) : (
               <Circle
                 key={`sp-dot-${segment.start}`}
                 cx={xAt(segment.start)}
                 cy={yAt(segment.points[0].value as number)}
-                r={2}
+                r={2.5}
                 fill={strokeColor}
               />
             ),
@@ -600,10 +705,12 @@ export function StackedShareBar({
       <View
         style={{
           flexDirection: "row",
-          height: 20,
-          borderRadius: radius.sm,
+          height: 26,
+          gap: 2,
+          borderRadius: radius.pill,
           overflow: "hidden",
           backgroundColor: colors.grid,
+          ...shadow.card,
         }}
       >
         {published.map((segment) => (
@@ -613,6 +720,7 @@ export function StackedShareBar({
               flexGrow: segment.value as number,
               flexBasis: 0,
               backgroundColor: segment.color,
+              borderRadius: radius.pill,
             }}
           />
         ))}
@@ -828,15 +936,16 @@ export function HorizontalBarChart({
                   />
                   <View style={[styles.barCenter, { backgroundColor: colors.border }]} />
                 </>
-              ) : (
+              ) : row.value === null ? (
                 <View
-                  style={[
-                    styles.barFill,
-                    {
-                      width: `${pct}%`,
-                      backgroundColor: row.value === null ? colors.missing : colors.primary,
-                    },
-                  ]}
+                  style={[styles.barFill, { width: `${pct}%`, backgroundColor: colors.missing }]}
+                />
+              ) : (
+                <LinearGradient
+                  colors={gradient.brand}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.barFill, { width: `${pct}%` }]}
                 />
               )}
             </View>
@@ -921,7 +1030,7 @@ export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?
 
 const makeStyles = (colors: Palette) => ({
   barTrack: {
-    height: 10,
+    height: 14,
     borderRadius: 999,
     backgroundColor: colors.mintSoft,
     overflow: "hidden" as const,
@@ -929,7 +1038,8 @@ const makeStyles = (colors: Palette) => ({
     borderWidth: 1,
     borderColor: colors.hairline,
   },
-  barFill: { height: 10, borderRadius: 999, backgroundColor: colors.primary },
+  /** Fill background is supplied by the gradient; this is the flat fallback. */
+  barFill: { height: 14, borderRadius: 999 },
   // Diverging fills are absolutely positioned against the 50 % baseline.
   barFillAbs: {
     position: "absolute" as const,
