@@ -24,11 +24,43 @@ from __future__ import annotations
 import logging
 import uuid
 
-from app.ai import evidence_builder, grounded, intent_router, output_validator
+from app.ai import agent, evidence_builder, grounded, intent_router, output_validator
 from app.ai.providers import fallback_provider, get_provider
 from app.ai.schemas import AIRequest, AIResult, ProviderOutcome
 
 logger = logging.getLogger(__name__)
+
+
+def _agent_available(provider) -> bool:
+    """Whether this provider may choose and chain tools for the request.
+
+    The capability is opt-in on the provider (``supports_tools``) and can be
+    switched off by configuration, so the agent is a deliberate choice rather
+    than a side effect of configuring a provider at all.
+    """
+    if not getattr(provider, "supports_tools", False):
+        return False
+    config = getattr(provider, "config", None)
+    return bool(getattr(config, "agent_enabled", True))
+
+
+async def _ask_provider(provider, request, routed, bundle, reference) -> ProviderOutcome:
+    """Run the agent loop when the provider can use tools, else plain generation.
+
+    Both paths return prose that ``output_validator`` then checks against the
+    *same* bundle, so whether the model wrote freely or selected its own tools,
+    an unsupported figure is rejected identically.
+    """
+    if _agent_available(provider):
+        return await agent.run(
+            provider,
+            request,
+            routed,
+            bundle,
+            reference,
+            max_tool_calls=provider.config.max_tool_calls,
+        )
+    return await provider.generate(request, routed, bundle, reference)
 
 
 def _result(
@@ -83,7 +115,9 @@ async def answer(request: AIRequest) -> AIResult:
     provider = get_provider()
     provider_failed = False
     try:
-        outcome: ProviderOutcome = await provider.generate(request, routed, bundle, reference)
+        outcome: ProviderOutcome = await _ask_provider(
+            provider, request, routed, bundle, reference
+        )
     except Exception:
         # A provider that is unreachable, slow, misconfigured or malformed must
         # never break the product. Degrade to the deterministic answer.
@@ -138,7 +172,7 @@ async def stream_answer(request: AIRequest):
     provider = get_provider()
     provider_failed = False
     try:
-        outcome = await provider.generate(request, routed, bundle, reference)
+        outcome = await _ask_provider(provider, request, routed, bundle, reference)
     except Exception:
         logger.warning("provider %s failed during stream; using fallback", provider.name)
         provider_failed = True

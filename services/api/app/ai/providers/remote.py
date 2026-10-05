@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from app.ai.evidence import EvidenceBundle
 from app.ai.grounded import GroundedAnswer
-from app.ai.providers.base import ProviderUnavailable
+from app.ai.providers.base import ChatResponse, ProviderUnavailable, ToolCall
 from app.ai.schemas import AIRequest, ProviderOutcome, RoutedRequest
 
 #: Retrieved documents and evidence are UNTRUSTED CONTENT. A document must never
@@ -58,6 +58,10 @@ class RemoteConfig:
     max_output_tokens: int = 700
     #: Bounds the cost of a single answer.
     max_tool_calls: int = 6
+    #: Whether the model may choose and chain tools itself (the agent loop).
+    agent_enabled: bool = True
+    #: Hard bound on model turns in the agent loop, independent of the tool budget.
+    max_agent_steps: int = 8
 
     @property
     def configured(self) -> bool:
@@ -73,6 +77,8 @@ class RemoteConfig:
             "endpoint_configured": bool(self.base_url),
             "timeout_seconds": self.timeout_seconds,
             "max_tool_calls": self.max_tool_calls,
+            "agent_enabled": self.agent_enabled,
+            "max_agent_steps": self.max_agent_steps,
         }
 
 
@@ -107,6 +113,8 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
         timeout_seconds=number("AI_TIMEOUT_SECONDS", 20.0),
         max_output_tokens=integer("AI_MAX_OUTPUT_TOKENS", 700),
         max_tool_calls=integer("AI_MAX_TOOL_CALLS", 6),
+        agent_enabled=flag("AI_AGENT_ENABLED", True),
+        max_agent_steps=integer("AI_MAX_AGENT_STEPS", 8),
     )
 
 
@@ -115,6 +123,8 @@ class RemoteProvider:
 
     name = "remote"
     requires_network = True
+    #: This provider can pick tools; the orchestrator runs the agent loop for it.
+    supports_tools = True
 
     def __init__(self, config: RemoteConfig | None = None) -> None:
         self.config = config or load_config()
@@ -189,17 +199,32 @@ class RemoteProvider:
             citations=[item.evidence_id for item in bundle.items][:50],
         )
 
-    async def _complete(
-        self, request: AIRequest, routed: RoutedRequest, bundle: EvidenceBundle
-    ) -> str:
+    async def chat(
+        self, messages: list[dict], *, tools: list[dict] | None = None
+    ) -> ChatResponse:
+        """One chat-completions turn, optionally exposing the tool catalogue.
+
+        Returns the assistant message verbatim - prose, the tool calls it asked
+        for, or both. This method only parses; it never executes a tool, so a
+        malformed or hostile response cannot reach a service from here.
+        """
+        if not self.available():
+            raise ProviderUnavailable(
+                "AI provider is not configured; the deterministic provider answers instead"
+            )
+
         import httpx
 
-        payload = {
+        payload: dict = {
             "model": self.config.model,
-            "messages": self._messages(request, routed, bundle),
+            "messages": messages,
             "max_tokens": self.config.max_output_tokens,
             "temperature": 0.2,
         }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+
         headers = {
             "Authorization": f"Bearer {self.config.api_key}",
             "Content-Type": "application/json",
@@ -215,10 +240,40 @@ class RemoteProvider:
         choices = body.get("choices") or []
         if not choices:
             raise ProviderUnavailable("provider returned no choice")
-        content = (choices[0].get("message") or {}).get("content")
-        if not isinstance(content, str) or not content.strip():
+        message = choices[0].get("message") or {}
+
+        calls: list[ToolCall] = []
+        for index, call in enumerate(message.get("tool_calls") or []):
+            function = call.get("function") or {}
+            name = str(function.get("name") or "").strip()
+            if not name:
+                continue
+            calls.append(
+                ToolCall(
+                    id=str(call.get("id") or f"call_{index}"),
+                    name=name,
+                    arguments=str(function.get("arguments") or "{}"),
+                )
+            )
+
+        content = message.get("content")
+        return ChatResponse(
+            content=content if isinstance(content, str) else None,
+            tool_calls=calls,
+        )
+
+    async def _complete(
+        self, request: AIRequest, routed: RoutedRequest, bundle: EvidenceBundle
+    ) -> str:
+        response = await self.chat(self._messages(request, routed, bundle))
+        if response.tool_calls and not response.content:
+            # Tool calls are only meaningful to the agent loop, which passes the
+            # catalogue. Reaching here with one means the provider ignored that
+            # this was a prose-only turn, so the answer is treated as unavailable.
+            raise ProviderUnavailable("provider returned tool calls where prose was required")
+        if not response.content or not response.content.strip():
             raise ProviderUnavailable("provider returned an empty completion")
-        return content.strip()
+        return response.content.strip()
 
     async def stream(
         self,

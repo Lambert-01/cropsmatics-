@@ -119,5 +119,24 @@ class EvidenceBundle(BaseModel):
         allowed.add(float(len(self.tools_used)))
         return allowed
 
+    def add_items(self, items: list[EvidenceItem]) -> int:
+        """Merge retrieved items, keeping the first for each evidence id.
+
+        Returns how many were genuinely new. Used by the agent loop, where the
+        same tool may be called more than once: re-adding a value must not
+        duplicate it or inflate the numeric allowlist.
+        """
+        known = self.evidence_ids()
+        added = 0
+        for item in items:
+            if item.evidence_id in known:
+                continue
+            known.add(item.evidence_id)
+            self.items.append(item)
+            added += 1
+        if added:
+            self.sources = sorted({i.source_id for i in self.items if i.source_id})
+        return added
+
     def serialisable(self) -> dict:
         return self.model_dump(mode="json")

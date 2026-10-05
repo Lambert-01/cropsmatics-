@@ -213,6 +213,26 @@ def describe() -> list[dict]:
     ]
 
 
+def openai_tool_schemas() -> list[dict]:
+    """The allow-listed tools in OpenAI function-calling form.
+
+    This is the *only* way a model is told what it may call, and it is derived
+    from the same registry the executor validates against - so the catalogue a
+    model sees and the set of functions that can actually run cannot drift.
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": spec.name,
+                "description": spec.description,
+                "parameters": spec.params_model.model_json_schema(),
+            },
+        }
+        for spec in TOOL_REGISTRY.values()
+    ]
+
+
 def validate_params(name: str, params: dict) -> BaseModel:
     """Validate parameters against the tool's strict schema.
 
