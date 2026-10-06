@@ -25,6 +25,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.ai import numeric_guard
+from app.ai.conversation import STORE
 from app.ai.intent_router import INTENTS
 from app.ai.orchestrator import answer as engine_answer
 from app.ai.orchestrator import stream_answer as engine_stream
@@ -59,6 +60,12 @@ class QueryIn(BaseModel):
     question: str = Field(min_length=2, max_length=500)
     language: str = "en"
     context: QueryContext | None = None
+    #: Optional. When present the turn joins a multi-turn conversation: it may
+    #: inherit the previous turn's entities and it updates the conversation state.
+    conversation_id: str | None = Field(None, max_length=64)
+    #: Optional overrides. When ``None`` the planner infers them from the question.
+    depth: str | None = Field(None, pattern="^(quick|standard|deep)$")
+    audience: str | None = Field(None, pattern="^(farmer|planner|analyst)$")
 
 
 class QueryOut(BaseModel):
@@ -89,6 +96,13 @@ class QueryOut(BaseModel):
     evidence_count: int = 0
     tools_used: list[str] = Field(default_factory=list)
     validation: dict = Field(default_factory=dict)
+    #: The conversation this turn belongs to, when one was used.
+    conversation_id: str | None = None
+    #: The entities a follow-up would inherit (safe projection; no values).
+    resolved_context: dict = Field(default_factory=dict)
+    #: The structured response contract. Clients render this rather than parsing
+    #: ``answer``; ``answer`` remains the plain-text fallback.
+    structured: dict = Field(default_factory=dict)
 
 
 def _to_context(context: QueryContext | None) -> AIContext | None:
@@ -127,6 +141,9 @@ async def query(payload: QueryIn) -> QueryOut:
             question=payload.question,
             language=payload.language,
             context=_to_context(payload.context),
+            conversation_id=payload.conversation_id,
+            depth=payload.depth,
+            audience=payload.audience,
         )
     )
 
@@ -163,11 +180,52 @@ async def query(payload: QueryIn) -> QueryOut:
         evidence_count=result.evidence_count,
         tools_used=result.tools_used,
         validation=result.validation,
+        conversation_id=result.conversation_id,
+        resolved_context=result.resolved_context,
+        structured=result.structured,
     )
 
 
 def _sse(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+class ConversationOut(BaseModel):
+    conversation_id: str | None
+    turns: int = 0
+    context: dict = Field(default_factory=dict)
+    transcript: list[dict] = Field(default_factory=list)
+
+
+@router.post("/conversations", response_model=ConversationOut)
+def create_conversation() -> ConversationOut:
+    """Start a new conversation and return its id.
+
+    A client may also simply generate its own id and pass it to ``/query``; this
+    endpoint exists so a client that would rather not own id generation has one.
+    """
+    state = STORE.get_or_create(None)
+    return ConversationOut(conversation_id=state.conversation_id)
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationOut)
+def get_conversation(conversation_id: str) -> ConversationOut:
+    """Inspect a conversation's resolved context and recent turns."""
+    state = STORE.get(conversation_id)
+    if state is None:
+        return ConversationOut(conversation_id=conversation_id, turns=0)
+    return ConversationOut(
+        conversation_id=state.conversation_id,
+        turns=len(state.turns),
+        context=state.context.fingerprint(),
+        transcript=state.transcript(),
+    )
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(conversation_id: str) -> dict:
+    """Forget a conversation. Idempotent."""
+    return {"deleted": STORE.delete(conversation_id)}
 
 
 @router.post("/stream")
@@ -185,6 +243,9 @@ async def stream(payload: QueryIn) -> StreamingResponse:
             question=payload.question,
             language=payload.language,
             context=_to_context(payload.context),
+            conversation_id=payload.conversation_id,
+            depth=payload.depth,
+            audience=payload.audience,
         )
         async for event, data in engine_stream(request):
             yield _sse(event, data)

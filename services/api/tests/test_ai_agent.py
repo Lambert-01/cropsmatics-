@@ -70,7 +70,7 @@ class ScriptedAgent:
     async def health(self) -> dict:
         return {"provider": self.name, "available": True}
 
-    async def chat(self, messages, *, tools=None) -> ChatResponse:
+    async def chat(self, messages, *, tools=None, max_tokens=None) -> ChatResponse:
         if self._script:
             return self._script.pop(0)
         return ChatResponse(content="No further published evidence was found.")
@@ -97,7 +97,7 @@ class RepeatingAgent:
     async def health(self) -> dict:
         return {"provider": self.name, "available": True}
 
-    async def chat(self, messages, *, tools=None) -> ChatResponse:
+    async def chat(self, messages, *, tools=None, max_tokens=None) -> ChatResponse:
         if tools is None:
             return ChatResponse(content="Answered from the evidence already retrieved.")
         self.turned_with_tools += 1
@@ -255,7 +255,7 @@ def test_a_tool_calling_provider_that_fails_falls_back(client, monkeypatch):
     _require_data(client)
 
     class ExplodingAgent(ScriptedAgent):
-        async def chat(self, messages, *, tools=None):
+        async def chat(self, messages, *, tools=None, max_tokens=None):
             raise RuntimeError("agent exploded")
 
     import app.ai.orchestrator as orchestrator

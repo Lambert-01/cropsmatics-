@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from app.ai import tool_registry
+from app.ai import knowledge_base, tool_registry
 from app.ai.evidence import EvidenceBundle, EvidenceItem
 from app.ai.handlers import HANDLERS
 from app.ai.schemas import RoutedRequest
@@ -31,6 +31,30 @@ def _dedupe(items: list[EvidenceItem]) -> list[EvidenceItem]:
         seen.add(item.evidence_id)
         out.append(item)
     return out
+
+
+def _retrieved_documents(items: list[EvidenceItem]) -> list[dict]:
+    """Resolve knowledge-document evidence ids to their document text."""
+    documents: list[dict] = []
+    seen: set[str] = set()
+    for item in items:
+        if item.metric != "knowledge_document" or not isinstance(item.value, str):
+            continue
+        if item.value in seen:
+            continue
+        seen.add(item.value)
+        document = knowledge_base.get(item.value)
+        if document is None:
+            continue
+        documents.append(
+            {
+                "id": document.id,
+                "title": document.title,
+                "category": document.category,
+                "text": document.text,
+            }
+        )
+    return documents
 
 
 def build(routed: RoutedRequest, *, query_id: str) -> EvidenceBundle:
@@ -65,6 +89,11 @@ def build(routed: RoutedRequest, *, query_id: str) -> EvidenceBundle:
 
     bundle.items = _dedupe(bundle.items)
     bundle.sources = sorted({item.source_id for item in bundle.items if item.source_id})
+
+    # Explanatory documents retrieved by the knowledge tool. Kept in their own
+    # field, never merged into ``items``, so RAG can never be mistaken for an
+    # observation source.
+    bundle.retrieved = _retrieved_documents(bundle.items)
 
     # Districts the tool set could not cover at all: this is what makes "the data
     # do not say" a reportable fact rather than an absence of output.

@@ -58,6 +58,37 @@ def _indicators(routed: RoutedRequest) -> dict | None:
     return {"indicator_ids": routed.indicator_ids} if routed.indicator_ids else None
 
 
+def _crops(routed: RoutedRequest) -> dict | None:
+    crops = [crop for crop in (routed.crops or ([routed.crop] if routed.crop else [])) if crop]
+    if len(crops) < 2:
+        return None
+    return {"crops": crops[:4], "period_code": routed.requested_period}
+
+
+def _period_change(routed: RoutedRequest) -> dict | None:
+    if not routed.crop:
+        return None
+    return {
+        "crop": routed.crop,
+        "period_code": routed.requested_period,
+        "district": routed.district,
+    }
+
+
+def _factor(routed: RoutedRequest) -> dict | None:
+    if not routed.crop:
+        return None
+    return {"crop": routed.crop, "district": routed.district}
+
+
+def _optional_indicators(routed: RoutedRequest) -> dict:
+    return {"indicator_ids": routed.indicator_ids or None}
+
+
+def _knowledge(routed: RoutedRequest) -> dict:
+    return {"query": routed.question, "limit": 4}
+
+
 def _no_params(routed: RoutedRequest) -> dict:
     return {}
 
@@ -74,4 +105,10 @@ HANDLERS: dict[str, callable] = {
     "get_national_indicator": _indicators,
     "get_source_metadata": _no_params,
     "get_model_metadata": _no_params,
+    "get_crop_comparison": _crops,
+    "get_period_change": _period_change,
+    "get_factor_associations": _factor,
+    "get_data_coverage": _no_params,
+    "get_indicator_definitions": _optional_indicators,
+    "search_knowledge_base": _knowledge,
 }

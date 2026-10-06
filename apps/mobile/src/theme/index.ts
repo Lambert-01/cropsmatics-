@@ -131,6 +131,19 @@ export const palettes: Record<"light" | "dark", Palette> = {
 };
 
 /**
+ * The appearance an explicit toggle should switch to, given the resolved mode.
+ *
+ * Kept here (pure, no React Native import) so the one-tap header toggle's
+ * decision is testable without mounting a component. Tapping always yields an
+ * explicit ``light`` or ``dark`` - never ``system`` - because the tap is a direct
+ * instruction about how the app should look now, and ``system`` would ignore it
+ * on a device whose OS setting disagrees.
+ */
+export function toggledAppearance(mode: "light" | "dark"): "light" | "dark" {
+  return mode === "dark" ? "light" : "dark";
+}
+
+/**
  * Hero scrim over the Rwanda landscape.
  *
  * A two-stop forest-green overlay: light at the top so the image reads, dark at

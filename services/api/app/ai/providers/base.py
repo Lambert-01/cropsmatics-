@@ -54,9 +54,17 @@ class ToolCallingProvider(Protocol):
     supports_tools: bool
 
     async def chat(
-        self, messages: list[dict], *, tools: list[dict] | None = None
+        self,
+        messages: list[dict],
+        *,
+        tools: list[dict] | None = None,
+        max_tokens: int | None = None,
     ) -> ChatResponse:
-        """Return the assistant turn; executing any requested tool is the caller's job."""
+        """Return the assistant turn; executing any requested tool is the caller's job.
+
+        ``max_tokens`` lets the caller scale the output budget for a deeper answer
+        without the provider having to know about depth itself.
+        """
         ...
 
 

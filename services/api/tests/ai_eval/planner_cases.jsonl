@@ -1,0 +1,20 @@
+{"id": "en-crop-district-gap", "question": "Why is maize yield low in Gisagara?", "language": "en", "intent": "district_crop_gap", "crops": ["Maize"], "districts": ["Gisagara"]}
+{"id": "en-crop-only", "question": "How is maize used after harvest?", "language": "en", "intent": "crop_national_context", "crops": ["Maize"], "districts": []}
+{"id": "en-district-only", "question": "Tell me about Musanze", "language": "en", "intent": "district_context", "crops": [], "districts": ["Musanze"]}
+{"id": "en-indicator", "question": "How many farmers use irrigation?", "language": "en", "intent": "national_indicator", "crops": [], "districts": []}
+{"id": "en-alias", "question": "How much rice is produced in Rwanda?", "language": "en", "intent": "crop_national_context", "crops": ["Paddy rice"], "districts": []}
+{"id": "en-ambiguous-trailing", "question": "How much potato is produced?", "language": "en", "intent": "unsupported", "crops": [], "districts": []}
+{"id": "en-price", "question": "What is the market price of maize?", "language": "en", "intent": "unsupported", "crops": [], "districts": []}
+{"id": "en-weather", "question": "Will it rain in Musanze next week?", "language": "en", "intent": "unsupported", "crops": [], "districts": []}
+{"id": "en-two-crop-compare", "question": "Compare maize and beans in Rwanda", "language": "en", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": []}
+{"id": "en-multi-district-compare", "question": "Compare maize and beans in Ngoma and Gatsibo", "language": "en", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": ["Ngoma", "Gatsibo"]}
+{"id": "en-ranking", "question": "Which districts have the largest maize productivity gaps?", "language": "en", "intent": "district_ranking", "crops": ["Maize"], "districts": []}
+{"id": "en-practices", "question": "Which practices are associated with maize yield?", "language": "en", "intent": "practice_associations", "crops": ["Maize"], "districts": []}
+{"id": "en-trend", "question": "Show the maize yield trend over time", "language": "en", "intent": "crop_trend", "crops": ["Maize"], "districts": []}
+{"id": "en-provenance", "question": "Where did this number come from?", "language": "en", "intent": "source_provenance", "crops": [], "districts": []}
+{"id": "en-methodology", "question": "How do you compute the productivity gap?", "language": "en", "intent": "methodology", "crops": [], "districts": []}
+{"id": "en-coverage", "question": "Which periods are covered?", "language": "en", "intent": "data_coverage", "crops": [], "districts": []}
+{"id": "rw-crop-district", "question": "Ni gute ibigori bihingwa mu Gisagara?", "language": "rw", "intent": "district_crop_gap", "crops": ["Maize"], "districts": ["Gisagara"]}
+{"id": "rw-compare", "question": "Gereranya ibigori n'ibishyimbo mu Rwanda", "language": "rw", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": []}
+{"id": "mixed-crop-district", "question": "Kuki umusaruro w'ibigori uri hasi muri Gisagara?", "language": "rw", "intent": "district_crop_gap", "crops": ["Maize"], "districts": ["Gisagara"]}
+{"id": "mixed-code-switch", "question": "Kuki umusaruro w'ibigori hano uri hasi? Compare with last Season B", "language": "mixed", "intent": "period_comparison", "crops": ["Maize"], "districts": []}

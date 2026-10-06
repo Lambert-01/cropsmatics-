@@ -86,6 +86,10 @@ class EvidenceBundle(BaseModel):
     missing_data: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     tools_used: list[str] = Field(default_factory=list)
+    #: Explanatory documents retrieved for this question (RAG). Kept separate
+    #: from ``items`` on purpose: a document explains *how*, it never supplies a
+    #: numerical observation, so its text is not part of the numeric allow-list.
+    retrieved: list[dict] = Field(default_factory=list)
 
     @property
     def grounded(self) -> bool:

@@ -15,8 +15,14 @@ import { radius, spacing } from "../../src/theme";
 import type { Palette } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
+const APPEARANCE_OPTIONS = [
+  { value: "system", label: "appearanceSystem" },
+  { value: "light", label: "appearanceLight" },
+  { value: "dark", label: "appearanceDark" },
+] as const;
+
 export default function SettingsScreen() {
-  const { colors, typography } = useTheme();
+  const { colors, typography, available: darkAvailable } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const { language, setLanguage, settings, updateSettings } = useAppStore();
@@ -58,6 +64,37 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </View>
+      </Card>
+
+      <Card>
+        <Text style={typography.h3}>{t.appearance}</Text>
+        {darkAvailable ? (
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {APPEARANCE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: settings.appearance === option.value }}
+                accessibilityLabel={t[option.label]}
+                onPress={() => updateSettings({ appearance: option.value })}
+                style={[
+                  styles.option,
+                  settings.appearance === option.value
+                    ? { borderColor: colors.primary, backgroundColor: colors.mintSoft }
+                    : null,
+                ]}
+              >
+                <Text style={{ fontWeight: "600", color: colors.forestDeep }}>
+                  {t[option.label]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          // The flag can disable dark mode for a build; say so rather than
+          // showing a control that would do nothing.
+          <Text style={typography.micro}>{t.appearanceUnavailable}</Text>
+        )}
       </Card>
 
       <Card>

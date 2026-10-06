@@ -58,7 +58,7 @@ export default function MoreScreen() {
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
-      <AppHeader />
+      <AppHeader showThemeToggle />
       <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
         <SectionHeader title={t.moreTitle} subtitle={t.tagline} />
         {GROUPS.map((group) => (

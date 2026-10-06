@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { radius, spacing, touch } from "../theme";
+import { radius, spacing, toggledAppearance, touch } from "../theme";
 import { useTheme } from "../theme/theme-context";
 import { BrandMark } from "./BrandMark";
 
@@ -76,14 +76,25 @@ export function AppHeader({
   back = false,
   showInfo = true,
   context,
+  showThemeToggle = false,
 }: {
   back?: boolean;
   showInfo?: boolean;
   context?: string | null;
+  /**
+   * Render a one-tap light/dark toggle. Off by default so existing screens are
+   * unchanged; the More screen opts in. Hidden when dark mode is unavailable in
+   * the build, because a control that does nothing is worse than no control.
+   */
+  showThemeToggle?: boolean;
 }) {
-  const { colors, typography } = useTheme();
+  const { colors, typography, mode, available } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((state) => state.language));
+  const updateSettings = useAppStore((state) => state.updateSettings);
+
+  const themeToggle = showThemeToggle && available;
+  const toggleTheme = () => updateSettings({ appearance: toggledAppearance(mode) });
 
   return (
     <View
@@ -165,18 +176,30 @@ export function AppHeader({
           ) : null}
         </View>
 
-        {showInfo ? (
+        {showInfo || themeToggle ? (
           <View style={{ flexDirection: "row", gap: 6 }}>
-            <HeaderAction
-              icon="search-outline"
-              label={t.search}
-              onPress={() => router.push("/explore/search")}
-            />
-            <HeaderAction
-              icon="notifications-outline"
-              label={t.alerts}
-              onPress={() => router.push("/field-operations/alerts")}
-            />
+            {themeToggle ? (
+              <HeaderAction
+                // The icon shows the mode you would switch *to*.
+                icon={mode === "dark" ? "sunny-outline" : "moon-outline"}
+                label={mode === "dark" ? t.appearanceLight : t.appearanceDark}
+                onPress={toggleTheme}
+              />
+            ) : null}
+            {showInfo ? (
+              <>
+                <HeaderAction
+                  icon="search-outline"
+                  label={t.search}
+                  onPress={() => router.push("/explore/search")}
+                />
+                <HeaderAction
+                  icon="notifications-outline"
+                  label={t.alerts}
+                  onPress={() => router.push("/field-operations/alerts")}
+                />
+              </>
+            ) : null}
           </View>
         ) : null}
       </View>
