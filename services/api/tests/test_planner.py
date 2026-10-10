@@ -87,6 +87,19 @@ def test_plan_resolves_a_two_crop_comparison():
     assert resolved.wants_comparison is True
 
 
+def test_plan_promotes_two_named_crops_to_a_comparison_without_the_word_compare():
+    """Two named crops are a comparison even when the user never says "compare".
+
+    The single-crop path answers only the first named crop, so without this rule a
+    question like "maize and beans production" silently dropped a side instead of
+    comparing them.
+    """
+    resolved = plan(AIRequest(question="maize and beans production in Rwanda"))
+    assert resolved.intent == "crop_comparison"
+    assert resolved.crops == ["Maize", "Beans"]
+    assert resolved.wants_comparison is True
+
+
 def test_plan_resolves_a_district_ranking():
     resolved = plan(AIRequest(question="Which districts have the largest maize yield gap?"))
     assert resolved.intent == "district_ranking"

@@ -4,30 +4,34 @@ import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { strings } from "../i18n";
-import type { Strings } from "../i18n/en";
 import { useAppStore } from "../store/useAppStore";
 import { radius, shadow } from "../theme";
 import { useTheme } from "../theme/theme-context";
+import { normalizeActiveTab, TABS, type TabId } from "../utils/navigation";
 
-const ITEMS = [
-  { id: "home", label: "home", href: "/", icon: "home" as const, iconOff: "home-outline" as const },
-  { id: "crops", label: "crops", href: "/explore/crops", icon: "leaf" as const, iconOff: "leaf-outline" as const },
-  { id: "compare", label: "compare", href: "/explore/compare", icon: "git-compare" as const, iconOff: "git-compare-outline" as const },
-  { id: "map", label: "map", href: "/maps", icon: "map" as const, iconOff: "map-outline" as const },
-  { id: "more", label: "more", href: "/more", icon: "grid" as const, iconOff: "grid-outline" as const },
-] satisfies {
-  id: string;
-  label: keyof Strings;
-  href: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconOff: keyof typeof Ionicons.glyphMap;
-}[];
+/**
+ * Five-destination bottom bar: Home, Crops, Analyze, Map, More.
+ *
+ * The destinations come from `src/utils/navigation`, so the bar, the tests and
+ * any future deep-link handling share one definition. Navigation uses
+ * `router.replace` so switching tabs never stacks duplicate routes — the tab is
+ * a destination, not a push — while detail screens keep their own back stack.
+ */
+
+const ICONS: Record<TabId, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
+  home: { on: "home", off: "home-outline" },
+  crops: { on: "leaf", off: "leaf-outline" },
+  analyze: { on: "git-compare", off: "git-compare-outline" },
+  map: { on: "map", off: "map-outline" },
+  more: { on: "grid", off: "grid-outline" },
+};
 
 export function BottomNav({ active }: { active: string }) {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const t = strings(useAppStore((s) => s.language));
+  const activeId = normalizeActiveTab(active);
 
   return (
     <View
@@ -43,15 +47,16 @@ export function BottomNav({ active }: { active: string }) {
         ...shadow.card,
       }}
     >
-      {ITEMS.map((item) => {
-        const selected = item.id === active;
+      {TABS.map((tab) => {
+        const selected = tab.id === activeId;
+        const icon = ICONS[tab.id];
         return (
           <Pressable
-            key={item.id}
+            key={tab.id}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
-            accessibilityLabel={t[item.label]}
-            onPress={() => router.replace(item.href as never)}
+            accessibilityLabel={t[tab.labelKey]}
+            onPress={() => router.replace(tab.href as never)}
             style={({ pressed }) => ({
               flex: 1,
               alignItems: "center" as const,
@@ -72,7 +77,7 @@ export function BottomNav({ active }: { active: string }) {
               }}
             >
               <Ionicons
-                name={selected ? item.icon : item.iconOff}
+                name={selected ? icon.on : icon.off}
                 size={22}
                 color={selected ? colors.white : colors.slate500}
               />
@@ -86,7 +91,7 @@ export function BottomNav({ active }: { active: string }) {
                 letterSpacing: 0.2,
               }}
             >
-              {t[item.label]}
+              {t[tab.labelKey]}
             </Text>
           </Pressable>
         );

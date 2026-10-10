@@ -90,6 +90,13 @@ android {
     namespace 'com.cropmatics.rwanda'
     defaultConfig {
         applicationId 'com.cropmatics.rwanda'
+        // Build a parallel install (com.cropmatics.rwanda.dev) when
+        // `-PcropmaticsDevInstall` is passed to Gradle, so a sideloaded build
+        // can be verified on a phone whose main copy lives in Secure Folder
+        // (which re-signs packages and blocks over-the-air signature matches).
+        if (project.hasProperty('cropmaticsDevInstall')) {
+            applicationIdSuffix '.dev'
+        }
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -35,6 +35,61 @@ export interface SeriesPoint {
 }
 
 /**
+ * A window over the published period axis.
+ *
+ * Deliberately expressed in *positions on the official axis*, not calendar
+ * years. National observations are agricultural seasons (``2026B``), so "the
+ * latest four" means the last four published positions — which may span four
+ * years, three, or one — never an arbitrary ``year - 4`` interval.
+ */
+export type PeriodRange = "all" | "last4" | "last8";
+
+/** Every range a selector may offer, in display order. */
+export const PERIOD_RANGES: readonly PeriodRange[] = ["all", "last4", "last8"] as const;
+
+/** How many trailing positions a range keeps, or ``null`` for "everything". */
+export function periodWindowCount(range: PeriodRange): number | null {
+  if (range === "all") return null;
+  return range === "last4" ? 4 : 8;
+}
+
+/**
+ * The trailing window of one series, preserving null observations.
+ *
+ * ``null`` inside the window is kept: a period the API did not publish for this
+ * metric must stay a visible gap, and filtering the nulls out before slicing
+ * would shift every remaining point onto a different period's x position.
+ */
+export function selectPeriodWindow<T extends SeriesPoint>(
+  points: readonly T[],
+  range: PeriodRange,
+): T[] {
+  const count = periodWindowCount(range);
+  if (count === null) return [...points];
+  return points.slice(-count);
+}
+
+/**
+ * Apply one shared period window to a set of *already aligned* series.
+ *
+ * Every series returned by ``alignToPeriodAxis``/``alignIndexedSeries`` has the
+ * same length and the same period at each position, so slicing each from the end
+ * by the same count keeps position *i* describing the same period in every
+ * series. Slicing each series' non-null observations independently is what this
+ * function exists to prevent: it would slide one crop against another.
+ */
+export function applyAxisWindow<T extends { points: SeriesPoint[] }>(
+  series: readonly T[],
+  range: PeriodRange,
+): T[] {
+  const count = periodWindowCount(range);
+  return series.map((item) => ({
+    ...item,
+    points: count === null || item.points.length <= count ? [...item.points] : item.points.slice(-count),
+  }));
+}
+
+/**
  * The canonical period-aware endpoints name the period ``period_code`` while
  * the national trend endpoint names it ``period``. Both are the same YYYYS
  * dimension, so one adapter converts between them instead of every screen

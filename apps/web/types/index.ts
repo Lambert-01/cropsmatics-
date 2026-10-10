@@ -366,6 +366,46 @@ export interface AssistantContext {
   benchmark_strategy?: string;
 }
 
+export interface AssistantFigure {
+  label: string;
+  value: number | string;
+  unit?: string | null;
+  period_code?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  source_id?: string | null;
+}
+
+export interface AssistantSourceRef {
+  source_id: string;
+  name?: string | null;
+  period?: string | null;
+}
+
+/**
+ * The structured response contract the backend returns under `structured`. The
+ * web client renders this rather than parsing the prose, so every figure is shown
+ * with the period, unit and source it was published under.
+ */
+export interface AssistantStructured {
+  answer_id?: string;
+  intent: string;
+  title?: string;
+  summary?: string;
+  language?: string;
+  depth?: string;
+  audience?: string;
+  key_findings?: string[];
+  figures?: AssistantFigure[];
+  interpretation?: string[];
+  limitations?: string[];
+  methodology?: string[];
+  sources?: AssistantSourceRef[];
+  suggested_followups?: string[];
+  actions?: { type: string; label: string; crop?: string | null; district?: string | null }[];
+  warnings?: string[];
+}
+
 export interface AssistantResponse {
   answer: string;
   grounded: boolean;
@@ -376,6 +416,14 @@ export interface AssistantResponse {
   period?: string | null;
   coverage?: string | null;
   limitations: string[];
+  /** Additive engine metadata; older responses may omit it. */
+  structured?: AssistantStructured;
+  conversation_id?: string | null;
+  answer_mode?: "deterministic" | "llm";
+  warnings?: string[];
+  citations?: string[];
+  evidence_count?: number;
+  tools_used?: string[];
 }
 
 export interface MapDistrictMetric {

@@ -101,4 +101,8 @@ export const SHARED_BY_DESIGN: readonly string[] = [
   // Endonyms: each label names its own language.
   "english",
   "kinyarwanda",
+  // Crop share card: brand name plus tokens, no prose to translate.
+  "shareCropHeading",
+  // Crop share card: a pure "{metric}: {value} {unit} ({period})" template.
+  "shareCropMetric",
 ];

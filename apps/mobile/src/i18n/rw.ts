@@ -778,10 +778,74 @@ export const rw: Strings = {
   changeSameSeason: "igihe kimwe {label} ({value})",
 
   // ---- Charts --------------------------------------------------------------
+  periodRangeLabel: "Urwego rw'ibihe",
+  latestCount: "Ibiheruka {count}",
+  expandChart: "Kwagura igishushanyo",
+  collapseChart: "Kugabanya igishushanyo",
+  // ---- Selection -----------------------------------------------------------
+  applySelection: "Emeza ibyatoranyijwe",
+  cancel: "Reka",
+  editSelection: "Hindura",
+  chooseDistrict: "Hitamo akarere",
+  // ---- Home hierarchy ------------------------------------------------------
+  quickComparisons: "Ugereranyo bwihuse",
+  quickComparisonsSubtitle: "Ugereranyo wateguwe ushobora gufungura inshuro imwe",
+  savedCrops: "Ibihingwa wabitse",
+  popularCrops: "Ibihingwa bikunze kuboneka",
+  // ---- Bottom navigation ---------------------------------------------------
+  analyze: "Sesengura",
   chartsPeriodSwipeHint: "Kurura hejuru cyangwa hasi kugira ngo ujye mu bihe byatangajwe.",
   chartNoPeriods: "Nta bihe byatangajwe",
   chartNoDataShort: "Nta makuru",
   chartNoTrendData: "Nta makuru y'urugendo ahari.",
   chartNoData: "Nta makuru ahari.",
   chartNoComposition: "Nta makuru y'ibigize ahari.",
+  chartTimeSeriesA11y: "Igishushanyo cy'igihe",
+  chartLineA11y: "Igishushanyo cy'umurongo. {summary}",
+  chartBarA11y: "Grafu y'ibiti. {summary}",
+  chartHBarA11y: "Grafu y'ibiti y'ubuhagarike. {summary}",
+  chartCompositionA11y: "Igishushanyo cy'ibigize. {items}",
+  chartCompositionReadout: "Ibigize: {items}",
+  composeSumMismatch:
+    "Imigabane yashyizweho irangira {total}{unit}, si 100{unit}. Ibyatanzwe biragaragazwa nk'ubwo byashyizweho.",
+  composeNotPublishedFor: "Ntabwo byashyizweho kuri: {items}.",
+  // ---- Coverage / provenance labels ---------------------------------------
+  coverageNationalCropLevel: "igihugu · igihingwa",
+  coverageDistrictBenchmark: "akarere · gugereranyija igihingwa",
+  districtCoverageCrops: "akarere · {count} ibihingwa",
+  districtCoverageSingleRelease: "akarere · igihembwe kimwe cyatanzwe",
+  districtNoCrossCropAverage:
+    "Nta musaruro uhagaze w'ibihingwa byose agaragarirwa: ibihingwa bitandukanye udafite icyero kimwe. Hitamo igihingwa kugira ngo ugereranye neza.",
+  districtNoBenchmark:
+    "Nta gugereranyo cyatanzwe kuboneka kuri iki kinyabuhanga n'igihe kino, kubera ibyo nta musemburo ugagaragarira.",
+  districtSingleReleaseNote:
+    "Imigabane y'ibyuma, amazi n'ingufu z'akarere biva mu gihembwe kimwe cyatanzwe (2025 Season B). Guhitamo igihe kindi ntiguhindura ibyo.",
+  latestDistrictRelease: "Igihe gishya ku karere: {period}",
+  // ---- Compare -------------------------------------------------------------
+  compareCoverageMetadata:
+    "Ibiranga ubwoko n'igihe: {count} ibihingwa bibihari ku buryo bw'akarere kuri iyi gihe.",
+  compareCoverageObservations: "akarere · {count} imiboneka",
+  compareNotPublishedForPeriod:
+    "Ntabwo byatanzwe kuri igihingwa n'igihe kino: {items}. Nta kintu cyerekanywa kuri byo.",
+  compareChooseCrop: "Hitamo igihingwa",
+  // ---- Map -----------------------------------------------------------------
+  mapDistrictUnknown: "Akarere {district} ntakaboneka. Igereranyo ryerekana igihugu.",
+  mapCoverageDistricts: "akarere · {count} akarere",
+  mapYieldNeedsCropNote:
+    "Umusaruro w'ibihingwa bitandukanye udafite icyero kimwe, kubera ibyo igihingwa kizahitwa mbere y'igereranyo ry'umusaruro.",
+  mapDistrictValuesNote: "Nta makuru ashingiye ku karere yashyizweho kuri iyi nteruro.",
+  mapPeriodNotDistrict:
+    "{period} ntabwo byashyizweho ku buryo bw'akarere kuri iyi ndego, kubera ibyo igereranyo riri ku {fallback}.",
+  mapPeriodNoneForLayer: "Nta gihe cyatanzwe carimo iyi ndego.",
+  // ---- Share ---------------------------------------------------------------
+  shareCropAction: "Sangira",
+  shareCropTitle: "Sangira incamake y'igihingwa",
+  shareCropHeading: "{crop} — Cropmatics Rwanda",
+  shareCropSeries: "Urugendo rw'igihugu: {first} kugeza {last}",
+  shareCropMetric: "{metric}: {value}{unit} ({period})",
+  shareCropSource: "Inkomoko: {source}",
+  shareCropNote: "Ibyatanzwe gusa — nta kintu kirerekanywe kuri iyi kariti.",
+  // ---- Onboarding taglines -------------------------------------------------
+  onboardingTagline: "Ubushakashatsi bw'ubuhinzi bw'u Rwanda mu bigo byawe",
+  onboardingAskTagline: "Baza. Shakisha. Umene urumva.",
 };

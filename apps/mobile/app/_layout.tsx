@@ -13,6 +13,7 @@ import { clearPersistedCache, writeCacheMeta } from "../src/cache/persister";
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
 import { useAppStore } from "../src/store/useAppStore";
 import { ThemeProvider, useTheme } from "../src/theme/theme-context";
+import { resolveOnboardingRoute } from "../src/utils/onboarding";
 
 /**
  * Push the resolved theme onto the native system surfaces.
@@ -145,11 +146,11 @@ function AppShell({ client }: { client: QueryClient }) {
   }, [hydrated]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    const inOnboarding = segments[0] === "onboarding";
-    if (!onboardingComplete && !inOnboarding) {
-      router.replace("/onboarding");
-    }
+    // Pure decision (see src/utils/onboarding): wait for hydration, then force
+    // onboarding only for a session that has not completed it. A session that
+    // finished — by Continue *or* Skip — is never bounced back in.
+    const next = resolveOnboardingRoute({ hydrated, onboardingComplete }, segments);
+    if (next) router.replace(next as never);
   }, [hydrated, onboardingComplete, segments, router]);
 
   if (!hydrated) {

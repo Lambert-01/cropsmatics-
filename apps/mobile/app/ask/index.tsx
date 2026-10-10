@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "../../src/components/AppHeader";
 import { BottomNav } from "../../src/components/BottomNav";
+import { DataWarning } from "../../src/components/data-view";
 import {
   Badge,
   Card,
@@ -28,11 +29,12 @@ import {
 import { addAskHistory, saveItem } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { askApi } from "../../src/services/api";
-import type { AskAnswer } from "../../src/types";
+import type { AskAnswer, AskStructuredAnswer } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
 import { radius, spacing } from "../../src/theme";
 import type { Palette, Typography } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
+import { figureContext, formatFigureValue } from "../../src/utils/askAnswer";
 import { askProgressStages, describeAskFailure, type AskFailure, type AskFailureKind } from "../../src/utils/askFailure";
 import { slugifyEntity } from "../../src/utils/slug";
 
@@ -89,6 +91,17 @@ export default function AskScreen() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
+  /**
+   * A stable id for this screen's conversation.
+   *
+   * Sending it lets the backend resolve a follow-up ("and beans?", "compare
+   * them") against the previous turn's entities instead of treating each
+   * question in isolation, which is what makes a short follow-up accurate rather
+   * than unsupported. The server may return its own id, which then replaces this.
+   */
+  const [conversationId, setConversationId] = useState(
+    () => `ask-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+  );
 
   const suggestions = useQuery({ queryKey: ["ask-suggestions"], queryFn: () => askApi.suggestions(6) });
   const stages = askProgressStages(t);
@@ -114,7 +127,8 @@ export default function AskScreen() {
   const run = async (id: string, question: string) => {
     setLoading(true);
     try {
-      const answer = await askApi.query({ question, language });
+      const answer = await askApi.query({ question, language, conversation_id: conversationId });
+      if (answer.conversation_id) setConversationId(answer.conversation_id);
       setTurns((prev) =>
         prev.map((turn) => (turn.id === id ? { ...turn, answer, failure: null, pending: false } : turn)),
       );
@@ -258,15 +272,19 @@ export default function AskScreen() {
                 <Card style={{ gap: spacing.sm }}>
                   <Text style={typography.body}>{turn.answer.answer}</Text>
 
-                  {turn.answer.grounded && turn.answer.key_figures.length ? (
+                  {turn.answer.structured ? (
+                    <AnswerDetails
+                      structured={turn.answer.structured}
+                      onFollowUp={(question) => send(question)}
+                    />
+                  ) : turn.answer.grounded && turn.answer.key_figures.length ? (
                     <View style={{ gap: 4 }}>
                       <Text style={styles.blockTitle}>{t.askKeyFigures}</Text>
                       {turn.answer.key_figures.map((figure) => (
                         <View key={figure.label} style={styles.figureRow}>
                           <Text style={{ ...typography.caption, flex: 1 }}>{figure.label}</Text>
                           <Text style={styles.figureValue}>
-                            {figure.value.toLocaleString()}
-                            {figure.unit ? ` ${figure.unit}` : ""}
+                            {formatFigureValue(figure.value, figure.unit)}
                           </Text>
                         </View>
                       ))}
@@ -358,6 +376,111 @@ export default function AskScreen() {
   );
 }
 
+/**
+ * The structured half of an answer: findings, figures with their period and unit,
+ * methodology, sources, warnings and groundable follow-ups.
+ *
+ * Rendered from the API's typed fields rather than parsed out of the prose, so a
+ * figure is always shown with the period, unit and source it was published under,
+ * and a truthfulness warning (for example that the generated wording was rejected
+ * against the evidence) is visible rather than buried.
+ */
+function AnswerDetails({
+  structured,
+  onFollowUp,
+}: {
+  structured: AskStructuredAnswer;
+  onFollowUp: (question: string) => void;
+}) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const t = strings(useAppStore((s) => s.language));
+  const figures = structured.figures ?? [];
+  const findings = structured.key_findings ?? [];
+  const sources = structured.sources ?? [];
+  const warnings = structured.warnings ?? [];
+  const followups = structured.suggested_followups ?? [];
+  const methodology = structured.methodology ?? [];
+
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {findings.length ? (
+        <View style={{ gap: 3 }}>
+          {findings.map((line, index) => (
+            <View key={`${index}-${line}`} style={{ flexDirection: "row", gap: 6 }}>
+              <Text style={typography.caption}>•</Text>
+              <Text style={{ ...typography.caption, flex: 1 }}>{line}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {figures.length ? (
+        <View style={{ gap: 4 }}>
+          <Text style={styles.blockTitle}>{t.askKeyFigures}</Text>
+          {figures.map((figure, index) => (
+            <View key={`${figure.label}-${index}`} style={styles.figureRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={typography.caption}>{figure.label}</Text>
+                {figureContext(figure) ? (
+                  <Text style={typography.micro}>{figureContext(figure)}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.figureValue}>{formatFigureValue(figure.value, figure.unit)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {methodology.length ? (
+        <View style={{ gap: 2 }}>
+          <Text style={styles.blockTitle}>{t.methodologyTitle}</Text>
+          {methodology.map((line) => (
+            <Text key={line} style={typography.micro}>
+              • {line}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
+      {sources.length ? (
+        <View style={{ gap: 2 }}>
+          <Text style={styles.blockTitle}>{t.dataSources}</Text>
+          {sources.map((source) => (
+            <Text key={source.source_id} style={typography.micro}>
+              {source.name ? `${source.name} · ${source.source_id}` : source.source_id}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
+      {warnings.map((warning) => (
+        <DataWarning key={warning} text={warning} />
+      ))}
+
+      {followups.length ? (
+        <View style={{ gap: 4 }}>
+          <Text style={styles.blockTitle}>{t.askSuggestedQuestions}</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
+            {followups.map((question) => (
+              <Pressable
+                key={question}
+                accessibilityRole="button"
+                accessibilityLabel={question}
+                onPress={() => onFollowUp(question)}
+                hitSlop={6}
+                style={styles.followUp}
+              >
+                <Text style={styles.followUpText}>{question}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const makeStyles = (colors: Palette, typography: Typography) =>
   StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
@@ -413,4 +536,16 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   },
   historyLink: { flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center", paddingBottom: 8 },
   historyText: { color: colors.primaryStrong, fontWeight: "600", fontSize: 13 },
+  followUp: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    minHeight: 36,
+    justifyContent: "center",
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    maxWidth: "100%",
+  },
+  followUpText: { fontSize: 12, fontWeight: "600", color: colors.primaryStrong },
 });

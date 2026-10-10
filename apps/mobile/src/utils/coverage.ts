@@ -65,8 +65,15 @@ export function periodsCarryingLayer(periods: PeriodInfo[], layer: MapLayer): Pe
 export interface PeriodLinkDecision {
   /** The period the map should use, or null when it cannot follow the chart. */
   periodCode: string | null;
-  /** Why the map cannot follow the chart, when it cannot. */
+  /**
+   * Unlocalized explanation, kept for logs and tests. Screens must compose the
+   * user-facing sentence from `reasonCode` + `reasonPeriods` through i18n.
+   */
   reason: string | null;
+  /** Machine-readable reason so a screen can localize the sentence. */
+  reasonCode: "none" | "not-district" | "no-period" | null;
+  /** Published labels the localized sentence needs. */
+  reasonPeriods: { requested: string | null; fallback: string | null };
 }
 
 /**
@@ -82,18 +89,34 @@ export function linkPeriodToLayer(
   layer: MapLayer,
   chartPeriod: string | null,
 ): PeriodLinkDecision {
-  if (!chartPeriod) return { periodCode: null, reason: null };
+  if (!chartPeriod) {
+    return { periodCode: null, reason: null, reasonCode: null, reasonPeriods: { requested: null, fallback: null } };
+  }
   const allowed = periodsCarryingLayer(periods, layer);
+  const requestedLabel = labelOf(periods, chartPeriod);
   if (allowed.some((period) => period.period_code === chartPeriod)) {
-    return { periodCode: chartPeriod, reason: null };
+    return {
+      periodCode: chartPeriod,
+      reason: null,
+      reasonCode: null,
+      reasonPeriods: { requested: requestedLabel, fallback: null },
+    };
   }
   const fallback = allowed[allowed.length - 1]?.period_code ?? null;
+  const fallbackLabel = labelOf(periods, fallback);
+  if (allowed.length === 0) {
+    return {
+      periodCode: null,
+      reason: `No published period carries this layer.`,
+      reasonCode: "no-period",
+      reasonPeriods: { requested: requestedLabel, fallback: null },
+    };
+  }
   return {
     periodCode: fallback,
-    reason:
-      allowed.length === 0
-        ? `No published period carries this layer.`
-        : `${labelOf(periods, chartPeriod)} is not published at district level for this indicator, so the map stays on ${labelOf(periods, fallback)}.`,
+    reason: `${requestedLabel} is not published at district level for this indicator, so the map stays on ${fallbackLabel}.`,
+    reasonCode: "not-district",
+    reasonPeriods: { requested: requestedLabel, fallback: fallbackLabel },
   };
 }
 

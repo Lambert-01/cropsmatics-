@@ -18,3 +18,5 @@
 {"id": "rw-compare", "question": "Gereranya ibigori n'ibishyimbo mu Rwanda", "language": "rw", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": []}
 {"id": "mixed-crop-district", "question": "Kuki umusaruro w'ibigori uri hasi muri Gisagara?", "language": "rw", "intent": "district_crop_gap", "crops": ["Maize"], "districts": ["Gisagara"]}
 {"id": "mixed-code-switch", "question": "Kuki umusaruro w'ibigori hano uri hasi? Compare with last Season B", "language": "mixed", "intent": "period_comparison", "crops": ["Maize"], "districts": []}
+{"id": "en-two-crop-no-compare-word", "question": "maize and beans production in Rwanda", "language": "en", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": []}
+{"id": "en-two-crop-with-district", "question": "maize and beans in Ngoma", "language": "en", "intent": "crop_comparison", "crops": ["Maize", "Beans"], "districts": ["Ngoma"]}

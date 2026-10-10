@@ -793,12 +793,79 @@ export const en = {
   changeSameSeason: "same season {label} ({value})",
 
   // ---- Charts --------------------------------------------------------------
+  /** Period-window selector over the published axis (not calendar years). */
+  periodRangeLabel: "Period range",
+  /** {count} is a number of trailing published periods. */
+  latestCount: "Latest {count}",
+  expandChart: "Expand chart",
+  collapseChart: "Collapse chart",
+  // ---- Selection -----------------------------------------------------------
+  applySelection: "Apply selection",
+  cancel: "Cancel",
+  editSelection: "Edit",
+  chooseDistrict: "Choose district",
+  // ---- Home hierarchy ------------------------------------------------------
+  quickComparisons: "Quick comparisons",
+  quickComparisonsSubtitle: "Preconfigured comparisons you can open in one tap",
+  savedCrops: "Your saved crops",
+  popularCrops: "Popular published crops",
+  // ---- Bottom navigation ---------------------------------------------------
+  analyze: "Analyze",
   chartsPeriodSwipeHint: "Swipe up or down to move between published periods.",
   chartNoPeriods: "No periods published",
   chartNoDataShort: "No data",
   chartNoTrendData: "No trend data available.",
   chartNoData: "No data available.",
   chartNoComposition: "No composition data available.",
+  /** Fallback accessible name when a caller supplies no label. */
+  chartTimeSeriesA11y: "Time series chart",
+  chartLineA11y: "Line chart. {summary}",
+  chartBarA11y: "Bar chart. {summary}",
+  chartHBarA11y: "Horizontal bar chart. {summary}",
+  chartCompositionA11y: "Composition chart. {items}",
+  chartCompositionReadout: "Composition: {items}",
+  /** {total} and {unit} come from the published shares themselves. */
+  composeSumMismatch:
+    "Published shares add up to {total}{unit}, not 100{unit}. They are shown exactly as published.",
+  composeNotPublishedFor: "Not published for: {items}.",
+  // ---- Coverage / provenance labels ---------------------------------------
+  coverageNationalCropLevel: "national crop-level",
+  coverageDistrictBenchmark: "district · benchmark per crop",
+  districtCoverageCrops: "district · {count} crops",
+  districtCoverageSingleRelease: "district · single release",
+  districtNoCrossCropAverage:
+    "No cross-crop average yield is shown: different crops do not share a natural yield scale. Pick a crop to compare like for like.",
+  districtNoBenchmark:
+    "No published benchmark is available for this crop and period, so no gap is shown.",
+  districtSingleReleaseNote:
+    "District input, irrigation and erosion shares still come from a single release (2025 Season B). Selecting another period does not change them.",
+  latestDistrictRelease: "Latest district release: {period}",
+  // ---- Compare -------------------------------------------------------------
+  compareCoverageMetadata: "Coverage metadata: {count} crops carry published district rows for this period.",
+  compareCoverageObservations: "district · {count} observations",
+  compareNotPublishedForPeriod:
+    "Not published for this crop and period: {items}. Nothing is inferred for them.",
+  compareChooseCrop: "Choose crop",
+  // ---- Map -----------------------------------------------------------------
+  mapDistrictUnknown: "Unknown district {district}. The map stays on the national view.",
+  mapCoverageDistricts: "district · {count} districts",
+  mapYieldNeedsCropNote:
+    "Raw yields from different crops share no natural scale, so a crop must be chosen before a raw-yield map can be drawn.",
+  mapDistrictValuesNote: "District-level values are not published for this selection.",
+  mapPeriodNotDistrict:
+    "{period} is not published at district level for this indicator, so the map stays on {fallback}.",
+  mapPeriodNoneForLayer: "No published period carries this layer.",
+  // ---- Share ---------------------------------------------------------------
+  shareCropAction: "Share",
+  shareCropTitle: "Share crop summary",
+  shareCropHeading: "{crop} — Cropmatics Rwanda",
+  shareCropSeries: "National series: {first} to {last}",
+  shareCropMetric: "{metric}: {value}{unit} ({period})",
+  shareCropSource: "Source: {source}",
+  shareCropNote: "Published values only — nothing on this card is estimated.",
+  // ---- Onboarding taglines -------------------------------------------------
+  onboardingTagline: "Rwanda Agricultural Intelligence in Your Pocket",
+  onboardingAskTagline: "Ask. Explore. Understand.",
 } as const;
 
 export type Strings = Record<keyof typeof en, string>;

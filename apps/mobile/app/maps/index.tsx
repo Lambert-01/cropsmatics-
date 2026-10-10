@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -8,8 +9,10 @@ import { AppHeader } from "../../src/components/AppHeader";
 import { BottomNav } from "../../src/components/BottomNav";
 import { RwandaMap } from "../../src/components/RwandaMap";
 import { DataWarning, PeriodSelector, SourceMethodSheet } from "../../src/components/data-view";
-import { ErrorState, SecondaryButton } from "../../src/components/ui";
-import { useAllCrops, usePeriods } from "../../src/hooks/queries";
+import { DistrictDetailSheet } from "../../src/components/terminal/DistrictDetailSheet";
+import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
+import { ErrorState } from "../../src/components/ui";
+import { useAllCrops, useAllDistricts, usePeriods } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
 import { mapsApi } from "../../src/services/api";
 import type { MapMetric } from "../../src/services/api/maps";
@@ -19,6 +22,7 @@ import type { Palette } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { formatValue } from "../../src/utils/analytics";
 import { layerRequiresCrop, linkPeriodToLayer, periodsCarryingLayer } from "../../src/utils/coverage";
+import { resolveDistrictRouteParam } from "../../src/utils/selection";
 import {
   bandPaletteIndex,
   bandsFor,
@@ -52,9 +56,29 @@ export default function MapsScreen() {
   const [requestedPeriod, setRequestedPeriod] = useState<string | null>(params.period ?? null);
   const [selected, setSelected] = useState<string | null>(null);
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  const [districtPickerOpen, setDistrictPickerOpen] = useState(false);
+  // A deep link can name a district that is not in the catalogue at all; that
+  // is different from a real district whose value simply is not published.
+  const [unknownDistrict, setUnknownDistrict] = useState<string | null>(null);
 
   const periods = usePeriods();
   const crops = useAllCrops();
+  const districtCatalogue = useAllDistricts();
+
+  // Apply a `?district=` deep-link once the catalogue is known, so the detail
+  // sheet opens exactly as if the shape had been tapped. A district whose value
+  // is not published for this layer still opens the sheet — it says "Not
+  // published" honestly rather than pretending the selection failed.
+  const paramDistrict = params.district ?? null;
+  const [districtParamApplied, setDistrictParamApplied] = useState(false);
+  useEffect(() => {
+    if (districtParamApplied || !paramDistrict) return;
+    if (districtCatalogue.isLoading) return;
+    const decision = resolveDistrictRouteParam(paramDistrict, districtCatalogue.data ?? []);
+    if (decision.action === "select" && decision.code) setSelected(decision.code);
+    else if (decision.action === "unknown") setUnknownDistrict(decision.code);
+    setDistrictParamApplied(true);
+  }, [districtParamApplied, paramDistrict, districtCatalogue.data, districtCatalogue.isLoading]);
 
   const allowedPeriods = useMemo(
     () => periodsCarryingLayer(periods.data?.periods ?? [], metric),
@@ -70,6 +94,16 @@ export default function MapsScreen() {
 
   const singleRelease = allowedPeriods.length === 1 ? allowedPeriods[0].period_code : null;
   const effectivePeriod = singleRelease ?? link.periodCode;
+
+  // Localized sentence for a chart period the layer cannot follow.
+  const linkReasonText =
+    link.reasonCode === "not-district"
+      ? t.mapPeriodNotDistrict
+          .replace("{period}", link.reasonPeriods.requested ?? "")
+          .replace("{fallback}", link.reasonPeriods.fallback ?? "")
+      : link.reasonCode === "no-period"
+        ? t.mapPeriodNoneForLayer
+        : null;
 
   const needsCrop = layerRequiresCrop(metric);
   const cropBlocked = needsCrop && !crop;
@@ -111,6 +145,30 @@ export default function MapsScreen() {
 
   const hasDistrictData = (data?.districts ?? []).some((row) => row.value !== null);
   const selectedRow = data?.districts.find((row) => row.district_code === selected) ?? null;
+  // A district that is absent from this response (or carries no value) still
+  // gets a sheet: name from the catalogue, value honestly null.
+  const selectedMeta =
+    selectedRow ??
+    (selected
+      ? (() => {
+          const fromCatalogue = (districtCatalogue.data ?? []).find(
+            (item) => item.district_code === selected,
+          );
+          return fromCatalogue
+            ? {
+                district_code: fromCatalogue.district_code,
+                district: fromCatalogue.district,
+                province: fromCatalogue.province,
+                value: null as number | null,
+              }
+            : null;
+        })()
+      : null);
+  const districtPickerOptions = (districtCatalogue.data ?? [])
+    .map((item) => ({ id: item.district_code, label: item.district }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const selectedDistrictLabel =
+    districtPickerOptions.find((option) => option.id === selected)?.label ?? null;
   const unit = data?.unit ?? "";
 
   return (
@@ -169,10 +227,50 @@ export default function MapsScreen() {
               ...allowedPeriods.map((period) => ({
                 id: period.period_code,
                 label: period.label,
-                hint: `${period.n_districts} districts`,
+                hint: `${period.n_districts} ${t.districts}`,
               })),
             ]}
           />
+        ) : null}
+
+        {/*
+          An accessible alternative to tapping the SVG shapes: one searchable
+          picker instead of a 30-chip strip, applying the same selection so a
+          screen reader or keyboard user can open a district's details without
+          a gesture on the map.
+        */}
+        {!cropBlocked && (data?.districts?.length ?? 0) > 0 ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t.chooseDistrict}
+              onPress={() => setDistrictPickerOpen(true)}
+              style={styles.districtPicker}
+            >
+              <Ionicons name="location-outline" size={16} color={colors.primaryStrong} />
+              <Text numberOfLines={1} style={styles.districtPickerText}>
+                {selectedDistrictLabel ?? t.chooseDistrict}
+              </Text>
+              <Ionicons name="search" size={15} color={colors.slate500} />
+            </Pressable>
+            <SingleSelectSheet
+              visible={districtPickerOpen}
+              title={t.chooseDistrict}
+              subtitle={data?.metric_label ?? null}
+              searchPlaceholder={t.searchDistricts}
+              options={districtPickerOptions}
+              selected={selected}
+              onApply={(next) => {
+                setSelected(next);
+                setDistrictPickerOpen(false);
+              }}
+              onCancel={() => setDistrictPickerOpen(false)}
+            />
+          </>
+        ) : null}
+
+        {unknownDistrict ? (
+          <DataWarning text={t.mapDistrictUnknown.replace("{district}", unknownDistrict)} />
         ) : null}
       </View>
 
@@ -196,8 +294,7 @@ export default function MapsScreen() {
           <View style={styles.center}>
             <Text style={{ ...typography.h3, textAlign: "center" }}>{t.pickCropFirst}</Text>
             <Text style={{ ...typography.caption, textAlign: "center" }}>
-              {data?.message ??
-                "Raw yields from different crops share no natural scale, so district yield is never aggregated across crops."}
+              {data?.message ?? t.mapYieldNeedsCropNote}
             </Text>
           </View>
         ) : isLoading ? (
@@ -208,11 +305,12 @@ export default function MapsScreen() {
           <View style={styles.center}>
             <Text style={{ ...typography.h3, textAlign: "center" }}>{t.nationalDataOnly}</Text>
             <Text style={{ ...typography.caption, textAlign: "center" }}>
-              {data?.message ??
-                "District-level values are not published for this selection. The map is only coloured where a verified district value exists."}
+              {data?.message ?? t.mapDistrictValuesNote}
             </Text>
             {data?.available_period ? (
-              <Text style={typography.micro}>{`Latest district release: ${data.available_period}`}</Text>
+              <Text style={typography.micro}>
+                {t.latestDistrictRelease.replace("{period}", data.available_period)}
+              </Text>
             ) : null}
           </View>
         ) : mapSize.width > 0 ? (
@@ -225,63 +323,51 @@ export default function MapsScreen() {
               onSelect={(code) => setSelected(code)}
             />
 
-            {selectedRow ? (
-              <View style={styles.sheet}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={typography.h3}>{selectedRow.district}</Text>
-                    <Text style={typography.micro}>
-                      {[selectedRow.province, data?.metric_label, data?.period_code ?? data?.period]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t.close}
-                    onPress={() => setSelected(null)}
-                    hitSlop={10}
-                    style={styles.close}
-                  >
-                    <Text style={styles.closeText}>✕</Text>
-                  </Pressable>
-                </View>
-
-                <Text style={typography.numericLarge}>
-                  {selectedRow.value === null ? t.notPublished : formatValue(selectedRow.value)}
-                  {selectedRow.value !== null && unit ? <Text style={typography.unit}>{` ${unit}`}</Text> : null}
-                </Text>
-
-                <View style={{ flexDirection: "row", gap: spacing.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <SecondaryButton
-                      label={t.viewDistrictDetails}
-                      onPress={() => router.push((`/explore/district/${selectedRow.district_code}`) as never)}
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SecondaryButton
-                      label={t.compare}
-                      onPress={() =>
-                        router.push({ pathname: "/explore/compare", params: { crop: crop ?? undefined } })
-                      }
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SecondaryButton
-                      label={t.ask}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/ask",
-                          params: {
-                            q: `What does the published data show for ${selectedRow.district} district${crop ? ` and ${crop}` : ""}?`,
-                          },
-                        })
-                      }
-                    />
-                  </View>
-                </View>
-              </View>
+            {selectedMeta ? (
+              <DistrictDetailSheet
+                district={selectedMeta.district}
+                province={selectedMeta.province}
+                metricLabel={data?.metric_label}
+                period={data?.period_code ?? data?.period}
+                value={selectedMeta.value}
+                unit={unit}
+                onClose={() => setSelected(null)}
+                actions={[
+                  {
+                    id: "details",
+                    icon: "information-circle-outline",
+                    label: t.viewDistrictDetails,
+                    onPress: () =>
+                      router.push((`/explore/district/${selectedMeta.district_code}`) as never),
+                  },
+                  {
+                    id: "compare",
+                    icon: "git-compare-outline",
+                    label: t.compare,
+                    onPress: () =>
+                      router.push({
+                        pathname: "/explore/compare",
+                        params: {
+                          crop: crop ?? undefined,
+                          mode: "districts",
+                          district: selectedMeta.district_code,
+                        },
+                      }),
+                  },
+                  {
+                    id: "ask",
+                    icon: "chatbubble-ellipses-outline",
+                    label: t.ask,
+                    onPress: () =>
+                      router.push({
+                        pathname: "/ask",
+                        params: {
+                          q: `What does the published data show for ${selectedMeta.district} district${crop ? ` and ${crop}` : ""}?`,
+                        },
+                      }),
+                  },
+                ]}
+              />
             ) : (
               <View style={styles.legend}>
                 <View style={styles.legendBands}>
@@ -314,9 +400,9 @@ export default function MapsScreen() {
         ) : null}
       </View>
 
-      {link.reason ? (
+      {linkReasonText ? (
         <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
-          <DataWarning text={link.reason} />
+          <DataWarning text={linkReasonText} />
         </View>
       ) : null}
 
@@ -326,7 +412,10 @@ export default function MapsScreen() {
             title={t.sourceAndMethod}
             source={data.source_id ?? data.provenance?.source_id}
             period={data.period_code ?? data.period}
-            coverage={`district · ${(data.districts ?? []).filter((row) => row.value !== null).length} districts`}
+            coverage={t.mapCoverageDistricts.replace(
+              "{count}",
+              String((data.districts ?? []).filter((row) => row.value !== null).length),
+            )}
             unit={unit}
             method={data.provenance?.method}
             limitations={data.provenance?.limitations}
@@ -355,6 +444,18 @@ const makeStyles = (colors: Palette) =>
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, fontWeight: "600", color: colors.slate700 },
   chipTextSelected: { color: colors.white },
+  districtPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.mintSoft,
+  },
+  districtPickerText: { flex: 1, fontSize: 13, fontWeight: "600", color: colors.forestDeep },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.lg },
   legend: {
     position: "absolute",

@@ -115,7 +115,12 @@ describe("linking a chart period to a map layer", () => {
   });
 
   it("asks the API for the latest release when no chart period is selected", () => {
-    expect(linkPeriodToLayer(CATALOGUE, "gap", null)).toEqual({ periodCode: null, reason: null });
+    expect(linkPeriodToLayer(CATALOGUE, "gap", null)).toEqual({
+      periodCode: null,
+      reason: null,
+      reasonCode: null,
+      reasonPeriods: { requested: null, fallback: null },
+    });
   });
 });
 

@@ -38,6 +38,7 @@ import {
 import { features } from "../src/config/features";
 import { useAllCrops, useNationalBoard } from "../src/hooks/queries";
 import { useNationalInsights } from "../src/hooks/useNationalInsights";
+import { useSavedCrops } from "../src/hooks/useSavedCrops";
 import { strings } from "../src/i18n";
 import { homeApi, mapsApi } from "../src/services/api";
 import { useAppStore } from "../src/store/useAppStore";
@@ -250,6 +251,9 @@ export default function HomeScreen() {
   const board = useNationalBoard();
   const crops = useAllCrops();
   const { insights } = useNationalInsights();
+  // Saved crops are a *preference*, kept separate from published observations:
+  // they reorder the watchlist, they never change a figure.
+  const { savedCodes } = useSavedCrops();
 
   // ---- filters (all functional; each changes what the page shows) -----------
   const [metric, setMetric] = useState<TrendMetric>(DEFAULT_METRIC);
@@ -457,9 +461,14 @@ export default function HomeScreen() {
   );
 
   // ---- crop watchlist -------------------------------------------------------
-  const previewNames = useMemo(
-    () => (crops.data ?? []).slice(0, PREVIEW_CROPS).map((crop) => crop.crop_name),
-    [crops.data],
+  const allCropRows = useMemo(() => crops.data ?? [], [crops.data]);
+  const savedCropRows = useMemo(
+    () => allCropRows.filter((crop) => savedCodes[crop.crop_code]),
+    [allCropRows, savedCodes],
+  );
+  const popularCropRows = useMemo(
+    () => allCropRows.filter((crop) => !savedCodes[crop.crop_code]).slice(0, PREVIEW_CROPS),
+    [allCropRows, savedCodes],
   );
   const previewByCrop = useMemo(() => {
     const map = new Map<string, NationalBoardCrop>();
@@ -477,6 +486,44 @@ export default function HomeScreen() {
     }
     return best?.crop ?? null;
   }, [board.data, cropFilter]);
+
+  // ---- quick comparisons ----------------------------------------------------
+  // Preconfigured entry points into the comparison workspace, built from the
+  // board's own published ordering so a shortcut always names crops that have
+  // data rather than a fixed pair that might not.
+  const quickComparisons = useMemo(() => {
+    const ranked = (board.data?.crops ?? [])
+      .map((item) => ({ name: item.crop, value: latestValue(item.series["production_mt"]) }))
+      .filter((item): item is { name: string; value: number } => item.value !== null)
+      .sort((a, b) => b.value - a.value);
+    const top = ranked.slice(0, 2).map((item) => item.name);
+    const items: {
+      id: string;
+      title: string;
+      subtitle: string;
+      icon: keyof typeof Ionicons.glyphMap;
+      href: never;
+    }[] = [];
+    if (top.length >= 2) {
+      items.push({
+        id: "top-crops",
+        title: `${top[0]} · ${top[1]}`,
+        subtitle: t.compareSubtitle,
+        icon: "git-compare-outline",
+        href: { pathname: "/explore/compare", params: { crops: top.join(","), mode: "crops" } } as never,
+      });
+    }
+    if (topCrop) {
+      items.push({
+        id: "districts",
+        title: t.compareDistricts,
+        subtitle: `${t.metricGap} · ${topCrop}`,
+        icon: "map-outline",
+        href: { pathname: "/explore/compare", params: { crop: topCrop, mode: "districts" } } as never,
+      });
+    }
+    return items;
+  }, [board.data, topCrop, t]);
 
   const gapLayer = useQuery({
     queryKey: ["home-gap", topCrop],
@@ -828,26 +875,70 @@ export default function HomeScreen() {
             >
               {boardLoading || crops.isLoading ? (
                 <LoadingSkeleton height={96} />
-              ) : previewNames.length ? (
-                previewNames.map((name, index) => (
-                  <CropBoardRow
-                    key={name}
-                    crop={previewByCrop.get(name.toLowerCase()) ?? null}
-                    metric="production_mt"
-                    metricLabel={t.metricProduction}
-                    periods={periods}
-                    periodLabels={periodLabels}
-                    unit={metricUnits["production_mt"] ?? null}
-                    changeNote={t.noComparableChange}
-                    onPress={() =>
-                      router.push((`/explore/crop/${crops.data?.[index]?.crop_code}`) as never)
-                    }
-                  />
-                ))
+              ) : savedCropRows.length || popularCropRows.length ? (
+                <>
+                  {/* Saved crops are a preference shown first; the rest are
+                      published crops offered as discovery. The two are never
+                      conflated: a saved crop with no observation still renders
+                      its own "not published" state. */}
+                  {savedCropRows.length ? (
+                    <>
+                      <Text style={typography.microCaps}>{t.savedCrops.toUpperCase()}</Text>
+                      {savedCropRows.map((crop) => (
+                        <CropBoardRow
+                          key={crop.crop_code}
+                          crop={previewByCrop.get(crop.crop_name.toLowerCase()) ?? null}
+                          metric="production_mt"
+                          metricLabel={t.metricProduction}
+                          periods={periods}
+                          periodLabels={periodLabels}
+                          unit={metricUnits["production_mt"] ?? null}
+                          changeNote={t.noComparableChange}
+                          onPress={() => router.push((`/explore/crop/${crop.crop_code}`) as never)}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                  {popularCropRows.length ? (
+                    <>
+                      {savedCropRows.length ? (
+                        <Text style={typography.microCaps}>{t.popularCrops.toUpperCase()}</Text>
+                      ) : null}
+                      {popularCropRows.map((crop) => (
+                        <CropBoardRow
+                          key={crop.crop_code}
+                          crop={previewByCrop.get(crop.crop_name.toLowerCase()) ?? null}
+                          metric="production_mt"
+                          metricLabel={t.metricProduction}
+                          periods={periods}
+                          periodLabels={periodLabels}
+                          unit={metricUnits["production_mt"] ?? null}
+                          changeNote={t.noComparableChange}
+                          onPress={() => router.push((`/explore/crop/${crop.crop_code}`) as never)}
+                        />
+                      ))}
+                    </>
+                  ) : null}
+                </>
               ) : (
                 <EmptyState title={t.noDataAvailable} />
               )}
             </DataSection>
+
+            {/* ---- Quick comparisons -------------------------------------- */}
+            {quickComparisons.length ? (
+              <DataSection title={t.quickComparisons} subtitle={t.quickComparisonsSubtitle}>
+                {quickComparisons.map((item) => (
+                  <ListRow
+                    key={item.id}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    icon={item.icon}
+                    onPress={() => router.push(item.href)}
+                  />
+                ))}
+              </DataSection>
+            ) : null}
 
             {/* ---- District opportunities --------------------------------- */}
             <DataSection

@@ -32,9 +32,6 @@ import { periodsCarryingLayer } from "../../../src/utils/coverage";
 
 type Tab = "production" | "inputs" | "land";
 
-const SINGLE_RELEASE_NOTE =
-  "District input, irrigation and erosion shares still come from a single release (2025 Season B). Selecting another period does not change them.";
-
 export default function DistrictDetailScreen() {
   const { typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -283,9 +280,7 @@ export default function DistrictDetailScreen() {
                   />
                 </View>
               ) : (
-                <Text style={typography.micro}>
-                  No published benchmark is available for this crop and period, so no gap is shown.
-                </Text>
+                <Text style={typography.micro}>{t.districtNoBenchmark}</Text>
               )}
 
               {cropSeries.isLoading ? (
@@ -304,12 +299,15 @@ export default function DistrictDetailScreen() {
                 <EmptyState title={t.noDataAvailable} />
               )}
 
-              <DataWarning text="No cross-crop average yield is shown: different crops do not share a natural yield scale. Pick a crop to compare like for like." />
+              <DataWarning text={t.districtNoCrossCropAverage} />
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={panel.data?.provenance?.source_id}
                 period={panel.data?.label ?? activePeriod}
-                coverage={`district · ${panel.data?.n_crops ?? 0} crops`}
+                coverage={t.districtCoverageCrops.replace(
+                  "{count}",
+                  String(panel.data?.n_crops ?? 0),
+                )}
                 unit={PANEL_UNITS.yield_kg_ha}
                 method={panel.data?.provenance?.method}
                 limitations={[
@@ -339,7 +337,7 @@ export default function DistrictDetailScreen() {
 
       {tab === "inputs" ? (
         <DataSection title={t.inputs} subtitle={t.districtInputsSubtitle} first>
-          <DataWarning text={SINGLE_RELEASE_NOTE} />
+          <DataWarning text={t.districtSingleReleaseNote} />
           {percentRows(data.factors).length ? (
             <HorizontalBarChart values={percentRows(data.factors)} unit="%" maxItems={10} />
           ) : (
@@ -350,7 +348,7 @@ export default function DistrictDetailScreen() {
             title={t.sourceAndMethod}
             source={data.provenance.source_id}
             period={data.period_label}
-            coverage="district · single release"
+            coverage={t.districtCoverageSingleRelease}
             unit="%"
             limitations={data.provenance.limitations}
           />
@@ -360,7 +358,7 @@ export default function DistrictDetailScreen() {
       {tab === "land" ? (
         <>
           <DataSection title={t.irrigation} subtitle={t.districtIrrigationSubtitle} first>
-            <DataWarning text={SINGLE_RELEASE_NOTE} />
+            <DataWarning text={t.districtSingleReleaseNote} />
             {percentRows(data.irrigation.methods).length ? (
               <HorizontalBarChart values={percentRows(data.irrigation.methods)} unit="%" />
             ) : (
@@ -388,7 +386,7 @@ export default function DistrictDetailScreen() {
               title={t.sourceAndMethod}
               source={data.provenance.source_id}
               period={data.period_label}
-              coverage="district · single release"
+              coverage={t.districtCoverageSingleRelease}
               limitations={data.provenance.limitations}
             />
           </DataSection>

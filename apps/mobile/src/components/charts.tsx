@@ -16,8 +16,8 @@
  *   swatch and its number in the readout, which doubles as the legend.
  */
 
-import type { GestureResponderEvent, LayoutChangeEvent } from "react-native";
-import { useState } from "react";
+import type { LayoutChangeEvent } from "react-native";
+import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
@@ -38,6 +38,8 @@ import { chart, gradient, radius, seriesColor, shadow, spacing } from "../theme"
 import type { Palette } from "../theme";
 import { useTheme, useThemedStyles } from "../theme/theme-context";
 import type { SeriesPoint } from "../utils/analytics";
+import { isScrubIntent, isTapMovement } from "../utils/chartGesture";
+import type { TouchPoint } from "../utils/chartGesture";
 import { divergingBar, hasNegative, maxMagnitude } from "../utils/diverging";
 import {
   formatValue,
@@ -188,6 +190,12 @@ export interface TimeSeriesChartProps {
   height?: number;
   /** Explicit width. Omit to measure the container. */
   width?: number;
+  /**
+   * Controlled crosshair selection. When present the chart renders this index
+   * instead of keeping its own, so an inline chart and its full-screen copy
+   * can be driven from one shared selection (the parent follows `onSelectIndex`).
+   */
+  selectedIndex?: number | null;
   /** Selection notifications, e.g. to drive a linked map layer. */
   onSelectIndex?: (index: number | null, label: string | null) => void;
   /** One line of provenance/coverage under the plot. */
@@ -201,6 +209,7 @@ export function TimeSeriesChart({
   unit,
   height: heightProp,
   width: widthProp,
+  selectedIndex: selectedIndexProp,
   onSelectIndex,
   note,
   emptyNote,
@@ -210,7 +219,16 @@ export function TimeSeriesChart({
   const t = strings(useAppStore((s) => s.language));
   const prepared = prepare(series);
   const [measured, setMeasured] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [internalSelected, setInternalSelected] = useState<number | null>(null);
+  const controlled = selectedIndexProp !== undefined;
+  const selected = controlled ? selectedIndexProp : internalSelected;
+
+  // Gesture bookkeeping. The plot never claims the responder at touch start;
+  // it records where the touch began and only takes over once movement is
+  // clearly horizontal, so the screen keeps its vertical scroll. Touches the
+  // parent wins are cancelled, which lands in `onTouchCancel`.
+  const touchStartRef = useRef<TouchPoint | null>(null);
+  const scrubbedRef = useRef(false);
 
   const height = heightProp ?? chart.height;
   const width = widthProp ?? measured;
@@ -220,7 +238,13 @@ export function TimeSeriesChart({
   const domain = yDomain(prepared.flatMap((item) => item.points));
   const ticks = niceTicks(domain.min, domain.max, 4);
   const hasData = prepared.some((item) => publishedCount(item.points) > 0);
-  const activeIndex = selected ?? lastPublishedIndex(prepared, count);
+  const lastPublished = lastPublishedIndex(prepared, count);
+  // A controlled index can outlive its series (a window change shrinks the
+  // points); clamp rather than index past the end of the array.
+  const activeIndex =
+    selected === null
+      ? lastPublished
+      : Math.min(count - 1, Math.max(0, selected));
 
   const pad = chart.pad;
   const innerW = Math.max(1, width - pad.left - pad.right);
@@ -240,23 +264,39 @@ export function TimeSeriesChart({
       : `${labels[activeIndex] ?? ""}: ${prepared
           .map((item) => {
             const value = item.points[activeIndex]?.value ?? null;
-            return `${item.label} ${value === null ? "no data" : `${formatValue(value)}${unit ? ` ${unit}` : ""}`}`;
+            return `${item.label} ${
+              value === null
+                ? t.chartNoDataShort
+                : `${formatValue(value)}${unit ? ` ${unit}` : ""}`
+            }`;
           })
           .join(", ")}`;
 
-  const select = (event: GestureResponderEvent) => {
+  const commit = (index: number | null) => {
+    if (!controlled) setInternalSelected(index);
+    onSelectIndex?.(index, index === null ? null : labels[index] ?? null);
+  };
+
+  const selectAt = (locationX: number) => {
     if (count === 0) return;
-    const index = nearestIndex(event.nativeEvent.locationX, pad.left, innerW, count);
-    setSelected(index);
-    onSelectIndex?.(index, labels[index] ?? null);
+    commit(nearestIndex(locationX, pad.left, innerW, count));
   };
 
   const step = (direction: 1 | -1) => {
     if (count === 0) return;
-    const next = Math.min(count - 1, Math.max(0, activeIndex + direction));
-    setSelected(next);
-    onSelectIndex?.(next, labels[next] ?? null);
+    commit(Math.min(count - 1, Math.max(0, activeIndex + direction)));
   };
+
+  /** Touch payload → page-relative point, or null when there is no touch. */
+  const touchPoint = (touch: { pageX: number; pageY: number } | undefined): TouchPoint | null =>
+    touch ? { x: touch.pageX, y: touch.pageY } : null;
+
+  const resetGesture = () => {
+    touchStartRef.current = null;
+    scrubbedRef.current = false;
+  };
+
+  const hasSelection = selected !== null && count > 0;
 
   return (
     <View style={{ gap: spacing.sm }}>
@@ -266,7 +306,7 @@ export function TimeSeriesChart({
         onLayout={(event) => measureWidth(event, measured, setMeasured)}
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={accessibilityLabel ?? "Time series chart"}
+        accessibilityLabel={accessibilityLabel ?? t.chartTimeSeriesA11y}
         accessibilityValue={{ text: readoutText }}
         accessibilityHint={t.chartsPeriodSwipeHint}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
@@ -274,10 +314,45 @@ export function TimeSeriesChart({
           if (event.nativeEvent.actionName === "increment") step(1);
           if (event.nativeEvent.actionName === "decrement") step(-1);
         }}
-        onStartShouldSetResponder={() => count > 0}
-        onMoveShouldSetResponder={() => count > 0}
-        onResponderGrant={select}
-        onResponderMove={select}
+        /* Touch handling. The plot never takes the responder on touch start —
+           that would ask Android to stop the parent from intercepting motion
+           events and freeze vertical scrolling. It records where the touch
+           began, claims the responder only once movement is clearly
+           horizontal (a scrub), and treats a movement that stayed inside the
+           slop radius at touch end as a tap. Touches the parent wins arrive as
+           `onTouchCancel` and are dropped. */
+        onTouchStart={(event) => {
+          const touches = event.nativeEvent.touches;
+          // A second finger abandons the gesture entirely.
+          touchStartRef.current = touches.length > 1 ? null : touchPoint(touches[0]);
+          scrubbedRef.current = false;
+        }}
+        onMoveShouldSetResponder={(event) => {
+          if (count === 0) return false;
+          const current = touchPoint(event.nativeEvent.touches[0]);
+          return current !== null && isScrubIntent(touchStartRef.current, current);
+        }}
+        onResponderGrant={(event) => {
+          scrubbedRef.current = true;
+          selectAt(event.nativeEvent.locationX);
+        }}
+        onResponderMove={(event) => {
+          if (!scrubbedRef.current) return;
+          selectAt(event.nativeEvent.locationX);
+        }}
+        onResponderTerminate={() => resetGesture()}
+        onResponderTerminationRequest={() => true}
+        onTouchEnd={(event) => {
+          // Runs after a release too, so the scrub flag is read before it is
+          // cleared: a completed scrub must not be re-read as a tap.
+          const start = touchStartRef.current;
+          const scrubbed = scrubbedRef.current;
+          const endPoint = touchPoint(event.nativeEvent.changedTouches[0]);
+          resetGesture();
+          if (scrubbed || count === 0 || !start || !endPoint) return;
+          if (isTapMovement(start, endPoint)) selectAt(event.nativeEvent.locationX);
+        }}
+        onTouchCancel={() => resetGesture()}
         style={{
           alignSelf: "stretch",
           borderRadius: radius.lg,
@@ -389,7 +464,7 @@ export function TimeSeriesChart({
 
             {/* Crosshair — solid and soft rather than dashed, so it reads as a
                 selection cursor and not as another grid line. */}
-            {selected !== null && count > 0 ? (
+            {hasSelection ? (
               <G>
                 <Line
                   x1={xAt(activeIndex)}
@@ -478,7 +553,7 @@ export function TimeSeriesChart({
                         ),
                       )
                     : null}
-                  {selected !== null
+                  {hasSelection
                     ? (() => {
                         const value = item.points[activeIndex]?.value ?? null;
                         if (value === null) return null;
@@ -697,9 +772,12 @@ export function StackedShareBar({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Composition: ${published
-        .map((segment) => `${segment.label} ${(segment.value as number).toFixed(1)}${unit}`)
-        .join(", ")}`}
+      accessibilityLabel={t.chartCompositionReadout.replace(
+        "{items}",
+        published
+          .map((segment) => `${segment.label} ${(segment.value as number).toFixed(1)}${unit}`)
+          .join(", "),
+      )}
       style={{ gap: spacing.sm }}
     >
       <View
@@ -745,12 +823,18 @@ export function StackedShareBar({
           the gap when the response does not carry one. */}
       {(sumOk ?? Math.abs(total - 100) <= 0.5) === false ? (
         <Text style={typography.micro}>
-          {`Published shares add up to ${total.toFixed(1)}${unit}, not 100${unit}. They are shown exactly as published.`}
+          {t.composeSumMismatch
+            .replace("{total}", total.toFixed(1))
+            .replace("{unit}", unit)
+            .replace("{unit}", unit)}
         </Text>
       ) : null}
       {missing.length ? (
         <Text style={typography.micro}>
-          Not published for: {missing.map((segment) => segment.label).join(", ")}.
+          {t.composeNotPublishedFor.replace(
+            "{items}",
+            missing.map((segment) => segment.label).join(", "),
+          )}
         </Text>
       ) : null}
     </View>
@@ -767,11 +851,11 @@ export function StackedShareBar({
 const LEGACY_HEIGHT = 180;
 const LEGACY_PAD = { top: 12, right: 12, bottom: 26, left: 40 };
 
-function summary(values: SeriesPoint[], unit: string): string {
+function summary(values: SeriesPoint[], unit: string, empty: string): string {
   const parts = values
     .filter((point) => point.value !== null)
     .map((point) => `${point.label} ${point.value}${unit ? ` ${unit}` : ""}`);
-  return parts.length ? parts.join(", ") : "No data";
+  return parts.length ? parts.join(", ") : empty;
 }
 
 export function LineChart({
@@ -793,7 +877,7 @@ export function LineChart({
       unit={unit || null}
       height={height}
       width={width}
-      accessibilityLabel={`Line chart. ${summary(values, unit)}`}
+      accessibilityLabel={t.chartLineA11y.replace("{summary}", summary(values, unit, t.chartNoDataShort))}
     />
   );
 }
@@ -824,7 +908,7 @@ export function BarChart({
       onLayout={(event) => measureWidth(event, measured, setMeasured)}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Bar chart. ${summary(values, unit)}`}
+      accessibilityLabel={t.chartBarA11y.replace("{summary}", summary(values, unit, t.chartNoDataShort))}
       style={{ backgroundColor: colors.surface, borderRadius: radius.md }}
     >
       {width > 0 ? (
@@ -901,7 +985,7 @@ export function HorizontalBarChart({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Horizontal bar chart. ${summary(rows, unit)}`}
+      accessibilityLabel={t.chartHBarA11y.replace("{summary}", summary(rows, unit, t.chartNoDataShort))}
       style={{ gap: spacing.sm }}
     >
       {diverging ? (
@@ -982,9 +1066,10 @@ export function DonutChart({ slices, unit = "%" }: { slices: DonutSlice[]; unit?
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Composition chart. ${real
-        .map((slice) => `${slice.label} ${slice.value}${unit}`)
-        .join(", ")}`}
+      accessibilityLabel={t.chartCompositionA11y.replace(
+        "{items}",
+        real.map((slice) => `${slice.label} ${slice.value}${unit}`).join(", "),
+      )}
       style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}
     >
       <Svg width={size} height={size}>

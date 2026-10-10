@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 
 import type { Language } from "../i18n";
+import type { CompareSelection } from "../utils/selection";
+import { EMPTY_COMPARE_SELECTION } from "../utils/selection";
 
 const LANGUAGE_KEY = "cropmatics.language";
 const ONBOARDING_KEY = "cropmatics.hasCompletedOnboarding";
@@ -29,10 +31,19 @@ interface AppState {
   onboardingComplete: boolean;
   hydrated: boolean;
   settings: AppearanceSettings;
+  /**
+   * The compare workspace's last selection. In memory on purpose: it exists so
+   * leaving Compare and returning (or arriving from a quick-comparison deep
+   * link) does not discard the user's picks, not to survive an app restart —
+   * a stale persisted comparison would silently show results the user no
+   * longer asked for.
+   */
+  compareSelection: CompareSelection;
   setLanguage: (language: Language) => void;
   setPendingSyncCount: (count: number) => void;
   setOnboardingComplete: (complete: boolean) => void;
   updateSettings: (patch: Partial<AppearanceSettings>) => void;
+  setCompareSelection: (next: CompareSelection) => void;
   hydrate: () => Promise<void>;
 }
 
@@ -43,6 +54,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   onboardingComplete: false,
   hydrated: false,
   settings: DEFAULT_SETTINGS,
+  compareSelection: EMPTY_COMPARE_SELECTION,
   setLanguage: (language) => {
     set({ language });
     void AsyncStorage.setItem(LANGUAGE_KEY, language);
@@ -57,6 +69,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ settings });
     void AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   },
+  setCompareSelection: (compareSelection) => set({ compareSelection }),
   hydrate: async () => {
     try {
       const [language, onboarding, settings] = await Promise.all([

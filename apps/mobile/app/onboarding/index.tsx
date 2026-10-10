@@ -17,13 +17,14 @@ export default function OnboardingScreen() {
   const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
+  const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
   const [slide, setSlide] = useState(0);
 
   const slides = [
     {
       icon: "leaf-outline" as const,
       title: t.appName,
-      subtitle: "Rwanda Agricultural Intelligence in Your Pocket",
+      subtitle: t.onboardingTagline,
       body: t.onboardingDescription,
     },
     {
@@ -36,7 +37,7 @@ export default function OnboardingScreen() {
     {
       icon: "chatbubble-ellipses-outline" as const,
       title: t.askCropmatics,
-      subtitle: "Ask. Explore. Understand.",
+      subtitle: t.onboardingAskTagline,
       body: t.askSubtitle,
     },
   ];
@@ -106,7 +107,15 @@ export default function OnboardingScreen() {
             </View>
           ) : null}
           <View style={{ flex: 1 }}>
-            <PrimaryButton label={t.skip} onPress={() => router.replace("/")} />
+            {/* Skip must record completion, or the root guard immediately
+                redirects the user back into onboarding. */}
+            <PrimaryButton
+              label={t.skip}
+              onPress={() => {
+                setOnboardingComplete(true);
+                router.replace("/");
+              }}
+            />
           </View>
         </View>
       </View>

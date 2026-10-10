@@ -356,6 +356,15 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
         if not indicators and inherited.metric and inherited.metric in indicators:
             indicators = [inherited.metric]
 
+    # Two or more named crops is a comparison in its own right, whether or not the
+    # user said "compare". The comparison tools accept a crop list, whereas the
+    # single-crop path answers only the first named crop - so before this rule a
+    # question like "maize and beans production" silently dropped a side instead of
+    # comparing them. Promotion is additive: a question that already carried the
+    # comparison operation is left untouched.
+    if len(crops) >= 2 and "crop_comparison" not in operations:
+        operations = [*operations, "crop_comparison"]
+
     period_code, comparison_period, wants_comparison = _resolve_period(
         question, context, inherited_period
     )

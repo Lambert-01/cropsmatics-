@@ -34,6 +34,20 @@ def _period_crop_district(routed: RoutedRequest) -> dict | None:
     }
 
 
+def _trend(routed: RoutedRequest) -> dict | None:
+    """`get_crop_trend` spans every published period, so it takes no period argument.
+
+    Forwarding the routed period here was an invented parameter: `TrendParams`
+    declares only ``crop``, ``district`` and ``season``, and its strict schema
+    refuses unknown keys, so *every* planned trend retrieval failed validation and
+    its evidence was dropped. The trend intent therefore retrieved nothing at all.
+    Only the arguments the tool actually declares are passed on.
+    """
+    if not routed.crop:
+        return None
+    return {"crop": routed.crop, "district": routed.district}
+
+
 def _period_crop_rank(routed: RoutedRequest) -> dict | None:
     if not routed.crop:
         return None
@@ -98,7 +112,7 @@ HANDLERS: dict[str, callable] = {
     "get_yield_gap": _period_crop_district,
     "get_district_ranking": _period_crop_rank,
     "get_yield_distribution": _period_crop,
-    "get_crop_trend": _period_crop_district,
+    "get_crop_trend": _trend,
     "get_crop_context": _period_crop,
     "get_district_context": _district,
     "get_postharvest_profile": _crop,
