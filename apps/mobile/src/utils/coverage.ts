@@ -8,8 +8,8 @@
  *
  * Verified against the current build:
  * - `crop_productivity` carries district rows for every published period
- *   (2024A-2026B), so yield / gap / priority maps and district trends are
- *   available for all of them.
+ *   (2022A-2026B — 14 seasons of the NISR SAS panel), so yield / gap /
+ *   priority maps and district trends are available for all of them.
  * - `district_factors`, `irrigation_water` and `erosion_control` are single
  *   release tables (2025 Season B only), so the adoption layers exist for
  *   exactly one period.
