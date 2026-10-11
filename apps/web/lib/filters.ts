@@ -46,6 +46,24 @@ export interface DashboardFilters {
   benchmark?: string;
   /** Optional 2-5 crop comparison for national trends (comma-joined in URL). */
   compare?: string;
+  /**
+   * Explicit instruction not to layer the user's stored defaults onto this view.
+   *
+   * Written by "Reset filters". Without it a reset would clear the URL only, and
+   * `resolveAnalyticalContext` would immediately re-apply a saved default crop or
+   * district on the next render - so "reset" would mean "all crops" for one user
+   * and "my saved crop" for another, and would change again after a reload.
+   */
+  defaults?: DefaultsMode;
+}
+
+export const DEFAULTS_STORED = "stored";
+export const DEFAULTS_NONE = "none";
+export type DefaultsMode = typeof DEFAULTS_NONE;
+
+/** Read the explicit defaults mode from the URL, ignoring anything unrecognised. */
+export function parseDefaultsMode(raw: string | null | undefined): DefaultsMode | undefined {
+  return raw === DEFAULTS_NONE ? DEFAULTS_NONE : undefined;
 }
 
 /** Split a canonical ``2026B`` period code into its year and season. */
@@ -86,6 +104,7 @@ export function parseFilters(params: URLSearchParams | { get(key: string): strin
     district: params.get("district") ?? undefined,
     benchmark: params.get("benchmark") ?? DEFAULT_BENCHMARK,
     compare: params.get("compare") ?? undefined,
+    defaults: parseDefaultsMode(params.get("defaults")),
   };
 }
 
@@ -125,6 +144,9 @@ export function filtersToQuery(filters: DashboardFilters): string {
     params.set("benchmark", filters.benchmark);
   }
   if (filters.compare) params.set("compare", filters.compare);
+  // "Ignore my stored defaults" is written down too, so a reset link means the
+  // same thing in someone else's browser as it does in the one that made it.
+  if (filters.defaults === DEFAULTS_NONE) params.set("defaults", DEFAULTS_NONE);
   return params.toString();
 }
 

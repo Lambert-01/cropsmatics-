@@ -11,7 +11,7 @@
  * module replaced — a setting that appears to do something and does not.
  */
 
-import { SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./filters";
+import { DEFAULTS_NONE, SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./filters";
 
 export const PREFERENCES_KEY = "cropmatics-preferences";
 export const PREFERENCES_VERSION = 1;
@@ -171,6 +171,12 @@ export function resetPreferences(): Preferences {
  * 3. A default **district** is applied only when the effective province is the
  *    default province. Otherwise a link that names one province would come back
  *    carrying a district from another, which is not a valid selection at all.
+ * 4. `defaults=none` suppresses **every** stored default for this view. That is
+ *    what makes "Reset filters" mean one thing for everybody: clearing the URL
+ *    alone is not enough, because the stored crop/province/district would be
+ *    layered straight back on and the page would come back filtered for some
+ *    users and unfiltered for others. A value named *in the URL* still wins -
+ *    only the fallbacks are suppressed.
  *
  * A legacy `year`+`season` link already names a period, so it is treated as an
  * explicit period and the stored default period is not layered on top of it.
@@ -188,8 +194,12 @@ export function resolveAnalyticalContext(
     crop?: string;
     province?: string;
     district?: string;
+    defaults?: string;
   },
 ): { view: ScopeView; period?: string; crop?: string; province?: string; district?: string } {
+  // Rule 4: an explicit "ignore my defaults" view falls back to nothing.
+  const stored = urlFilters.defaults === DEFAULTS_NONE ? null : preferences;
+
   const explicitPeriod =
     urlFilters.period ||
     (urlFilters.year && urlFilters.season
@@ -197,26 +207,25 @@ export function resolveAnalyticalContext(
       : undefined);
 
   // A stored default period only applies when the URL has not explicitly asked
-  // for all published periods.
+  // for all published periods (or for no stored defaults at all).
+  const fallbackPeriod = stored?.defaultPeriod || undefined;
   const wantsPeriod =
     Boolean(explicitPeriod) ||
-    (urlFilters.view !== SCOPE_HISTORY && Boolean(preferences.defaultPeriod));
-  const period = wantsPeriod
-    ? explicitPeriod || preferences.defaultPeriod || undefined
-    : undefined;
+    (urlFilters.view !== SCOPE_HISTORY && Boolean(fallbackPeriod));
+  const period = explicitPeriod || (wantsPeriod ? fallbackPeriod : undefined);
   const view: ScopeView = period ? SCOPE_PERIOD : SCOPE_HISTORY;
 
-  const province = urlFilters.province || preferences.defaultProvince || undefined;
+  const province = urlFilters.province || stored?.defaultProvince || undefined;
   const districtFromUrl = urlFilters.district;
   const districtFromDefault =
-    preferences.defaultDistrict && province === (preferences.defaultProvince ?? undefined)
-      ? preferences.defaultDistrict
+    stored?.defaultDistrict && province === (stored.defaultProvince ?? undefined)
+      ? stored.defaultDistrict
       : undefined;
 
   return {
     view,
     period,
-    crop: urlFilters.crop || preferences.defaultCrop || undefined,
+    crop: urlFilters.crop || stored?.defaultCrop || undefined,
     province,
     district: districtFromUrl || districtFromDefault,
   };

@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
 import {
+  DEFAULTS_NONE,
   parseFilters,
   SCOPE_HISTORY,
   type DashboardFilters,
@@ -63,14 +64,17 @@ export function useFilters() {
    * Reset every filter to its default: all published periods, all crops, all
    * districts, the default benchmark.
    *
-   * The reset is written down as `view=history`. Merely clearing the URL is not
-   * enough: the stored preferences would re-apply a saved default period on the
-   * very next render, so "reset" would quietly mean "my saved period" for some
-   * users and "all published periods" for others - and would change again after
-   * a reload. One documented meaning, the same on every page.
+   * The reset is written down as `view=history&defaults=none`. Merely clearing
+   * the URL is not enough: the stored preferences would re-apply a saved default
+   * period, crop, province and district on the very next render, so "reset"
+   * would quietly mean "my saved selection" for some users and "everything" for
+   * others - and would change again after a reload. One documented meaning, the
+   * same on every page.
    */
   const reset = useCallback(() => {
-    router.replace(`${pathname}?view=${SCOPE_HISTORY}`, { scroll: false });
+    router.replace(`${pathname}?view=${SCOPE_HISTORY}&defaults=${DEFAULTS_NONE}`, {
+      scroll: false,
+    });
   }, [pathname, router]);
 
   return { filters, setFilters, reset };

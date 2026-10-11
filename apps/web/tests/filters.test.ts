@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULTS_NONE,
   DEFAULT_BENCHMARK,
   filtersToApiQuery,
   filtersToQuery,
   isHistoryScope,
   mergeFilters,
+  parseDefaultsMode,
   parseFilters,
   parseView,
   scopeSummaryText,
@@ -103,6 +105,42 @@ describe("canonical period handling", () => {
     expect(params.get("period_code")).toBeNull();
     expect(params.get("year")).toBe("2024");
     expect(params.get("season")).toBe("C");
+  });
+});
+
+describe("reset-filter link (view=history&defaults=none)", () => {
+  /** The exact URL `useFilters().reset()` writes. */
+  const RESET_URL = "view=history&defaults=none";
+
+  it("round-trips through the URL so a reset link stays a reset", () => {
+    const parsed = parseFilters(new URLSearchParams(RESET_URL));
+    expect(parsed.view).toBe("history");
+    expect(parsed.defaults).toBe("none");
+
+    // Writing it back out must preserve the flag, otherwise the reset would be a
+    // one-render effect that snapping a filter undoes.
+    const rewritten = new URLSearchParams(filtersToQuery(parsed));
+    expect(rewritten.get("view")).toBe("history");
+    expect(rewritten.get("defaults")).toBe("none");
+  });
+
+  it("ignores an unrecognised defaults value", () => {
+    expect(parseDefaultsMode("nonsense")).toBeUndefined();
+    expect(parseDefaultsMode(null)).toBeUndefined();
+    expect(parseDefaultsMode(DEFAULTS_NONE)).toBe(DEFAULTS_NONE);
+  });
+
+  it("does not add the flag to ordinary links", () => {
+    const params = new URLSearchParams(filtersToQuery({ view: "history", crop: "Maize" }));
+    expect(params.get("defaults")).toBeNull();
+  });
+
+  it("keeps the flag when a filter is applied after a reset", () => {
+    // The user reset, then narrowed to one crop. They still do not want stored
+    // defaults re-applied around the crop they just chose.
+    const params = new URLSearchParams(filtersToQuery({ view: "history", defaults: "none", crop: "Beans" }));
+    expect(params.get("crop")).toBe("Beans");
+    expect(params.get("defaults")).toBe("none");
   });
 });
 

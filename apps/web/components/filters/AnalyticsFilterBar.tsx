@@ -3,7 +3,7 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { SCOPE_HISTORY, scopeSummaryText, splitPeriod } from "@/lib/filters";
+import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText, splitPeriod } from "@/lib/filters";
 import { cn } from "@/lib/cn";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -414,6 +414,12 @@ export function AnalyticsFilterBar({
   }, [filters, periods]);
 
   const activeCount = activeChips.length;
+  /**
+   * A reset turns the stored defaults off for this view. That is a mode, not a
+   * filter, so it is shown as its own chip with a way back: leaving it silent
+   * would mean a user could not tell why their saved crop stopped appearing.
+   */
+  const defaultsMuted = filters.defaults === DEFAULTS_NONE;
 
   /** One-line human summary, e.g. "2026 Season B · Maize · Eastern · Bugesera". */
   const scopeSummary = useMemo(() => {
@@ -445,7 +451,7 @@ export function AnalyticsFilterBar({
    * written as two separate URL updates.
    */
   const set = (
-    patch: Partial<Record<FilterKey | "view", string | number | undefined>>,
+    patch: Partial<Record<FilterKey | "view" | "defaults", string | number | undefined>>,
   ) => setFilters(patch as never);
 
   /* ------------------------------------------------------------- */
@@ -543,7 +549,7 @@ export function AnalyticsFilterBar({
       <div className="card hidden items-end gap-3 px-4 py-3 md:flex">
         {controlsNode}
         <div className="ml-auto flex shrink-0 items-center gap-2 pb-0.5">
-          {activeCount > 0 ? (
+          {activeCount > 0 || defaultsMuted ? (
             <button
               type="button"
               onClick={reset}
@@ -633,6 +639,19 @@ export function AnalyticsFilterBar({
             }
           />
         ))}
+        {defaultsMuted ? (
+          <button
+            type="button"
+            onClick={() => set({ defaults: undefined })}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 py-0.5 pl-2.5 pr-2 text-xs text-amber-800"
+            aria-label="Saved defaults are off. Re-apply my saved defaults"
+            title="Reset turned your saved defaults off. Click to use them again."
+          >
+            <span className="text-amber-700/80">Saved defaults:</span>
+            <span className="font-semibold">off</span>
+            <RotateCcw className="h-3 w-3" aria-hidden="true" />
+          </button>
+        ) : null}
         {activeCount > 0 ? (
           <button
             type="button"

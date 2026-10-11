@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { DEFAULTS_NONE, SCOPE_HISTORY, SCOPE_PERIOD } from "@/lib/filters";
 import {
   DEFAULT_PREFERENCES,
   PREFERENCES_KEY,
@@ -220,6 +221,73 @@ describe("default analytical context", () => {
       province: undefined,
       district: undefined,
     });
+  });
+});
+
+describe("reset ignores stored defaults (defaults=none)", () => {
+  /** A user who has configured everything a default can hold. */
+  const everywhere = mergePreferences(DEFAULT_PREFERENCES, {
+    defaultPeriod: "2025B",
+    defaultCrop: "Maize",
+    defaultProvince: "Kigali City",
+    defaultDistrict: "Gasabo",
+  });
+
+  it("applies no stored default at all after a reset", () => {
+    const context = resolveAnalyticalContext(everywhere, {
+      view: SCOPE_HISTORY,
+      defaults: DEFAULTS_NONE,
+    });
+    // Regression: the crop/province/district defaults used to be layered back on
+    // after a reset, so "Reset filters" showed a filtered page for anyone who had
+    // saved a default.
+    expect(context).toEqual({
+      view: SCOPE_HISTORY,
+      period: undefined,
+      crop: undefined,
+      province: undefined,
+      district: undefined,
+    });
+  });
+
+  it("still honours a value named in the URL", () => {
+    const context = resolveAnalyticalContext(everywhere, {
+      view: SCOPE_HISTORY,
+      defaults: DEFAULTS_NONE,
+      crop: "Beans",
+      district: "Huye",
+    });
+    expect(context.crop).toBe("Beans");
+    expect(context.district).toBe("Huye");
+    expect(context.period).toBeUndefined();
+  });
+
+  it("still resolves an explicit period, because that is a URL selection", () => {
+    const context = resolveAnalyticalContext(everywhere, {
+      period: "2026A",
+      defaults: DEFAULTS_NONE,
+    });
+    expect(context.period).toBe("2026A");
+    expect(context.view).toBe(SCOPE_PERIOD);
+    // The defaults are still suppressed around it.
+    expect(context.crop).toBeUndefined();
+  });
+
+  it("behaves exactly as before when the flag is absent", () => {
+    const context = resolveAnalyticalContext(everywhere, { view: SCOPE_HISTORY });
+    expect(context.period).toBeUndefined();
+    // A plain history link is not a reset: the stored entity defaults still fill in.
+    expect(context.crop).toBe("Maize");
+    expect(context.province).toBe("Kigali City");
+    expect(context.district).toBe("Gasabo");
+  });
+
+  it("does not honour an unrecognised defaults value", () => {
+    const context = resolveAnalyticalContext(everywhere, {
+      view: SCOPE_HISTORY,
+      defaults: "nonsense",
+    });
+    expect(context.crop).toBe("Maize");
   });
 });
 
