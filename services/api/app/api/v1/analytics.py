@@ -387,6 +387,88 @@ def erosion(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
     }
 
 
+@router.get("/practice-indicators")
+def practice_indicators(
+    f: AnalyticsFilters = Depends(analytics_filters),
+    domain: str | None = Query(
+        None,
+        description=(
+            "practice | irrigation | water_source | erosion_control | "
+            "erosion_severity; omit for every domain"
+        ),
+    ),
+) -> dict:
+    """Multi-period district practice/irrigation/erosion observations.
+
+    This is the endpoint that surfaces the 78 SAS sheets which were mapped and
+    ingested with lineage but had no processed dataset behind them. Unlike the
+    legacy single-release ``/analytics/irrigation`` and ``/analytics/erosion``,
+    which stay exactly as they are, this one carries the real period dimension
+    (2024A-2026B) and reports per-indicator availability.
+    """
+    result = analytics_service.practice_indicator_history(f, domain)
+    source_ids = sorted(
+        {
+            str(row["source_id"])
+            for row in result.get("observations", [])
+            if row.get("source_id")
+        }
+    )
+    periods = result.get("periods") or []
+    return {
+        **result,
+        "provenance": Provenance(
+            # Derived from the rows that answered, never an invented aggregate id.
+            source_id=",".join(source_ids) if source_ids else "NISR_SAS_PRACTICE_OBSERVATION",
+            source_period=result.get("period"),
+            method=(
+                "official NISR SAS district shares for agricultural practices, "
+                "irrigation technique, water source, erosion control and erosion "
+                "severity, extracted per published release"
+            ),
+            limitations=[
+                (
+                    f"published periods: {periods[0]}-{periods[-1]}"
+                    if periods
+                    else "no periods are available in this deployment"
+                ),
+                "the coverage audit's legacy district tables still serve 2025 Season B only",
+                "a published null is returned as null, never as zero",
+                "an indicator absent for a period simply has no rows",
+            ],
+        ).model_dump(),
+    }
+
+
+@router.get("/postharvest-history")
+def postharvest_history(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
+    """Multi-period crop post-harvest use shares (2024A-2026B), long form."""
+    result = analytics_service.postharvest_history(f)
+    source_ids = sorted(
+        {
+            str(row["source_id"])
+            for row in result.get("observations", [])
+            if row.get("source_id")
+        }
+    )
+    return {
+        **result,
+        "provenance": Provenance(
+            source_id=",".join(source_ids) if source_ids else "NISR_SAS_POSTHARVEST_OBSERVATION",
+            source_period=result.get("period"),
+            method="official NISR SAS crop post-harvest use shares, extracted per published release",
+            limitations=[
+                "shares are published per crop and period and are not comparable across crops",
+                (
+                    f"{result.get('shares_off_total', 0)} period x crop group(s) do not sum to "
+                    "100 within the rounding tolerance; they are flagged, never rescaled"
+                ),
+                "the legacy single-release table (/analytics/post-harvest) is unchanged",
+            ],
+        ).model_dump(),
+    }
+
+
 def _priority_limitations(result: dict) -> list[str]:
     """Proxy notes plus an explicit statement of what was excluded, and why.
 

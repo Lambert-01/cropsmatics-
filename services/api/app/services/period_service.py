@@ -228,8 +228,8 @@ def catalog() -> dict:
             "only periods present in the processed tables are listed; an "
             "unpublished season such as 2026C does not exist",
             f"{PANEL_DATASET} carries district rows for every listed period; "
-            "district input/practice, irrigation and erosion tables are still "
-            "single-release (see each period's datasets list)",
+            "every other dataset lists its own periods in its datasets entry, "
+            "so a period can never inherit coverage it does not have",
         ],
     }
 

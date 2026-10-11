@@ -71,6 +71,10 @@ class MobileIndicator(BaseModel):
     source_label: str | None = None
     source_period: str | None = None
     period: str | None = None
+    # Every period this dataset really carries, chronological. A legacy
+    # single-release table reports exactly one; the multi-period SAS indicator
+    # domains report the full published range.
+    periods: list[str] = Field(default_factory=list)
     coverage_level: str | None = None
     available: bool = False
 

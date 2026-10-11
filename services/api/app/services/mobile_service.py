@@ -238,6 +238,15 @@ AGGREGATION_BY_ID: dict[str, str] = {
     "postharvest_infrastructure": "specialized",
 }
 
+# Processed datasets that carry a real, multi-period indicator dimension rather
+# than the legacy single-release wide layout. Their published range is reported
+# from the coverage matrix instead of being written down as a literal.
+MULTI_PERIOD_INDICATOR_DATASETS: tuple[str, ...] = (
+    "agricultural_practices",
+    "crop_postharvest_use_multi",
+)
+
+
 # Indicator-specific provenance: a question about irrigation must never cite the
 # crop-productivity source table, so every indicator carries its own source.
 SOURCE_BY_DATASET: dict[str, str] = {
@@ -302,6 +311,20 @@ def _coverage() -> dict[str, dict[str, str]]:
         return {}
 
 
+def multi_period_indicator_range() -> str | None:
+    """Published period range of the multi-period SAS indicator domains.
+
+    Derived from the coverage matrix so the string can never claim a wider
+    calendar than the tables actually carry, and returns None when neither table
+    is built in this deployment.
+    """
+    coverage = _coverage()
+    codes: set[str] = set()
+    for dataset in MULTI_PERIOD_INDICATOR_DATASETS:
+        codes.update(str(p) for p in coverage.get(dataset, {}) if len(str(p)) == 5)
+    return f"{min(codes)}-{max(codes)}" if codes else None
+
+
 def latest_district_period() -> str | None:
     """Newest period that genuinely carries district-level observations."""
     coverage = _coverage()
@@ -349,6 +372,9 @@ def indicator_catalog() -> list[dict]:
                 "source_label": SOURCE_LABEL_BY_DATASET.get(spec["dataset"]),
                 "source_period": period,
                 "period": period,
+                # Every period this dataset carries, chronological. Additive: the
+                # legacy single-release tables report exactly one.
+                "periods": sorted(levels),
                 "coverage_level": level,
                 "available": bool(period)
                 and level is not None
