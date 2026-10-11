@@ -1,4 +1,4 @@
-import { AlertTriangle, Inbox, RefreshCw } from "lucide-react";
+import { AlertTriangle, Info, Inbox, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
@@ -129,6 +129,37 @@ export function ErrorState({
           <RefreshCw className="h-3.5 w-3.5" /> Retry
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The explicit scope line for an analytical screen.
+ *
+ * In the all-published-periods scope no single release is selected, yet some
+ * panels still describe one. This names that release in front of the numbers, so
+ * a single-release snapshot can never read as the whole published axis. Compact
+ * by design: the placement does the work, not the volume of text.
+ */
+export function ScopeNotice({
+  scope,
+  snapshot,
+}: {
+  scope?: string | null;
+  snapshot?: { period_code?: string | null; label?: string | null } | null;
+}) {
+  if (scope !== "history") return null;
+  const label = snapshot?.label || snapshot?.period_code || null;
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-info/25 bg-info/[0.06] px-3 py-2 text-xs text-slate-700">
+      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-info" aria-hidden="true" />
+      <p>
+        <strong className="font-semibold text-forest-deep">All published periods.</strong>{" "}
+        {label
+          ? `District figures here describe ${label}, the latest published district release. `
+          : ""}
+        Panels that cover a different range name their own period.
+      </p>
     </div>
   );
 }

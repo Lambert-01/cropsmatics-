@@ -10,7 +10,7 @@ export type Lang = "en" | "rw";
  * strings are working translations and need native review before release.
  * Analytical content (source names, methods) stays in English by design.
  */
-const DICT: Record<Lang, Record<string, string>> = {
+export const DICT: Record<Lang, Record<string, string>> = {
   en: {
     "nav.overview": "Overview",
     "nav.crops": "Crops",

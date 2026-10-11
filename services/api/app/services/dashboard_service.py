@@ -7,6 +7,8 @@ recomputes an official statistic.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 
 from app.repositories import dataset_repository as repo
@@ -27,6 +29,78 @@ from app.services.analytics_service import (
 
 def _period_key(f: AnalyticsFilters) -> str | None:
     return f.period_key() or (str(f.year) if f.year else None)
+
+
+#: Analytical scope of an overview request, reported verbatim in the response.
+#:
+#: ``period``  - one published release is selected; every figure shares it.
+#: ``history`` - no release is selected, i.e. "all published periods". The
+#:               district snapshot is then pinned to one *named* release instead
+#:               of letting whichever table happened to be the default stand in
+#:               for the whole published axis.
+SCOPE_PERIOD = "period"
+SCOPE_HISTORY = "history"
+
+_SNAPSHOT_NOTE = (
+    "no release is selected, so the district snapshot is pinned to the latest "
+    "published district release; every panel that covers a different range "
+    "names its own period"
+)
+
+
+def scope_of(f: AnalyticsFilters) -> str:
+    """``period`` when the caller named a release, ``history`` when they did not."""
+    return SCOPE_PERIOD if _period_key(f) else SCOPE_HISTORY
+
+
+def _period_timeline() -> list[dict]:
+    """The published period axis, ready to chart.
+
+    Only periods that genuinely carry rows are listed (the catalogue is derived
+    from the processed tables), and each entry carries its own coverage so a
+    client cannot draw a district choropleth from a national-only period.
+    """
+    try:
+        periods = period_service.catalog()["periods"]
+    except Exception:
+        return []
+    return [
+        {
+            "period_code": p["period_code"],
+            "label": p["label"],
+            "coverage_level": p.get("coverage_level"),
+            "n_districts": int(p.get("n_districts") or 0),
+            "n_crops": int(p.get("n_crops") or 0),
+            "is_latest": bool(p.get("is_latest")),
+            "is_latest_district": bool(p.get("is_latest_district")),
+        }
+        for p in periods
+    ]
+
+
+def _scope_payload(scope: str, snapshot_code: str | None) -> dict:
+    """The explicit scope block every overview response carries.
+
+    ``scope`` says whether the caller selected one release or asked for all
+    published periods. ``snapshot`` names the single release the district panels
+    describe, so a client can label a one-release snapshot instead of presenting
+    it as the whole published axis.
+    """
+    snapshot = None
+    if snapshot_code:
+        snapshot = {
+            "period_code": snapshot_code,
+            "label": period_service.label(snapshot_code),
+            "coverage_level": period_service.coverage_level(snapshot_code),
+            "note": _SNAPSHOT_NOTE,
+        }
+    return {
+        "scope": scope,
+        "snapshot": snapshot,
+        # The published axis is returned in both scopes: it is how a client shows
+        # that more than one release exists and lets a reader switch to one.
+        "period_timeline": _period_timeline(),
+    }
 
 
 def available_periods() -> list[str]:
@@ -53,7 +127,14 @@ def _coverage_level(f: AnalyticsFilters, coverage: dict[str, str]) -> str | None
     return "district" if "district" in selected else "national"
 
 
-def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str | None) -> dict:
+def _national_overview(
+    f: AnalyticsFilters,
+    coverage: dict[str, str],
+    level: str | None,
+    *,
+    scope: str = SCOPE_PERIOD,
+    snapshot_code: str | None = None,
+) -> dict:
     period = _period_key(f)
     trend_points = [
         point for point in trend_service.crop_trends(f.crop)["points"]
@@ -102,6 +183,12 @@ def _national_overview(f: AnalyticsFilters, coverage: dict[str, str], level: str
         "kpis": kpis,
         "primary_kpis": primary,
         "secondary_kpis": [k for k in kpis if k not in primary],
+        "effective_filters": {
+            "period_code": f.period_code, "crop": f.crop,
+            "province": f.province, "district": f.district,
+            "benchmark_strategy": f.benchmark_strategy,
+        },
+        **_scope_payload(scope, snapshot_code),
         "provenance": {
             "source_id": source, "source_period": f.period_code or period,
             "method": "published national series; all-crop yield = total production / total harvested area",
@@ -115,7 +202,29 @@ def overview(f: AnalyticsFilters) -> dict:
     coverage = all_coverage.get("district_crop_productivity", {})
     panel_coverage = all_coverage.get("crop_productivity", {})
 
-    selected = f.period_code or _period_key(f)
+    scope = scope_of(f)
+
+    # History scope means "all published periods": no release is selected, so the
+    # district snapshot is pinned to the latest published district release and
+    # named in the response. Shipping the legacy training table as an unlabelled
+    # default is what made a single-release dashboard read as "all periods".
+    snapshot_code: str | None = None
+    if scope == SCOPE_HISTORY:
+        try:
+            snapshot_code = period_service.latest_district() or period_service.latest()
+        except Exception:
+            snapshot_code = None
+
+    # The filters the district panels are computed from. In history scope this
+    # pins the snapshot release and drops any derived year/season pair; in period
+    # scope it is simply the request.
+    frame_filters = (
+        replace(f, period_code=snapshot_code, year=None, season=None)
+        if scope == SCOPE_HISTORY and snapshot_code
+        else f
+    )
+
+    selected = frame_filters.period_code or _period_key(f)
     if selected:
         # A period is district-level when either the multi-period panel or the
         # legacy pack genuinely carries district rows for it.
@@ -130,9 +239,10 @@ def overview(f: AnalyticsFilters) -> dict:
     else:
         level = _coverage_level(f, coverage)
     if level != "district":
-        return _national_overview(f, coverage, level)
+        # A national overview has no district snapshot to name.
+        return _national_overview(f, coverage, level, scope=scope)
 
-    df = apply_filters(productivity_frame(f), f)
+    df = apply_filters(productivity_frame(frame_filters), frame_filters)
     g = gapped(df, f.benchmark_strategy)
     valid = g[g["yield_kg_ha"].fillna(0) > 0]
     period = period_of(g if not g.empty else df)
@@ -275,6 +385,12 @@ def overview(f: AnalyticsFilters) -> dict:
         "kpis": kpis,
         "primary_kpis": primary,
         "secondary_kpis": secondary,
+        "effective_filters": {
+            "period_code": frame_filters.period_code, "crop": frame_filters.crop,
+            "province": frame_filters.province, "district": frame_filters.district,
+            "benchmark_strategy": frame_filters.benchmark_strategy,
+        },
+        **_scope_payload(scope, snapshot_code if scope == SCOPE_HISTORY else None),
         "provenance": {
             "source_id": productivity_source,
             "source_period": f.period_code or frame_period_code(df) or period,

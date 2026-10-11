@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { SCOPE_HISTORY } from "@/lib/filters";
 import { useLanguage } from "@/lib/i18n";
 import { buildSuggestions } from "@/lib/search";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -49,9 +50,13 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
     [search, crops, districts, datasetList],
   );
 
-  const scope = [filters.period, filters.crop, filters.district].filter(
-    (part): part is string => Boolean(part),
-  );
+  const scope = [
+    // The period slot is never blank: the header states the scope even when it is
+    // "all published periods", so an unselected release is never left implied.
+    filters.view === SCOPE_HISTORY ? "All published periods" : filters.period,
+    filters.crop,
+    filters.district,
+  ].filter((part): part is string => Boolean(part));
 
   function go(href: string) {
     setSearch("");

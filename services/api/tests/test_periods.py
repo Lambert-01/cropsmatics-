@@ -209,16 +209,27 @@ def test_trend_rejects_a_crop_with_no_published_rows(client):
 # --- period filters on the existing analytics -------------------------------
 
 
-def test_analytics_default_is_unchanged_without_a_period(client):
+def test_analytics_default_names_the_latest_published_district_release(client):
+    """No release selected means the latest published district release, named.
+
+    It used to read the joined 2025 Season B training table, which made every
+    page that showed "no period selected" actually report one season - and an
+    older one, once 2026 Season B was published.
+    """
     _require_periods(client)
     plain = client.get("/api/v1/analytics/productivity", params={"limit": 5}).json()
+    assert plain["n_observations"] > 0
+    # `period_of` renders the derived form ("2026-B"); the release it names is
+    # 2026 Season B either way, so compare on the code.
+    assert plain["provenance"]["source_period"].replace("-", "") == "2026B"
+    assert plain["provenance"]["source_id"].startswith("NISR_SAS_2026B")
+
+    # An explicitly selected release still wins, and is echoed as requested.
     explicit = client.get(
         "/api/v1/analytics/productivity", params={"period_code": "2025B", "limit": 5}
     ).json()
-    # The legacy district analytics still default to the 2025 Season B table.
-    assert plain["n_observations"] == explicit["n_observations"]
-    assert plain["provenance"]["source_period"] == "2025-B"
     assert explicit["provenance"]["source_period"] == "2025B"
+    assert explicit["provenance"]["source_id"].startswith("NISR_SAS_2025B")
 
 
 def test_analytics_serves_the_other_published_periods(client):

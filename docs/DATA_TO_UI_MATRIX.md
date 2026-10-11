@@ -8,6 +8,7 @@ Legend for datasets (`data/processed/`):
 
 | # | Processed dataset | Built by |
 |---|---|---|
+| P | `crop_productivity.csv` | `build_crop_productivity.py` |
 | 01 | `district_crop_productivity.csv` | `build_district_crop_dataset.py` |
 | 02 | `district_productivity_factors.csv` | `build_factor_dataset.py` |
 | 03 | `irrigation_water.csv` | `build_irrigation.py` |
@@ -21,25 +22,34 @@ Legend for datasets (`data/processed/`):
 | C | `data_coverage.csv` | `build_data_coverage.py` |
 | O | `dashboard_overview.csv` | `build_dashboard_summary.py` |
 
+**P is the multi-period panel** and is what a period-aware widget reads; **01** is
+the legacy single-release extract, still used for the release it actually is
+(2025B), because that is the only table carrying the district factor columns.
+With no period selected, a period-aware widget reads the latest published
+district release and names it; a single-release layer reads the release that
+carries it and names that. See `FEATURE_DATA_COVERAGE.md`.
+
 ## Matrix
 
 | UI widget | Dataset(s) | Python service | API | Frontend component |
 |---|---|---|---|---|
-| Overview KPI cards | 01+02+05+08 | `dashboard_service.overview` | `GET /dashboard/overview` | `features/dashboard/DashboardKpis` |
-| Productivity/Risk map | 01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/RwandaDistrictMap`, `DistrictChoropleth` |
-| Map tooltip | 01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapTooltip` |
-| Map legend | 01+02 (min/max) | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapLegend` |
+| Overview KPI cards | P+01+05+08 | `dashboard_service.overview` | `GET /dashboard/overview` | `features/dashboard/DashboardKpis` |
+| Overview scope line | period axis (C) | `dashboard_service.overview` | `GET /dashboard/overview` | `components/ui/States.ScopeNotice` |
+| Published-period timeline | period axis (C) | `dashboard_service.overview` | `GET /dashboard/overview` | `features/dashboard/PeriodTimeline` |
+| Productivity/Risk map | P+01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/RwandaDistrictMap`, `DistrictChoropleth` |
+| Map tooltip | P+01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapTooltip` |
+| Map legend | P+01+02 (min/max) | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapLegend` |
 | Map metric switch | — | — | query param `metric` | `features/maps/MapControls` |
 | Harvest-pressure overlay | 01 | `analytics_service.gapped` | `GET /maps/district-metrics` | `features/maps/HarvestPressureLayer` |
 | Cold-chain layer | 08 | `facility_service.context` | `GET /facilities/context` | `features/maps/FacilityLayer` |
-| Priority table | 01+02 | `analytics_service.priorities` | `GET /analytics/intervention-priorities` | `features/dashboard/PriorityTable` |
+| Priority table | P+01+02 | `analytics_service.priorities` | `GET /analytics/intervention-priorities` | `features/dashboard/PriorityTable` |
 | Yield trend chart | 06 | `trend_service.crop_trends` | `GET /analytics/trends` | `features/dashboard/YieldTrendChart` |
 | Input adoption chart | 07 | `trend_service.input_adoption` | `GET /analytics/input-adoption` | `features/dashboard/InputAdoptionChart` |
 | Gap heatmap | 01 (gap) | `analytics_service.heatmap` | `GET /analytics/heatmap` | `features/dashboard/GapHeatmap` |
 | Insight panel | overview result | `dashboard_service` | `GET /dashboard/overview` | `features/dashboard/InsightPanel` |
 | Provenance card | all | service provenance | all endpoints | `components/ProvenanceCard` |
-| Productivity KPIs | 01+02 | `analytics_service.productivity` | `GET /analytics/productivity` | `features/dashboard/DashboardKpis` |
-| District ranking | 01+02 | `analytics_service.productivity` | `GET /analytics/productivity` | `features/productivity/DistrictRankingTable` |
+| Productivity KPIs | P+01+02 | `analytics_service.productivity` | `GET /analytics/productivity` | `features/dashboard/DashboardKpis` |
+| District ranking | P+01+02 | `analytics_service.productivity` | `GET /analytics/productivity` | `features/productivity/DistrictRankingTable` |
 | Factors associated with yield | 01+02 | `analytics_service.factor_associations` | `GET /analytics/factors` | `features/productivity/FactorAssociationChart` |
 | Model performance | `ml/reports` | `meta_service.models` | `GET /meta/models` | `features/productivity/ModelPerformancePanel` |
 | Weights sliders | 01+02 | `analytics_service.priorities` | `POST /analytics/intervention-priorities` | `features/interventions/WeightsPanel` |
@@ -70,3 +80,7 @@ Legend for datasets (`data/processed/`):
    *"district-level data are not available for this period"* instead of pretending.
 4. Nulls propagate: `capacity_kg = null` renders as *"Capacity not verified"*, never `0`.
 5. Proxies are labelled wherever they enter a score (see `/meta/algorithms`).
+6. A widget that needs one release says which one it used. A map is never
+   coloured from a release other than the one its own subtitle names, and no
+   panel presents a single release's figures under an "all published periods"
+   heading.

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -7,31 +7,44 @@ import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
 import { radius, shadow } from "../theme";
 import { useTheme } from "../theme/theme-context";
-import { normalizeActiveTab, TABS, type TabId } from "../utils/navigation";
+import {
+  activeTabForSegments,
+  normalizeActiveTab,
+  TABS,
+  type TabId,
+} from "../utils/navigation";
 
 /**
- * Five-destination bottom bar: Home, Crops, Analyze, Map, More.
+ * Five-destination bottom bar: Home, Crops, Analyze, Map, Ask.
  *
  * The destinations come from `src/utils/navigation`, so the bar, the tests and
  * any future deep-link handling share one definition. Navigation uses
  * `router.replace` so switching tabs never stacks duplicate routes — the tab is
  * a destination, not a push — while detail screens keep their own back stack.
+ *
+ * Ask is a destination because the assistant is a way into the data, not a
+ * settings item. More is not: it is a menu in the header, so nothing that used to
+ * sit behind it became unreachable (see `MENU_ROOTS`).
  */
 
 const ICONS: Record<TabId, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
   home: { on: "home", off: "home-outline" },
   crops: { on: "leaf", off: "leaf-outline" },
-  analyze: { on: "git-compare", off: "git-compare-outline" },
+  analyze: { on: "analytics", off: "analytics-outline" },
   map: { on: "map", off: "map-outline" },
-  more: { on: "grid", off: "grid-outline" },
+  ask: { on: "chatbubbles", off: "chatbubbles-outline" },
 };
 
-export function BottomNav({ active }: { active: string }) {
+export function BottomNav({ active }: { active?: string }) {
   const { colors } = useTheme();
   const router = useRouter();
+  const segments = useSegments();
   const insets = useSafeAreaInsets();
   const t = strings(useAppStore((s) => s.language));
-  const activeId = normalizeActiveTab(active);
+  // A screen may name its own tab; when that id is not a destination (a menu
+  // screen, a field-operations form), the current route decides. Hard-coded ids
+  // go stale silently - the route cannot.
+  const activeId = normalizeActiveTab(active) ?? activeTabForSegments(segments as string[]);
 
   return (
     <View

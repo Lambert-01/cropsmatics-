@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { PageHero } from "@/components/layout/PageHero";
 import { DataBadge } from "@/components/ui/DataBadge";
@@ -15,11 +15,24 @@ import { useFacilities, useMapMetrics, useStorageInfrastructure } from "@/servic
 import { useFilters } from "@/services/hooks/useFilters";
 
 export default function StoragePage() {
-  const { filters } = useFilters();
+  const { filters, setFilters } = useFilters();
   const [metric, setMetric] = useState<MapMetricId>("input_adoption");
   const mapMetrics = useMapMetrics(filters, metric);
+  // Two requests on purpose: one for the option list (every program district) and
+  // one for the scoped result. Filtering the list in React would put an
+  // analytical selection back in the client, and one request would make the
+  // option list shrink as soon as a district was chosen.
+  const allFacilities = useFacilities();
   const facilities = useFacilities(filters.district);
   const infrastructure = useStorageInfrastructure();
+
+  const programDistricts = useMemo(
+    () =>
+      Array.from(new Set((allFacilities.data?.facilities ?? []).map((f) => f.district))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [allFacilities.data],
+  );
 
   return (
     <div className="space-y-5">
@@ -71,6 +84,34 @@ export default function StoragePage() {
           <DataBadge kind="verified_program" />
           <DataBadge kind="not_verified" />
         </div>
+
+        {/* The page reads a district from the shared filter state, so it has to
+            offer a way to change it. Without this, arriving from another page
+            left the list scoped with no visible control. The national totals in
+            the section above are deliberately unaffected by this selection. */}
+        <label className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            Program district
+          </span>
+          <select
+            aria-label="Program district"
+            value={filters.district ?? ""}
+            onChange={(event) => setFilters({ district: event.target.value || undefined })}
+            className="input w-auto"
+          >
+            <option value="">All program districts</option>
+            {programDistricts.map((district) => (
+              <option key={district} value={district}>
+                {district}
+              </option>
+            ))}
+          </select>
+          <span className="text-[11px] text-slate-500">
+            {filters.district
+              ? `Showing program context for ${filters.district}. National infrastructure totals above are unaffected.`
+              : "Scopes this section only; national infrastructure totals are never district-scoped."}
+          </span>
+        </label>
 
         <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
           {mapMetrics.isLoading ? (

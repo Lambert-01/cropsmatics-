@@ -103,13 +103,14 @@ def test_explicit_entities_in_the_question_win_over_the_context(client):
     assert body["evidence"]["crop"] == "Maize"
 
 
-def test_absent_context_keeps_the_existing_default_behaviour(client):
+def test_absent_context_still_answers_from_a_named_release(client):
     _require_data(client)
     without = client.post(ENDPOINT, json={"question": "Maize yield in Nyagatare"}).json()
     assert without["grounded"] is True
     assert without["intent"] == "district_crop_gap"
-    # The default still reads the district productivity table for 2025 Season B.
-    assert without["period"] == "2025B"
+    # With no context the answer still names the release it read: the latest
+    # published district release, not an unlabelled legacy default.
+    assert without["period"] == "2026B"
 
 
 # --- the context cannot carry numbers ---------------------------------------

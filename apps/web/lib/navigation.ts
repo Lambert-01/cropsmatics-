@@ -20,6 +20,15 @@ import type { LucideIcon } from "lucide-react";
 export interface NavItem {
   href: string;
   label: string;
+  /**
+   * Dictionary key for the visible label, e.g. ``nav.overview``.
+   *
+   * Explicit rather than derived from the href: the two are not the same word.
+   * ``/dashboard`` is labelled "Overview", so deriving the key would ask the
+   * dictionary for a ``nav.dashboard`` entry that does not exist and render the
+   * raw key instead of a label.
+   */
+  labelKey: string;
   icon: LucideIcon;
   /**
    * Capability a destination needs before it is offered in the navigation.
@@ -41,36 +50,62 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Intelligence",
     items: [
-      { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-      { href: "/crops", label: "Crops", icon: Sprout },
-      { href: "/productivity", label: "Productivity", icon: TrendingUp },
-      { href: "/yield-intelligence", label: "Yield Intelligence", icon: Wheat },
-      { href: "/interventions", label: "Interventions", icon: Wrench },
+      { href: "/dashboard", label: "Overview", labelKey: "nav.overview", icon: LayoutDashboard },
+      { href: "/crops", label: "Crops", labelKey: "nav.crops", icon: Sprout },
+      { href: "/productivity", label: "Productivity", labelKey: "nav.productivity", icon: TrendingUp },
+      {
+        href: "/yield-intelligence",
+        label: "Yield Intelligence",
+        labelKey: "nav.yield-intelligence",
+        icon: Wheat,
+      },
+      { href: "/interventions", label: "Interventions", labelKey: "nav.interventions", icon: Wrench },
     ],
   },
   {
     label: "Operations",
     items: [
-      { href: "/post-harvest", label: "Post-Harvest", icon: Package },
-      { href: "/storage", label: "Storage & Aggregation", icon: Warehouse },
-      { href: "/markets", label: "Markets", icon: ShoppingBasket, capability: "market_prices" },
+      { href: "/post-harvest", label: "Post-Harvest", labelKey: "nav.post-harvest", icon: Package },
+      {
+        href: "/storage",
+        label: "Storage & Aggregation",
+        labelKey: "nav.storage",
+        icon: Warehouse,
+      },
+      {
+        href: "/markets",
+        label: "Markets",
+        labelKey: "nav.markets",
+        icon: ShoppingBasket,
+        capability: "market_prices",
+      },
     ],
   },
   {
     label: "Geography & data",
     items: [
-      { href: "/maps", label: "Maps", icon: Map },
-      { href: "/reports", label: "Reports", icon: FileText },
-      { href: "/data-explorer", label: "Data Explorer", icon: Table2 },
-      { href: "/transparency", label: "Data & Models", icon: ShieldCheck },
+      { href: "/maps", label: "Maps", labelKey: "nav.maps", icon: Map },
+      { href: "/reports", label: "Reports", labelKey: "nav.reports", icon: FileText },
+      {
+        href: "/data-explorer",
+        label: "Data Explorer",
+        labelKey: "nav.data-explorer",
+        icon: Table2,
+      },
+      {
+        href: "/transparency",
+        label: "Data & Models",
+        labelKey: "nav.transparency",
+        icon: ShieldCheck,
+      },
     ],
   },
   {
     label: "Workspace",
     items: [
-      { href: "/assistant", label: "AI Assistant", icon: Bot },
-      { href: "/settings", label: "Settings", icon: Settings },
-      { href: "/install", label: "Get the app", icon: Smartphone },
+      { href: "/assistant", label: "AI Assistant", labelKey: "nav.assistant", icon: Bot },
+      { href: "/settings", label: "Settings", labelKey: "nav.settings", icon: Settings },
+      { href: "/install", label: "Get the app", labelKey: "nav.install", icon: Smartphone },
     ],
   },
 ];

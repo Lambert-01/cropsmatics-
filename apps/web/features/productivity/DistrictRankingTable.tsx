@@ -21,9 +21,12 @@ function num(row: Row, key: string): number | null {
 export function DistrictRankingTable({
   rows,
   onSelectDistrict,
+  selectedDistrict,
 }: {
   rows: ProductivityResponse["rows"];
   onSelectDistrict?: (district: string) => void;
+  /** The district in focus elsewhere on the page (e.g. picked on the map). */
+  selectedDistrict?: string | null;
 }) {
   const columns: Column<Row>[] = [
     {
@@ -116,6 +119,11 @@ export function DistrictRankingTable({
         title="District ranking"
         subtitle="Observed vs benchmark yield for the current selection — click a column to sort"
       />
+      {selectedDistrict ? (
+        <p className="px-4 pt-2 text-[11px] font-medium text-primary" aria-live="polite">
+          Highlighted: {selectedDistrict} — selected on the map beside this table.
+        </p>
+      ) : null}
       {rows.length === 0 ? (
         <div className="p-4">
           <EmptyState />
@@ -127,6 +135,9 @@ export function DistrictRankingTable({
             rows={rows}
             rowKey={(row) => String(row.district)}
             initialSort={{ id: "gap", direction: "desc" }}
+            highlightRow={(row) =>
+              Boolean(selectedDistrict) && String(row.district) === selectedDistrict
+            }
             caption="District ranking by observed yield, benchmark, gap, harvested area and production"
           />
         </div>

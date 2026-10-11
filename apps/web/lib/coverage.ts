@@ -54,6 +54,72 @@ export function coverageBadge(mode: CoverageMode): string {
   }
 }
 
+/** One published period on the shared axis, as the API returns it. */
+export interface PeriodTimelineItem {
+  period_code: string;
+  label: string;
+  coverage_level?: string | null;
+  n_districts: number;
+  n_crops: number;
+  is_latest: boolean;
+  is_latest_district: boolean;
+}
+
+/**
+ * How one period on the timeline is presented.
+ *
+ * ``selected`` - the release the whole page is filtered to.
+ * ``snapshot`` - not selected, but the release the single-release panels use.
+ * ``available`` - published, and not currently in use.
+ *
+ * Selected and snapshot are deliberately different states. Collapsing them
+ * would let a page claim a snapshot as its selection (or the reverse), which is
+ * the ambiguity this timeline exists to remove.
+ */
+export type PeriodTimelineState = "selected" | "snapshot" | "available";
+
+export interface PeriodTimelineCell extends PeriodTimelineItem {
+  state: PeriodTimelineState;
+  /** Plain-language coverage, e.g. "30 districts" or "national only". */
+  coverageText: string;
+}
+
+function coverageText(item: PeriodTimelineItem): string {
+  if (item.coverage_level === "district") return `${item.n_districts} districts`;
+  if (item.coverage_level === "national") return "national only";
+  return "coverage unknown";
+}
+
+/**
+ * Display state for the published-period timeline.
+ *
+ * The scope wins over the snapshot: with a release selected, that release is the
+ * selection and no period is a "snapshot". Everything else follows from that,
+ * which is why the two states cannot both be set on one release.
+ */
+export function periodTimelineState(
+  periods: readonly PeriodTimelineItem[],
+  opts: {
+    view?: string | null;
+    selectedPeriod?: string | null;
+    snapshotPeriod?: string | null;
+  },
+): PeriodTimelineCell[] {
+  const selecting = opts.view === "period";
+  return periods.map((item) => {
+    const selected = selecting && item.period_code === opts.selectedPeriod;
+    // A snapshot only exists when nothing is selected: with a release selected,
+    // that release *is* the scope, and every other release is simply published.
+    // The API agrees - it returns ``snapshot: null`` in the period scope.
+    const snapshot = !selecting && item.period_code === opts.snapshotPeriod;
+    return {
+      ...item,
+      state: selected ? "selected" : snapshot ? "snapshot" : "available",
+      coverageText: coverageText(item),
+    };
+  });
+}
+
 /**
  * One row of `/meta/data-coverage.details`.
  *

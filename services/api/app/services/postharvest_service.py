@@ -87,22 +87,32 @@ def summary(crop: str | None = None) -> dict:
     loss_series = df["post_harvest_losses_pct"].dropna()
     stored_series = df["stored_pct"].dropna()
     sold_series = df["sold_pct"].dropna()
+
+    # Chosen once, here, and reused. Picking the maximum is an analytical
+    # selection - it decides which crop the page leads with - so it belongs to
+    # this layer, not to a client. Two clients picking their own maximum can also
+    # disagree on nulls and ties; one selection cannot.
+    loss_ext = _extreme("post_harvest_losses_pct")
+    stored_ext = _extreme("stored_pct")
+    sold_ext = _extreme("sold_pct")
+    n_considered = int(len(df))
+
     kpis = [
         {"id": "highest_loss", "label": "Highest observed loss share",
-         "value": None if _extreme("post_harvest_losses_pct") is None else _extreme("post_harvest_losses_pct")["value"],
+         "value": None if loss_ext is None else loss_ext["value"],
          "unit": "% of production", "period": "2025-B",
-         "note": None if _extreme("post_harvest_losses_pct") is None else _extreme("post_harvest_losses_pct")["crop"]},
+         "note": None if loss_ext is None else loss_ext["crop"]},
         {"id": "median_loss", "label": "Median loss share",
          "value": None if loss_series.empty else round(float(loss_series.median()), 3),
          "unit": "% of production", "period": "2025-B"},
         {"id": "highest_storage", "label": "Highest storage share",
-         "value": None if _extreme("stored_pct") is None else _extreme("stored_pct")["value"],
+         "value": None if stored_ext is None else stored_ext["value"],
          "unit": "% stored", "period": "2025-B",
-         "note": None if _extreme("stored_pct") is None else _extreme("stored_pct")["crop"]},
+         "note": None if stored_ext is None else stored_ext["crop"]},
         {"id": "highest_marketed", "label": "Highest marketed share",
-         "value": None if _extreme("sold_pct") is None else _extreme("sold_pct")["value"],
+         "value": None if sold_ext is None else sold_ext["value"],
          "unit": "% sold", "period": "2025-B",
-         "note": None if _extreme("sold_pct") is None else _extreme("sold_pct")["crop"]},
+         "note": None if sold_ext is None else sold_ext["crop"]},
         # Unweighted means across the reported crops. Deliberately NOT tonnage
         # weighted: the two tables use different crop vocabularies, so weighting
         # them would silently invent a match.
@@ -118,9 +128,37 @@ def summary(crop: str | None = None) -> dict:
          "note": f"unweighted mean across {len(sold_series)} crops"},
     ]
 
+    headlines = [
+        {
+            "id": "highest_loss_crop",
+            "label": "Highest loss crop",
+            "unit": "% of production lost",
+            "crop": None if loss_ext is None else loss_ext["crop"],
+            "value": None if loss_ext is None else loss_ext["value"],
+            "n_crops_considered": n_considered,
+        },
+        {
+            "id": "highest_storage_crop",
+            "label": "Highest storage crop",
+            "unit": "% stored",
+            "crop": None if stored_ext is None else stored_ext["crop"],
+            "value": None if stored_ext is None else stored_ext["value"],
+            "n_crops_considered": n_considered,
+        },
+        {
+            "id": "highest_marketed_crop",
+            "label": "Highest marketed crop",
+            "unit": "% sold",
+            "crop": None if sold_ext is None else sold_ext["crop"],
+            "value": None if sold_ext is None else sold_ext["value"],
+            "n_crops_considered": n_considered,
+        },
+    ]
+
     return {
         "kpis": kpis,
         "crops": crops,
+        "headlines": headlines,
         "provenance": {
             "source_id": "NISR_SAS_2025B_POSTHARVEST_USE",
             "source_period": "2025-B",

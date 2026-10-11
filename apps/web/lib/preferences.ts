@@ -11,6 +11,8 @@
  * module replaced — a setting that appears to do something and does not.
  */
 
+import { SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./filters";
+
 export const PREFERENCES_KEY = "cropmatics-preferences";
 export const PREFERENCES_VERSION = 1;
 
@@ -157,35 +159,52 @@ export function resetPreferences(): Preferences {
 }
 
 /**
- * The analytical context a page should start from.
+ * The analytical context a page should start from, and the scope it resolves to.
  *
- * Two rules, both about not letting a default quietly change what is on screen:
+ * Three rules, all about not letting a default quietly change what is on screen:
  *
  * 1. An explicit URL selection always wins. That is what makes a shared link
  *    reproduce what the sender saw rather than what the recipient configured.
- * 2. A default **district** is applied only when the effective province is the
+ * 2. An explicit `view=history` beats a stored default period. This is the whole
+ *    point of an explicit all-periods state: without it, anyone who ever saved a
+ *    default period can never ask for all published periods again.
+ * 3. A default **district** is applied only when the effective province is the
  *    default province. Otherwise a link that names one province would come back
  *    carrying a district from another, which is not a valid selection at all.
  *
  * A legacy `year`+`season` link already names a period, so it is treated as an
  * explicit period and the stored default period is not layered on top of it.
+ *
+ * `view` is derived from the period that actually survived, so the scope a
+ * caller renders can never disagree with the period it sends to the API.
  */
 export function resolveAnalyticalContext(
   preferences: Preferences,
   urlFilters: {
     period?: string;
+    view?: ScopeView;
     year?: number;
     season?: string;
     crop?: string;
     province?: string;
     district?: string;
   },
-): { period?: string; crop?: string; province?: string; district?: string } {
+): { view: ScopeView; period?: string; crop?: string; province?: string; district?: string } {
   const explicitPeriod =
     urlFilters.period ||
     (urlFilters.year && urlFilters.season
       ? `${urlFilters.year}${urlFilters.season}`
       : undefined);
+
+  // A stored default period only applies when the URL has not explicitly asked
+  // for all published periods.
+  const wantsPeriod =
+    Boolean(explicitPeriod) ||
+    (urlFilters.view !== SCOPE_HISTORY && Boolean(preferences.defaultPeriod));
+  const period = wantsPeriod
+    ? explicitPeriod || preferences.defaultPeriod || undefined
+    : undefined;
+  const view: ScopeView = period ? SCOPE_PERIOD : SCOPE_HISTORY;
 
   const province = urlFilters.province || preferences.defaultProvince || undefined;
   const districtFromUrl = urlFilters.district;
@@ -195,7 +214,8 @@ export function resolveAnalyticalContext(
       : undefined;
 
   return {
-    period: explicitPeriod || preferences.defaultPeriod || undefined,
+    view,
+    period,
     crop: urlFilters.crop || preferences.defaultCrop || undefined,
     province,
     district: districtFromUrl || districtFromDefault,

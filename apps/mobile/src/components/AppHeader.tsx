@@ -176,32 +176,38 @@ export function AppHeader({
           ) : null}
         </View>
 
-        {showInfo || themeToggle ? (
-          <View style={{ flexDirection: "row", gap: 6 }}>
-            {themeToggle ? (
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {themeToggle ? (
+            <HeaderAction
+              // The icon shows the mode you would switch *to*.
+              icon={mode === "dark" ? "sunny-outline" : "moon-outline"}
+              label={mode === "dark" ? t.appearanceLight : t.appearanceDark}
+              onPress={toggleTheme}
+            />
+          ) : null}
+          {showInfo ? (
+            <>
               <HeaderAction
-                // The icon shows the mode you would switch *to*.
-                icon={mode === "dark" ? "sunny-outline" : "moon-outline"}
-                label={mode === "dark" ? t.appearanceLight : t.appearanceDark}
-                onPress={toggleTheme}
+                icon="search-outline"
+                label={t.search}
+                onPress={() => router.push("/explore/search")}
               />
-            ) : null}
-            {showInfo ? (
-              <>
-                <HeaderAction
-                  icon="search-outline"
-                  label={t.search}
-                  onPress={() => router.push("/explore/search")}
-                />
-                <HeaderAction
-                  icon="notifications-outline"
-                  label={t.alerts}
-                  onPress={() => router.push("/field-operations/alerts")}
-                />
-              </>
-            ) : null}
-          </View>
-        ) : null}
+              <HeaderAction
+                icon="notifications-outline"
+                label={t.alerts}
+                onPress={() => router.push("/field-operations/alerts")}
+              />
+            </>
+          ) : null}
+          {/* More is a menu, not a destination: it lives in the header now that
+              it no longer has a slot in the five-tab bar, so field operations,
+              saved items and settings stay one tap from every primary screen. */}
+          <HeaderAction
+            icon="menu-outline"
+            label={t.more}
+            onPress={() => router.push("/more")}
+          />
+        </View>
       </View>
     </View>
   );

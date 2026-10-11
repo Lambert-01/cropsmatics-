@@ -36,10 +36,47 @@ class CoverageNote(BaseModel):
     message: str | None = None
 
 
+class PeriodSnapshot(BaseModel):
+    """The one release a single-release panel describes.
+
+    Present in the ``history`` scope, where no release is selected: the district
+    figures still have to come from somewhere, so the response names that
+    release instead of letting a client present it as the whole period axis.
+    """
+
+    period_code: str | None = None
+    label: str | None = None
+    coverage_level: str | None = None
+    note: str | None = None
+
+
+class PeriodTimelineEntry(BaseModel):
+    """One published period on the shared axis, with its own coverage."""
+
+    period_code: str
+    label: str
+    coverage_level: str | None = None
+    n_districts: int = 0
+    n_crops: int = 0
+    is_latest: bool = False
+    is_latest_district: bool = False
+
+
 class OverviewResponse(BaseModel):
     filters: dict
+    # The filters actually applied to the figures below. In history scope this
+    # differs from ``filters``: the request is "all published periods" but the
+    # district snapshot is pinned to ``snapshot.period_code``.
+    effective_filters: dict = Field(default_factory=dict)
     period: str | None = None
     period_code: str | None = None
+    #: "period" (one selected release) or "history" (all published periods).
+    scope: str = "period"
+    #: The release a single-release panel describes, or null in period scope.
+    snapshot: PeriodSnapshot | None = None
+    #: The published period axis, in both scopes, so a client can show how many
+    #: releases exist and let a reader switch between them.
+    period_timeline: list[PeriodTimelineEntry] = Field(default_factory=list)
     available_periods: list[str] = Field(default_factory=list)
     coverage: dict[str, str] = Field(default_factory=dict)
     coverage_level: str | None = None
@@ -271,9 +308,30 @@ class PostHarvestCrop(BaseModel):
     risk_band: str | None = None
 
 
+class PostHarvestHeadline(BaseModel):
+    """One headline crop for a share column, chosen by Python.
+
+    Picking the maximum is an analytical decision, not a formatting detail: it
+    decides which crop a page leads with, so it is made once here and returned
+    with the number of crops it was chosen from. A client renders it.
+    """
+
+    id: str
+    label: str
+    unit: str
+    crop: str | None = None
+    value: float | None = None
+    #: How many crops the maximum was chosen from, so a reader can tell a
+    #: 17-crop headline from a one-crop selection.
+    n_crops_considered: int = 0
+
+
 class PostHarvestResponse(BaseModel):
     kpis: list[KPI] = Field(default_factory=list)
     crops: list[PostHarvestCrop] = Field(default_factory=list)
+    #: The headline picks, computed here. Clients render them rather than
+    #: searching the crop list themselves, so web and mobile cannot disagree.
+    headlines: list[PostHarvestHeadline] = Field(default_factory=list)
     provenance: Provenance
 
 

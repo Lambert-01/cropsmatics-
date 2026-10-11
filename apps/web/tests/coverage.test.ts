@@ -3,11 +3,26 @@ import { describe, expect, it } from "vitest";
 import {
   coverageLimitations,
   periodSpan,
+  periodTimelineState,
   sortPeriods,
   type CoverageDetailRow,
+  type PeriodTimelineItem,
 } from "@/lib/coverage";
 
 const ALL_PERIODS = ["2024A", "2024B", "2024C", "2025A", "2025B", "2025C", "2026A", "2026B"];
+
+function timelineItem(period_code: string, patch: Partial<PeriodTimelineItem> = {}): PeriodTimelineItem {
+  return {
+    period_code,
+    label: `${period_code.slice(0, 4)} Season ${period_code.slice(4)}`,
+    coverage_level: "district",
+    n_districts: 30,
+    n_crops: 17,
+    is_latest: period_code === "2026B",
+    is_latest_district: period_code === "2026B",
+    ...patch,
+  };
+}
 
 describe("period ordering", () => {
   it("sorts by year then season, not lexically by string", () => {
@@ -92,5 +107,54 @@ describe("coverage limitations", () => {
 
   it("returns nothing for an empty matrix rather than inventing a claim", () => {
     expect(coverageLimitations([])).toEqual([]);
+  });
+});
+
+describe("published-period timeline", () => {
+  it("marks the selected release as selected, not as a snapshot", () => {
+    const cells = periodTimelineState(ALL_PERIODS.map((p) => timelineItem(p)), {
+      view: "period",
+      selectedPeriod: "2024B",
+      snapshotPeriod: "2026B",
+    });
+    const byCode = Object.fromEntries(cells.map((c) => [c.period_code, c.state]));
+    expect(byCode["2024B"]).toBe("selected");
+    // With a release selected nothing is a snapshot: the selected release is the
+    // scope, and 2026B is just another published release. The API agrees - it
+    // returns `snapshot: null` in the period scope.
+    expect(byCode["2026B"]).toBe("available");
+    expect(cells.some((c) => c.state === "snapshot")).toBe(false);
+  });
+
+  it("marks the snapshot release when no release is selected", () => {
+    const cells = periodTimelineState(ALL_PERIODS.map((p) => timelineItem(p)), {
+      view: "history",
+      selectedPeriod: undefined,
+      snapshotPeriod: "2026B",
+    });
+    const byCode = Object.fromEntries(cells.map((c) => [c.period_code, c.state]));
+    expect(byCode["2026B"]).toBe("snapshot");
+    expect(byCode["2025B"]).toBe("available");
+    // Exactly one release is the snapshot: the axis is never ambiguous.
+    expect(cells.filter((c) => c.state !== "available")).toHaveLength(1);
+  });
+
+  it("describes each release's coverage in plain words", () => {
+    const cells = periodTimelineState(
+      [
+        timelineItem("2026B"),
+        timelineItem("2025A", { coverage_level: "national", n_districts: 0 }),
+        timelineItem("2024C", { coverage_level: null }),
+      ],
+      { view: "history" },
+    );
+    expect(cells[0].coverageText).toBe("30 districts");
+    expect(cells[1].coverageText).toBe("national only");
+    expect(cells[2].coverageText).toBe("coverage unknown");
+  });
+
+  it("marks nothing when there is no scope or snapshot" , () => {
+    const cells = periodTimelineState(ALL_PERIODS.map((p) => timelineItem(p)), {});
+    expect(cells.every((c) => c.state === "available")).toBe(true);
   });
 });

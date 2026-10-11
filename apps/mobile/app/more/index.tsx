@@ -12,41 +12,7 @@ import { useAppStore } from "../../src/store/useAppStore";
 import { spacing } from "../../src/theme";
 import type { Palette, Typography } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
-
-const GROUPS: { title: keyof Strings; items: { label: keyof Strings; href: string; icon: keyof typeof Ionicons.glyphMap }[] }[] = [
-  {
-    title: "moreGroupExploreData",
-    items: [
-      { label: "explore", href: "/explore", icon: "compass-outline" },
-      { label: "askCropmatics", href: "/ask", icon: "chatbubble-ellipses-outline" },
-    ],
-  },
-  {
-    title: "moreGroupMyInformation",
-    items: [
-      { label: "savedItems", href: "/saved", icon: "bookmark-outline" },
-      { label: "askHistory", href: "/ask/history", icon: "time-outline" },
-      { label: "myInquiries", href: "/inquiry/history", icon: "document-text-outline" },
-      { label: "inquiryTitle", href: "/inquiry/new", icon: "mail-outline" },
-    ],
-  },
-  {
-    title: "moreGroupCropmatics",
-    items: [
-      { label: "dataSources", href: "/more/data-sources", icon: "shield-checkmark-outline" },
-      { label: "methodologyTitle", href: "/more/methodology", icon: "flask-outline" },
-      { label: "settings", href: "/more/settings", icon: "settings-outline" },
-      { label: "help", href: "/more/help", icon: "help-circle-outline" },
-    ],
-  },
-  {
-    title: "moreGroupAbout",
-    items: [
-      { label: "aboutCropmatics", href: "/more/about", icon: "information-circle-outline" },
-      { label: "privacy", href: "/more/privacy", icon: "lock-closed-outline" },
-    ],
-  },
-];
+import { FIELD_OPERATIONS_ITEM, MENU_GROUPS } from "../../src/utils/menu";
 
 export default function MoreScreen() {
   const { colors, typography } = useTheme();
@@ -61,15 +27,15 @@ export default function MoreScreen() {
       <AppHeader showThemeToggle />
       <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
         <SectionHeader title={t.moreTitle} subtitle={t.tagline} />
-        {GROUPS.map((group) => (
+        {MENU_GROUPS.map((group) => (
           <View key={group.title} style={{ gap: spacing.sm }}>
-            <Text style={styles.groupTitle}>{t[group.title].toUpperCase()}</Text>
+            <Text style={styles.groupTitle}>{label(group.title as keyof Strings).toUpperCase()}</Text>
             <Card style={{ paddingVertical: 0 }}>
               {group.items.map((item) => (
                 <ListRow
                   key={item.href}
-                  title={label(item.label)}
-                  icon={item.icon}
+                  title={label(item.label as keyof Strings)}
+                  icon={item.icon as keyof typeof Ionicons.glyphMap}
                   onPress={() => router.push(item.href as never)}
                 />
               ))}
@@ -81,7 +47,11 @@ export default function MoreScreen() {
           <View style={{ gap: spacing.sm }}>
             <Text style={styles.groupTitle}>{t.moreGroupFieldOperations.toUpperCase()}</Text>
             <Card style={{ paddingVertical: 0 }}>
-              <ListRow title={t.moreFieldOperations} icon="leaf-outline" onPress={() => router.push("/field-operations")} />
+              <ListRow
+                title={t.moreFieldOperations}
+                icon={FIELD_OPERATIONS_ITEM.icon as keyof typeof Ionicons.glyphMap}
+                onPress={() => router.push(FIELD_OPERATIONS_ITEM.href as never)}
+              />
             </Card>
           </View>
         ) : null}

@@ -2,21 +2,32 @@ import { describe, expect, it } from "vitest";
 
 import {
   activeTabForSegments,
+  MENU_ROOTS,
   normalizeActiveTab,
   TABS,
   tabHref,
 } from "../src/utils/navigation";
+import { FIELD_OPERATIONS_ITEM, MENU_GROUPS, menuRoot } from "../src/utils/menu";
 
 describe("bottom navigation destinations", () => {
   it("has exactly the five documented destinations in order", () => {
-    expect(TABS.map((tab) => tab.id)).toEqual(["home", "crops", "analyze", "map", "more"]);
+    expect(TABS.map((tab) => tab.id)).toEqual(["home", "crops", "analyze", "map", "ask"]);
   });
 
   it("maps each destination to a stable, non-accumulating href", () => {
-    expect(tabHref("analyze")).toBe("/explore/compare");
+    expect(tabHref("analyze")).toBe("/explore/analyze");
     expect(tabHref("map")).toBe("/maps");
+    expect(tabHref("ask")).toBe("/ask");
     // A tab is always a concrete route, never the current one.
     for (const tab of TABS) expect(tab.href.startsWith("/")).toBe(true);
+  });
+
+  it("gives Ask a destination of its own", () => {
+    // The assistant is a way into the data, not a settings item: it used to be
+    // reachable only from the More menu.
+    const ids: string[] = TABS.map((tab) => tab.id);
+    expect(ids).toContain("ask");
+    expect(ids).not.toContain("more");
   });
 });
 
@@ -33,7 +44,8 @@ describe("activeTabForSegments", () => {
     expect(activeTabForSegments(["explore", "district", "[districtCode]"])).toBe("crops");
   });
 
-  it("marks Analyze for the comparison workspace", () => {
+  it("marks Analyze for the hub and for the comparison workspace", () => {
+    expect(activeTabForSegments(["explore", "analyze"])).toBe("analyze");
     expect(activeTabForSegments(["explore", "compare"])).toBe("analyze");
   });
 
@@ -42,31 +54,69 @@ describe("activeTabForSegments", () => {
     expect(activeTabForSegments(["maps", "district", "[districtCode]"])).toBe("map");
   });
 
-  it("marks More for the more section and secondary destinations", () => {
-    expect(activeTabForSegments(["more"])).toBe("more");
-    expect(activeTabForSegments(["ask"])).toBe("more");
-    expect(activeTabForSegments(["field-operations", "sync"])).toBe("more");
-    expect(activeTabForSegments(["saved"])).toBe("more");
+  it("marks Ask for the assistant", () => {
+    expect(activeTabForSegments(["ask"])).toBe("ask");
   });
 
-  it("falls back to Home for an unknown route instead of a wrong highlight", () => {
-    expect(activeTabForSegments(["explore", "search"])).toBe("home");
-    expect(activeTabForSegments(["totally-unknown"])).toBe("home");
+  it("highlights nothing for a screen that is not a destination", () => {
+    // More is a menu in the header now. Highlighting Home - or a stale tab -
+    // would tell the user they are somewhere they are not.
+    expect(activeTabForSegments(["more"])).toBeNull();
+    expect(activeTabForSegments(["more", "settings"])).toBeNull();
+    expect(activeTabForSegments(["field-operations", "sync"])).toBeNull();
+    expect(activeTabForSegments(["saved"])).toBeNull();
+  });
+
+  it("highlights nothing for an unclassified route", () => {
+    expect(activeTabForSegments(["explore", "search"])).toBeNull();
+    expect(activeTabForSegments(["totally-unknown"])).toBeNull();
   });
 });
 
 describe("normalizeActiveTab", () => {
-  it("maps the legacy screen ids onto the five destinations", () => {
-    expect(normalizeActiveTab("explore")).toBe("crops");
+  it("maps the ids a screen still passes onto the five destinations", () => {
     expect(normalizeActiveTab("compare")).toBe("analyze");
-    expect(normalizeActiveTab("ask")).toBe("more");
-    expect(normalizeActiveTab("alerts")).toBe("more");
+    expect(normalizeActiveTab("ask")).toBe("ask");
     expect(normalizeActiveTab("home")).toBe("home");
     expect(normalizeActiveTab("map")).toBe("map");
+    expect(normalizeActiveTab("crop")).toBe("crops");
   });
 
-  it("returns null for an unknown id rather than highlighting the wrong tab", () => {
+  it("returns null for an id that no longer names a destination", () => {
+    // The caller falls back to the route's own segments instead of guessing.
+    expect(normalizeActiveTab("more")).toBeNull();
+    expect(normalizeActiveTab("explore")).toBeNull();
+    expect(normalizeActiveTab("alerts")).toBeNull();
     expect(normalizeActiveTab("nonsense")).toBeNull();
     expect(normalizeActiveTab(undefined)).toBeNull();
+  });
+});
+
+describe("More menu reachability", () => {
+  const allItems = [...MENU_GROUPS.flatMap((group) => group.items), FIELD_OPERATIONS_ITEM];
+
+  it("keeps every menu destination reachable", () => {
+    // More lost its tab slot. Nothing it held may become unreachable, so each
+    // entry must either be a tab destination itself or sit under a root the
+    // navigation model explicitly knows about.
+    const tabHrefs = new Set(TABS.map((tab) => tab.href));
+    const strays = allItems
+      .filter((item) => !tabHrefs.has(item.href))
+      .map((item) => menuRoot(item.href))
+      .filter((root) => !MENU_ROOTS.includes(root));
+    expect(strays).toEqual([]);
+  });
+
+  it("lists every item exactly once", () => {
+    const hrefs = allItems.map((item) => item.href);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  it("uses a label key and an icon for every entry", () => {
+    for (const item of allItems) {
+      expect(item.label.length).toBeGreaterThan(0);
+      expect(item.icon.length).toBeGreaterThan(0);
+      expect(item.href.startsWith("/")).toBe(true);
+    }
   });
 });
