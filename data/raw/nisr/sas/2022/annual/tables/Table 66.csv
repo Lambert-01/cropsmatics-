@@ -1,0 +1,11 @@
+﻿List of Tables,,,,,,,,
+,Table 66:,"Estimates of total area by major crop at the national level from the SAS 2021/22 Season C data, with standard error, CV, 95% confidence interval, design effect  and number of sample observations ",,,,,,
+,,,,,,,,
+,Crop name,Estimate,SE,CV,95% Confidence Interval,,DEFF,No. observations (plots)
+,,,,,Lower,Upper,,
+,Bean,3292,237.6,0.072,2824,3760,0.003,801
+,Irish potato,10458,886.6,0.085,8712,12203,0.614,1174
+,Sweet potato,5079,436.3,0.086,4220,5937,0.433,1272
+,Soybean,1034,159.3,0.154,720,1347,0.018,217
+,Vegetables,5072,277.8,0.055,4525,5619,0.099,3703
+,"Source: NISR, SAS 2021",,,,,,,

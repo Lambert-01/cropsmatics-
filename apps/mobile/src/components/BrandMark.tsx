@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Image, ImageSourcePropType, Text, View } from "react-native";
 
-import { colors, radius } from "../theme";
+import { radius } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 const BRAND_MARK_ASSET = require("../../assets/branding/cropmatics-logo-mark.png");
 const BRAND_HEADER_ASSET = require("../../assets/branding/cropmatics-logo-header.png");
@@ -29,6 +30,7 @@ const SIZE_MAP: Record<BrandMarkSize, number> = {
  * Provides fallback to brand-colored stylized leaf icon only if image asset fails.
  */
 export function BrandMark({ size = "medium", variant = "mark-only" }: BrandMarkProps) {
+  const { colors } = useTheme();
   const [loadFailed, setLoadFailed] = useState(false);
 
   const numericSize = typeof size === "number" ? size : SIZE_MAP[size] ?? 38;
@@ -117,6 +119,7 @@ export function BrandMark({ size = "medium", variant = "mark-only" }: BrandMarkP
  * App is anonymous-first. Deliberately neutral initials/icon rather than a fake portrait.
  */
 export function InitialsAvatar({ name, size = 30 }: { name?: string | null; size?: number }) {
+  const { colors } = useTheme();
   const initials = (name ?? "")
     .split(/\s+/)
     .filter(Boolean)

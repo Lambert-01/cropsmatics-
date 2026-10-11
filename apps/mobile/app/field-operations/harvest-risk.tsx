@@ -8,17 +8,24 @@ import { latestRiskFor, saveRisk } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { api } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { PostHarvestRisk } from "../../src/types";
 import { formatQuantity } from "../../src/utils/units";
 
-const PRIORITY_COLORS: Record<string, string> = {
+const makePriorityColors = (colors: Palette): Record<string, string> => ({
   HIGH: colors.riskHigh,
   MEDIUM: colors.amber,
   LOW: colors.muted,
-};
+});
 
 export default function HarvestRiskScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
+  const factorRow = useThemedStyles(makeFactorRow);
+  const primaryButtonStyle = useThemedStyles(makePrimaryButtonStyle);
+  const PRIORITY_COLORS = makePriorityColors(colors);
   const { harvestClientUuid, crop, district, quantity } = useLocalSearchParams<{
     harvestClientUuid?: string;
     crop?: string;
@@ -293,28 +300,31 @@ export default function HarvestRiskScreen() {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
-const factorRow = {
-  borderTopWidth: 1,
-  borderTopColor: colors.border,
-  paddingTop: spacing.sm,
-  gap: 2,
-} as const;
+const makeFactorRow = (colors: Palette) =>
+  ({
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: 2,
+  }) as const;
 
-const primaryButtonStyle = {
-  backgroundColor: colors.brandGreen,
-  padding: spacing.md,
-  borderRadius: radius.md,
-  flexDirection: "row" as const,
-  justifyContent: "center" as const,
-  alignItems: "center" as const,
-  gap: spacing.sm,
-} as const;
+const makePrimaryButtonStyle = (colors: Palette) =>
+  ({
+    backgroundColor: colors.brandGreen,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    flexDirection: "row" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    gap: spacing.sm,
+  }) as const;

@@ -64,6 +64,18 @@ def main() -> int:
             "holdout_districts": list(holdout),
             "validation_split": "district holdout (every 5th district)",
             "target": "yield_kg_ha",
+            # This card measures how a model generalizes to districts it has not
+            # seen. That is NOT evidence about a future season, so the card
+            # declares itself incapable of serving a forecast. A model may only
+            # serve forecast-mode features when a chronological rolling-origin
+            # backtest (ml/src/forecast) says so.
+            "validation_kind": "district_holdout",
+            "serves_forecast": False,
+            "forecast_note": (
+                "Spatial (district) holdout. For a future-season target see "
+                "ml/reports/forecast/backtest.json, which uses chronological "
+                "rolling-origin folds."
+            ),
         },
     )
     out = REPORTS_DIR / "yield_baseline_model_card.json"

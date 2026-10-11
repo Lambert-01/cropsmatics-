@@ -49,6 +49,12 @@ interface Props<T> {
   emptyMessage?: string;
   caption?: string;
   className?: string;
+  /**
+   * Marks a row as the one currently in focus, e.g. the district selected on a
+   * map beside this table. Presentational only: the row is not sorted, filtered
+   * or counted differently, so the table still shows the whole ranking.
+   */
+  highlightRow?: (row: T) => boolean;
 }
 
 function compareValues(a: string | number | null, b: string | number | null): number {
@@ -69,6 +75,7 @@ export function ResponsiveTable<T>({
   emptyMessage = "No rows to display.",
   caption,
   className,
+  highlightRow,
 }: Props<T>) {
   const [internalSort, setInternalSort] = useState<{ id: string; direction: SortDirection } | null>(
     initialSort ?? null,
@@ -178,7 +185,10 @@ export function ResponsiveTable<T>({
             </tr>
           ) : (
             sortedRows.map((row, index) => (
-              <tr key={rowKey(row)}>
+              <tr
+                key={rowKey(row)}
+                className={highlightRow?.(row) ? "rt-row-focused" : undefined}
+              >
                 {columns.map((col, colIndex) => (
                   <td
                     key={col.id}

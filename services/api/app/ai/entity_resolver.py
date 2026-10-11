@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 
+from app.ai import ontology
 from app.repositories import dataset_repository as repo
 
 # Topics Cropmatics genuinely cannot answer from the published agricultural
@@ -116,16 +117,64 @@ def crop_vocabulary() -> dict[str, str]:
 
 def extract(question: str) -> tuple[str | None, str | None]:
     """Resolve a district and a crop from a free-text question."""
-    q = question.lower()
+    districts, crops = extract_multi(question)
+    return (districts[0] if districts else None, crops[0] if crops else None)
+
+
+def _spans(question: str, vocabulary: dict[str, str]) -> list[tuple[int, int, str]]:
+    """Non-overlapping ``(start, end, canonical)`` matches, longest first.
+
+    A longer phrase wins over a shorter one that it contains, so "Paddy rice"
+    is chosen over "rice" and "Irish potato" over a bare "potato". Matching is
+    whole-word, so "rice" is never found inside "price".
+    """
+    candidates: list[tuple[int, int, str]] = []
+    for phrase, canonical in vocabulary.items():
+        if not phrase:
+            continue
+        pattern = r"(?<![a-z0-9])" + re.escape(phrase.lower()) + r"(?![a-z0-9])"
+        for match in re.finditer(pattern, question):
+            candidates.append((match.start(), match.end(), canonical))
+
+    # Longest phrase first, then earliest, so a specific alias always beats a
+    # generic one that overlaps it.
+    candidates.sort(key=lambda item: (-(item[1] - item[0]), item[0]))
+    accepted: list[tuple[int, int, str]] = []
+    for start, end, canonical in candidates:
+        if any(start < a_end and end > a_start for a_start, a_end, _ in accepted):
+            continue
+        accepted.append((start, end, canonical))
+
+    accepted.sort(key=lambda item: item[0])
+    return accepted
+
+
+def extract_multi(question: str) -> tuple[list[str], list[str]]:
+    """Resolve *every* district and crop mentioned, in the order they appear.
+
+    Multi-entity resolution is what makes "Compare maize and beans in Ngoma and
+    Gatsibo" a single grounded comparison instead of four disconnected lookups.
+    """
+    q = (question or "").lower()
     try:
         districts = [str(v) for v in repo.districts()["district"].dropna()]
-        vocabulary = crop_vocabulary()
+        crop_map = crop_vocabulary()
     except Exception:
-        return None, None
+        return [], []
 
-    district = _find_entity(q, districts)
-    key = _find_entity(q, list(vocabulary))
-    return district, vocabulary.get(key) if key else None
+    district_map = {name.lower(): name for name in districts}
+
+    district_values: list[str] = []
+    for _, _, canonical in _spans(q, district_map):
+        if canonical not in district_values:
+            district_values.append(canonical)
+
+    crop_values: list[str] = []
+    for _, _, canonical in _spans(q, crop_map):
+        if canonical not in crop_values:
+            crop_values.append(canonical)
+
+    return district_values, crop_values
 
 
 # Curated indicator vocabulary for entity-free national questions. Keeping it
@@ -162,11 +211,21 @@ INDICATOR_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 
 
 def matched_indicators(question: str) -> list[str]:
-    """Indicator ids whose curated keywords appear in the question."""
+    """Indicator ids whose curated keywords appear in the question.
+
+    Both the English keywords and the curated Kinyarwanda aliases are consulted,
+    so "ifumbire" and "fertilizer" reach the same indicator.
+    """
+    lowered = (question or "").lower()
     found: list[str] = []
     for indicator_id, keywords in INDICATOR_KEYWORDS:
         if indicator_id in found:
             continue
-        if any(mentions(question, (keyword,)) for keyword in keywords):
+        if any(mentions(lowered, (keyword,)) for keyword in keywords):
+            found.append(indicator_id)
+    for indicator_id, aliases in ontology.INDICATOR_ALIASES.items():
+        if indicator_id in found:
+            continue
+        if any(mentions(lowered, (alias,)) for alias in aliases):
             found.append(indicator_id)
     return found

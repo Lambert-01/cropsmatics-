@@ -1,17 +1,45 @@
+import { useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 
+import { clearOfflineCache } from "../../src/cache/offline";
+import { readCacheMeta } from "../../src/cache/persister";
+import { describeCache } from "../../src/cache/status";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { Card, InfoRow, SectionHeader } from "../../src/components/ui";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
-import { features } from "../../src/config/features";
 import { clearCachedData } from "../../src/database";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
+
+const APPEARANCE_OPTIONS = [
+  { value: "system", label: "appearanceSystem" },
+  { value: "light", label: "appearanceLight" },
+  { value: "dark", label: "appearanceDark" },
+] as const;
 
 export default function SettingsScreen() {
+  const { colors, typography, available: darkAvailable } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const { language, setLanguage, settings, updateSettings } = useAppStore();
+  const queryClient = useQueryClient();
+  // The human age of the persisted analytical payload, or null when there is
+  // none. Read once on mount and refreshed when the payload is cleared.
+  const [cacheAge, setCacheAge] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void readCacheMeta().then((meta) => {
+      if (active) setCacheAge(describeCache(meta.updatedAt).ageLabel);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <ScreenLayout back>
@@ -36,6 +64,37 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </View>
+      </Card>
+
+      <Card>
+        <Text style={typography.h3}>{t.appearance}</Text>
+        {darkAvailable ? (
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {APPEARANCE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: settings.appearance === option.value }}
+                accessibilityLabel={t[option.label]}
+                onPress={() => updateSettings({ appearance: option.value })}
+                style={[
+                  styles.option,
+                  settings.appearance === option.value
+                    ? { borderColor: colors.primary, backgroundColor: colors.mintSoft }
+                    : null,
+                ]}
+              >
+                <Text style={{ fontWeight: "600", color: colors.forestDeep }}>
+                  {t[option.label]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          // The flag can disable dark mode for a build; say so rather than
+          // showing a control that would do nothing.
+          <Text style={typography.micro}>{t.appearanceUnavailable}</Text>
+        )}
       </Card>
 
       <Card>
@@ -77,19 +136,20 @@ export default function SettingsScreen() {
             } catch {
               // storage unavailable
             }
+            void clearOfflineCache(queryClient).then(() => setCacheAge(null));
           }}
           style={styles.clear}
         >
           <Text style={{ color: colors.danger, fontWeight: "600" }}>{t.clearCachedData}</Text>
         </Pressable>
-        <Text style={typography.micro}>Saved items and Ask history are kept; only queued drafts are cleared.</Text>
-      </Card>
-
-      <Card>
-        <Text style={typography.h3}>{t.appearance}</Text>
-        <Text style={typography.caption}>
-          {features.darkMode ? t.appearanceSystem : "Light theme only in this build."}
+        <Text style={typography.micro}>
+          {!settings.offlineCacheEnabled
+            ? t.cacheDisabled
+            : cacheAge
+              ? t.cacheStatusUpdated.replace("{age}", cacheAge)
+              : t.cacheStatusEmpty}
         </Text>
+        <Text style={typography.micro}>{t.clearCacheNote}</Text>
       </Card>
 
       <Card>
@@ -101,7 +161,8 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   option: {
     flex: 1,
     borderWidth: 1,

@@ -24,27 +24,17 @@ import { strings } from "../../../src/i18n";
 import { analyticsApi, districtsApi, mapsApi } from "../../../src/services/api";
 import type { MetricValue } from "../../../src/services/api/districts";
 import { useAppStore } from "../../../src/store/useAppStore";
-import { chart, colors, radius, spacing, typography } from "../../../src/theme";
+import { chart, radius, spacing } from "../../../src/theme";
+import type { Palette } from "../../../src/theme";
+import { useThemedStyles, useTheme } from "../../../src/theme/theme-context";
 import { changeFromApi, fromPeriodCoded, toSeriesPoints } from "../../../src/utils/analytics";
 import { periodsCarryingLayer } from "../../../src/utils/coverage";
 
 type Tab = "production" | "inputs" | "land";
 
-interface PanelRow {
-  canonical_crop_name?: string | null;
-  crop_code?: string | null;
-  district?: string | null;
-  district_code?: string | null;
-  cultivated_area_ha?: number | null;
-  harvested_area_ha?: number | null;
-  production_mt?: number | null;
-  yield_kg_ha?: number | null;
-}
-
-const SINGLE_RELEASE_NOTE =
-  "District input, irrigation and erosion shares still come from a single release (2025 Season B). Selecting another period does not change them.";
-
 export default function DistrictDetailScreen() {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const params = useLocalSearchParams<{ districtCode: string }>();
   const slug = params.districtCode;
@@ -79,7 +69,8 @@ export default function DistrictDetailScreen() {
     enabled: Boolean(slug),
   });
 
-  const rows = useMemo(() => (panel.data?.rows ?? []) as unknown as PanelRow[], [panel.data]);
+  // Rows are typed from `PeriodProductivityResponse`; no cast is needed.
+  const rows = useMemo(() => panel.data?.rows ?? [], [panel.data]);
   const districtCode = rows.find((row) => row.district_code)?.district_code ?? profile.data?.district_code ?? null;
 
   // Default to the crop that carries the most production in this period, which
@@ -289,9 +280,7 @@ export default function DistrictDetailScreen() {
                   />
                 </View>
               ) : (
-                <Text style={typography.micro}>
-                  No published benchmark is available for this crop and period, so no gap is shown.
-                </Text>
+                <Text style={typography.micro}>{t.districtNoBenchmark}</Text>
               )}
 
               {cropSeries.isLoading ? (
@@ -310,12 +299,15 @@ export default function DistrictDetailScreen() {
                 <EmptyState title={t.noDataAvailable} />
               )}
 
-              <DataWarning text="No cross-crop average yield is shown: different crops do not share a natural yield scale. Pick a crop to compare like for like." />
+              <DataWarning text={t.districtNoCrossCropAverage} />
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={panel.data?.provenance?.source_id}
                 period={panel.data?.label ?? activePeriod}
-                coverage={`district · ${panel.data?.n_crops ?? 0} crops`}
+                coverage={t.districtCoverageCrops.replace(
+                  "{count}",
+                  String(panel.data?.n_crops ?? 0),
+                )}
                 unit={PANEL_UNITS.yield_kg_ha}
                 method={panel.data?.provenance?.method}
                 limitations={[
@@ -344,19 +336,19 @@ export default function DistrictDetailScreen() {
       ) : null}
 
       {tab === "inputs" ? (
-        <DataSection title={t.inputs} subtitle="Share of farmers reporting adoption" first>
-          <DataWarning text={SINGLE_RELEASE_NOTE} />
+        <DataSection title={t.inputs} subtitle={t.districtInputsSubtitle} first>
+          <DataWarning text={t.districtSingleReleaseNote} />
           {percentRows(data.factors).length ? (
             <HorizontalBarChart values={percentRows(data.factors)} unit="%" maxItems={10} />
           ) : (
             <EmptyState title={t.noDataAvailable} />
           )}
-          <Text style={typography.micro}>These are shares of farmers, not of cultivated area.</Text>
+          <Text style={typography.micro}>{t.districtInputsNote}</Text>
           <SourceMethodSheet
             title={t.sourceAndMethod}
             source={data.provenance.source_id}
             period={data.period_label}
-            coverage="district · single release"
+            coverage={t.districtCoverageSingleRelease}
             unit="%"
             limitations={data.provenance.limitations}
           />
@@ -365,8 +357,8 @@ export default function DistrictDetailScreen() {
 
       {tab === "land" ? (
         <>
-          <DataSection title={t.irrigation} subtitle="Irrigation methods and water sources" first>
-            <DataWarning text={SINGLE_RELEASE_NOTE} />
+          <DataSection title={t.irrigation} subtitle={t.districtIrrigationSubtitle} first>
+            <DataWarning text={t.districtSingleReleaseNote} />
             {percentRows(data.irrigation.methods).length ? (
               <HorizontalBarChart values={percentRows(data.irrigation.methods)} unit="%" />
             ) : (
@@ -376,7 +368,7 @@ export default function DistrictDetailScreen() {
               <HorizontalBarChart values={percentRows(data.irrigation.sources)} unit="%" />
             ) : null}
           </DataSection>
-          <DataSection title={t.soilErosion} subtitle="Land use and erosion-control practices">
+          <DataSection title={t.soilErosion} subtitle={t.districtSoilErosionSubtitle}>
             {data.land.filter((item) => item.value != null).length ? (
               <HorizontalBarChart
                 values={data.land
@@ -394,7 +386,7 @@ export default function DistrictDetailScreen() {
               title={t.sourceAndMethod}
               source={data.provenance.source_id}
               period={data.period_label}
-              coverage="district · single release"
+              coverage={t.districtCoverageSingleRelease}
               limitations={data.provenance.limitations}
             />
           </DataSection>
@@ -419,6 +411,8 @@ function Action({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.action}>
       <Ionicons name={icon} size={16} color={colors.primaryStrong} />
@@ -427,7 +421,8 @@ function Action({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   readouts: { flexDirection: "row", gap: spacing.md },
   action: {

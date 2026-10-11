@@ -145,4 +145,8 @@ data-validate: ## Validate raw datasets only
 
 .PHONY: ml
 ml: ## Build training dataset + baseline model metrics
-	$(PY) ml/src/pipelines/run_training.py
+	$(PY) -m ml.src.pipelines.run_training
+
+.PHONY: forecast
+forecast: ## Chronological backtest of every forecast target (publishes/suppresses)
+	$(PY) -m ml.src.pipelines.run_forecast_backtest

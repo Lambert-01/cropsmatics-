@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -11,7 +12,11 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { colors, radius, shadow, spacing, typography } from "../theme";
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
+import { gradient, radius, shadow, spacing } from "../theme";
+import type { Palette, Typography } from "../theme";
+import { useTheme, useThemedStyles } from "../theme/theme-context";
 
 // ---- layout ---------------------------------------------------------------
 
@@ -24,6 +29,8 @@ export function SectionHeader({
   subtitle?: string;
   action?: ReactNode;
 }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.sectionHeader}>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -36,6 +43,7 @@ export function SectionHeader({
 }
 
 export function Divider() {
+  const styles = useThemedStyles(makeStyles);
   return <View style={styles.divider} />;
 }
 
@@ -52,6 +60,7 @@ export function Card({
   onPress?: () => void;
   accessibilityLabel?: string;
 }) {
+  const styles = useThemedStyles(makeStyles);
   const body = <View style={[styles.card, style]}>{children}</View>;
   if (!onPress) return body;
   return (
@@ -72,7 +81,7 @@ export function StatCard({
   unit,
   icon,
   onPress,
-  accent = colors.primary,
+  accent,
 }: {
   label: string;
   value: string;
@@ -81,10 +90,13 @@ export function StatCard({
   onPress?: () => void;
   accent?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const accentColor = accent ?? colors.primary;
   return (
     <Card style={styles.statCard} onPress={onPress} accessibilityLabel={`${label}: ${value}`}>
       <View style={[styles.statIcon, { backgroundColor: colors.mintSoft }]}>
-        <Ionicons name={icon} size={16} color={accent} />
+        <Ionicons name={icon} size={16} color={accentColor} />
       </View>
       <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>
         {value}
@@ -112,6 +124,8 @@ export function ListRow({
   onPress?: () => void;
   right?: ReactNode;
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : "text"}
@@ -135,7 +149,13 @@ export function ListRow({
         ) : null}
         {meta ? <Text style={styles.listMeta}>{meta}</Text> : null}
       </View>
-      {right ?? (onPress ? <Ionicons name="chevron-forward" size={18} color={colors.slate300} /> : null)}
+      {right ?? (
+        onPress ? (
+          <View style={styles.listChevron}>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </View>
+        ) : null
+      )}
     </Pressable>
   );
 }
@@ -149,6 +169,8 @@ export function Badge({
   text: string;
   tone?: "mint" | "blue" | "amber" | "slate";
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const tones: Record<string, { bg: string; fg: string }> = {
     mint: { bg: colors.mint, fg: colors.primaryStrong },
     blue: { bg: colors.blueSoft, fg: colors.blue },
@@ -178,6 +200,8 @@ export function PrimaryButton({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -212,6 +236,8 @@ export function SecondaryButton({
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -240,6 +266,8 @@ export function SearchBar({
   onFocus?: () => void;
   autoFocus?: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.searchBar}>
       <Ionicons name="search" size={18} color={colors.slate500} />
@@ -271,6 +299,8 @@ export function FilterChip({
   onPress?: () => void;
   onRemove?: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -282,6 +312,14 @@ export function FilterChip({
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
       style={[styles.chip, selected ? styles.chipSelected : null]}
     >
+      {selected ? (
+        <LinearGradient
+          colors={gradient.brand}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>{label}</Text>
       {onRemove ? (
         <Ionicons
@@ -308,6 +346,8 @@ export function EmptyState({
   icon?: keyof typeof Ionicons.glyphMap;
   action?: ReactNode;
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.state}>
       <Ionicons name={icon} size={30} color={colors.slate300} />
@@ -319,16 +359,21 @@ export function EmptyState({
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const t = strings(useAppStore((s) => s.language));
   return (
     <View style={styles.state}>
       <Ionicons name="cloud-offline-outline" size={30} color={colors.danger} />
       <Text style={{ ...typography.h3, textAlign: "center" }}>{message}</Text>
-      {onRetry ? <SecondaryButton label="Try Again" onPress={onRetry} icon="refresh" /> : null}
+      {onRetry ? <SecondaryButton label={t.tryAgain} onPress={onRetry} icon="refresh" /> : null}
     </View>
   );
 }
 
 export function OfflineBanner({ text }: { text: string }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.offlineBanner}>
       <Ionicons name="cloud-offline-outline" size={15} color={colors.amber} />
@@ -338,6 +383,7 @@ export function OfflineBanner({ text }: { text: string }) {
 }
 
 export function LoadingSkeleton({ height = 80 }: { height?: number }) {
+  const styles = useThemedStyles(makeStyles);
   return <View style={[styles.skeleton, { height }]} />;
 }
 
@@ -354,21 +400,29 @@ export function SourceCard({
   coverage?: string | null;
   limitations?: string[];
 }) {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const t = strings(useAppStore((s) => s.language));
   if (!sourceLabel && !period && !coverage) return null;
   return (
     <View style={styles.sourceCard}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
-        <Text style={styles.sourceTitle}>Source &amp; coverage</Text>
+        <Text style={styles.sourceTitle}>{t.sourceCoverageTitle}</Text>
       </View>
       {sourceLabel ? <Text style={typography.caption}>{sourceLabel}</Text> : null}
       <Text style={styles.sourceMeta}>
-        {[period ? `Period ${period}` : null, coverage ? `${coverage} coverage` : null]
+        {[
+          period ? t.sourceCoveragePeriod.replace("{period}", period) : null,
+          coverage ? t.sourceCoverageLevel.replace("{level}", coverage) : null,
+        ]
           .filter(Boolean)
           .join(" · ")}
       </Text>
       {limitations?.length ? (
-        <Text style={styles.sourceMeta}>Limitations: {limitations.join("; ")}</Text>
+        <Text style={styles.sourceMeta}>
+          {t.sourceCoverageLimitations.replace("{items}", limitations.join("; "))}
+        </Text>
       ) : null}
     </View>
   );
@@ -383,6 +437,8 @@ export function InfoRow({
   value: string;
   note?: string | null;
 }) {
+  const { typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.infoRow}>
       <Text style={{ ...typography.caption, flex: 1 }}>{label}</Text>
@@ -394,7 +450,8 @@ export function InfoRow({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
   card: {
@@ -420,20 +477,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   listIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: colors.mintSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  listTitle: { ...typography.h3, fontSize: 14, fontWeight: "600" },
+  listMeta: { ...typography.micro, color: colors.slate500, marginTop: 1 },
+  listChevron: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.sm,
     backgroundColor: colors.mintSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  listTitle: { ...typography.h3, fontSize: 15 },
-  listMeta: { ...typography.micro, color: colors.slate500, marginTop: 1 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, alignSelf: "flex-start" },
   badgeText: { fontSize: 11, fontWeight: "700" },
   primaryButton: {
@@ -467,21 +534,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.xl,
     paddingHorizontal: spacing.md,
-    minHeight: 48,
+    minHeight: 54,
+    ...shadow.strong,
   },
-  searchInput: { flex: 1, fontSize: 15, color: colors.slate900, paddingVertical: 10 },
+  searchInput: { flex: 1, fontSize: 15, color: colors.slate900, paddingVertical: 11 },
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
+    // Clips the selected chip's gradient fill to the pill.
+    overflow: "hidden",
   },
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.slate700, fontWeight: "600" },

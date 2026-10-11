@@ -41,10 +41,43 @@ export interface KPI {
   scope?: "selection" | "context" | string;
 }
 
+/**
+ * The one release a single-release panel describes.
+ *
+ * Returned in the ``history`` scope, where no release is selected: the district
+ * figures still have to come from somewhere, so the API names that release and
+ * the UI labels it rather than presenting it as the whole published axis.
+ */
+export interface PeriodSnapshot {
+  period_code?: string | null;
+  label?: string | null;
+  coverage_level?: string | null;
+  note?: string | null;
+}
+
+/** One published period on the shared axis, with its own coverage. */
+export interface PeriodTimelineEntry {
+  period_code: string;
+  label: string;
+  coverage_level?: string | null;
+  n_districts: number;
+  n_crops: number;
+  is_latest: boolean;
+  is_latest_district: boolean;
+}
+
 export interface OverviewResponse {
   filters: Record<string, string | number | null>;
+  /** What the figures actually cover; differs from `filters` in history scope. */
+  effective_filters?: Record<string, string | number | null>;
   period?: string | null;
   period_code?: string | null;
+  /** "period" (one selected release) or "history" (all published periods). */
+  scope?: "period" | "history" | string;
+  /** Present in history scope: the release the district snapshot describes. */
+  snapshot?: PeriodSnapshot | null;
+  /** The published period axis, in both scopes. */
+  period_timeline?: PeriodTimelineEntry[];
   available_periods: string[];
   coverage: Record<string, string>;
   coverage_level?: string | null;
@@ -366,6 +399,46 @@ export interface AssistantContext {
   benchmark_strategy?: string;
 }
 
+export interface AssistantFigure {
+  label: string;
+  value: number | string;
+  unit?: string | null;
+  period_code?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  source_id?: string | null;
+}
+
+export interface AssistantSourceRef {
+  source_id: string;
+  name?: string | null;
+  period?: string | null;
+}
+
+/**
+ * The structured response contract the backend returns under `structured`. The
+ * web client renders this rather than parsing the prose, so every figure is shown
+ * with the period, unit and source it was published under.
+ */
+export interface AssistantStructured {
+  answer_id?: string;
+  intent: string;
+  title?: string;
+  summary?: string;
+  language?: string;
+  depth?: string;
+  audience?: string;
+  key_findings?: string[];
+  figures?: AssistantFigure[];
+  interpretation?: string[];
+  limitations?: string[];
+  methodology?: string[];
+  sources?: AssistantSourceRef[];
+  suggested_followups?: string[];
+  actions?: { type: string; label: string; crop?: string | null; district?: string | null }[];
+  warnings?: string[];
+}
+
 export interface AssistantResponse {
   answer: string;
   grounded: boolean;
@@ -376,6 +449,14 @@ export interface AssistantResponse {
   period?: string | null;
   coverage?: string | null;
   limitations: string[];
+  /** Additive engine metadata; older responses may omit it. */
+  structured?: AssistantStructured;
+  conversation_id?: string | null;
+  answer_mode?: "deterministic" | "llm";
+  warnings?: string[];
+  citations?: string[];
+  evidence_count?: number;
+  tools_used?: string[];
 }
 
 export interface MapDistrictMetric {
@@ -464,9 +545,27 @@ export interface PostHarvestCrop {
   risk_band?: string | null;
 }
 
+/**
+ * A headline crop chosen by the API, not by this client.
+ *
+ * Picking the maximum is an analytical selection: it decides which crop the page
+ * leads with. Rendering the API's pick keeps web and mobile showing the same
+ * crop, and keeps a null-handling difference between two clients from changing
+ * the headline.
+ */
+export interface PostHarvestHeadline {
+  id: string;
+  label: string;
+  unit: string;
+  crop?: string | null;
+  value?: number | null;
+  n_crops_considered: number;
+}
+
 export interface PostHarvestResponse {
   kpis: KPI[];
   crops: PostHarvestCrop[];
+  headlines: PostHarvestHeadline[];
   provenance: Provenance;
 }
 

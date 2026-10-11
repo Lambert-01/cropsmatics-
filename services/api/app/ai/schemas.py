@@ -9,10 +9,14 @@ underneath it changes shape.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
 from app.ai.evidence import EvidenceBundle
+
+if TYPE_CHECKING:  # pragma: no cover - typing only, avoids an import cycle
+    from app.ai.planner import QueryPlan
 
 
 class AIContext(BaseModel):
@@ -35,6 +39,14 @@ class AIRequest(BaseModel):
     question: str
     language: str = "en"
     context: AIContext | None = None
+    #: Requested explanation depth (quick/standard/deep). When ``None`` the
+    #: planner infers it from the question wording.
+    depth: str | None = None
+    #: Requested audience (farmer/planner/analyst). When ``None`` the planner
+    #: infers it. Audience changes presentation only, never the evidence.
+    audience: str | None = None
+    #: Conversation the question belongs to, for multi-turn context inheritance.
+    conversation_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -57,6 +69,19 @@ class RoutedRequest:
     indicator_ids: list[str] = field(default_factory=list)
     unsupported_topic: str | None = None
     page: str | None = None
+
+    # --- multi-entity and multi-turn (additive) ------------------------------
+    #: Every crop the question names, in the order they appear. ``crop`` remains
+    #: the primary (first) crop, so a single-entity consumer is unaffected.
+    crops: list[str] = field(default_factory=list)
+    #: Every district the question names, in order. ``district`` is the first.
+    districts: list[str] = field(default_factory=list)
+    #: The period to compare against, when the question frames a comparison.
+    comparison_period: str | None = None
+    depth: str = "standard"
+    audience: str = "planner"
+    #: The full structured plan this request was projected from.
+    plan: QueryPlan | None = None
 
     @property
     def requested(self) -> dict:
@@ -102,6 +127,12 @@ class AIResult(BaseModel):
     evidence_count: int = 0
     tools_used: list[str] = Field(default_factory=list)
     validation: dict = Field(default_factory=dict)
+    #: Present only when the request belonged to a conversation.
+    conversation_id: str | None = None
+    #: The entities a follow-up would inherit (safe projection; no values).
+    resolved_context: dict = Field(default_factory=dict)
+    #: The structured response contract (title, figures, evidence, actions...).
+    structured: dict = Field(default_factory=dict)
     #: The retrieved evidence, kept server-side so a rendered translation can be
     #: re-checked against it before it is returned. Never serialised to a client.
     bundle: EvidenceBundle | None = Field(default=None, exclude=True)

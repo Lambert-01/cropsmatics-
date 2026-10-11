@@ -13,7 +13,9 @@ import { insertAttachment, listFarms } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { saveFarmOffline, saveHarvestOffline } from "../../src/sync/queue";
-import { colors, radius, shadow, spacing, typography } from "../../src/theme";
+import { radius, shadow, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { LocalFarm, QuantityUnit } from "../../src/types";
 import { todayIso, validateHarvestDates } from "../../src/utils/dates";
 import { QUANTITY_UNITS, formatQuantity, parseQuantity, toKilograms } from "../../src/utils/units";
@@ -24,6 +26,13 @@ type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 const LAST_STEP: Step = 7;
 
 export default function RegisterHarvestScreen() {
+  const { colors, typography } = useTheme();
+  const cardStyle = useThemedStyles(makeCardStyle);
+  const inputStyle = useThemedStyles(makeInputStyle);
+  const secondaryButtonStyle = useThemedStyles(makeSecondaryButtonStyle);
+  const selectableStyle = (selected: boolean) => selectableStyleFor(colors, selected);
+  const buttonStyle = (active: boolean) => buttonStyleFor(colors, active);
+  const buttonTextStyle = (active: boolean) => buttonTextStyleFor(colors, active);
   const router = useRouter();
   const language = useAppStore((s) => s.language);
   const t = strings(language);
@@ -450,24 +459,26 @@ export default function RegisterHarvestScreen() {
   );
 }
 
-const cardStyle = {
-  backgroundColor: colors.surface,
-  borderRadius: radius.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-  padding: spacing.md,
-  gap: spacing.sm,
-  ...shadow.card,
-} as const;
+const makeCardStyle = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+    ...shadow.card,
+  }) as const;
 
-const inputStyle = {
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  backgroundColor: colors.surface,
-  color: colors.slate,
-} as const;
+const makeInputStyle = (colors: Palette) =>
+  ({
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    color: colors.slate,
+  }) as const;
 
 const offlineNotice = {
   flexDirection: "row" as const,
@@ -478,19 +489,20 @@ const offlineNotice = {
   backgroundColor: "#fdf3e3",
 } as const;
 
-const secondaryButtonStyle = {
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  justifyContent: "center" as const,
-  gap: spacing.xs,
-  padding: spacing.sm,
-  borderRadius: radius.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-  backgroundColor: colors.surface,
-} as const;
+const makeSecondaryButtonStyle = (colors: Palette) =>
+  ({
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  }) as const;
 
-function selectableStyle(selected: boolean) {
+function selectableStyleFor(colors: Palette, selected: boolean) {
   return {
     padding: spacing.sm,
     borderRadius: radius.md,
@@ -501,7 +513,7 @@ function selectableStyle(selected: boolean) {
   } as const;
 }
 
-function buttonStyle(active: boolean) {
+function buttonStyleFor(colors: Palette, active: boolean) {
   return {
     flex: 1,
     padding: spacing.md,
@@ -510,7 +522,7 @@ function buttonStyle(active: boolean) {
   } as const;
 }
 
-function buttonTextStyle(active: boolean) {
+function buttonTextStyleFor(colors: Palette, active: boolean) {
   return {
     textAlign: "center" as const,
     color: active ? colors.white : colors.muted,
@@ -519,6 +531,7 @@ function buttonTextStyle(active: boolean) {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
   return (
     <View style={{ gap: spacing.sm }}>
       <Text style={{ fontWeight: "600", color: colors.forest }}>{label}</Text>
@@ -528,6 +541,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
+  const { colors, typography } = useTheme();
   return (
     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: spacing.sm }}>
       <Text style={typography.caption}>{label}</Text>
@@ -547,6 +561,7 @@ function ChipPicker({
   value: string | null;
   onChange: (v: string) => void;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
       {options.map((option) => {

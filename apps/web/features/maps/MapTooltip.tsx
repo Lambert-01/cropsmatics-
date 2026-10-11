@@ -1,6 +1,16 @@
 import { fmtNumber, periodLabel } from "@/lib/format";
 import type { FacilityItem, MapDistrictMetric } from "@/types";
 
+/**
+ * District hover card for the Rwanda choropleth.
+ *
+ * The surface and all four text roles come from the `--tooltip-*` tokens in
+ * `app/globals.css`, never from raw `white`/`forest-deep`. Those brand tokens
+ * invert between themes, so pairing `bg-forest-deep` with `text-white` produced
+ * white-on-white in dark mode (the background became near-white while the text
+ * stayed forced white). The district name is bold and leads the card so the
+ * reader can identify the district before the metrics.
+ */
 export function MapTooltip({
   district,
   datum,
@@ -24,20 +34,21 @@ export function MapTooltip({
   const show = (label: string, value: string | number | null | undefined) =>
     value === null || value === undefined ? null : (
       <div className="flex items-center justify-between gap-3">
-        <dt className="text-white/60">{label}</dt>
-        <dd className="font-medium text-white">{value}</dd>
+        <dt className="map-tooltip-key">{label}</dt>
+        <dd className="map-tooltip-value tabular-nums">{value}</dd>
       </div>
     );
 
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-30 w-56 -translate-x-1/2 -translate-y-full rounded-lg bg-forest-deep/95 p-3 text-xs shadow-pop ring-1 ring-white/10 animate-fade-in"
+      className="map-tooltip pointer-events-none absolute z-30 w-56 -translate-x-1/2 -translate-y-full rounded-lg p-3 text-xs animate-fade-in"
       style={{ left: x, top: y - 8 }}
     >
-      <p className="text-sm font-semibold text-white">{district}</p>
-      {crop ? <p className="text-white/60">{crop}</p> : null}
-      <dl className="mt-2 space-y-1">
+      <p className="map-tooltip-title">{district}</p>
+      {crop ? <p className="map-tooltip-key">{crop}</p> : null}
+      <hr className="map-tooltip-divider my-2 border-t" />
+      <dl className="space-y-1">
         {show(
           metricLabel,
           datum?.value === null || datum?.value === undefined

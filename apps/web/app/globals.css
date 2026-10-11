@@ -5,6 +5,91 @@
 :root {
   color-scheme: light;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Brand — used for text and borders, so it must invert in dark mode. */
+  --c-forest: 7 61 45;
+  --c-forest-deep: 3 45 35;
+  --c-primary: 8 127 91;
+  --c-success: 22 163 74;
+  --c-info: 37 99 235;
+  --c-amber: 217 119 6;
+  --c-danger: 220 38 38;
+  --c-risk-low: 22 163 74;
+  --c-risk-moderate: 217 119 6;
+  --c-risk-high: 220 38 38;
+
+  /* Surfaces & text */
+  --c-surface: 255 255 255;
+  --c-background: 247 250 248;
+  --c-ink: 51 65 85;
+
+  /* Map / chart tooltips.
+     A tooltip floats over an arbitrary map fill, so it must be readable on its
+     own. In light mode it is a light card with dark ink; in dark mode a dark
+     card with light ink. Never leave these as raw `white`/`forest-deep`, which
+     invert independently and can produce white-on-white. */
+  --tooltip-background: 255 255 255;
+  --tooltip-foreground: 30 41 59;
+  --tooltip-title: 3 45 35;
+  --tooltip-muted: 100 116 139;
+  --tooltip-border: 7 61 45;
+  --tooltip-shadow: 0 10px 30px rgba(3, 45, 35, 0.18);
+
+  /* Slate ramp = Tailwind defaults, so light mode is byte-for-byte unchanged. */
+  --c-slate-50: 248 250 252;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;
+  --c-slate-700: 51 65 85;
+  --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;
+  --c-slate-950: 2 6 23;
+}
+
+/*
+ * Dark theme. Near-black surfaces carry a faint green cast so the interface
+ * still reads as Cropmatics rather than a neutral grey. Brand text becomes a
+ * light mint; `primary` stays the same saturated green so solid `bg-primary`
+ * buttons keep white text legible.
+ */
+html.dark {
+  color-scheme: dark;
+
+  --c-forest: 209 250 229;
+  --c-forest-deep: 236 253 245;
+  --c-success: 52 211 153;
+  --c-info: 96 165 250;
+  --c-amber: 251 191 36;
+  --c-danger: 248 113 113;
+  --c-risk-low: 52 211 153;
+  --c-risk-moderate: 251 191 36;
+  --c-risk-high: 248 113 113;
+
+  --c-surface: 17 28 24;
+  --c-background: 10 20 16;
+  --c-ink: 203 213 225;
+
+  --tooltip-background: 17 28 24;
+  --tooltip-foreground: 226 232 240;
+  --tooltip-title: 209 250 229;
+  --tooltip-muted: 148 163 184;
+  --tooltip-border: 255 255 255;
+  --tooltip-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  --c-slate-50: 12 22 18;
+  --c-slate-100: 18 30 25;
+  --c-slate-200: 28 44 38;
+  --c-slate-300: 45 66 58;
+  --c-slate-400: 90 112 104;
+  --c-slate-500: 130 150 143;
+  --c-slate-600: 165 182 176;
+  --c-slate-700: 197 210 205;
+  --c-slate-800: 220 230 226;
+  --c-slate-900: 240 246 243;
+  --c-slate-950: 250 252 251;
 }
 
 body {
@@ -27,6 +112,107 @@ body {
   .card {
     @apply rounded-card border border-forest/10 bg-surface shadow-card;
   }
+
+  /* ---- Dark-theme primitives -------------------------------------------------
+     These classes `@apply bg-white`, which inlines a literal #fff, so they are
+     not reached by the CSS-variable tokens above. Re-stating them under
+     `html.dark` is what keeps buttons, chips, inputs and tables themed.
+     The sidebar's `bg-white/10-25` overlays are intentionally left white: they
+     sit on the already-dark sidebar in both themes. */
+  html.dark .card {
+    @apply border-white/10;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+  html.dark .card-subtitle {
+    @apply text-slate-400;
+  }
+  html.dark .chip {
+    @apply border-white/15 bg-surface text-ink;
+  }
+  html.dark .btn {
+    @apply border-white/15 bg-surface text-forest hover:bg-white/5;
+  }
+  html.dark .input {
+    @apply border-white/15 bg-surface text-ink;
+  }
+  html.dark .table-base thead th,
+  html.dark .responsive-table .rt-th {
+    @apply border-white/10 bg-white/5 text-slate-300;
+  }
+  html.dark .table-base tbody td,
+  html.dark .responsive-table .rt-td {
+    @apply border-white/5 text-slate-300;
+  }
+  html.dark .table-base tbody tr:hover {
+    @apply bg-primary/[0.08];
+  }
+  html.dark .responsive-table .rt-sticky-col {
+    @apply bg-surface;
+  }
+}
+
+/* Solid translucent white panels re-theme to a translucent surface; the low-alpha
+   white overlays used on the dark sidebar are deliberately excluded. */
+html.dark .bg-white {
+  background-color: rgb(var(--c-surface));
+}
+html.dark .bg-white\/90 {
+  background-color: rgb(var(--c-surface) / 0.9);
+}
+html.dark .bg-white\/70 {
+  background-color: rgb(var(--c-surface) / 0.7);
+}
+html.dark .bg-white\/60 {
+  background-color: rgb(var(--c-surface) / 0.6);
+}
+/* `text-white` must stay true white: it sits on solid `bg-primary` buttons that
+   keep their saturated green in dark mode. */
+html.dark .text-white {
+  color: #ffffff;
+}
+
+/* ---------------------------------------------------------------------------
+   Recharts chrome in dark mode.
+
+   Recharts writes `stroke`/`fill` as SVG presentation attributes, which CSS
+   overrides — so the grid and axes lift off the near-black surface and stay
+   legible, and the tooltip becomes a dark card instead of a white one. The
+   `!important` flags are needed only where a component passes an inline style
+   (`TOOLTIP_STYLE`), which otherwise wins over a class rule.
+   --------------------------------------------------------------------------- */
+html.dark .recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+html.dark .recharts-cartesian-axis-tick-value,
+html.dark .recharts-text {
+  fill: #94a3b8;
+}
+html.dark .recharts-cartesian-axis-line,
+html.dark .recharts-cartesian-axis-tick-line {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+html.dark .recharts-default-tooltip {
+  background-color: #111c18 !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #e2e8f0 !important;
+}
+html.dark .recharts-default-tooltip .recharts-tooltip-label {
+  color: #d1fae5 !important;
+}
+html.dark .recharts-default-tooltip .recharts-tooltip-item {
+  color: #cbd5e1 !important;
+}
+html.dark .recharts-legend-item-text {
+  color: #cbd5e1 !important;
+}
+/* Map outlines need a visible stroke against the dark surface. */
+html.dark .map-district {
+  stroke: rgba(255, 255, 255, 0.25);
+}
+
+/* The remainder of the component layer. The dark overrides above live in the
+   same layer, so `html.dark …` specificity settles the cascade. */
+@layer components {
   .card-title {
     @apply text-sm font-semibold text-forest;
   }
@@ -111,6 +297,43 @@ body {
   .responsive-table .rt-empty {
     @apply px-3 py-8 text-center text-sm text-slate-400;
   }
+  /* The row currently in focus, e.g. the district picked on the map beside the
+     table. A left rule rather than a background wash, so it reads as "this one"
+     without competing with the gap column's own red/amber emphasis. */
+  .responsive-table tr.rt-row-focused > td {
+    @apply bg-primary/[0.07];
+  }
+  .responsive-table tr.rt-row-focused > td:first-child {
+    box-shadow: inset 3px 0 0 0 theme(colors.primary);
+  }
+
+  /* ---- Floating tooltip surface -------------------------------------------
+     Used by map hover cards (and available to any chart popover). The colours
+     resolve from the tooltip tokens above, so light and dark themes are handled
+     by design rather than by a per-component `html.dark` override. */
+  .map-tooltip {
+    background-color: rgb(var(--tooltip-background));
+    color: rgb(var(--tooltip-foreground));
+    border: 1px solid rgb(var(--tooltip-border) / 0.15);
+    box-shadow: var(--tooltip-shadow);
+  }
+  html.dark .map-tooltip {
+    border-color: rgb(var(--tooltip-border) / 0.18);
+  }
+  .map-tooltip-title {
+    color: rgb(var(--tooltip-title));
+    @apply text-sm font-bold;
+  }
+  .map-tooltip-key {
+    color: rgb(var(--tooltip-muted));
+  }
+  .map-tooltip-value {
+    color: rgb(var(--tooltip-foreground));
+    @apply font-semibold;
+  }
+  .map-tooltip-divider {
+    border-color: rgb(var(--tooltip-border) / 0.15);
+  }
 }
 
 /* Sidebar landscape: dark forest green over a stylised terrace illustration. */
@@ -137,6 +360,27 @@ body {
     url("/images/rwanda-farm-landscape.png");
   background-size: cover;
   background-position: center 55%;
+}
+
+/* Same landscape image in dark mode, with a dark scrim so the copy stays
+   readable. The background image is maintained, not removed. */
+html.dark .page-hero {
+  background-image:
+    linear-gradient(to right, rgba(10, 20, 16, 0.97) 0%, rgba(10, 20, 16, 0.9) 37%, rgba(10, 20, 16, 0.35) 72%, rgba(3, 45, 35, 0.72) 100%),
+    url("/images/rwanda-farm-landscape.png");
+}
+
+/* The sidebar art is already a dark forest scene; deepen its scrim slightly in
+   dark mode so it sits behind near-black content. */
+html.dark .sidebar-surface {
+  background-image:
+    linear-gradient(to bottom, rgba(2, 12, 9, 0.99) 0%, rgba(2, 12, 9, 0.94) 48%, rgba(2, 12, 9, 0.4) 100%),
+    url("/images/rwanda-farm-landscape.png");
+}
+html.dark .sidebar-landscape {
+  background-image:
+    linear-gradient(to bottom, rgba(2, 12, 9, 0.95), rgba(2, 12, 9, 0.88)),
+    url("/images/sidebar-rwanda-farms.svg");
 }
 
 .map-district {

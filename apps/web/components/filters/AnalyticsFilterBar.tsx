@@ -3,7 +3,7 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { splitPeriod } from "@/lib/filters";
+import { SCOPE_HISTORY, scopeSummaryText, splitPeriod } from "@/lib/filters";
 import { cn } from "@/lib/cn";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -109,6 +109,7 @@ function SearchableSelect({
   onChange,
   options,
   placeholder,
+  allLabel,
   emptyText = "No matches",
   className,
 }: {
@@ -117,6 +118,12 @@ function SearchableSelect({
   onChange: (v: string) => void;
   options: { value: string; label: string; hint?: string }[];
   placeholder: string;
+  /**
+   * Text for the "clear this filter" entry. Overridden where the generic
+   * `All {label}s` wording would be misleading - the period selector's empty
+   * state is a scope ("All published periods"), not an unset selection.
+   */
+  allLabel?: string;
   emptyText?: string;
   className?: string;
 }) {
@@ -208,7 +215,7 @@ function SearchableSelect({
                   !value && "font-semibold text-forest",
                 )}
               >
-                All {label.toLowerCase()}s
+                {allLabel ?? `All ${label.toLowerCase()}s`}
                 {!value ? <Check className="h-3.5 w-3.5" /> : null}
               </button>
             </li>
@@ -417,7 +424,12 @@ export function AnalyticsFilterBar({
       [filters.year, filters.season && `Season ${filters.season}`]
         .filter(Boolean)
         .join(" ");
-    parts.push(periodLabel || "All periods");
+    // Shared with the rest of the product rather than inline: this is the string
+    // that decides whether a single-release figure reads as the selection or as
+    // the whole published axis, so it is a tested function. The history scope's
+    // snapshot is named by the panel that owns it (the Overview scope notice),
+    // not here, because this bar never sees an overview response.
+    parts.push(scopeSummaryText({ view: filters.view, periodLabel: periodLabel || null }));
     parts.push(filters.crop ?? "All crops");
     if (filters.province) parts.push(filters.province);
     parts.push(filters.district ?? "All districts");
@@ -426,8 +438,15 @@ export function AnalyticsFilterBar({
 
   const coverageBadgeText = coverageLabel ?? null;
 
-  const set = (patch: Partial<Record<FilterKey, string | number | undefined>>) =>
-    setFilters(patch as never);
+  /**
+   * `view` is writable but is deliberately not a `SupportedFilter`: a page never
+   * "supports" the scope, it either has a period dimension or it does not. The
+   * scope still belongs in the same patch so a period and its scope are never
+   * written as two separate URL updates.
+   */
+  const set = (
+    patch: Partial<Record<FilterKey | "view", string | number | undefined>>,
+  ) => setFilters(patch as never);
 
   /* ------------------------------------------------------------- */
   /* Filter controls — shared between desktop bar and mobile drawer */
@@ -438,9 +457,24 @@ export function AnalyticsFilterBar({
         <SearchableSelect
           label="Period"
           value={selectedPeriod ?? ""}
-          onChange={(v) => set({ period: v || undefined, year: undefined, season: undefined })}
+          onChange={(v) =>
+            v
+              ? // A release is named, so the scope is that release. Any explicit
+                // `view` is cleared rather than left to contradict it in the URL.
+                set({ period: v, year: undefined, season: undefined, view: undefined })
+              : // "All published periods" is a scope, not an empty selection, so it
+                // is written down. Otherwise a stored default period would quietly
+                // re-apply and the page would come back on a different scope.
+                set({
+                  period: undefined,
+                  year: undefined,
+                  season: undefined,
+                  view: SCOPE_HISTORY,
+                })
+          }
           options={periodOptions}
-          placeholder="Latest period"
+          placeholder="All published periods"
+          allLabel="All published periods"
           emptyText="No published periods"
           className={idsPrefix === "m" ? "flex-1" : undefined}
         />

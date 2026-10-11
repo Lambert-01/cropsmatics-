@@ -175,8 +175,21 @@ export const api = {
    * viewing instead of the default release. It carries entities only, never a
    * value, so it cannot inject a figure into an answer.
    */
-  assistant: (question: string, language = "en", context?: AssistantContext) =>
-    post<AssistantResponse>("/assistant/query", { question, language, context }),
+  assistant: (
+    question: string,
+    language = "en",
+    context?: AssistantContext,
+    conversationId?: string,
+  ) =>
+    post<AssistantResponse>("/assistant/query", {
+      question,
+      language,
+      context,
+      // Sending the conversation id lets a follow-up ("and beans?", "compare
+      // them") inherit the previous turn's entities instead of being read in
+      // isolation. Omitted when there is none, so a stateless ask is unchanged.
+      ...(conversationId ? { conversation_id: conversationId } : {}),
+    }),
 
   /** Canonical period-aware panel: one crop across published periods. */
   productivityTrend: (crop: string, district?: string, season?: string) => {

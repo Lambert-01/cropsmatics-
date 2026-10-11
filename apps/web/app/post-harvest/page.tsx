@@ -1,7 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
-
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { PageHero } from "@/components/layout/PageHero";
@@ -16,19 +14,16 @@ import { NationalInfrastructureSummary } from "@/features/storage/NationalInfras
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { useFilters } from "@/services/hooks/useFilters";
 import { usePostHarvest, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
-import type { PostHarvestCrop } from "@/types";
 
-/** Highest value of a share column, with the crop it belongs to. */
-function extreme(crops: PostHarvestCrop[], key: keyof PostHarvestCrop) {
-  let best: { crop: string; value: number } | null = null;
-  for (const c of crops) {
-    const v = c[key];
-    if (typeof v !== "number") continue;
-    if (!best || v > best.value) best = { crop: c.crop, value: v };
-  }
-  return best;
-}
-
+/**
+ * The first screenful: which crop leads each share.
+ *
+ * The picks come from the API. Choosing a maximum is an analytical decision -
+ * it decides which crop the page leads with - so it is made once in Python and
+ * returned with the number of crops it was chosen from. This page used to search
+ * the crop list itself, which meant the headline could disagree with the same
+ * figure on mobile, and could change if a null were handled differently here.
+ */
 export default function PostHarvestPage() {
   const { filters } = useFilters();
   // The post-harvest dataset supports the crop filter only; the filter bar
@@ -36,17 +31,7 @@ export default function PostHarvestPage() {
   const postHarvest = usePostHarvest(filters);
   const infrastructure = useStorageInfrastructure();
   const crops = postHarvest.data?.crops ?? [];
-
-  // Presentation only: pick out the headline crop for each share. No value is
-  // recomputed here — every number shown was returned by the API.
-  const headline = useMemo(
-    () => ({
-      loss: extreme(postHarvest.data?.crops ?? [], "post_harvest_losses_pct"),
-      stored: extreme(postHarvest.data?.crops ?? [], "stored_pct"),
-      sold: extreme(postHarvest.data?.crops ?? [], "sold_pct"),
-    }),
-    [postHarvest.data],
-  );
+  const headlines = postHarvest.data?.headlines ?? [];
 
   return (
     <div className="space-y-5">
@@ -73,23 +58,26 @@ export default function PostHarvestPage() {
         <DashboardKpis kpis={postHarvest.data.kpis} />
       ) : null}
 
-      {/* Headline crop per share, so the page answers "which crop?" at a glance. */}
-      {crops.length > 0 ? (
+      {/* Headline crop per share, so the page answers "which crop?" at a glance.
+          Rendered straight from the API's pick, including the crop count it was
+          chosen from. */}
+      {headlines.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "Highest loss crop", data: headline.loss, unit: "% of production lost", tone: "danger" },
-            { label: "Highest storage crop", data: headline.stored, unit: "% stored", tone: "primary" },
-            { label: "Highest marketed crop", data: headline.sold, unit: "% sold", tone: "amber" },
-          ].map((card) => (
-            <div key={card.label} className="card p-4">
+          {headlines.map((headline) => (
+            <div key={headline.id} className="card p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {card.label}
+                {headline.label}
               </p>
               <p className="mt-1 text-lg font-semibold tracking-tight text-forest-deep">
-                {card.data?.crop ?? "—"}
+                {headline.crop ?? "—"}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">
-                {card.data ? `${fmtPct(card.data.value, 2)} ${card.unit}` : "not reported"}
+                {headline.value === null || headline.value === undefined
+                  ? "not reported"
+                  : `${fmtPct(headline.value, 2)} ${headline.unit}`}
+              </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">
+                highest of {fmtNumber(headline.n_crops_considered, 0)} crops in this selection
               </p>
             </div>
           ))}

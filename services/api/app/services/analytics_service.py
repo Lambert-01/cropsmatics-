@@ -367,19 +367,41 @@ def legacy_periods() -> set[str]:
     }
 
 
+def resolved_period(f: AnalyticsFilters | None) -> str | None:
+    """The release a period-dependent district query actually reads.
+
+    An explicit selection wins. With nothing selected the answer is the **latest
+    published district release**, and callers report it - never a silent default
+    table. Reading the legacy 2025B pack whenever no period was named is what let
+    every page label one release's figures as "all published periods", and let a
+    district map colour 2025B while the KPIs beside it described 2026B.
+    """
+    explicit = f.period_key() if f is not None else None
+    if explicit:
+        return explicit
+    try:
+        return period_service.latest_district() or period_service.latest()
+    except Exception:
+        return None
+
+
 def productivity_frame(f: AnalyticsFilters | None = None) -> pd.DataFrame:
     """The productivity rows a filter should read.
 
-    Without a period selection this stays the joined training table, so existing
-    analytics keep exactly the behaviour they had (including the factor columns
-    only that table has). For a period the training table does not cover - the
-    other seven published periods - it reads the canonical panel, district rows
-    only, so a national row can never be reported as a district observation.
+    The canonical multi-period panel answers every published period that carries
+    district rows. The release the joined training table actually *is* (2025B)
+    still reads that table, because it uniquely carries the factor columns - so
+    the factor analytics keep measured columns instead of silently becoming
+    redistributed weights.
+
+    With no period selected the frame is the latest published district release,
+    resolved by :func:`resolved_period` rather than by whichever table happened
+    to be the default.
     """
     if f is None:
         return repo.training_dataset()
 
-    key = f.period_key()
+    key = resolved_period(f)
     if not key or key in legacy_periods():
         return repo.training_dataset()
 

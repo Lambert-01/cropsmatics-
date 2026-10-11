@@ -9,6 +9,7 @@ it is a writing layer over facts it did not produce.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from app.ai.evidence import EvidenceBundle
@@ -18,6 +19,53 @@ from app.ai.schemas import AIRequest, ProviderOutcome, RoutedRequest
 
 class ProviderUnavailable(RuntimeError):
     """Raised when a provider is selected but not configured or reachable."""
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    """One function call a model asked for.
+
+    ``arguments`` is kept as the raw JSON string the model produced. It is parsed
+    and validated by the executor, never trusted here - a call is a request, not
+    an action.
+    """
+
+    id: str
+    name: str
+    arguments: str
+
+
+@dataclass
+class ChatResponse:
+    """One chat-completions turn: prose, tool calls, or both."""
+
+    content: str | None = None
+    tool_calls: list[ToolCall] = field(default_factory=list)
+
+
+@runtime_checkable
+class ToolCallingProvider(Protocol):
+    """A provider that can choose tools, not only write prose.
+
+    Optional capability. The orchestrator uses it when present and falls back to
+    ``generate`` when it is not, so a prose-only provider is never broken by it.
+    """
+
+    supports_tools: bool
+
+    async def chat(
+        self,
+        messages: list[dict],
+        *,
+        tools: list[dict] | None = None,
+        max_tokens: int | None = None,
+    ) -> ChatResponse:
+        """Return the assistant turn; executing any requested tool is the caller's job.
+
+        ``max_tokens`` lets the caller scale the output budget for a deeper answer
+        without the provider having to know about depth itself.
+        """
+        ...
 
 
 @runtime_checkable

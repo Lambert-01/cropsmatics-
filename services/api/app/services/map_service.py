@@ -41,6 +41,8 @@ release that does carry the missing component.
 
 from __future__ import annotations
 
+from dataclasses import replace as dc_replace
+
 import numpy as np
 import pandas as pd
 
@@ -57,6 +59,7 @@ from app.services.analytics_service import (
     period_of,
     priority_frame,
     productivity_frame,
+    resolved_period,
 )
 
 METRICS = {
@@ -142,6 +145,34 @@ def _single_release_message(metric: str, f: AnalyticsFilters, available: str | N
     )
 
 
+def effective_period_filters(f: AnalyticsFilters, metric: str) -> AnalyticsFilters:
+    """Pin a map request to the release the requested layer actually reads.
+
+    Only used when no release was selected. A period-aware layer then reads the
+    latest published district release; a single-release layer reads the release
+    that carries it. Both are named in the response, so the map can state the one
+    period it depicts.
+
+    Leaving this to "whichever table is the default" is how a 2025B adoption
+    layer ended up on a page whose KPIs described 2026B - and how, once the
+    default moved to the latest release, a 2025B-only layer would instead have
+    rendered thirty empty districts under a 2026B label.
+
+    An explicitly selected release is never overridden here: a layer that does
+    not cover it returns its explanation plus ``available_period`` instead of
+    silently substituting another release.
+    """
+    if f.period_key() or f.year:
+        return f
+    if metric in SINGLE_RELEASE_METRICS:
+        target = reference_period()
+    else:
+        target = resolved_period(f)
+    if not target:
+        return f
+    return dc_replace(f, period_code=target, year=None, season=None)
+
+
 def priority_component_availability(frame: pd.DataFrame) -> tuple[list[str], list[dict]]:
     """Availability of the priority components for the frame about to be scored.
 
@@ -206,9 +237,10 @@ def district_metrics(
             available_period=reference,
         )
 
-    # The canonical panel answers the published periods; 2025 Season B (and an
-    # unset period) keep reading the legacy joined table.
-    frame = apply_filters(productivity_frame(f), f)
+    # Each layer is read from the release that actually carries it, so the map
+    # never colours one period's districts under another period's label.
+    effective = effective_period_filters(f, metric)
+    frame = apply_filters(productivity_frame(effective), effective)
 
     unavailable: list[str] = []
     availability: list[dict] = []
@@ -217,18 +249,18 @@ def district_metrics(
         # another release; the response says which ones and where they do exist.
         unavailable, availability = priority_component_availability(frame)
 
-    g = gapped(frame, f.benchmark_strategy)
+    g = gapped(frame, effective.benchmark_strategy)
     if g.empty:
         return _empty(
             metric,
-            f,
+            effective,
             "No verified district observations for this selection.",
             available_period=reference if dataset else None,
             components_unavailable=unavailable,
         )
 
     # Priority score needs the full component frame (normalized across districts).
-    prio = priority_frame(frame, f.benchmark_strategy, weights=weights)
+    prio = priority_frame(frame, effective.benchmark_strategy, weights=weights)
     prio_by_district = (
         prio.groupby("district")["priority_score"].mean().to_dict() if not prio.empty else {}
     )
@@ -243,7 +275,7 @@ def district_metrics(
     if factors:
         g["_input_adoption"] = g[factors].mean(axis=1)
 
-    period_code = frame_period_code(g) or f.period_code
+    period_code = frame_period_code(g) or effective.period_code
     period = period_service.label(period_code) if period_code else period_of(g)
 
     # A raw yield may only be reported for one named crop. Without a crop the

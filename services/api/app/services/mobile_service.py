@@ -769,7 +769,9 @@ def home() -> dict:
         "summary_cards": cards,
         "featured_topics": topics,
         "suggested_questions": questions,
-        "coverage_notes": list(meta_service.COVERAGE_NOTES),
+        # Coverage notes are derived from the period catalogue on demand, so the
+        # mobile home can never describe a different calendar than the data.
+        "coverage_notes": meta_service.coverage_notes(),
         "data_version": data_version,
         "generated_at": datetime.now(UTC).isoformat(),
         "provenance": {

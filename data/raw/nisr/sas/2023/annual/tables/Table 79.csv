@@ -1,0 +1,10 @@
+﻿,Table 79:,Sampling Errors for major crops at the national level from SAS 2022/23 Season C data,,,,,,
+,,,,,,,,
+,,,,,,,,
+,Crop name,Estimate,SE,CV,95% Confidence Interval,,DEFF,No. observations (plots)
+,,,,,Lower,Upper,,
+,Bush bean,3476,238.9,0.069,3005,3946,0.004,744
+,Irish potato,10540,1081.6,0.103,8410,12670,1.288,947
+,Sweet potato,4235,270.2,0.064,3703,4767,0.194,1176
+,Soybean,759,171.5,0.226,422,1097,0.067,133
+,Vegetables,5131,413.2,0.081,4318,5945,0.234,2797

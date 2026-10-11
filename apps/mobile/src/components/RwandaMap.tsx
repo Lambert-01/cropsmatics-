@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 
-import { colors } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 type Ring = number[][];
 
@@ -104,6 +104,7 @@ export function RwandaMap({
   selected?: string | null;
   onSelect?: (code: string, name: string) => void;
 }) {
+  const { colors } = useTheme();
   const projected = useMemo(() => buildProjected(width, height), [width, height]);
 
   return (

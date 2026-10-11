@@ -34,6 +34,10 @@ export const colors = {
   slate: "#334155",
   muted: "#64748B",
 
+  // Tinted surfaces for semantic badges
+  positiveSoft: "#E7F7EF",
+  negativeSoft: "#FEECEC",
+
   // Data-surface neutrals. A analytical interface separates sections with thin
   // rules rather than lifting every block onto its own card.
   hairline: "#E4EBE7",
@@ -45,6 +49,8 @@ export const colors = {
   // Surfaces
   border: "#DDE7E2",
   surface: "#FFFFFF",
+  /** A surface raised above `surface` (sheets, selected rows, popovers). */
+  elevated: "#FFFFFF",
   background: "#F7FAF8",
   white: "#FFFFFF",
 
@@ -53,6 +59,102 @@ export const colors = {
   riskModerate: "#D97706",
   riskHigh: "#DC2626",
 };
+
+/**
+ * Dark palette. Same token names as `colors`, so a component that reads from
+ * `useTheme()` renders identically in either scheme.
+ *
+ * Near-black surfaces carry a faint green cast to stay on-brand; brand text
+ * becomes light mint, while `primary` stays a saturated green so solid primary
+ * buttons keep white text legible.
+ */
+export const darkColors: typeof colors = {
+  ...colors,
+  // Brand
+  forestDeep: "#ECFDF5",
+  forest: "#D1FAE5",
+  primary: "#0E9F6E",
+  primaryStrong: "#10B981",
+  primaryDark: "#10B981",
+  brandGreen: "#0E9F6E",
+  mint: "#12312A",
+  mintLight: "#0F241E",
+  mintSoft: "#12261F",
+  tint: "#12261F",
+  overlayTint: "rgba(255,255,255,0.06)",
+
+  // Semantic
+  blue: "#60A5FA",
+  blueSoft: "#12263A",
+  info: "#60A5FA",
+  amber: "#FBBF24",
+  amberSoft: "#3A2E10",
+  danger: "#F87171",
+  dangerSoft: "#3A1A1A",
+  success: "#34D399",
+
+  // Neutrals
+  slate900: "#F1F5F9",
+  slate700: "#CBD5E1",
+  slate500: "#94A3B8",
+  slate: "#CBD5E1",
+  muted: "#94A3B8",
+  slate300: "#3A4A44",
+
+  // Data-surface neutrals
+  hairline: "#1F332C",
+  grid: "#1B2A25",
+  axis: "#7C8F87",
+  missing: "#3A4A44",
+
+  // Tinted surfaces for semantic badges
+  positiveSoft: "#12312A",
+  negativeSoft: "#3A1A1A",
+
+  // Surfaces
+  border: "#243A33",
+  surface: "#111C18",
+  /** A surface raised above `surface` (sheets, selected rows, popovers). */
+  elevated: "#16251F",
+  background: "#07140F",
+
+  // Risk bands (icon + text + colour — never colour alone)
+  riskLow: "#34D399",
+  riskModerate: "#FBBF24",
+  riskHigh: "#F87171",
+};
+
+export type Palette = typeof colors;
+export const palettes: Record<"light" | "dark", Palette> = {
+  light: colors,
+  dark: darkColors,
+};
+
+/**
+ * The appearance an explicit toggle should switch to, given the resolved mode.
+ *
+ * Kept here (pure, no React Native import) so the one-tap header toggle's
+ * decision is testable without mounting a component. Tapping always yields an
+ * explicit ``light`` or ``dark`` - never ``system`` - because the tap is a direct
+ * instruction about how the app should look now, and ``system`` would ignore it
+ * on a device whose OS setting disagrees.
+ */
+export function toggledAppearance(mode: "light" | "dark"): "light" | "dark" {
+  return mode === "dark" ? "light" : "dark";
+}
+
+/**
+ * Hero scrim over the Rwanda landscape.
+ *
+ * A two-stop forest-green overlay: light at the top so the image reads, dark at
+ * the bottom so white hero copy stays legible. Kept here so mobile and web tune
+ * the same artwork the same way.
+ */
+export const heroScrim = {
+  top: "rgba(3,32,25,0.18)",
+  middle: "rgba(3,32,25,0.55)",
+  bottom: "rgba(3,32,25,0.90)",
+} as const;
 
 /**
  * Categorical series palette, in assignment order.
@@ -110,45 +212,143 @@ export const radius = {
   sm: 6,
   md: 10,
   lg: 16,
+  xl: 24,
+  xxl: 32,
   pill: 999,
 };
 
-export const typography = {
-  display: { fontSize: 28, fontWeight: "700" as const, color: colors.forestDeep },
-  h1: { fontSize: 24, fontWeight: "700" as const, color: colors.forestDeep },
-  h2: { fontSize: 18, fontWeight: "700" as const, color: colors.forest },
-  h3: { fontSize: 16, fontWeight: "600" as const, color: colors.forest },
-  body: { fontSize: 15, color: colors.slate },
-  bodySmall: { fontSize: 14, color: colors.slate },
-  caption: { fontSize: 13, color: colors.muted },
-  micro: { fontSize: 12, color: colors.muted },
-  metric: { fontSize: 22, fontWeight: "700" as const, color: colors.forestDeep },
-  label: { fontSize: 13, fontWeight: "600" as const, color: colors.slate700 },
+/**
+ * Gradient stops, in draw order, ready for `LinearGradient.colors`.
+ *
+ * Named rather than inline so the same artwork reads identically everywhere it
+ * appears. Stops are literal `rgba()` strings: `expo-linear-gradient` accepts
+ * only a colour array, and interpolating between opaque hexes would produce a
+ * muddy midpoint instead of a scrim that fades to nothing.
+ */
+export const gradient = {
+  /** Full-bleed scrim over photography — transparent at the top, near-solid at the foot. */
+  hero: ["rgba(3,32,25,0.04)", "rgba(3,32,25,0.42)", "rgba(3,32,25,0.94)"],
+  /** Short scrim for a band that only carries a headline and one row of stats. */
+  heroCompact: ["rgba(3,32,25,0.10)", "rgba(3,32,25,0.88)"],
+  /** Brand wash for solid chrome and call-to-action fills. */
+  brand: ["#0FA374", "#087F5B", "#04543B"],
+  /** Cool counterpart so a paired accent does not read as "the same green twice". */
+  accent: ["#3B82F6", "#2563EB", "#1D4ED8"],
+  /** Warm accent for highlights and opportunity callouts. */
+  sun: ["#FBBF24", "#D97706", "#B45309"],
+  /** Tinted panel that lifts off the page without a hard edge. */
+  mint: ["#FFFFFF", "#EFFAF5", "#DDF5EB"],
+} as const;
+
+/**
+ * Frosted-panel surfaces.
+ *
+ * React Native has no backdrop blur, so "glass" here means the honest version:
+ * a translucent white plate with a brighter hairline that catches light along
+ * its top edge, sitting over photography or a gradient. `overPhoto` is tuned for
+ * dark imagery (white ink); `onPage` for the light page (dark ink).
+ */
+export const glass = {
+  overPhoto: {
+    fill: "rgba(255,255,255,0.16)",
+    border: "rgba(255,255,255,0.30)",
+    edge: "rgba(255,255,255,0.45)",
+    ink: "#FFFFFF",
+    inkMuted: "rgba(255,255,255,0.80)",
+    chip: "rgba(255,255,255,0.20)",
+  },
+  onPage: {
+    fill: "rgba(255,255,255,0.88)",
+    border: "rgba(255,255,255,0.95)",
+    edge: "rgba(3,32,25,0.05)",
+    ink: "#032D23",
+    inkMuted: "rgba(3,45,35,0.66)",
+    chip: "rgba(255,255,255,0.72)",
+  },
+} as const;
+
+/**
+ * The "Larger text" step.
+ *
+ * Settings exposes a larger-text preference (see `useAppStore.settings`). A
+ * comfortable reading step is 1.18 — big enough to be obviously different,
+ * small enough that the densest surface in the app (a 2x2 KPI grid on a 320px
+ * screen) still fits without reflowing.
+ *
+ * Deliberately NOT a screen `transform: scale()`. Scaling the whole view scales
+ * hit targets, hairline borders and chart geometry too, so a control that met
+ * the 44pt touch minimum stops looking like it does and a 1px rule smears. Only
+ * type grows here; spacing, radii and chart metrics stay put.
+ */
+export const LARGE_TEXT_SCALE = 1.18;
+
+/**
+ * Typography for a palette, optionally scaled.
+ *
+ * Colours are baked into the text styles, so typography is a function of the
+ * active palette rather than a constant: in dark mode every text style must
+ * resolve to the dark foreground, and a frozen object would keep light ink on a
+ * near-black surface. Components read it from `useTheme().typography`.
+ *
+ * `scale` multiplies every size. Spacing is intentionally untouched — a label
+ * that grows while its container keeps its padding is a legible label; a label
+ * that grows *and* pushes its container apart breaks the grid.
+ */
+export function makeTypography(colors: Palette, scale = 1) {
+  /** Rounded so half-pixels never reach the text renderer on Android. */
+  const size = (value: number) => Math.round(value * scale);
+
+  return {
+  /**
+   * The active multiplier.
+   *
+   * Exposed so a screen with a deliberately bespoke size can opt in
+   * (`Math.round(22 * typography.scale)`) instead of holding a literal that
+   * silently ignores the preference.
+   */
+  scale,
+  display: { fontSize: size(28), fontWeight: "700" as const, color: colors.forestDeep },
+  h1: { fontSize: size(24), fontWeight: "700" as const, color: colors.forestDeep },
+  h2: { fontSize: size(18), fontWeight: "700" as const, color: colors.forest },
+  h3: { fontSize: size(16), fontWeight: "600" as const, color: colors.forest },
+  body: { fontSize: size(15), color: colors.slate },
+  bodySmall: { fontSize: size(14), color: colors.slate },
+  caption: { fontSize: size(13), color: colors.muted },
+  micro: { fontSize: size(12), color: colors.muted },
+  metric: { fontSize: size(22), fontWeight: "700" as const, color: colors.forestDeep },
+  label: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate700 },
 
   // ---- Numeric hierarchy ---------------------------------------------------
   // Tabular figures keep columns of numbers aligned and stop a value from
   // reflowing while the user drags a chart crosshair.
   numericLarge: {
-    fontSize: 30,
+    fontSize: size(30),
+    fontWeight: "700" as const,
+    color: colors.forestDeep,
+    fontVariant: ["tabular-nums"] as ["tabular-nums"],
+  },
+  /** The figure that heads a KPI card: a step below `numericLarge`. */
+  numericCard: {
+    fontSize: size(24),
     fontWeight: "700" as const,
     color: colors.forestDeep,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numeric: {
-    fontSize: 17,
+    fontSize: size(17),
     fontWeight: "700" as const,
     color: colors.forestDeep,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numericSmall: {
-    fontSize: 13,
+    fontSize: size(13),
     fontWeight: "600" as const,
     color: colors.slate700,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
-  unit: { fontSize: 13, fontWeight: "600" as const, color: colors.slate500 },
+  unit: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate500 },
   axisLabel: {
-    fontSize: 10,
+    fontSize: size(10),
     color: colors.slate500,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
@@ -160,12 +360,18 @@ export const typography = {
    * label that has to line up with a figure below it.
    */
   microCaps: {
-    fontSize: 10,
+    fontSize: size(10),
     fontWeight: "700" as const,
     color: colors.slate500,
     letterSpacing: 0,
   },
-};
+  };
+}
+
+export type Typography = ReturnType<typeof makeTypography>;
+
+/** Light-mode typography, for non-React modules only. Components use `useTheme()`. */
+export const typography: Typography = makeTypography(colors);
 
 export const shadow = {
   card: {
@@ -189,6 +395,22 @@ export const shadow = {
     shadowRadius: 18,
     shadowOffset: { width: 0, height: -3 },
     elevation: 12,
+  },
+  /** Deep, soft lift for a hero-scale card floating over imagery. */
+  floating: {
+    shadowColor: "#032D23",
+    shadowOpacity: 0.24,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 10,
+  },
+  /** Brand-coloured bloom, for a solid primary control. */
+  glow: {
+    shadowColor: "#087F5B",
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
   /** No lift — flat analytical sections. */
   none: {

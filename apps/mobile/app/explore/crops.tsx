@@ -12,7 +12,9 @@ import { useSavedCrops } from "../../src/hooks/useSavedCrops";
 import { strings } from "../../src/i18n";
 import type { NationalBoardCrop } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { computeMovers } from "../../src/utils/movers";
 import { slugifyEntity } from "../../src/utils/slug";
 
@@ -23,6 +25,8 @@ const PULSE_METRIC: BoardMetric = "production_mt";
 const MOVERS = 3;
 
 export default function CropsScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [query, setQuery] = useState("");
@@ -223,7 +227,8 @@ export default function CropsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   chips: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
   scopeRow: { flexDirection: "row", gap: spacing.sm },
   star: { width: 34, minHeight: 44, alignItems: "center", justifyContent: "center" },

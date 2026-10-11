@@ -34,6 +34,20 @@ def _period_crop_district(routed: RoutedRequest) -> dict | None:
     }
 
 
+def _trend(routed: RoutedRequest) -> dict | None:
+    """`get_crop_trend` spans every published period, so it takes no period argument.
+
+    Forwarding the routed period here was an invented parameter: `TrendParams`
+    declares only ``crop``, ``district`` and ``season``, and its strict schema
+    refuses unknown keys, so *every* planned trend retrieval failed validation and
+    its evidence was dropped. The trend intent therefore retrieved nothing at all.
+    Only the arguments the tool actually declares are passed on.
+    """
+    if not routed.crop:
+        return None
+    return {"crop": routed.crop, "district": routed.district}
+
+
 def _period_crop_rank(routed: RoutedRequest) -> dict | None:
     if not routed.crop:
         return None
@@ -58,6 +72,37 @@ def _indicators(routed: RoutedRequest) -> dict | None:
     return {"indicator_ids": routed.indicator_ids} if routed.indicator_ids else None
 
 
+def _crops(routed: RoutedRequest) -> dict | None:
+    crops = [crop for crop in (routed.crops or ([routed.crop] if routed.crop else [])) if crop]
+    if len(crops) < 2:
+        return None
+    return {"crops": crops[:4], "period_code": routed.requested_period}
+
+
+def _period_change(routed: RoutedRequest) -> dict | None:
+    if not routed.crop:
+        return None
+    return {
+        "crop": routed.crop,
+        "period_code": routed.requested_period,
+        "district": routed.district,
+    }
+
+
+def _factor(routed: RoutedRequest) -> dict | None:
+    if not routed.crop:
+        return None
+    return {"crop": routed.crop, "district": routed.district}
+
+
+def _optional_indicators(routed: RoutedRequest) -> dict:
+    return {"indicator_ids": routed.indicator_ids or None}
+
+
+def _knowledge(routed: RoutedRequest) -> dict:
+    return {"query": routed.question, "limit": 4}
+
+
 def _no_params(routed: RoutedRequest) -> dict:
     return {}
 
@@ -67,11 +112,17 @@ HANDLERS: dict[str, callable] = {
     "get_yield_gap": _period_crop_district,
     "get_district_ranking": _period_crop_rank,
     "get_yield_distribution": _period_crop,
-    "get_crop_trend": _period_crop_district,
+    "get_crop_trend": _trend,
     "get_crop_context": _period_crop,
     "get_district_context": _district,
     "get_postharvest_profile": _crop,
     "get_national_indicator": _indicators,
     "get_source_metadata": _no_params,
     "get_model_metadata": _no_params,
+    "get_crop_comparison": _crops,
+    "get_period_change": _period_change,
+    "get_factor_associations": _factor,
+    "get_data_coverage": _no_params,
+    "get_indicator_definitions": _optional_indicators,
+    "search_knowledge_base": _knowledge,
 }

@@ -4,8 +4,11 @@ import {
   DEFAULT_BENCHMARK,
   filtersToApiQuery,
   filtersToQuery,
+  isHistoryScope,
   mergeFilters,
   parseFilters,
+  parseView,
+  scopeSummaryText,
   splitPeriod,
 } from "@/lib/filters";
 
@@ -100,5 +103,79 @@ describe("canonical period handling", () => {
     expect(params.get("period_code")).toBeNull();
     expect(params.get("year")).toBe("2024");
     expect(params.get("season")).toBe("C");
+  });
+});
+
+describe("explicit all-published-periods scope", () => {
+  it("parses view from the URL and ignores anything unrecognised", () => {
+    expect(parseFilters(new URLSearchParams("view=history")).view).toBe("history");
+    expect(parseFilters(new URLSearchParams("view=period")).view).toBe("period");
+    expect(parseView("nonsense")).toBeUndefined();
+    expect(parseView(null)).toBeUndefined();
+  });
+
+  it("writes view=history into the URL so the scope survives a reload", () => {
+    // Without this, a stored default period would re-apply on the next render
+    // and the page would come back on a different scope than it was reset to.
+    const params = new URLSearchParams(filtersToQuery({ view: "history", crop: "Maize" }));
+    expect(params.get("view")).toBe("history");
+    expect(params.get("crop")).toBe("Maize");
+    expect(params.get("period")).toBeNull();
+  });
+
+  it("keeps a period link free of a redundant view parameter", () => {
+    const params = new URLSearchParams(filtersToQuery({ view: "period", period: "2026B" }));
+    expect(params.get("period")).toBe("2026B");
+    expect(params.get("view")).toBeNull();
+  });
+
+  it("sends no period at all in the history scope", () => {
+    // The API answers "all published periods" with its own history response.
+    // Sending a period here would silently turn the view back into one release.
+    const params = new URLSearchParams(
+      filtersToApiQuery({ view: "history", period: "2025B", year: 2025, season: "B", crop: "Maize" }),
+    );
+    expect(params.get("period_code")).toBeNull();
+    expect(params.get("year")).toBeNull();
+    expect(params.get("season")).toBeNull();
+    // The dimensions the history view does understand are still sent.
+    expect(params.get("crop")).toBe("Maize");
+    expect(params.get("benchmark_strategy")).toBe(DEFAULT_BENCHMARK);
+  });
+
+  it("still sends the period in the period scope", () => {
+    const params = new URLSearchParams(
+      filtersToApiQuery({ view: "period", period: "2026B", crop: "Maize" }),
+    );
+    expect(params.get("period_code")).toBe("2026B");
+    expect(params.get("year")).toBe("2026");
+    expect(params.get("season")).toBe("B");
+  });
+
+  it("recognises the history scope", () => {
+    expect(isHistoryScope({ view: "history" })).toBe(true);
+    expect(isHistoryScope({ view: "period", period: "2026B" })).toBe(false);
+    // A hand-built filter with no resolved scope keeps the legacy behaviour.
+    expect(isHistoryScope({ period: "2026B" })).toBe(false);
+  });
+});
+
+describe("scopeSummaryText", () => {
+  it("names the selected release in the period scope", () => {
+    expect(scopeSummaryText({ view: "period", periodLabel: "2026 Season B" })).toBe(
+      "2026 Season B",
+    );
+  });
+
+  it("never calls a one-release snapshot the whole published axis", () => {
+    // The string that used to read "All periods" while the numbers came from a
+    // single release. It now names that release.
+    expect(
+      scopeSummaryText({ view: "history", snapshotLabel: "2026 Season B" }),
+    ).toBe("All published periods · snapshot 2026 Season B");
+  });
+
+  it("says all published periods when no snapshot is known", () => {
+    expect(scopeSummaryText({ view: "history" })).toBe("All published periods");
   });
 });

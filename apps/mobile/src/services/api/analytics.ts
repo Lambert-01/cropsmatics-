@@ -4,6 +4,7 @@ import type {
   NationalBoardResponse,
   PeriodProductivityResponse,
   PeriodTrendResponse,
+  PostHarvestResponse,
   TrendResponse,
 } from "../../types";
 import { qs, request } from "./client";
@@ -43,7 +44,7 @@ export const analyticsApi = {
       })}`,
     ),
   postHarvest: (params?: { crop?: string }) =>
-    request<Record<string, unknown>>(`/analytics/post-harvest${qs({ crop: params?.crop })}`),
+    request<PostHarvestResponse>(`/analytics/post-harvest${qs({ crop: params?.crop })}`),
   /**
    * National crop trends. The backend accepts only ``crop`` and ``compare``;
    * district time series belong to ``/productivity/trend`` instead. Keeping the

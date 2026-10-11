@@ -86,6 +86,10 @@ class EvidenceBundle(BaseModel):
     missing_data: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     tools_used: list[str] = Field(default_factory=list)
+    #: Explanatory documents retrieved for this question (RAG). Kept separate
+    #: from ``items`` on purpose: a document explains *how*, it never supplies a
+    #: numerical observation, so its text is not part of the numeric allow-list.
+    retrieved: list[dict] = Field(default_factory=list)
 
     @property
     def grounded(self) -> bool:
@@ -118,6 +122,25 @@ class EvidenceBundle(BaseModel):
         allowed.add(float(len(self.sources)))
         allowed.add(float(len(self.tools_used)))
         return allowed
+
+    def add_items(self, items: list[EvidenceItem]) -> int:
+        """Merge retrieved items, keeping the first for each evidence id.
+
+        Returns how many were genuinely new. Used by the agent loop, where the
+        same tool may be called more than once: re-adding a value must not
+        duplicate it or inflate the numeric allowlist.
+        """
+        known = self.evidence_ids()
+        added = 0
+        for item in items:
+            if item.evidence_id in known:
+                continue
+            known.add(item.evidence_id)
+            self.items.append(item)
+            added += 1
+        if added:
+            self.sources = sorted({i.source_id for i in self.items if i.source_id})
+        return added
 
     def serialisable(self) -> dict:
         return self.model_dump(mode="json")

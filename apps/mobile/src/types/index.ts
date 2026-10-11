@@ -216,6 +216,32 @@ export interface PeriodsResponse {
   notes: string[];
 }
 
+/**
+ * One district x crop row of the canonical productivity panel.
+ *
+ * The fields mirror the backend's ``_ROW_COLUMNS`` exactly. Every amount is
+ * nullable because a blank official cell stays null instead of becoming 0.
+ */
+export interface PeriodProductivityRow {
+  period_code?: string | null;
+  year?: number | null;
+  season?: string | null;
+  geography_level?: string | null;
+  district?: string | null;
+  district_code?: string | null;
+  province?: string | null;
+  agro_ecological_zone?: string | null;
+  farmer_scale?: string | null;
+  crop_code?: string | null;
+  canonical_crop_name?: string | null;
+  cultivated_area_ha?: number | null;
+  harvested_area_ha?: number | null;
+  production_mt?: number | null;
+  yield_kg_ha?: number | null;
+  source_id?: string | null;
+  source_sheets?: string | null;
+}
+
 /** One period of the canonical multi-period productivity panel. */
 export interface PeriodProductivityResponse {
   period_code: string;
@@ -226,7 +252,7 @@ export interface PeriodProductivityResponse {
   n_districts: number;
   n_crops: number;
   available_periods: string[];
-  rows: Record<string, string | number | null>[];
+  rows: PeriodProductivityRow[];
   provenance: Provenance;
 }
 
@@ -428,12 +454,63 @@ export interface NationalBoardResponse {
 export interface AskQuery {
   question: string;
   language?: string;
+  /** Joins a multi-turn conversation so a follow-up can inherit its entities. */
+  conversation_id?: string;
+  depth?: "quick" | "standard" | "deep";
+  audience?: "farmer" | "planner" | "analyst";
 }
 
 export interface KeyFigure {
   label: string;
-  value: number;
+  value: number | string;
   unit?: string | null;
+  period_code?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  source_id?: string | null;
+}
+
+/** One figure with the provenance the backend attaches to every value. */
+export interface AskFigure {
+  label: string;
+  value: number | string;
+  unit?: string | null;
+  period_code?: string | null;
+  district?: string | null;
+  crop?: string | null;
+  source_id?: string | null;
+}
+
+export interface AskSource {
+  source_id: string;
+  name?: string | null;
+  period?: string | null;
+}
+
+/**
+ * The structured response contract the backend returns under `structured`.
+ *
+ * Rendering this instead of parsing the prose means a figure is shown with the
+ * period, unit and source the API published it under, and the follow-up prompts
+ * are ones the platform can actually ground.
+ */
+export interface AskStructuredAnswer {
+  answer_id?: string;
+  intent: string;
+  title?: string;
+  summary?: string;
+  language?: string;
+  depth?: string;
+  audience?: string;
+  key_findings?: string[];
+  figures?: AskFigure[];
+  interpretation?: string[];
+  limitations?: string[];
+  methodology?: string[];
+  sources?: AskSource[];
+  suggested_followups?: string[];
+  actions?: { type: string; label: string; crop?: string | null; district?: string | null }[];
+  warnings?: string[];
 }
 
 export interface AskAnswer {
@@ -448,6 +525,15 @@ export interface AskAnswer {
   period: string | null;
   coverage: string | null;
   limitations: string[];
+  /** Additive engine metadata; older responses may omit it. */
+  structured?: AskStructuredAnswer;
+  conversation_id?: string | null;
+  answer_mode?: "deterministic" | "llm";
+  warnings?: string[];
+  citations?: string[];
+  evidence_count?: number;
+  tools_used?: string[];
+  resolved_context?: Record<string, unknown>;
 }
 
 export interface AskHistoryItem {

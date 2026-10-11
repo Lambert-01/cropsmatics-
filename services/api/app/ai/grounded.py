@@ -14,12 +14,16 @@ from __future__ import annotations
 
 import pandas as pd
 
+from app.ai import knowledge_base
 from app.ai.schemas import RoutedRequest
 from app.analytics.productivity_gap import compute_gaps
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import (
+    analytics_service,
+    meta_service,
     mobile_service,
+    national_board_service,
     period_service,
     postharvest_service,
     productivity_service,
@@ -549,6 +553,502 @@ def national_indicator(indicator_ids: list[str]) -> GroundedAnswer:
     )
 
 
+def _national_values(
+    crop: str, period_code: str | None
+) -> tuple[dict, str | None, str | None] | None:
+    """Published national values for a crop, in a named period or the latest."""
+    if period_code:
+        try:
+            result = productivity_service.crop_trend(crop=crop)
+        except Exception:
+            return None
+        if result.get("missing"):
+            return None
+        point = next(
+            (p for p in result.get("points", []) if p["period_code"] == period_code), None
+        )
+        if point is None:
+            return None
+        return point.get("values") or {}, period_code, result.get("source_id")
+
+    try:
+        points = trend_service.crop_trends(crop).get("points") or []
+    except Exception:
+        return None
+    if not points:
+        return None
+    latest = points[-1]
+    return (
+        latest.get("values") or {},
+        str(latest.get("period") or "") or None,
+        "NISR_SAS_2024_2026_NATIONAL_TRENDS",
+    )
+
+
+def crop_comparison(
+    crops: list[str], period_code: str | None = None
+) -> GroundedAnswer:
+    """Published national totals for two to four crops, side by side.
+
+    Yield is deliberately not compared across crops: maize, beans, cassava and
+    banana have different natural yield scales, so a cross-crop yield comparison
+    would be misleading. Production and harvested area are comparable.
+    """
+    selected = [crop for crop in crops if crop][:4]
+    segments: list[str] = []
+    values_out: dict = {}
+    resolved: str | None = None
+    source: str | None = None
+
+    for crop in selected:
+        got = _national_values(crop, period_code)
+        if not got:
+            continue
+        values, period, source_id = got
+        resolved = resolved or period
+        source = source or source_id
+        production = values.get("production_mt")
+        area = values.get("harvested_area_ha")
+        if production is None and area is None:
+            continue
+        segment = f"{crop}: {production:,.0f} metric tonnes" if production is not None else f"{crop}: production not published"
+        if area is not None:
+            segment += f" on {area:,.0f} ha"
+        segments.append(segment)
+        values_out[crop] = {"production_mt": production, "harvested_area_ha": area}
+
+    if len(segments) < 2:
+        return _unsupported("crop_comparison", crops=selected)
+
+    label = period_service.label(resolved) if resolved else "the latest period"
+    answer = (
+        f"In {label}, the published national figures are "
+        + _list_phrase(segments)
+        + ". These are published national totals placed side by side. Yield is not "
+        "compared across crops here, because different crops have different natural "
+        "yield scales."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="crop_comparison",
+        evidence={
+            "crops": list(values_out),
+            "period_code": resolved,
+            "values": values_out,
+            "coverage_level": "national",
+        },
+        source=source,
+        period=resolved,
+        coverage="national",
+        limitations=_limitations(
+            "published national totals; a comparison is not a claim about relative efficiency",
+            "yield is crop-specific, so it is never used as a cross-crop comparison",
+        ),
+    )
+
+
+def period_comparison(
+    crop: str, period_code: str | None = None, district: str | None = None
+) -> GroundedAnswer:
+    """Same-season, previous-year change for one crop's national series."""
+    if district:
+        return _unsupported("period_comparison", crop=crop, district=district)
+    try:
+        result = national_board_service.board([crop])
+    except Exception:
+        return _unsupported("period_comparison", crop=crop)
+
+    row = next(
+        (item for item in result.get("crops", []) if str(item.get("crop", "")).lower() == crop.lower()),
+        None,
+    )
+    if row is None:
+        return _unsupported("period_comparison", crop=crop)
+
+    axis: list[str] = list(result.get("periods", []))
+    if period_code and period_code in axis:
+        axis = axis[: axis.index(period_code) + 1]
+    units = result.get("metric_units", {})
+
+    changes = {}
+    for metric in ("production_mt", "yield_mt_ha"):
+        series = list((row.get("series") or {}).get(metric, []))[: len(axis)]
+        changes[metric] = national_board_service.same_season_change(series, axis, metric, units.get(metric))
+
+    sentences: list[str] = []
+    period_label: str | None = None
+    for metric, label, unit in (
+        ("production_mt", "production", "metric tonnes"),
+        ("yield_mt_ha", "yield", "t/ha"),
+    ):
+        change = changes[metric]
+        if not change.get("available"):
+            continue
+        period_label = period_label or change.get("period_code")
+        direction = "up" if change["change_pct"] >= 0 else "down"
+        sentences.append(
+            f"{label} was {change['current_value']:,.2f} {unit} in "
+            f"{period_service.label(change['period_code'])}, {direction} "
+            f"{abs(change['change_pct']):.1f}% from {change['previous_value']:,.2f} {unit} in "
+            f"{period_service.label(change['previous_period_code'])}"
+        )
+
+    if not sentences:
+        return _unsupported("period_comparison", crop=crop, period_code=period_code)
+
+    answer = (
+        f"For {crop}: "
+        + _list_phrase(sentences)
+        + ". This is a same-season year-on-year comparison; seasons are not "
+        "comparable in sequence because they differ agronomically."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="period_comparison",
+        evidence={
+            "crop": crop,
+            "period_code": period_label,
+            "changes": changes,
+            "coverage_level": "national",
+        },
+        source="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+        period=period_label,
+        coverage="national",
+        limitations=_limitations(
+            "same-season year-on-year comparison only; an A -> B step is not a time series",
+            "compared only when both observations are published; a missing baseline is never a 0% change",
+        ),
+    )
+
+
+def district_ranking(
+    crop: str, period_code: str | None = None, limit: int = 5
+) -> GroundedAnswer:
+    """Districts with the largest observed yield gap for one crop."""
+    filters = AnalyticsFilters(period_code=period_code, crop=crop)
+    try:
+        frame = apply_filters(productivity_frame(filters), filters)
+        gapped = compute_gaps(valid_yield(frame), strategy="national_crop_median")
+    except Exception:
+        return _unsupported("district_ranking", crop=crop, period_code=period_code)
+    if gapped.empty:
+        return _unsupported("district_ranking", crop=crop, period_code=period_code)
+
+    ranked = gapped.dropna(subset=["gap_index"]).sort_values("gap_index", ascending=False).head(limit)
+    if ranked.empty:
+        return _unsupported("district_ranking", crop=crop, period_code=period_code)
+
+    resolved = frame_period_code(ranked) or period_code
+    label = period_service.label(resolved) if resolved else "the latest period"
+    entries = [f"{row['district']} (gap index {row['gap_index']:.1f})" for _, row in ranked.iterrows()]
+    answer = (
+        f"For {crop} in {label}, the largest observed productivity gaps are in "
+        + _list_phrase(entries)
+        + ". A higher gap index means observed yield sits further below the national "
+        f"{crop} median, which is an association with local conditions and practices, "
+        "not proof that any single change would close the gap."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="district_ranking",
+        evidence={
+            "crop": crop,
+            "period_code": resolved,
+            "ranking": [
+                {"district": str(row["district"]), "gap_index": round(float(row["gap_index"]), 2)}
+                for _, row in ranked.iterrows()
+            ],
+        },
+        source=frame_source_id(ranked) or "NISR_SAS_2025B_DISTRICT_CROP",
+        period=resolved,
+        coverage="district",
+        limitations=_limitations(
+            "gap index is relative to the national crop median for this period",
+            "associations only; the ranking is not a causal or investment recommendation",
+        ),
+    )
+
+
+def crop_trend(crop: str, district: str | None = None, period_code: str | None = None) -> GroundedAnswer:
+    """One crop across every published period."""
+    try:
+        result = productivity_service.crop_trend(crop=crop, district=district)
+    except Exception:
+        return _unsupported("crop_trend", crop=crop, district=district)
+    if result.get("missing"):
+        return _unsupported("crop_trend", crop=crop, district=district)
+
+    points = [p for p in result.get("points", []) if (p.get("values") or {}).get("yield_kg_ha") is not None]
+    if not points:
+        return _unsupported("crop_trend", crop=crop, district=district)
+
+    codes = [str(p["period_code"]) for p in points]
+    latest = points[-1]
+    answer = (
+        f"{crop}" + (f" in {district}" if district else "") + " has published observations in "
+        + _list_phrase(codes)
+        + f". The latest, {period_service.label(codes[-1])}, reports a yield of "
+        f"{latest['values']['yield_kg_ha']:,.0f} kg/ha. Seasons differ agronomically, "
+        "so the periods are shown in sequence but not as a like-for-like time series."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="crop_trend",
+        evidence={
+            "crop": crop,
+            "district": district,
+            "periods": codes,
+            "latest_period": codes[-1],
+            "latest_yield_kg_ha": latest["values"]["yield_kg_ha"],
+            "coverage_level": "district" if district else "national",
+        },
+        source=result.get("source_id") or "crop_productivity",
+        period=codes[-1],
+        coverage="district" if district else "national",
+        limitations=_limitations(
+            "seasonal periods are not a like-for-like time series",
+            "a missing period is absent rather than zero",
+        ),
+    )
+
+
+def practice_associations(crop: str, district: str | None = None) -> GroundedAnswer:
+    """Observed district practice associations with yield for one crop."""
+    try:
+        result = analytics_service.factor_associations(AnalyticsFilters(crop=crop, district=district))
+    except Exception:
+        return _unsupported("practice_associations", crop=crop, district=district)
+
+    factors = [f for f in result.get("factors", []) if f.get("correlation") is not None][:4]
+    if not factors:
+        return _unsupported("practice_associations", crop=crop, district=district)
+
+    parts = []
+    for factor in factors:
+        corr = float(factor["correlation"])
+        direction = "positive" if corr >= 0 else "negative"
+        parts.append(f"{factor.get('label')} (magnitude {abs(corr):.2f}, {direction})")
+    answer = (
+        f"Across published district observations, {crop} yield is associated with "
+        + _list_phrase(parts)
+        + ". These are observed associations, not causal effects: districts that adopt "
+        "more of a practice also tend to show a different yield, which is not evidence "
+        "that changing one factor alone would change the outcome."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="practice_associations",
+        evidence={
+            "crop": crop,
+            "district": district,
+            "factors": factors,
+            "coverage_level": "district",
+        },
+        source="NISR_SAS_2025B_DISTRICT_FACTORS",
+        period="2025B",
+        coverage="district",
+        limitations=_limitations(
+            "association, not causation",
+            "practice adoption is a share of farmers, not of area, from the 2025 Season B survey",
+            "small samples are indicative only",
+        ),
+    )
+
+
+def postharvest_analysis(crop: str) -> GroundedAnswer:
+    """National post-harvest use shares for one crop."""
+    try:
+        crops = postharvest_service.summary(crop=crop).get("crops") or []
+    except Exception:
+        return _unsupported("postharvest_analysis", crop=crop)
+    if not crops:
+        return _unsupported("postharvest_analysis", crop=crop)
+
+    row = crops[0]
+    shares = [
+        _share("sold", row.get("sold_pct")),
+        _share("kept for household consumption", row.get("own_consumption_pct")),
+        _share("stored", row.get("stored_pct")),
+        _share("reported as post-harvest loss", row.get("post_harvest_losses_pct")),
+    ]
+    phrase = _list_phrase([item for item in shares if item])
+    if not phrase:
+        return _unsupported("postharvest_analysis", crop=crop)
+
+    period = str(row.get("period") or "2025B")
+    answer = (
+        f"For {crop}, the national post-harvest use table records {phrase}. "
+        "These shares describe how the national crop output was used after harvest; "
+        "they are percentages of production and are not additive with one another "
+        "unless they sum to the full output."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="postharvest_analysis",
+        evidence={
+            "crop": crop,
+            "postharvest_use": {
+                key: row.get(key)
+                for key in (
+                    "sold_pct",
+                    "own_consumption_pct",
+                    "stored_pct",
+                    "post_harvest_losses_pct",
+                    "seeds_pct",
+                    "fodder_pct",
+                    "other_usage_pct",
+                )
+            },
+            "coverage_level": "national crop-level",
+        },
+        source="NISR_SAS_2025B_POSTHARVEST_USE",
+        period=period,
+        coverage="national crop-level",
+        limitations=_limitations(
+            "national crop-level shares; these tables carry no district dimension",
+            "post-harvest shares are a single 2025 Season B release",
+        ),
+    )
+
+
+def data_coverage() -> GroundedAnswer:
+    """Which periods the platform publishes, and at which coverage level."""
+    try:
+        catalog = period_service.catalog()
+    except Exception:
+        return _unsupported("data_coverage")
+    periods = catalog.get("periods", [])
+    if not periods:
+        return _unsupported("data_coverage")
+
+    codes = [str(entry["period_code"]) for entry in periods]
+    answer = (
+        f"Cropmatics currently publishes {len(codes)} periods, from "
+        f"{period_service.label(codes[0])} through {period_service.label(codes[-1])}. "
+        "District-level crop productivity rows exist for these periods; the district "
+        "input/practice, irrigation and erosion tables are a single 2025 Season B "
+        "release, and an unpublished season such as 2026C does not appear at all."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="data_coverage",
+        evidence={"periods": codes, "coverage_level": "period catalogue"},
+        source="period catalogue",
+        period=codes[-1],
+        coverage="period catalogue",
+        limitations=_limitations(
+            "only periods present in the processed tables are listed",
+            "a period with no district rows is reported as national-only",
+        ),
+    )
+
+
+def source_provenance(source_id: str | None = None) -> GroundedAnswer:
+    """Where Cropmatics' figures come from."""
+    try:
+        rows = meta_service.sources()
+    except Exception:
+        rows = []
+    datasets = [str(row.get("dataset")) for row in rows if row.get("dataset")]
+    if source_id:
+        datasets = [name for name in datasets if name == source_id]
+    if not datasets:
+        return _unsupported("source_provenance", source_id=source_id)
+
+    answer = (
+        "Cropmatics answers from registered sources: "
+        + _list_phrase(datasets[:8])
+        + ". Every figure carries the source id and the period it was published in, and "
+        "each answer exposes its evidence so a number can be traced to its origin. No "
+        "value in an answer is produced by a language model."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="source_provenance",
+        evidence={"sources": datasets[:8], "coverage_level": "source registry"},
+        source=datasets[0] if datasets else None,
+        coverage="source registry",
+        limitations=_limitations(
+            "registered sources only; a dataset not registered here is not served",
+        ),
+    )
+
+
+def methodology(indicator_ids: list[str] | None = None) -> GroundedAnswer:
+    """How indicators are defined and aggregated.
+
+    Answerable from the explanatory knowledge base as well as the indicator
+    catalogue, so a methodology question works before any database is loaded.
+    The prose is deliberately number-free: the figures, if any, come from the
+    definition evidence the tool retrieved, and an answer that needs none cannot
+    fabricate one.
+    """
+    try:
+        catalog = mobile_service.indicator_catalog()
+    except Exception:
+        catalog = []
+    available = [spec for spec in catalog if spec.get("available")]
+    if indicator_ids:
+        available = [spec for spec in available if spec.get("id") in set(indicator_ids)]
+
+    documents = []
+    try:
+        documents = [
+            doc
+            for doc, _ in knowledge_base.search(
+                "methodology indicator definition aggregation gap yield post-harvest", limit=3
+            )
+        ]
+    except Exception:
+        documents = []
+
+    if not available and not documents:
+        return _unsupported("methodology")
+
+    answer = (
+        "Cropmatics reports each indicator with its unit and its aggregation policy. "
+        "Yield is crop-specific and is never averaged across crops, because maize, "
+        "beans, cassava and banana have different natural yield scales. Indicators "
+        "whose policy is 'mean' are unweighted means of the published district rows "
+        "and are always reported with the number of observations behind them. A "
+        "missing value is reported as missing, never as zero. These are explanatory "
+        "notes about method; the figures themselves come from the published tables."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="methodology",
+        evidence={
+            "indicators": [spec.get("id") for spec in available][:20],
+            "documents": [doc.id for doc in documents],
+            "coverage_level": "data dictionary",
+        },
+        source="data dictionary",
+        coverage="data dictionary",
+        limitations=_limitations(
+            "aggregation policy is per indicator and is published with the definition",
+            "district indicators are a single 2025 Season B release",
+        ),
+    )
+
+
 def key_figures(intent: str, evidence: dict) -> list[dict]:
     """Flatten the headline numbers of an answer into a language-neutral list."""
     figures: list[dict] = []
@@ -583,6 +1083,44 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
             {"label": "crops with published data", "value": evidence.get("n_crops_with_data"),
              "unit": "crops"}
         )
+    elif intent == "crop_comparison":
+        for crop, values in (evidence.get("values") or {}).items():
+            if values.get("production_mt") is not None:
+                figures.append(
+                    {"label": f"{crop} production", "value": values["production_mt"],
+                     "unit": "metric tonnes"}
+                )
+    elif intent == "period_comparison":
+        for metric, label in (
+            ("production_mt", "production"),
+            ("yield_mt_ha", "yield"),
+        ):
+            change = (evidence.get("changes") or {}).get(metric) or {}
+            if change.get("available") and change.get("change_pct") is not None:
+                figures.append(
+                    {"label": f"{label} change", "value": change["change_pct"], "unit": "%"}
+                )
+    elif intent == "district_ranking":
+        for item in evidence.get("ranking", [])[:3]:
+            figures.append(
+                {"label": f"{item.get('district')} gap index", "value": item.get("gap_index"),
+                 "unit": "%"}
+            )
+    elif intent == "crop_trend":
+        if evidence.get("latest_yield_kg_ha") is not None:
+            figures.append(
+                {"label": "latest yield", "value": evidence["latest_yield_kg_ha"], "unit": "kg/ha"}
+            )
+    elif intent == "postharvest_analysis":
+        for key, label in (
+            ("sold_pct", "sold"),
+            ("own_consumption_pct", "household consumption"),
+            ("stored_pct", "stored"),
+            ("post_harvest_losses_pct", "post-harvest loss"),
+        ):
+            value = (evidence.get("postharvest_use") or {}).get(key)
+            if value is not None:
+                figures.append({"label": label, "value": value, "unit": "% of production"})
     return [f for f in figures if f.get("value") is not None]
 
 
@@ -596,6 +1134,24 @@ def answer(routed: RoutedRequest) -> GroundedAnswer:
         return district_context(routed.district, routed.requested_period)
     if routed.intent == "national_indicator" and routed.indicator_ids:
         return national_indicator(routed.indicator_ids)
+    if routed.intent == "crop_comparison" and routed.crops:
+        return crop_comparison(routed.crops, routed.requested_period)
+    if routed.intent == "period_comparison" and routed.crop:
+        return period_comparison(routed.crop, routed.requested_period, routed.district)
+    if routed.intent == "district_ranking" and routed.crop:
+        return district_ranking(routed.crop, routed.requested_period)
+    if routed.intent == "crop_trend" and routed.crop:
+        return crop_trend(routed.crop, routed.district, routed.requested_period)
+    if routed.intent == "practice_associations" and routed.crop:
+        return practice_associations(routed.crop, routed.district)
+    if routed.intent == "postharvest_analysis" and routed.crop:
+        return postharvest_analysis(routed.crop)
+    if routed.intent == "data_coverage":
+        return data_coverage()
+    if routed.intent == "source_provenance":
+        return source_provenance()
+    if routed.intent == "methodology":
+        return methodology(routed.indicator_ids)
     return _unsupported(
         "unsupported",
         **({"unsupported_topic": routed.unsupported_topic} if routed.unsupported_topic else {}),

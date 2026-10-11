@@ -11,6 +11,7 @@ import pytest
 from app.analytics.productivity_gap import compute_gaps
 from app.schemas.filters import AnalyticsFilters
 from app.services import analytics_service, trend_service
+from scripts.data.common import VALID_PERIODS
 
 
 def _require_data(client) -> None:
@@ -33,7 +34,64 @@ def test_dashboard_overview(client):
     assert {"districts", "crops", "median_gap", "high_gap", "total_production"} <= ids
     districts = next(k for k in body["kpis"] if k["id"] == "districts")
     assert districts["value"] == 30
-    assert districts["period_code"] == "2025B"
+    # No release is selected here, so this is the history scope and the district
+    # KPIs describe the *latest published district release* - not whatever table
+    # happened to be the default. It used to report the legacy 2025B pack while
+    # the UI called the view "All periods".
+    assert body["scope"] == "history"
+    assert body["snapshot"]["period_code"] == "2026B"
+    assert districts["period_code"] == body["snapshot"]["period_code"]
+
+
+def test_default_overview_names_the_release_it_reports(client):
+    """The default view may not present a one-release snapshot as "all periods".
+
+    Whichever release the district panels use, the response has to name it so a
+    client can label it. A default of the legacy 2025B table would also be wrong
+    on the data's own terms: 2026B is published and carries district rows.
+    """
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview").json()
+    assert body["scope"] == "history"
+    snapshot = body["snapshot"]
+    assert snapshot and snapshot["period_code"]
+    assert snapshot["coverage_level"] == "district"
+    assert snapshot["label"] == "2026 Season B"
+    assert snapshot["period_code"] == body["effective_filters"]["period_code"]
+    # Every district figure in the headline strip shares that one release.
+    for kpi in body["primary_kpis"]:
+        assert kpi["period_code"] == snapshot["period_code"]
+
+
+def test_history_scope_carries_the_published_period_timeline(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview").json()
+    timeline = body["period_timeline"]
+    assert [p["period_code"] for p in timeline] == body["available_periods"]
+    # The timeline is the published period dimension itself (2022A-2026B), not a
+    # literal count, so a new release extends it instead of failing the check.
+    assert [p["period_code"] for p in timeline] == list(VALID_PERIODS)
+    # Each entry names its own coverage, so a district map cannot be drawn from a
+    # period that only published national rows.
+    assert all(p["coverage_level"] for p in timeline)
+    latest = [p for p in timeline if p["is_latest_district"]]
+    assert len(latest) == 1
+    assert latest[0]["period_code"] == body["snapshot"]["period_code"]
+
+
+def test_selecting_a_period_is_a_period_scope_not_a_history_snapshot(client):
+    _require_data(client)
+    body = client.get("/api/v1/dashboard/overview?period_code=2024B").json()
+    assert body["scope"] == "period"
+    # A selected release is the selection itself: there is no separate snapshot.
+    assert body["snapshot"] is None
+    # The published axis is still served, so a reader can switch release - it is
+    # just not presented as a snapshot.
+    assert "2024B" in [p["period_code"] for p in body["period_timeline"]]
+    assert body["period_code"] == "2024B"
+    assert body["effective_filters"]["period_code"] == "2024B"
+    for kpi in body["primary_kpis"]:
+        assert kpi["period_code"] == "2024B"
 
 
 def test_overview_primary_kpis_are_at_most_four_and_same_scope(client):
@@ -249,6 +307,47 @@ def test_post_harvest(client):
     assert any(k["id"] == "highest_loss" for k in body["kpis"])
 
 
+def test_post_harvest_headlines_are_chosen_by_python(client):
+    """The page's headline crop is the API's pick, not a client-side search.
+
+    Choosing a maximum is an analytical decision: it decides which crop a page
+    leads with. It used to be made in React, which meant the web page and the
+    mobile screen could name different crops for the same figure.
+    """
+    _require_data(client)
+    body = client.get("/api/v1/analytics/post-harvest").json()
+    headlines = {h["id"]: h for h in body["headlines"]}
+    assert set(headlines) == {
+        "highest_loss_crop", "highest_storage_crop", "highest_marketed_crop"
+    }
+
+    for headline, column in [
+        (headlines["highest_loss_crop"], "post_harvest_losses_pct"),
+        (headlines["highest_storage_crop"], "stored_pct"),
+        (headlines["highest_marketed_crop"], "sold_pct"),
+    ]:
+        values = [c[column] for c in body["crops"] if c[column] is not None]
+        assert values, column
+        # The pick is the maximum of the values the client is also given, so the
+        # two can never disagree.
+        assert headline["value"] == max(values), column
+        picked = next(c for c in body["crops"] if c["crop"] == headline["crop"])
+        assert picked[column] == headline["value"], column
+        assert headline["n_crops_considered"] == len(body["crops"])
+        assert headline["unit"], column
+
+
+def test_post_harvest_headlines_follow_the_crop_filter(client):
+    _require_data(client)
+    body = client.get("/api/v1/analytics/post-harvest?crop=Maize").json()
+    assert len(body["crops"]) == 1
+    for headline in body["headlines"]:
+        # A one-crop selection still reports a headline, and says it was chosen
+        # from one crop rather than presenting it as a national maximum.
+        assert headline["crop"] == "Maize"
+        assert headline["n_crops_considered"] == 1
+
+
 def test_null_capacity_preserved(client):
     _require_data(client)
     body = client.get("/api/v1/facilities/context").json()
@@ -330,6 +429,11 @@ def test_intervention_respects_selected_benchmark(monkeypatch, strategy):
         ]
     ])
     monkeypatch.setattr(analytics_service.repo, "training_dataset", lambda: frame)
+    # The fixture carries no published period axis, so pin the resolver: this case
+    # is "the legacy frame with no period selected", which is what makes the
+    # benchmark strategy the only thing under test here.
+    monkeypatch.setattr(analytics_service.period_service, "latest_district", lambda: None)
+    monkeypatch.setattr(analytics_service.period_service, "latest", lambda: None)
     result = analytics_service.priorities(
         f=AnalyticsFilters(benchmark_strategy=strategy), limit=10
     )

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
@@ -9,6 +9,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { Tabs } from "@/components/ui/Tabs";
+import { TrendCompareControl } from "@/features/crops/TrendCompareControl";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
@@ -55,6 +56,8 @@ export default function YieldIntelligencePage() {
 
   const workspace = resolveWorkspace(searchParams.get("workspace"));
   const [trendMode, setTrendMode] = useState<YieldTrendMode>("same_season");
+  // "" = no overlay; "national" = national series; otherwise a district name.
+  const [compareTarget, setCompareTarget] = useState("");
   const [mapMetric, setMapMetric] = useState<MapMetricId>("yield");
   const [drawerDistrict, setDrawerDistrict] = useState<string | null>(null);
 
@@ -66,6 +69,31 @@ export default function YieldIntelligencePage() {
   // firing four requests that can only come back empty.
   const productivity = useProductivity(filters, Boolean(crop));
   const trend = useProductivityTrend(crop, filters.district, undefined, Boolean(crop));
+
+  // The overlay reads the same canonical panel as the primary series, so the two
+  // yield lines are strictly comparable. National is only offered when the
+  // primary series is a district; a district is never compared with itself.
+  const compareNational = compareTarget === "national";
+  const compareDistrictName = compareTarget && !compareNational ? compareTarget : undefined;
+  const nationalTrend = useProductivityTrend(
+    crop,
+    undefined,
+    undefined,
+    Boolean(crop) && compareNational && Boolean(filters.district),
+  );
+  const districtTrend = useProductivityTrend(
+    crop,
+    compareDistrictName,
+    undefined,
+    Boolean(crop) && Boolean(compareDistrictName),
+  );
+  const comparisonData = compareNational ? nationalTrend.data : districtTrend.data;
+  const comparisonLabel = compareNational ? "National" : (compareDistrictName ?? null);
+
+  useEffect(() => {
+    if (compareDistrictName && compareDistrictName === filters.district) setCompareTarget("");
+  }, [compareDistrictName, filters.district]);
+
   const mapMetrics = useMapMetrics(filters, mapMetric, Boolean(crop));
   const factors = useFactors(filters, Boolean(crop));
 
@@ -156,15 +184,30 @@ export default function YieldIntelligencePage() {
           ) : null}
 
           {workspace === "trends" ? (
-            <YieldOverTimeChart
-              data={trend.data}
-              isLoading={trend.isLoading}
-              crop={crop}
-              district={filters.district}
-              season={season}
-              mode={trendMode}
-              onModeChange={setTrendMode}
-            />
+            <div className="space-y-4">
+              <div className="card flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <TrendCompareControl
+                  value={compareTarget}
+                  onChange={setCompareTarget}
+                  primaryDistrict={filters.district}
+                />
+                <p className="text-[11px] text-slate-500">
+                  Overlays a second published yield series on the same period axis. A period only one
+                  side published is drawn on that side alone.
+                </p>
+              </div>
+              <YieldOverTimeChart
+                data={trend.data}
+                isLoading={trend.isLoading}
+                crop={crop}
+                district={filters.district}
+                season={season}
+                mode={trendMode}
+                onModeChange={setTrendMode}
+                comparison={comparisonData}
+                comparisonLabel={comparisonLabel}
+              />
+            </div>
           ) : null}
 
           {workspace === "spatial" ? (

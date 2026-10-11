@@ -6,9 +6,13 @@ import { Badge, Card, ErrorState, LoadingSkeleton, SectionHeader } from "../../s
 import { strings } from "../../src/i18n";
 import { sourcesApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function DataSourcesScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["sources"], queryFn: sourcesApi.list });
 
@@ -34,12 +38,14 @@ export default function DataSourcesScreen() {
               {[source.coverage, source.source_id].filter(Boolean).join(" · ")}
             </Text>
             {source.limitations?.length ? (
-              <Text style={typography.micro}>Limitations: {source.limitations.join("; ")}</Text>
+              <Text style={typography.micro}>
+                {t.dataSourcesLimitationsLabel}: {source.limitations.join("; ")}
+              </Text>
             ) : null}
             {source.url ? (
               <Text
                 accessibilityRole="link"
-                accessibilityLabel={`Open ${source.name}`}
+                accessibilityLabel={t.dataSourcesOpenSource.replace("{name}", source.name)}
                 style={styles.link}
                 onPress={() => void Linking.openURL(source.url as string)}
               >
@@ -50,16 +56,14 @@ export default function DataSourcesScreen() {
         ))
       )}
       <Card style={{ backgroundColor: colors.mintSoft }}>
-        <Text style={typography.h3}>How Cropmatics uses these sources</Text>
-        <Text style={typography.caption}>
-          Only verified, integrated sources appear here. CHIRPS and other planned sources are not listed until they
-          are actually connected.
-        </Text>
+        <Text style={typography.h3}>{t.dataSourcesHowWeUseTitle}</Text>
+        <Text style={typography.caption}>{t.dataSourcesHowWeUseBody}</Text>
       </Card>
     </ScreenLayout>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   link: { color: colors.primaryStrong, fontWeight: "600", fontSize: 13 },
 });

@@ -16,7 +16,8 @@ import {
 import { strings } from "../../src/i18n";
 import { cropsApi, districtsApi, indicatorsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 import { slugifyEntity } from "../../src/utils/slug";
 
 type Kind = "crop" | "district" | "indicator";
@@ -29,6 +30,7 @@ interface Result {
 }
 
 export default function SearchScreen() {
+  const { colors, typography } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [query, setQuery] = useState("");

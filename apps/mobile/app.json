@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/branding/app-icon-1024.png",
     "scheme": "cropmatics",
-    "userInterfaceStyle": "light",
+    "primaryColor": "#087F5B",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#F7FAF8",
     "splash": {
       "image": "./assets/branding/splash-logo.png",
@@ -18,9 +19,10 @@
         "backgroundColor": "#032D23"
       }
     },
-    "newArchEnabled": false,
     "plugins": [
       "expo-router",
+      "expo-system-ui",
+      "./plugins/with-analytical-theme",
       [
         "expo-splash-screen",
         {
@@ -62,7 +64,8 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "extra": {

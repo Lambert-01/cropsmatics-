@@ -16,6 +16,7 @@ import {
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
+import { yieldOverlayPoints } from "@/features/crops/trend";
 import { cn } from "@/lib/cn";
 import { fmtCompact, fmtNumber } from "@/lib/format";
 import type { PeriodTrendResponse } from "@/types";
@@ -42,6 +43,8 @@ export function YieldOverTimeChart({
   season,
   mode,
   onModeChange,
+  comparison,
+  comparisonLabel,
 }: {
   data?: PeriodTrendResponse;
   isLoading?: boolean;
@@ -50,9 +53,12 @@ export function YieldOverTimeChart({
   season?: string;
   mode: YieldTrendMode;
   onModeChange: (mode: YieldTrendMode) => void;
+  /** A second series whose yield is overlaid on the same season/period axis. */
+  comparison?: PeriodTrendResponse;
+  comparisonLabel?: string | null;
 }) {
   const motion = useChartMotion();
-  const published = data?.points ?? [];
+  const hasComparison = Boolean(comparison) && Boolean(comparisonLabel);
 
   // The same-season view needs a season to compare on. Without a selected
   // period it silently degrades to the sequential view rather than labelling
@@ -61,18 +67,14 @@ export function YieldOverTimeChart({
   const effectiveMode: YieldTrendMode =
     mode === "same_season" && !sameSeasonAvailable ? "sequential" : mode;
 
-  const points = useMemo(() => {
-    const series =
-      effectiveMode === "same_season" && season
-        ? published.filter((point) => point.season === season)
-        : published;
-    return series.map((point) => ({
-      period_code: point.period_code,
-      label: point.label,
-      yield_kg_ha: point.values.yield_kg_ha ?? null,
-      production_mt: point.values.production_mt ?? null,
-    }));
-  }, [published, effectiveMode, season]);
+  const points = useMemo(
+    () =>
+      yieldOverlayPoints(data, comparison, {
+        sameSeasonOnly: effectiveMode === "same_season",
+        season,
+      }),
+    [data, comparison, effectiveMode, season],
+  );
 
   const scope = district ?? "national published series";
 
@@ -96,7 +98,7 @@ export function YieldOverTimeChart({
     <Card>
       <CardHeader
         title="Yield over time"
-        subtitle={`${crop} · ${scope}`}
+        subtitle={hasComparison ? `${crop} · ${scope} vs ${comparisonLabel}` : `${crop} · ${scope}`}
         action={
           <div
             role="group"
@@ -180,7 +182,7 @@ export function YieldOverTimeChart({
               <Tooltip
                 {...TOOLTIP_STYLE}
                 formatter={(value, name) => [
-                  name === "Yield (kg/ha)"
+                  String(name).includes("kg/ha")
                     ? `${fmtNumber(Number(value), 0)} kg/ha`
                     : `${fmtNumber(Number(value), 0)} MT`,
                   name as string,
@@ -210,6 +212,20 @@ export function YieldOverTimeChart({
                 dot={{ r: 3 }}
                 connectNulls={false}
               />
+              {hasComparison ? (
+                <Line
+                  {...motion}
+                  yAxisId="yield"
+                  type="monotone"
+                  dataKey="comparison_yield_kg_ha"
+                  name={`${comparisonLabel} yield (kg/ha)`}
+                  stroke={CHART.blue}
+                  strokeWidth={2}
+                  strokeDasharray="5 3"
+                  dot={{ r: 3 }}
+                  connectNulls={false}
+                />
+              ) : null}
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -9,7 +9,9 @@ import { listSaved, removeSavedItem } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import type { SavedItem } from "../../src/types";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 type Filter = "all" | SavedItem["type"];
 
@@ -21,6 +23,8 @@ const ICONS: Record<SavedItem["type"], keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function SavedScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const [filter, setFilter] = useState<Filter>("all");
@@ -50,7 +54,7 @@ export default function SavedScreen() {
 
   return (
     <ScreenLayout back>
-      <SectionHeader title={t.savedTitle} subtitle="Saved on this device" />
+      <SectionHeader title={t.savedTitle} subtitle={t.savedSubtitle} />
       <View style={styles.chips}>
         {(["all", "crop", "district", "question", "indicator"] as const).map((value) => (
           <FilterChip
@@ -114,7 +118,8 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   icon: {
     width: 42,

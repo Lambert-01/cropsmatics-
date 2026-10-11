@@ -40,17 +40,30 @@ REQUIRED_DATASETS: dict[str, str] = {
 
 REQUIRED_DICTIONARIES = ["districts.csv", "crops.csv"]
 
-COVERAGE_NOTES = [
-    "District productivity (area, harvested area, production, yield) is available "
-    "for all eight published periods (2024A-2026B) in the multi-period panel; "
-    "2026 Season C has not been published.",
-    "District input/practice, irrigation and erosion tables are still single-release "
-    "(2025 Season B). See /api/v1/meta/periods for which datasets each period covers.",
-    "2024B, 2025A and 2026A national trend rows are context series and are NOT "
-    "district estimates.",
-    "Post-harvest use shares are national crop-level values, not district values.",
-    "Cold-chain context lists program districts; facility capacity is not verified.",
-]
+
+def coverage_notes() -> list[str]:
+    """Coverage notes derived from the period catalogue (never a literal).
+
+    Built on demand rather than at import: the counts and the range must describe
+    the data that is actually loaded, and importing the module must not depend on
+    the processed tables existing.
+    """
+    from app.services import period_service
+
+    codes = period_service.period_codes()
+    return [
+        "District productivity (area, harvested area, production, yield) is "
+        f"available for all {len(codes)} published periods "
+        f"({period_service.district_range()}) in the multi-period panel; "
+        "2026 Season C has not been published.",
+        "District input/practice, irrigation and erosion tables are still "
+        f"single-release ({period_service.single_release_scope()}). See "
+        "/api/v1/meta/periods for which datasets each period covers.",
+        "2024B, 2025A and 2026A national trend rows are context series and are NOT "
+        "district estimates.",
+        "Post-harvest use shares are national crop-level values, not district values.",
+        "Cold-chain context lists program districts; facility capacity is not verified.",
+    ]
 
 
 def coverage() -> dict:
@@ -58,7 +71,7 @@ def coverage() -> dict:
     try:
         df = repo.data_coverage()
     except Exception:
-        return {"coverage": {}, "details": [], "notes": COVERAGE_NOTES}
+        return {"coverage": {}, "details": [], "notes": coverage_notes()}
 
     df = df.replace({np.nan: None})
     coverage: dict[str, dict[str, str]] = {}
@@ -74,7 +87,7 @@ def coverage() -> dict:
             "n_crops": int(row["n_crops"]) if row["n_crops"] is not None else 0,
             "source_id": row.get("source_id"),
         })
-    return {"coverage": coverage, "details": details, "notes": COVERAGE_NOTES}
+    return {"coverage": coverage, "details": details, "notes": coverage_notes()}
 
 
 def level_for(dataset: str, period: str | None) -> str | None:
@@ -383,12 +396,23 @@ def data_version() -> dict:
     }
 
 
-def _metric(metrics: dict, name: str) -> float | None:
-    m = metrics.get(name)
-    if not isinstance(m, dict):
+def _metric(model_metrics: dict, name: str) -> float | None:
+    """One metric from a card's per-model metrics block.
+
+    Callers pass the block already narrowed to one model (``metrics[best]``), so
+    this reads the value directly. It previously required a nested dict and
+    therefore reported ``None`` for every real card - the registry under-reported
+    metrics the model actually had.
+    """
+    if not isinstance(model_metrics, dict):
         return None
-    value = m.get("mae") if name == "mae" else m.get(name)
-    return None if value is None else float(value)
+    value = model_metrics.get(name)
+    if value is None or isinstance(value, dict):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def models() -> list[dict]:
@@ -417,6 +441,14 @@ def models() -> list[dict]:
             "n_test": card.get("n_test"),
             "training_period": card.get("training_period") or card.get("source_period"),
             "validation_method": card.get("validation_split") or card.get("validation"),
+            # How the model was validated, and whether that validation is strong
+            # enough to serve a *future* target. A district holdout is not: it
+            # measures spatial generalization. Cards that do not declare this
+            # default to False, so an old card can never silently enable a
+            # forecast-facing mode.
+            "validation_kind": card.get("validation_kind") or "unspecified",
+            "serves_forecast": bool(card.get("serves_forecast", False)),
+            "forecast_note": card.get("forecast_note"),
             "status": "available",
             "note": card.get("causality_disclaimer"),
         })

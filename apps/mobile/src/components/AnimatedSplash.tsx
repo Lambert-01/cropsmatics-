@@ -22,11 +22,18 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "../theme";
+import { strings } from "../i18n";
+import { useAppStore } from "../store/useAppStore";
+import { spacing, type Palette } from "../theme";
+import { useThemedStyles } from "../theme/theme-context";
 
 const SPLASH_LOGO = require("../../assets/branding/splash-logo.png");
 
-const BRAND_BACKGROUND = colors.forestDeep; // #032D23
+// The splash is brand-locked: the same deep-green field (#032D23) and accent
+// green in every scheme, so the native launch window and this overlay match.
+// `forestDeep` is deliberately NOT used here — in the dark palette it flips to
+// a light mint because it also serves as brand *text* elsewhere.
+const BRAND_BACKGROUND = "#032D23";
 const BRAND_ACCENT = "#8FD14F"; // the splash mark's own bright green
 
 export function AnimatedSplash({
@@ -37,6 +44,8 @@ export function AnimatedSplash({
   onDone: () => void;
   reducedMotion?: boolean;
 }) {
+  const t = strings(useAppStore((s) => s.language));
+  const styles = useThemedStyles(makeStyles);
   const overlay = useRef(new Animated.Value(1)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.84)).current;
@@ -144,7 +153,7 @@ export function AnimatedSplash({
           }}
         >
           <Text style={styles.wordmark}>Cropmatics</Text>
-          <Text style={styles.tagline}>Crop Intelligence from Data to Action</Text>
+          <Text style={styles.tagline}>{t.tagline}</Text>
         </Animated.View>
       </View>
 
@@ -152,15 +161,15 @@ export function AnimatedSplash({
         <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
       </View>
 
-      <Text style={styles.footer}>Rwanda agricultural intelligence</Text>
+      <Text style={styles.footer}>{t.splashFooter}</Text>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: BRAND_BACKGROUND,
+    backgroundColor: BRAND_BACKGROUND, // #032D23
     alignItems: "center",
     justifyContent: "center",
     zIndex: 1000,

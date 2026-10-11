@@ -281,10 +281,12 @@ def build_side(crop: str, side: Resolved, basis: dict) -> tuple[ScenarioView, li
 def model_scenario_availability(crop: str) -> ModelScenarioAvailability:
     """Whether Mode B (model-based) may be offered, from the real model registry.
 
-    A model card only counts when it exists on disk *and* carries a validation
-    metric for a yield target. With no such card the mode stays off and explains
-    why, rather than offering controls that would imply an intervention effect
-    the platform cannot support.
+    A card only counts when it exists on disk, carries a validation metric for a
+    yield target, **and** declares that its validation is chronological
+    (``serves_forecast``). A district holdout measures spatial generalization and
+    is not evidence about a future season, so it can never switch this mode on -
+    that would present a fitted model as an intervention outcome. With no
+    qualifying card the mode stays off and explains why.
     """
     try:
         cards = meta_service.models()
@@ -296,18 +298,30 @@ def model_scenario_availability(crop: str) -> ModelScenarioAvailability:
         for card in cards
         if card.get("status") == "available"
         and "yield" in str(card.get("target") or "").lower()
+        and card.get("serves_forecast") is True
         and any(card.get(metric) is not None for metric in ("mae", "rmse", "r2"))
     ]
 
     if not yield_cards:
-        return ModelScenarioAvailability(
-            available=False,
-            reason=(
-                "No validated yield model is registered, so a model-based "
-                "scenario cannot be offered. The analytical scenario above uses "
-                "only published observations."
-            ),
+        spatial_only = [
+            card
+            for card in cards
+            if "yield" in str(card.get("target") or "").lower()
+            and any(card.get(metric) is not None for metric in ("mae", "rmse", "r2"))
+        ]
+        reason = (
+            "No yield model with chronological (rolling-origin) validation is "
+            "registered, so a model-based scenario cannot be offered. The "
+            "analytical scenario above uses only published observations."
         )
+        if spatial_only:
+            reason += (
+                f" A yield model exists ({spatial_only[0].get('name')}) but its "
+                f"validation is {spatial_only[0].get('validation_kind')}, which "
+                "measures generalization across districts rather than a future "
+                "season."
+            )
+        return ModelScenarioAvailability(available=False, reason=reason)
 
     card = yield_cards[0]
     return ModelScenarioAvailability(

@@ -1,0 +1,8 @@
+﻿List of Tables ,,,
+,Table 2:,List of strata ,
+,Stratum ,Stratum name,Definition
+,1,Dominant hill crop land stratum,Clusters with Hillside agricultural land cover class greater or equal to 60 percent of the total area of the cluster
+,2,Dominant Wetland crops stratum,Clusters with non-rice wetland land cover class greater than 25 percent of total area of the cluster
+,3,Dominant rangeland,Clusters with rangeland land cover class greater or equal to 60 percent of the total area of the cluster
+,4,Mixed stratum,The rest of other possible combinations
+,9,Excluded stratum,All clusters with excluded land cover classes greater or equal to 50 percent of the total area of the cluster

@@ -8,9 +8,13 @@ import { listConflictOutbox } from "../../src/database/outboxQueries";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { flushOutbox, isOnline, type FlushSummary } from "../../src/sync/queue";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 
 export default function SyncScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
   const language = useAppStore((s) => s.language);
   const t = strings(language);
 
@@ -45,9 +49,9 @@ export default function SyncScreen() {
     <ScreenLayout back>
       <View style={panel}>
         <View style={rowBetween}>
-          <Text style={typography.caption}>Connection</Text>
+          <Text style={typography.caption}>{t.syncConnection}</Text>
           <Text style={{ color: online ? colors.success : colors.amber, fontWeight: "700" }}>
-            {online === null ? "…" : online ? "online" : "offline"}
+            {online === null ? "…" : online ? t.syncOnline : t.syncOffline}
           </Text>
         </View>
         <View style={rowBetween}>
@@ -97,22 +101,20 @@ export default function SyncScreen() {
       ) : null}
 
       <Text style={typography.caption}>{t.syncOnOpen}</Text>
-      <Text style={typography.caption}>
-        Sync is idempotent: each record carries a locally generated id that the server treats as an
-        idempotency key, so a repeated send never creates a duplicate.
-      </Text>
+      <Text style={typography.caption}>{t.syncIdempotentNote}</Text>
     </ScreenLayout>
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
 
 const rowBetween = {
   flexDirection: "row" as const,

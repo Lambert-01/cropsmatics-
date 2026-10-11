@@ -20,7 +20,9 @@ import {
 import { strings } from "../../src/i18n";
 import { analyticsApi, indicatorsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, seriesColor, spacing, typography } from "../../src/theme";
+import { seriesColor, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Productivity: "trending-up-outline",
@@ -32,6 +34,8 @@ const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 export default function IndicatorsScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ id?: string }>();
   const [open, setOpen] = useState<string | null>(null);
@@ -137,10 +141,10 @@ export default function IndicatorsScreen() {
                   ? items.map((indicator) => (
                       <View key={indicator.id} style={styles.indicator}>
                         <Text style={typography.h3}>{indicator.label}</Text>
-                        <InfoRow label="Unit" value={indicator.unit ?? "—"} />
-                        <InfoRow label="Period" value={indicator.period ?? "—"} />
-                        <InfoRow label="Coverage" value={indicator.coverage_level ?? "—"} />
-                        <InfoRow label="Aggregation" value={indicator.aggregation.replace(/_/g, " ")} />
+                        <InfoRow label={t.sheetUnit} value={indicator.unit ?? "—"} />
+                        <InfoRow label={t.sheetPeriod} value={indicator.period ?? "—"} />
+                        <InfoRow label={t.sheetCoverage} value={indicator.coverage_level ?? "—"} />
+                        <InfoRow label={t.aggregation} value={indicator.aggregation.replace(/_/g, " ")} />
                         <SourceCard sourceLabel={indicator.source_label} period={indicator.period} coverage={indicator.coverage_level} />
                       </View>
                     ))
@@ -156,7 +160,8 @@ export default function IndicatorsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   icon: {
     width: 44,
     height: 44,

@@ -234,6 +234,33 @@ def catalog() -> dict:
     }
 
 
+def published_range() -> str:
+    """First-last published period code, e.g. ``2022A-2026B``.
+
+    Derived from the period catalogue, so a provenance string can never describe a
+    different calendar than the panel it annotates (the previous hardcoded
+    ``"2024A-2026B"`` became a false claim the moment 2022/2023 were ingested).
+    """
+    codes = period_codes()
+    return f"{codes[0]}-{codes[-1]}" if codes else ""
+
+
+def district_range() -> str:
+    """Same, but only the periods that really carry district-level rows."""
+    codes = [
+        period["period_code"]
+        for period in catalog()["periods"]
+        if period.get("coverage_level") == "district"
+    ]
+    return f"{codes[0]}-{codes[-1]}" if codes else ""
+
+
+def single_release_scope() -> str:
+    """Label(s) of the periods only the legacy single-release tables cover."""
+    codes = sorted(set(SINGLE_RELEASE_DATASETS.values()))
+    return ", ".join(label(code) for code in codes)
+
+
 def period_codes() -> list[str]:
     """Published period codes, chronological."""
     return list(catalog()["period_codes"])

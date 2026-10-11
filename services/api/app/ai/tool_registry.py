@@ -18,7 +18,10 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ai.evidence import EvidenceItem
+from app.ai.tools import analysis as analysis_tools
+from app.ai.tools import comparison as comparison_tools
 from app.ai.tools import context as context_tools
+from app.ai.tools import knowledge as knowledge_tools
 from app.ai.tools import metadata as metadata_tools
 from app.ai.tools import productivity as productivity_tools
 
@@ -67,6 +70,27 @@ class RegistryQueryParams(_StrictParams):
 
 class IndicatorParams(_StrictParams):
     indicator_ids: list[str] = Field(min_length=1, max_length=3)
+
+
+class CropsParams(_StrictParams):
+    """Two to four crops compared in one period."""
+
+    crops: list[str] = Field(min_length=2, max_length=4)
+    period_code: str | None = Field(None, description="published period, e.g. 2026B")
+
+
+class FactorParams(_StrictParams):
+    crop: str = Field(min_length=1, max_length=80)
+    district: str | None = Field(None, max_length=80)
+
+
+class OptionalIndicatorParams(_StrictParams):
+    indicator_ids: list[str] | None = Field(None, max_length=3)
+
+
+class KnowledgeParams(_StrictParams):
+    query: str = Field(min_length=2, max_length=300)
+    limit: int = Field(4, ge=1, le=8)
 
 
 class NoParams(_StrictParams):
@@ -170,6 +194,55 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
             params_model=NoParams,
             fn=metadata_tools.model_metadata,
         ),
+        ToolSpec(
+            name="get_crop_comparison",
+            description=(
+                "Published national totals for two to four crops in the same period, for a "
+                "side-by-side comparison."
+            ),
+            params_model=CropsParams,
+            fn=comparison_tools.crop_comparison,
+        ),
+        ToolSpec(
+            name="get_period_change",
+            description=(
+                "Same-season, previous-year change for one crop (2026B vs 2025B). Never "
+                "compares two different seasons."
+            ),
+            params_model=PeriodCropDistrictParams,
+            fn=comparison_tools.period_change,
+        ),
+        ToolSpec(
+            name="get_factor_associations",
+            description=(
+                "Correlation between district practice adoption and observed yield for one "
+                "crop. An association, never a causal effect."
+            ),
+            params_model=FactorParams,
+            fn=analysis_tools.factor_associations,
+        ),
+        ToolSpec(
+            name="get_data_coverage",
+            description="Published periods, their coverage level and how many districts they carry.",
+            params_model=NoParams,
+            fn=analysis_tools.data_coverage,
+        ),
+        ToolSpec(
+            name="get_indicator_definitions",
+            description="Indicator definitions: what each indicator means, its unit and its aggregation policy.",
+            params_model=OptionalIndicatorParams,
+            fn=analysis_tools.indicator_definitions,
+        ),
+        ToolSpec(
+            name="search_knowledge_base",
+            description=(
+                "Retrieve explanatory Cropmatics documents (methodology, glossary, "
+                "season rules, data policy, FAQ). Explanatory only - it never returns "
+                "a numerical observation."
+            ),
+            params_model=KnowledgeParams,
+            fn=knowledge_tools.search_knowledge_base,
+        ),
     )
 }
 
@@ -184,6 +257,20 @@ INTENT_TOOLS: dict[str, tuple[str, ...]] = {
     "crop_national_context": ("get_crop_context", "get_postharvest_profile", "get_crop_trend"),
     "district_context": ("get_district_context",),
     "national_indicator": ("get_national_indicator",),
+    "crop_comparison": ("get_crop_comparison",),
+    "period_comparison": ("get_period_change", "get_crop_context"),
+    "district_ranking": ("get_district_ranking", "get_yield_gap"),
+    "crop_trend": ("get_crop_trend",),
+    "practice_associations": ("get_factor_associations", "get_productivity_observations"),
+    "postharvest_analysis": ("get_postharvest_profile",),
+    "data_coverage": ("get_data_coverage", "get_source_metadata"),
+    "source_provenance": ("get_source_metadata", "search_knowledge_base"),
+    "methodology": (
+        "get_indicator_definitions",
+        "get_source_metadata",
+        "get_model_metadata",
+        "search_knowledge_base",
+    ),
     "unsupported": (),
 }
 
@@ -208,6 +295,26 @@ def describe() -> list[dict]:
             "description": spec.description,
             "parameters": spec.params_model.model_json_schema(),
             "network": spec.network,
+        }
+        for spec in TOOL_REGISTRY.values()
+    ]
+
+
+def openai_tool_schemas() -> list[dict]:
+    """The allow-listed tools in OpenAI function-calling form.
+
+    This is the *only* way a model is told what it may call, and it is derived
+    from the same registry the executor validates against - so the catalogue a
+    model sees and the set of functions that can actually run cannot drift.
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": spec.name,
+                "description": spec.description,
+                "parameters": spec.params_model.model_json_schema(),
+            },
         }
         for spec in TOOL_REGISTRY.values()
     ]

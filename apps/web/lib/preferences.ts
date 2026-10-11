@@ -11,10 +11,13 @@
  * module replaced — a setting that appears to do something and does not.
  */
 
+import { SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./filters";
+
 export const PREFERENCES_KEY = "cropmatics-preferences";
 export const PREFERENCES_VERSION = 1;
 
 export type NumberGrouping = "grouped" | "plain";
+export type ThemePreference = "system" | "light" | "dark";
 
 export interface Preferences {
   /** Bumped when the shape changes, so an old entry is discarded, not guessed. */
@@ -38,6 +41,11 @@ export interface Preferences {
    * who has already asked the platform for less motion is not asked again.
    */
   reducedMotion: boolean;
+  /**
+   * Colour scheme. `system` follows the operating system and updates live when
+   * the OS preference changes; the explicit values override it.
+   */
+  theme: ThemePreference;
   /** District names drawn on the choropleth. */
   mapLabels: boolean;
   /** Whether source notes and provenance panels are expanded by default. */
@@ -53,6 +61,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   numberGrouping: "grouped",
   compactTables: false,
   reducedMotion: false,
+  theme: "system",
   mapLabels: true,
   showSources: true,
 };
@@ -94,6 +103,8 @@ export function normalizePreferences(input: unknown): Preferences {
     numberGrouping: raw.numberGrouping === "plain" ? "plain" : "grouped",
     compactTables: asBoolean(raw.compactTables, DEFAULT_PREFERENCES.compactTables),
     reducedMotion: asBoolean(raw.reducedMotion, DEFAULT_PREFERENCES.reducedMotion),
+    theme:
+      raw.theme === "light" || raw.theme === "dark" ? raw.theme : "system",
     mapLabels: asBoolean(raw.mapLabels, DEFAULT_PREFERENCES.mapLabels),
     showSources: asBoolean(raw.showSources, DEFAULT_PREFERENCES.showSources),
   };
@@ -148,35 +159,52 @@ export function resetPreferences(): Preferences {
 }
 
 /**
- * The analytical context a page should start from.
+ * The analytical context a page should start from, and the scope it resolves to.
  *
- * Two rules, both about not letting a default quietly change what is on screen:
+ * Three rules, all about not letting a default quietly change what is on screen:
  *
  * 1. An explicit URL selection always wins. That is what makes a shared link
  *    reproduce what the sender saw rather than what the recipient configured.
- * 2. A default **district** is applied only when the effective province is the
+ * 2. An explicit `view=history` beats a stored default period. This is the whole
+ *    point of an explicit all-periods state: without it, anyone who ever saved a
+ *    default period can never ask for all published periods again.
+ * 3. A default **district** is applied only when the effective province is the
  *    default province. Otherwise a link that names one province would come back
  *    carrying a district from another, which is not a valid selection at all.
  *
  * A legacy `year`+`season` link already names a period, so it is treated as an
  * explicit period and the stored default period is not layered on top of it.
+ *
+ * `view` is derived from the period that actually survived, so the scope a
+ * caller renders can never disagree with the period it sends to the API.
  */
 export function resolveAnalyticalContext(
   preferences: Preferences,
   urlFilters: {
     period?: string;
+    view?: ScopeView;
     year?: number;
     season?: string;
     crop?: string;
     province?: string;
     district?: string;
   },
-): { period?: string; crop?: string; province?: string; district?: string } {
+): { view: ScopeView; period?: string; crop?: string; province?: string; district?: string } {
   const explicitPeriod =
     urlFilters.period ||
     (urlFilters.year && urlFilters.season
       ? `${urlFilters.year}${urlFilters.season}`
       : undefined);
+
+  // A stored default period only applies when the URL has not explicitly asked
+  // for all published periods.
+  const wantsPeriod =
+    Boolean(explicitPeriod) ||
+    (urlFilters.view !== SCOPE_HISTORY && Boolean(preferences.defaultPeriod));
+  const period = wantsPeriod
+    ? explicitPeriod || preferences.defaultPeriod || undefined
+    : undefined;
+  const view: ScopeView = period ? SCOPE_PERIOD : SCOPE_HISTORY;
 
   const province = urlFilters.province || preferences.defaultProvince || undefined;
   const districtFromUrl = urlFilters.district;
@@ -186,7 +214,8 @@ export function resolveAnalyticalContext(
       : undefined;
 
   return {
-    period: explicitPeriod || preferences.defaultPeriod || undefined,
+    view,
+    period,
     crop: urlFilters.crop || preferences.defaultCrop || undefined,
     province,
     district: districtFromUrl || districtFromDefault,

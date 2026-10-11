@@ -8,13 +8,16 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { ErrorState } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
 import { useAssistant } from "@/services/hooks/useReference";
+import type { AssistantResponse, AssistantStructured } from "@/types";
 
 interface Turn {
   role: "user" | "assistant";
   text: string;
   grounded?: boolean;
+  /** Legacy flat evidence, kept for responses without a structured payload. */
   evidence?: Record<string, unknown>;
-  limitations?: string[];
+  structured?: AssistantStructured;
+  warnings?: string[];
 }
 
 const EXAMPLES = [
@@ -25,18 +28,32 @@ const EXAMPLES = [
   "Why is this district ranked as high priority?",
 ];
 
+/** A figure rendered with the period and unit the API published it under. */
+function formatFigure(value: number | string | undefined, unit?: string | null): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return String(value ?? "—");
+  const digits = Math.abs(value) >= 1000 ? 0 : Math.abs(value) >= 100 ? 1 : Math.abs(value) >= 10 ? 2 : 3;
+  const text = value.toLocaleString(undefined, { maximumFractionDigits: digits });
+  return unit ? `${text} ${unit}` : text;
+}
+
 export default function AssistantPage() {
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const assistant = useAssistant();
 
   const ask = async (text: string) => {
     const q = text.trim();
-    if (!q) return;
+    if (!q || assistant.isPending) return;
     setTurns((t) => [...t, { role: "user", text: q }]);
     setQuestion("");
     try {
-      const res = await assistant.mutateAsync(q);
+      const res: AssistantResponse = await assistant.mutateAsync({
+        question: q,
+        conversationId: conversationId ?? undefined,
+      });
+      // Adopt the server's conversation id so the next turn is a real follow-up.
+      if (res.conversation_id) setConversationId(res.conversation_id);
       setTurns((t) => [
         ...t,
         {
@@ -44,7 +61,8 @@ export default function AssistantPage() {
           text: res.answer,
           grounded: res.grounded,
           evidence: res.evidence,
-          limitations: res.limitations,
+          structured: res.structured,
+          warnings: res.warnings,
         },
       ]);
     } catch (e) {
@@ -89,10 +107,7 @@ export default function AssistantPage() {
               turns.map((turn, i) => (
                 <div
                   key={i}
-                  className={cn(
-                    "flex gap-2",
-                    turn.role === "user" ? "justify-end" : "justify-start",
-                  )}
+                  className={cn("flex gap-2", turn.role === "user" ? "justify-end" : "justify-start")}
                 >
                   {turn.role === "assistant" ? (
                     <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -108,7 +123,12 @@ export default function AssistantPage() {
                     )}
                   >
                     <p className="whitespace-pre-wrap">{turn.text}</p>
-                    {turn.role === "assistant" && turn.evidence ? (
+
+                    {turn.role === "assistant" && turn.structured ? (
+                      <StructuredDetails structured={turn.structured} onFollowUp={ask} />
+                    ) : null}
+
+                    {turn.role === "assistant" && !turn.structured && turn.evidence ? (
                       <div className="mt-2 rounded-lg bg-forest/[0.04] p-2 text-[11px] text-slate-600">
                         <p className="font-semibold text-forest">Evidence used</p>
                         <ul className="mt-1 space-y-0.5">
@@ -121,18 +141,24 @@ export default function AssistantPage() {
                         </ul>
                       </div>
                     ) : null}
+
+                    {turn.role === "assistant" && turn.warnings?.length
+                      ? turn.warnings.map((w) => (
+                          <p
+                            key={w}
+                            className="mt-2 flex items-start gap-1 text-[11px] text-amber"
+                          >
+                            <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span>{w}</span>
+                          </p>
+                        ))
+                      : null}
+
                     {turn.role === "assistant" && turn.grounded === false ? (
                       <p className="mt-2 flex items-center gap-1 text-[11px] text-amber">
                         <ShieldAlert className="h-3 w-3" aria-hidden="true" /> Not grounded — answer
                         withheld rather than guessed.
                       </p>
-                    ) : null}
-                    {turn.role === "assistant" && turn.limitations?.length ? (
-                      <ul className="mt-2 ml-4 list-disc text-[11px] text-slate-500">
-                        {turn.limitations.map((l) => (
-                          <li key={l}>{l}</li>
-                        ))}
-                      </ul>
                     ) : null}
                   </div>
                   {turn.role === "user" ? (
@@ -197,6 +223,7 @@ export default function AssistantPage() {
               <li>Withholds an answer when a district or crop cannot be resolved.</li>
               <li>Always reports the source id, period and limitations.</li>
               <li>Never asserts causality from an association.</li>
+              <li>Every figure is shown with the period and unit it was published under.</li>
             </ul>
           </Card>
 
@@ -205,6 +232,104 @@ export default function AssistantPage() {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The structured half of an answer.
+ *
+ * Rendered from the API's typed fields rather than the prose, so a figure is
+ * always paired with its period, unit and source, a truthfulness warning is
+ * visible, and the follow-ups offered are ones the platform can actually ground.
+ */
+function StructuredDetails({
+  structured,
+  onFollowUp,
+}: {
+  structured: AssistantStructured;
+  onFollowUp: (question: string) => void;
+}) {
+  const findings = structured.key_findings ?? [];
+  const figures = structured.figures ?? [];
+  const methodology = structured.methodology ?? [];
+  const sources = structured.sources ?? [];
+  const followups = structured.suggested_followups ?? [];
+  const limitations = structured.limitations ?? [];
+
+  return (
+    <div className="mt-2 space-y-2.5 text-[11px]">
+      {findings.length ? (
+        <ul className="ml-4 list-disc space-y-0.5 text-slate-600">
+          {findings.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      {figures.length ? (
+        <div className="rounded-lg bg-forest/[0.04] p-2">
+          <p className="font-semibold text-forest">Key figures</p>
+          <ul className="mt-1 space-y-1">
+            {figures.map((figure, index) => (
+              <li key={`${figure.label}-${index}`} className="flex justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="text-slate-600">{figure.label}</span>
+                  {figure.period_code || figure.crop || figure.district ? (
+                    <span className="block text-[10px] text-slate-400">
+                      {[figure.crop, figure.district, figure.period_code].filter(Boolean).join(" · ")}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 tabular-nums font-medium text-forest">
+                  {formatFigure(figure.value, figure.unit)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {limitations.length ? (
+        <ul className="ml-4 list-disc space-y-0.5 text-slate-500">
+          {limitations.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
+
+      {methodology.length ? (
+        <details className="rounded-lg border border-forest/10 p-2">
+          <summary className="cursor-pointer font-semibold text-forest">Methodology</summary>
+          <ul className="mt-1 ml-4 list-disc space-y-0.5 text-slate-500">
+            {methodology.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+
+      {sources.length ? (
+        <p className="text-slate-500">
+          <span className="font-semibold text-forest">Sources: </span>
+          {sources.map((s) => (s.name ? `${s.name} (${s.source_id})` : s.source_id)).join(", ")}
+        </p>
+      ) : null}
+
+      {followups.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {followups.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => onFollowUp(q)}
+              className="rounded-full border border-forest/10 px-2.5 py-1 text-[11px] text-slate-600 transition hover:border-primary/30 hover:bg-forest/[0.03]"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

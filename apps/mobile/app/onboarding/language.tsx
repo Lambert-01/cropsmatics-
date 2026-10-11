@@ -6,9 +6,11 @@ import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { PrimaryButton } from "../../src/components/ui";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 export default function LanguageScreen() {
+  const { colors, typography } = useTheme();
   const router = useRouter();
   const { language, setLanguage, setOnboardingComplete } = useAppStore();
   const t = strings(language);

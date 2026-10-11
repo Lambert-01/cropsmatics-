@@ -8,18 +8,23 @@ import { BrandMark } from "../../src/components/BrandMark";
 import { PrimaryButton } from "../../src/components/ui";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette, Typography } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function OnboardingScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
+  const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
   const [slide, setSlide] = useState(0);
 
   const slides = [
     {
       icon: "leaf-outline" as const,
       title: t.appName,
-      subtitle: "Rwanda Agricultural Intelligence in Your Pocket",
+      subtitle: t.onboardingTagline,
       body: t.onboardingDescription,
     },
     {
@@ -32,7 +37,7 @@ export default function OnboardingScreen() {
     {
       icon: "chatbubble-ellipses-outline" as const,
       title: t.askCropmatics,
-      subtitle: "Ask. Explore. Understand.",
+      subtitle: t.onboardingAskTagline,
       body: t.askSubtitle,
     },
   ];
@@ -102,7 +107,15 @@ export default function OnboardingScreen() {
             </View>
           ) : null}
           <View style={{ flex: 1 }}>
-            <PrimaryButton label={t.skip} onPress={() => router.replace("/")} />
+            {/* Skip must record completion, or the root guard immediately
+                redirects the user back into onboarding. */}
+            <PrimaryButton
+              label={t.skip}
+              onPress={() => {
+                setOnboardingComplete(true);
+                router.replace("/");
+              }}
+            />
           </View>
         </View>
       </View>
@@ -110,7 +123,8 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, typography: Typography) =>
+  StyleSheet.create({
   progress: { flexDirection: "row", gap: 6, justifyContent: "center", paddingVertical: spacing.sm },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.primary, width: 22 },

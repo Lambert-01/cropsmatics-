@@ -15,9 +15,11 @@ import { clearAskHistory, listAskHistory, saveItem } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import type { AskHistoryItem } from "../../src/types";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import { useTheme } from "../../src/theme/theme-context";
 
 export default function AskHistoryScreen() {
+  const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const [items, setItems] = useState<AskHistoryItem[]>(() => {
     try {
@@ -38,7 +40,7 @@ export default function AskHistoryScreen() {
   return (
     <ScreenLayout back>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <SectionHeader title={t.askHistory} subtitle="Stored on this device" />
+        <SectionHeader title={t.askHistory} subtitle={t.askHistorySubtitle} />
         {items.length ? (
           <PrimaryButton
             label={t.askDeleteHistory}
@@ -59,7 +61,7 @@ export default function AskHistoryScreen() {
           <Card key={item.id} style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               <Text style={{ ...typography.h3, flex: 1 }}>{item.question}</Text>
-              <Badge text={item.grounded ? "Grounded" : "Not available"} tone={item.grounded ? "mint" : "amber"} />
+              <Badge text={item.grounded ? t.askStatusGrounded : t.askStatusUnavailable} tone={item.grounded ? "mint" : "amber"} />
             </View>
             <Text numberOfLines={3} style={typography.body}>
               {item.answer}

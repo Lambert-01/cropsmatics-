@@ -1,94 +1,57 @@
-"""Intent routing: decide *what is being asked* before anything is retrieved.
+"""Intent routing: project the structured plan onto the legacy intent contract.
 
-Routing is separate from answering on purpose. It is the one place that decides
-whether the published data can address a question at all, so the refusal path is
-auditable by reading a single function rather than tracing a builder.
+Routing used to be a hand-written keyword cascade. It is now a thin projection of
+``planner.plan``: the planner resolves language, entities, operations and periods
+into a :class:`~app.ai.planner.QueryPlan`, and this module reduces that plan to the
+single ``intent`` string existing clients branch on.
 
-The router also owns the safety property that page context may only *narrow*
-grounding: an entity the user states explicitly always wins over the context.
+Two properties matter and are worth stating once:
+
+* the refusal path is unchanged - a question the published statistics cannot
+  support (a price, the weather, a cross-crop national yield) is refused before
+  anything is retrieved;
+* page context may only *narrow* grounding. An entity the user states explicitly
+  always wins over the context, so a contextual "Explain this" cannot override a
+  question that names its own crop or district.
 """
 
 from __future__ import annotations
 
-from app.ai.entity_resolver import (
-    UNSUPPORTED_HINTS,
-    extract,
-    matched_indicators,
-    mentions,
-)
+from app.ai.conversation import ConversationContext
+from app.ai.planner import INTENTS, plan
 from app.ai.schemas import AIRequest, RoutedRequest
-from app.services import period_service
 
-# Intents the router can return. Kept explicit so a client can branch on it, and
-# so an intent can never be returned without being advertised on
-# /assistant/suggestions (guarded by test_assistant_grounding).
-INTENTS: tuple[str, ...] = (
-    "district_crop_gap",
-    "crop_national_context",
-    "district_context",
-    "national_indicator",
-    "unsupported",
-)
+__all__ = ["INTENTS", "route"]
 
-def route(request: AIRequest) -> RoutedRequest:
+
+def route(
+    request: AIRequest, inherited: ConversationContext | None = None
+) -> RoutedRequest:
     """Resolve a question into an intent plus the entities it names.
 
-    Topics the published statistics cannot support are refused *before* any
-    entity lookup, so a question about prices or weather is never answered with
-    an unrelated production figure.
+    ``inherited`` is the conversation state from previous turns; it is used only
+    for a follow-up that names no entities of its own.
     """
-    question = request.question
-    lowered = question.lower()
+    resolved = plan(request, inherited)
     context = request.context
 
-    unsupported_topic = mentions(lowered, UNSUPPORTED_HINTS)
-    if unsupported_topic:
-        return RoutedRequest(
-            question=question,
-            intent="unsupported",
-            language=request.language,
-            unsupported_topic=unsupported_topic,
-            page=context.page if context else None,
-        )
-
-    district, crop = extract(question)
-
-    # A page may send its own selection as structured context. It names entities
-    # only (never a value), and an entity the question states explicitly still
-    # wins, so the context narrows grounding without overriding the user.
-    requested_period: str | None = None
-    if context is not None:
-        if context.period_code:
-            try:
-                requested_period = period_service.require(context.period_code)
-            except period_service.UnknownPeriodError:
-                # An unpublished period is dropped, not rejected: the question
-                # itself is still answerable.
-                requested_period = None
-        district = district or context.district
-        crop = crop or context.crop
-
-    base = {
-        "question": question,
-        "language": request.language,
-        "district": district,
-        "crop": crop,
-        "province": context.province if context else None,
-        "metric": context.metric if context else None,
-        "benchmark_strategy": context.benchmark_strategy if context else None,
-        "requested_period": requested_period,
-        "page": context.page if context else None,
-    }
-
-    if district is not None and crop is not None:
-        return RoutedRequest(intent="district_crop_gap", **base)
-    if crop is not None:
-        return RoutedRequest(intent="crop_national_context", **base)
-    if district is not None:
-        return RoutedRequest(intent="district_context", **base)
-
-    indicator_ids = matched_indicators(lowered)
-    if indicator_ids:
-        return RoutedRequest(intent="national_indicator", indicator_ids=indicator_ids, **base)
-
-    return RoutedRequest(intent="unsupported", **base)
+    return RoutedRequest(
+        question=request.question,
+        intent=resolved.intent,
+        language=request.language,
+        district=resolved.districts[0] if resolved.districts else None,
+        province=resolved.provinces[0] if resolved.provinces else None,
+        crop=resolved.crops[0] if resolved.crops else None,
+        metric=resolved.metric,
+        benchmark_strategy=context.benchmark_strategy if context else None,
+        requested_period=resolved.period_code,
+        indicator_ids=resolved.indicators,
+        unsupported_topic=resolved.unsupported_topic,
+        page=resolved.page,
+        crops=resolved.crops,
+        districts=resolved.districts,
+        comparison_period=resolved.comparison_period_code,
+        depth=request.depth or resolved.depth,
+        audience=request.audience or resolved.audience,
+        plan=resolved,
+    )

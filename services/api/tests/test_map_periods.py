@@ -205,13 +205,33 @@ def test_yield_layer_still_requires_a_crop_for_every_period(client):
 # --- defaults are unchanged -------------------------------------------------
 
 
-def test_unset_period_keeps_the_previous_single_release_behaviour(client):
+def test_unset_period_names_the_release_each_layer_actually_reads(client):
+    """With no release selected, every layer still reports one it can be trusted to.
+
+    It used to read the joined 2025 Season B table for everything, so a page
+    showing a 2026 Season B snapshot drew a 2025 Season B map beside it. Now a
+    period-aware layer reads the latest published district release and says so,
+    and a single-release layer reads the release that carries it and says so.
+    Neither is left to "whichever table is the default".
+    """
     _require_data(client)
-    for metric in ["gap", "priority", *SINGLE_RELEASE_METRICS]:
+
+    # Period-aware layers follow the published axis, not a legacy default.
+    for metric in PANEL_METRICS:
+        body = client.get("/api/v1/maps/district-metrics", params={"metric": metric}).json()
+        assert len(body["districts"]) == 30, metric
+        assert body["period_code"] == "2026B", metric
+        assert body["provenance"]["source_period"] == "2026B", metric
+        assert all(d["value"] is not None for d in body["districts"]), metric
+
+    # Single-release layers are served from their own release, with real values,
+    # and name it - rather than rendering thirty empty districts under 2026B.
+    for metric in SINGLE_RELEASE_METRICS:
         body = client.get("/api/v1/maps/district-metrics", params={"metric": metric}).json()
         assert len(body["districts"]) == 30, metric
         assert body["period_code"] == "2025B", metric
-        assert body["provenance"]["source_period"] == "2025B", metric
+        assert body["available_period"] == "2025B", metric
+        assert all(d["value"] is not None for d in body["districts"]), metric
 
 
 def test_unpublished_period_is_rejected_not_answered(client):

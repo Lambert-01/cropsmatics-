@@ -1,8 +1,10 @@
 import { Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../theme";
+import { radius, spacing } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 export function StepProgress({ labels, current }: { labels: string[]; current: number }) {
+  const { colors } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: spacing.xs }}>
       {labels.map((label, index) => (

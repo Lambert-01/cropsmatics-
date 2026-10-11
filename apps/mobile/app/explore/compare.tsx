@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { HorizontalBarChart, MultiSeriesChart } from "../../src/components/charts";
 import {
@@ -13,15 +14,24 @@ import {
   SourceMethodSheet,
 } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
-import { EmptyState, ErrorState, FilterChip, LoadingSkeleton, SearchBar, SectionHeader } from "../../src/components/ui";
+import { ChartWorkspace } from "../../src/components/terminal/ChartWorkspace";
+import { ComparisonSelectionSheet } from "../../src/components/terminal/ComparisonSelectionSheet";
+import { PeriodRangeChips } from "../../src/components/terminal/PeriodRangeChips";
+import { SelectedEntityTray } from "../../src/components/terminal/SelectedEntityTray";
+import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
+import { EmptyState, ErrorState, FilterChip, LoadingSkeleton, SectionHeader } from "../../src/components/ui";
 import { PANEL_UNITS } from "../../src/constants/metrics";
 import { useAllCrops, useAllDistricts, usePeriods } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
 import { analyticsApi, mapsApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { seriesColor, spacing, typography } from "../../src/theme";
-import { alignIndexedSeries, toSeriesPoints, valueLookup } from "../../src/utils/analytics";
+import { seriesColor, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
+import type { PeriodRange } from "../../src/utils/analytics";
+import { alignIndexedSeries, applyAxisWindow, toSeriesPoints, valueLookup } from "../../src/utils/analytics";
 import { periodsCarryingLayer } from "../../src/utils/coverage";
+import { mergeCompareSelection } from "../../src/utils/selection";
 import { slugifyEntity } from "../../src/utils/slug";
 
 type Mode = "crops" | "districts";
@@ -29,14 +39,6 @@ type Mode = "crops" | "districts";
  * Python calculation, not a locally derived number. */
 type CropMetric = "production_mt" | "harvested_area_ha" | "indexed_yield";
 type DistrictMetric = "yield_kg_ha" | "production_mt" | "harvested_area_ha" | "gap";
-
-interface PanelRow {
-  district?: string | null;
-  district_code?: string | null;
-  yield_kg_ha?: number | null;
-  production_mt?: number | null;
-  harvested_area_ha?: number | null;
-}
 
 const MAX_COMPARE_CROPS = 5;
 const MAX_COMPARE_DISTRICTS = 4;
@@ -54,17 +56,52 @@ const METRIC_UNIT: Record<DistrictMetric, string> = {
 };
 
 export default function CompareScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
-  const params = useLocalSearchParams<{ crop?: string }>();
+  const params = useLocalSearchParams<{
+    crop?: string;
+    crops?: string;
+    mode?: string;
+    district?: string;
+    districts?: string;
+  }>();
 
-  const [mode, setMode] = useState<Mode>("crops");
-  const [selectedCrops, setSelectedCrops] = useState<string[]>(params.crop ? [params.crop] : []);
+  // Quick-comparison links and the map's Compare action remount this screen
+  // from scratch. Route params therefore *merge into* the last selection —
+  // route ids first (the choice just made), stored ids filling the remaining
+  // slots — instead of replacing it, so a half-built comparison is not lost.
+  const storedSelection = useAppStore((s) => s.compareSelection);
+  const setStoredSelection = useAppStore((s) => s.setCompareSelection);
+  const initial = useMemo(
+    () =>
+      mergeCompareSelection(storedSelection, params, {
+        maxCrops: MAX_COMPARE_CROPS,
+        maxDistricts: MAX_COMPARE_DISTRICTS,
+      }),
+    // Computed once per mount; later merges would fight the user's own edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const [mode, setMode] = useState<Mode>(initial.mode);
+  const [selectedCrops, setSelectedCrops] = useState<string[]>(initial.crops);
   const [cropMetric, setCropMetric] = useState<CropMetric>("production_mt");
-  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
-  const [compareCrop, setCompareCrop] = useState<string | null>(params.crop ?? null);
+  const [selectedDistricts, setSelectedDistricts] = useState<string[]>(initial.districts);
+  const [compareCrop, setCompareCrop] = useState<string | null>(initial.compareCrop);
   const [districtMetric, setDistrictMetric] = useState<DistrictMetric>("yield_kg_ha");
   const [periodCode, setPeriodCode] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  const [periodRange, setPeriodRange] = useState<PeriodRange>("all");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [cropPickerOpen, setCropPickerOpen] = useState(false);
+  // Shared crosshair: the inline chart and the full-screen copy follow one
+  // selection, so expanding keeps the period the user was reading.
+  const [pointIndex, setPointIndex] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    setStoredSelection({ mode, crops: selectedCrops, districts: selectedDistricts, compareCrop });
+  }, [mode, selectedCrops, selectedDistricts, compareCrop, setStoredSelection]);
 
   const crops = useAllCrops();
   const districts = useAllDistricts();
@@ -102,7 +139,8 @@ export default function CompareScreen() {
   });
 
   const panelRows = useMemo(
-    () => (panel.data?.rows ?? []) as unknown as PanelRow[],
+    // Typed from `PeriodProductivityResponse`; no cast is needed.
+    () => panel.data?.rows ?? [],
     [panel.data],
   );
 
@@ -120,17 +158,11 @@ export default function CompareScreen() {
     }));
   }, [districtMetric, gapLayer.data, panelRows, districtMetricKey, selectedDistricts, districts.data]);
 
-  const toggle = (list: string[], setList: (value: string[]) => void, value: string, max: number) => {
-    if (list.includes(value)) setList(list.filter((item) => item !== value));
-    else if (list.length < max) setList([...list, value]);
-  };
-
-  const filteredCrops = (crops.data ?? []).filter(
-    (crop) => !query || slugifyEntity(crop.crop_name).includes(slugifyEntity(query)),
-  );
-  const filteredDistricts = (districts.data ?? []).filter(
-    (district) => !query || slugifyEntity(district.district).includes(slugifyEntity(query)),
-  );
+  const cropOptions = (crops.data ?? []).map((crop) => ({ id: crop.crop_name, label: crop.crop_name }));
+  const districtOptions = (districts.data ?? []).map((district) => ({
+    id: district.district_code,
+    label: district.district,
+  }));
 
   const trendPoints = compareTrends.data?.points ?? [];
   const indexedSeriesList = useMemo(
@@ -155,10 +187,32 @@ export default function CompareScreen() {
   const ineligible = (indexed.data?.series ?? []).filter((item) => !item.eligible);
   const activeQuery = cropMetric === "indexed_yield" ? indexed : compareTrends;
 
+  // The same series the inline chart draws, reused by the full-screen workspace
+  // so expanding never issues a second analytics request. One shared period
+  // window (`applyAxisWindow`) moves every series to the same published
+  // positions — it never slices each crop's observations independently.
+  const canExpand = mode === "crops" && selectedCrops.length >= 2 && !activeQuery.isLoading;
+  const activeSeries = useMemo(
+    () => applyAxisWindow(cropMetric === "indexed_yield" ? indexedSeriesList : seriesList, periodRange),
+    [cropMetric, indexedSeriesList, seriesList, periodRange],
+  );
+  const activeUnit =
+    cropMetric === "indexed_yield"
+      ? "index"
+      : (compareTrends.data?.metric_units?.[`${cropMetric}:${selectedCrops[0]}`] ??
+        ABSOLUTE_METRIC_UNIT[cropMetric]);
+
+  const compareA11yLabel =
+    cropMetric === "indexed_yield"
+      ? t.compareIndexA11y.replace("{crops}", selectedCrops.join(", "))
+      : t.compareAbsoluteA11y.replace("{crops}", selectedCrops.join(", "));
+
   const comparisonRows = districtValues.filter(
     (row): row is { label: string; value: number } => row.value !== null,
   );
   const missingRows = districtValues.filter((row) => row.value === null);
+  const activePeriodLabel =
+    districtPeriods.find((period) => period.period_code === activePeriod)?.label ?? activePeriod ?? "";
 
   return (
     <ScreenLayout back active="compare">
@@ -167,31 +221,63 @@ export default function CompareScreen() {
         <FilterChip label={t.compareCrops} selected={mode === "crops"} onPress={() => setMode("crops")} />
         <FilterChip label={t.compareDistricts} selected={mode === "districts"} onPress={() => setMode("districts")} />
       </View>
-
-      <SearchBar
-        value={query}
-        onChangeText={setQuery}
-        placeholder={mode === "crops" ? t.searchCrops : t.searchDistricts}
-      />
-
       {mode === "crops" ? (
-        <DataSection title={t.compareCrops} subtitle={t.cropBoardSubtitle} first>
-          <View style={styles.chips}>
-            {filteredCrops.map((crop) => (
-              <FilterChip
-                key={crop.crop_code}
-                label={crop.crop_name}
-                selected={selectedCrops.includes(crop.crop_name)}
-                onPress={() => toggle(selectedCrops, setSelectedCrops, crop.crop_name, MAX_COMPARE_CROPS)}
-              />
-            ))}
-          </View>
-          <Text style={typography.micro}>{`${selectedCrops.length}/${MAX_COMPARE_CROPS} · ${t.publishedCoverage}`}</Text>
+        <DataSection
+          title={t.compareCrops}
+          subtitle={t.cropBoardSubtitle}
+          first
+          right={
+            canExpand ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.expandChart}
+                onPress={() => setExpanded(true)}
+                hitSlop={8}
+              >
+                <Text style={{ fontSize: 11, fontWeight: "700", color: colors.primaryStrong }}>
+                  {t.expandChart}
+                </Text>
+              </Pressable>
+            ) : null
+          }
+        >
+          <SelectedEntityTray
+            entities={selectedCrops.map((name) => ({ id: name, label: name }))}
+            onRemove={(id) => setSelectedCrops((list) => list.filter((item) => item !== id))}
+            onEdit={() => setSheetOpen(true)}
+            editLabel={t.editSelection}
+            removeLabel={t.unsaveItem}
+            emptyLabel={t.comparePickTwoCropsMessage}
+          />
+          <Text style={typography.micro}>
+            {t.compareCropsSelected
+              .replace("{selected}", String(selectedCrops.length))
+              .replace("{max}", String(MAX_COMPARE_CROPS))}{" "}
+            · {t.publishedCoverage}
+          </Text>
+          <ComparisonSelectionSheet
+            visible={sheetOpen}
+            title={t.compareCrops}
+            countTemplate={t.compareCropsSelected}
+            searchPlaceholder={t.searchCrops}
+            options={cropOptions}
+            selected={selectedCrops}
+            max={MAX_COMPARE_CROPS}
+            normalize={slugifyEntity}
+            onApply={(next) => {
+              setSelectedCrops(next);
+              setSheetOpen(false);
+            }}
+            onCancel={() => setSheetOpen(false)}
+          />
 
           <MetricSelector
             label={t.selectIndicator}
             value={cropMetric}
-            onChange={(id) => setCropMetric(id as CropMetric)}
+            onChange={(id) => {
+              setCropMetric(id as CropMetric);
+              setPointIndex(null);
+            }}
             options={[
               { id: "production_mt", label: t.metricProduction },
               { id: "harvested_area_ha", label: t.metricArea },
@@ -201,8 +287,8 @@ export default function CompareScreen() {
 
           {selectedCrops.length < 2 ? (
             <EmptyState
-              title="Pick at least two crops"
-              message="Raw yield is not compared across crops because they do not share a natural scale. Choose indexed yield to compare the shape of each crop's change instead."
+              title={t.comparePickTwoCropsTitle}
+              message={t.comparePickTwoCropsMessage}
               icon="git-compare-outline"
             />
           ) : activeQuery.isError ? (
@@ -213,26 +299,35 @@ export default function CompareScreen() {
             <>
               {indexedSeriesList.length ? (
                 <MultiSeriesChart
-                  series={indexedSeriesList}
+                  series={activeSeries}
                   unit="index"
                   height={240}
-                  note={`100 = ${indexed.data?.baseline_definition ?? "the crop's own published baseline"}. Each crop is indexed separately.`}
-                  accessibilityLabel={`Indexed yield comparison of ${selectedCrops.join(", ")}`}
+                  note={t.compareIndexBaselineNote.replace(
+                    "{baseline}",
+                    indexed.data?.baseline_definition ?? "the crop's own published baseline",
+                  )}
+                  accessibilityLabel={compareA11yLabel}
+                  selectedIndex={pointIndex}
+                  onSelectIndex={(index) => setPointIndex(index)}
                 />
               ) : (
-                <EmptyState title={t.noDataAvailable} message="No selected crop meets the eligibility rules for an index." />
+                <EmptyState title={t.noDataAvailable} message={t.compareNoEligibleIndex} />
               )}
+              <PeriodRangeChips value={periodRange} onChange={setPeriodRange} />
               <DataWarning text={t.indexedYieldNote} />
               {ineligible.length ? (
                 <DataWarning
-                  text={`Not indexed: ${ineligible.map((item) => `${item.crop} (${item.reason ?? "ineligible"})`).join("; ")}.`}
+                  text={t.compareNotIndexed.replace(
+                    "{items}",
+                    ineligible.map((item) => `${item.crop} (${item.reason ?? "ineligible"})`).join("; "),
+                  )}
                 />
               ) : null}
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={indexed.data?.provenance?.source_id}
                 period={indexed.data?.provenance?.source_period ?? null}
-                coverage={`national · ${indexedSeriesList.length} eligible crops`}
+                coverage={t.compareCoverageEligible.replace("{count}", String(indexedSeriesList.length))}
                 unit={indexed.data?.unit ?? "index"}
                 method={indexed.data?.provenance?.method}
                 limitations={indexed.data?.provenance?.limitations}
@@ -241,46 +336,93 @@ export default function CompareScreen() {
           ) : (
             <>
               <MultiSeriesChart
-                series={seriesList}
+                series={activeSeries}
                 unit={compareTrends.data?.metric_units?.[`${cropMetric}:${selectedCrops[0]}`] ?? ABSOLUTE_METRIC_UNIT[cropMetric]}
                 height={240}
-                accessibilityLabel={`Comparison of ${selectedCrops.join(", ")} over published periods`}
+                accessibilityLabel={compareA11yLabel}
+                selectedIndex={pointIndex}
+                onSelectIndex={(index) => setPointIndex(index)}
               />
-              <DataWarning text="Absolute metrics only. Raw yield is deliberately not compared across crops: different species do not share a natural yield scale." />
+              <PeriodRangeChips value={periodRange} onChange={setPeriodRange} />
+              <DataWarning text={t.compareAbsolutesOnlyNote} />
               <SourceMethodSheet
                 title={t.sourceAndMethod}
                 source={compareTrends.data?.provenance?.source_id}
                 period={trendPoints.map((point) => point.period).join(", ")}
-                coverage="national crop series"
+                coverage={t.compareCoverageNationalCrop}
                 unit={compareTrends.data?.metric_units?.[`${cropMetric}:${selectedCrops[0]}`]}
                 method={compareTrends.data?.provenance?.method}
                 limitations={compareTrends.data?.provenance?.limitations}
               />
             </>
           )}
+
+          <ChartWorkspace
+            visible={expanded}
+            title={t.compareTitle}
+            subtitle={t.compareSubtitle}
+            onClose={() => setExpanded(false)}
+          >
+            <View style={{ gap: spacing.sm }}>
+              <PeriodRangeChips value={periodRange} onChange={setPeriodRange} />
+              <MultiSeriesChart
+                series={activeSeries}
+                unit={activeUnit}
+                height={360}
+                accessibilityLabel={compareA11yLabel}
+                selectedIndex={pointIndex}
+                onSelectIndex={(index) => setPointIndex(index)}
+              />
+            </View>
+          </ChartWorkspace>
         </DataSection>
       ) : (
         <DataSection title={t.compareDistricts} subtitle={t.compareSelectCropAndPeriod} first>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm }}>
-            {(crops.data ?? []).map((crop) => (
-              <FilterChip
-                key={crop.crop_code}
-                label={crop.crop_name}
-                selected={compareCrop === crop.crop_name}
-                onPress={() => setCompareCrop(crop.crop_name)}
-              />
-            ))}
-          </View>
+          {/* One searchable picker instead of a wall of 17 crop chips. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.compareChooseCrop}
+            accessibilityHint={compareCrop ? compareCrop : undefined}
+            onPress={() => setCropPickerOpen(true)}
+            style={styles.cropPicker}
+          >
+            <Ionicons name="leaf-outline" size={16} color={colors.primaryStrong} />
+            <Text numberOfLines={1} style={styles.cropPickerText}>
+              {compareCrop ?? t.compareChooseCrop}
+            </Text>
+            <Ionicons name="search" size={15} color={colors.slate500} />
+          </Pressable>
+          <SingleSelectSheet
+            visible={cropPickerOpen}
+            title={t.selectCrop}
+            subtitle={t.compareSelectCropAndPeriod}
+            searchPlaceholder={t.searchCrops}
+            options={cropOptions}
+            selected={compareCrop}
+            onApply={(next) => {
+              setCompareCrop(next);
+              setCropPickerOpen(false);
+            }}
+            onCancel={() => setCropPickerOpen(false)}
+          />
 
           {!compareCrop ? (
             <EmptyState title={t.pickCropFirst} message={t.compareSelectCropAndPeriod} icon="leaf-outline" />
           ) : (
             <>
+              <Text style={typography.micro}>
+                {`${compareCrop} · ${activePeriodLabel}`}
+              </Text>
+
               <PeriodSelector
                 label={t.selectPeriod}
                 value={activePeriod}
                 onChange={setPeriodCode}
-                options={districtPeriods.map((period) => ({ id: period.period_code, label: period.label, hint: `${period.n_districts} districts` }))}
+                options={districtPeriods.map((period) => ({
+                  id: period.period_code,
+                  label: period.label,
+                  hint: t.compareDistrictHint.replace("{count}", String(period.n_districts)),
+                }))}
               />
 
               <MetricSelector
@@ -295,43 +437,80 @@ export default function CompareScreen() {
                 ]}
               />
 
-              <View style={styles.chips}>
-                {filteredDistricts.map((district) => (
-                  <FilterChip
-                    key={district.district_code}
-                    label={district.district}
-                    selected={selectedDistricts.includes(district.district_code)}
-                    onPress={() => toggle(selectedDistricts, setSelectedDistricts, district.district_code, MAX_COMPARE_DISTRICTS)}
-                  />
-                ))}
-              </View>
-              <Text style={typography.micro}>{`${selectedDistricts.length}/${MAX_COMPARE_DISTRICTS} districts selected`}</Text>
+              <SelectedEntityTray
+                entities={selectedDistricts.map((code) => ({
+                  id: code,
+                  label: districts.data?.find((item) => item.district_code === code)?.district ?? code,
+                }))}
+                onRemove={(id) => setSelectedDistricts((list) => list.filter((item) => item !== id))}
+                onEdit={() => setSheetOpen(true)}
+                editLabel={t.editSelection}
+                removeLabel={t.unsaveItem}
+                emptyLabel={t.comparePickTwoDistrictsMessage}
+              />
+              <Text style={typography.micro}>
+                {t.compareDistrictsSelected
+                  .replace("{selected}", String(selectedDistricts.length))
+                  .replace("{max}", String(MAX_COMPARE_DISTRICTS))}
+              </Text>
+              <ComparisonSelectionSheet
+                visible={sheetOpen}
+                title={t.compareDistricts}
+                countTemplate={t.compareDistrictsSelected}
+                searchPlaceholder={t.searchDistricts}
+                options={districtOptions}
+                selected={selectedDistricts}
+                max={MAX_COMPARE_DISTRICTS}
+                normalize={slugifyEntity}
+                onApply={(next) => {
+                  setSelectedDistricts(next);
+                  setSheetOpen(false);
+                }}
+                onCancel={() => setSheetOpen(false)}
+              />
 
               {selectedDistricts.length < 2 ? (
-                <EmptyState title="Pick at least two districts" message="Every district is measured on the same crop, the same metric and one published period." icon="git-compare-outline" />
+                <EmptyState
+                  title={t.comparePickTwoDistrictsTitle}
+                  message={t.comparePickTwoDistrictsMessage}
+                  icon="git-compare-outline"
+                />
               ) : districtMetric === "gap" ? (
-                gapLayer.isLoading ? (
+                // A failed request is recoverable, not "no data".
+                gapLayer.isError ? (
+                  <ErrorState message={t.errorGeneric} onRetry={() => void gapLayer.refetch()} />
+                ) : gapLayer.isLoading ? (
                   <LoadingSkeleton height={200} />
                 ) : comparisonRows.length ? (
                   <>
                     <HorizontalBarChart values={comparisonRows} unit="%" />
-                    <DataWarning text="A gap is relative to the selected crop's own published benchmark, so it is comparable between these districts and not between crops." />
+                    <DataWarning text={t.compareGapBenchmarkNote} />
                   </>
                 ) : (
                   <EmptyState title={gapLayer.data?.message ?? t.noDataAvailable} />
                 )
+              ) : panel.isError ? (
+                <ErrorState message={t.errorGeneric} onRetry={() => void panel.refetch()} />
               ) : panel.isLoading ? (
                 <LoadingSkeleton height={200} />
               ) : comparisonRows.length ? (
                 <>
                   <HorizontalBarChart values={comparisonRows} unit={METRIC_UNIT[districtMetric]} />
                   <CoverageBadge level="district" period={panel.data?.label ?? activePeriod} source={panel.data?.provenance?.source_id ?? null} />
-                  <Text style={typography.micro}>{`Coverage metadata: ${panel.data?.n_crops ?? 0} crops carry published district rows for this period.`}</Text>
+                  <Text style={typography.micro}>
+                    {t.compareCoverageMetadata.replace(
+                      "{count}",
+                      String(panel.data?.n_crops ?? 0),
+                    )}
+                  </Text>
                   <SourceMethodSheet
                     title={t.sourceAndMethod}
                     source={panel.data?.provenance?.source_id}
                     period={panel.data?.label ?? activePeriod}
-                    coverage={`district · ${panel.data?.n_observations ?? 0} observations`}
+                    coverage={t.compareCoverageObservations.replace(
+                      "{count}",
+                      String(panel.data?.n_observations ?? 0),
+                    )}
                     unit={METRIC_UNIT[districtMetric]}
                     method={panel.data?.provenance?.method}
                     limitations={panel.data?.provenance?.limitations}
@@ -342,7 +521,12 @@ export default function CompareScreen() {
               )}
 
               {missingRows.length ? (
-                <DataWarning text={`Not published for this crop and period: ${missingRows.map((row) => row.label).join(", ")}. Nothing is inferred for them.`} />
+                <DataWarning
+                  text={t.compareNotPublishedForPeriod.replace(
+                    "{items}",
+                    missingRows.map((row) => row.label).join(", "),
+                  )}
+                />
               ) : null}
             </>
           )}
@@ -352,7 +536,19 @@ export default function CompareScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: spacing.sm },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-});
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
+    row: { flexDirection: "row", gap: spacing.sm },
+    cropPicker: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      minHeight: 46,
+      paddingHorizontal: spacing.md,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.mintSoft,
+    },
+    cropPickerText: { flex: 1, fontSize: 14, fontWeight: "600", color: colors.forestDeep },
+  });

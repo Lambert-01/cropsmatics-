@@ -1,0 +1,19 @@
+﻿List of Tables,,,,,,,,
+,Table 65:,"Estimates of total area by major crop at the national level from the SAS 2021/22 Season B data, with standard error, CV, 95% confidence interval, design effect  and number of sample observations ",,,,,,
+,,,,,,,,
+,Crop name,Estimate,SE,CV,95% Confidence Interval,,DEFF,No. observations (plots)
+,,,,,Lower,Upper,,
+,Maize,81339,3250.7,0.04,74961,87718,0.023,3594
+,Sorghum,139793,5658.2,0.04,128690,150895,1.455,2831
+,Beans,268634,6111,0.023,256643,280625,1.09,7216
+,Irish potato,52858,3301.4,0.062,46380,59336,0.809,1667
+,Sweet potato,92056,3278.4,0.036,85623,98489,2.502,2324
+,Taro,19054,1088.5,0.057,16918,21190,1.645,1048
+,Soybean,37251,1771.3,0.048,33775,40726,0.024,1650
+,Vegetables,15621,1317.7,0.084,13035,18206,0.794,575
+,Cooking banana,73554,3617.4,0.049,66456,80652,1.265,3291
+,Dessert banana,37511,1664.9,0.044,34244,40778,1.269,3258
+,Banana for beer,102256,3881.9,0.038,94639,109873,1.258,3664
+,Cassava,152470,4163.4,0.027,144300,160639,1.293,5739
+,Fruits,9856,1671,0.17,6577,13135,0.326,420
+,"Source: NISR, SAS 2022",,,,,,,

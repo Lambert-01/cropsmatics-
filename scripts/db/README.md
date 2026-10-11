@@ -3,7 +3,7 @@
 Helpers for initializing and seeding the database.
 
 | Command | Purpose |
-|---|---|
+| --- | --- |
 | `make db-up` | start PostgreSQL/PostGIS via docker compose |
 | `make migrate` | apply Alembic migrations (`services/api/alembic`) |
 | `make db-init` | create tables directly from SQLAlchemy models (dev convenience) |

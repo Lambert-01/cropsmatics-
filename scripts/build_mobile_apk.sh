@@ -1,64 +1,152 @@
 #!/usr/bin/env bash
+#
+# Build a Cropmatics Rwanda Android artifact.
+#
+# Subcommands (default: preview):
+#   release-apk   Signed, shareable internal APK via EAS (profile: release-apk).
+#                 This profile MUST produce an .apk, never an .aab.
+#   preview       Internal preview APK via EAS (profile: preview).
+#   local         EAS-equivalent build on this machine (eas build --local),
+#                 using the release-apk profile. Requires the Android SDK +
+#                 JDK and a logged-in EAS account.
+#   debug         Simple local debug APK via Gradle (no EAS account needed).
+#
+# For Google Play use the production profile explicitly; it builds an
+# Android App Bundle (.aab):
+#
+#   eas build --platform android --profile production
+#
+# That artifact is NOT interchangeable with the internal APK above.
+#
+# Requirements:
+#   release-apk / preview / local : eas-cli (npm i -g eas-cli, then `eas login`)
+#   debug                         : Android SDK + JDK, and a generated
+#                                   apps/mobile/android project.
+#
+# API base URL:
+#   The EAS profiles in apps/mobile/eas.json bake EXPO_PUBLIC_API_BASE_URL into
+#   the bundle. Override it with --api URL, which writes a temporary
+#   apps/mobile/.env for the duration of the build and restores it on exit.
 set -euo pipefail
 
-# Cropmatics Rwanda — Android APK build helper
-#
-# Usage:
-#   bash scripts/build_mobile_apk.sh              # EAS cloud release APK
-#   bash scripts/build_mobile_apk.sh preview      # EAS cloud preview APK
-#   bash scripts/build_mobile_apk.sh local        # EAS build on this Mac/Linux machine
-#   bash scripts/build_mobile_apk.sh debug        # Local Gradle debug APK
-#
-# The script validates the mobile app before starting a binary build.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MOBILE_DIR="$ROOT/apps/mobile"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MOBILE_DIR="$ROOT_DIR/apps/mobile"
-MODE="${1:-release-apk}"
+MODE="${1:-preview}"
+shift || true
 
-cd "$MOBILE_DIR"
+API_URL=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --api) API_URL="$2"; shift 2 ;;
+    *) echo "unknown option: $1 (only --api URL is supported)"; exit 1 ;;
+  esac
+done
 
-echo "==> Installing locked mobile dependencies"
-npm ci
+require_eas() {
+  if ! command -v eas >/dev/null 2>&1; then
+    echo "eas-cli not found. Install it with:  npm i -g eas-cli"
+    echo "Then log in with:                    eas login"
+    exit 1
+  fi
+}
 
-echo "==> TypeScript"
-npm run typecheck
+# Bake EXPO_PUBLIC_API_BASE_URL for the duration of a build, restoring the
+# developer's own apps/mobile/.env afterwards. Expo inlines EXPO_PUBLIC_* at
+# bundle time, so the value is fixed into the artifact.
+GEN_ENV="$MOBILE_DIR/.env"
+BACKUP_ENV="$MOBILE_DIR/.env.build-backup"
+HAD_DEV_ENV=0
+restore_env() {
+  if [ "$HAD_DEV_ENV" = "1" ]; then
+    mv "$BACKUP_ENV" "$GEN_ENV"
+  elif [ -n "${WROTE_ENV:-}" ]; then
+    rm -f "$GEN_ENV"
+  fi
+  return 0
+}
 
-echo "==> ESLint"
-npm run lint
+with_api_env() {
+  if [ -n "$API_URL" ]; then
+    [ -f "$GEN_ENV" ] && { cp "$GEN_ENV" "$BACKUP_ENV"; HAD_DEV_ENV=1; }
+    WROTE_ENV=1
+    trap restore_env EXIT
+    printf 'EXPO_PUBLIC_API_BASE_URL=%s\n' "$API_URL" > "$GEN_ENV"
+    echo "==> API base URL : $API_URL (baked into this build)"
+  fi
+}
 
-echo "==> Tests"
-npm test
+build_eas() {
+  local profile="$1"
+  require_eas
+  with_api_env
+  echo "==> EAS profile  : $profile"
+  cd "$MOBILE_DIR"
+  eas build --platform android --profile "$profile" --non-interactive
+  cat <<EOF
 
-echo "==> Expo configuration check"
-npx expo config --type public >/dev/null
+Build submitted. EAS prints the artifact URL when it finishes (10-20 min).
+Download the .apk from that URL and share it directly.
+EOF
+}
 
-echo "==> Validation passed"
+# Validate the mobile app before starting a binary build.
+validate() {
+  cd "$MOBILE_DIR"
+
+  echo "==> Installing locked mobile dependencies"
+  npm ci
+
+  echo "==> TypeScript"
+  npm run typecheck
+
+  echo "==> ESLint"
+  npm run lint
+
+  echo "==> Tests"
+  npm test
+
+  echo "==> Expo configuration check"
+  npx expo config --type public >/dev/null
+
+  echo "==> Validation passed"
+}
 
 case "$MODE" in
   release-apk)
-    echo "==> Building signed shareable APK with EAS profile: release-apk"
-    npx eas-cli@latest build --platform android --profile release-apk
+    validate
+    build_eas "release-apk"
     ;;
   preview)
-    echo "==> Building signed shareable APK with EAS profile: preview"
-    npx eas-cli@latest build --platform android --profile preview
+    validate
+    build_eas "preview"
     ;;
   local)
-    echo "==> Building release APK locally with the EAS build pipeline"
-    echo "    Requires Expo authentication plus Android SDK/NDK and the local EAS prerequisites."
-    npx eas-cli@latest build --platform android --profile release-apk --local
+    validate
+    require_eas
+    with_api_env
+    echo "==> Local EAS build (profile: release-apk)"
+    cd "$MOBILE_DIR"
+    eas build --platform android --profile release-apk --local --non-interactive
+    echo
+    echo "Local build finished. The .apk path is printed above."
     ;;
   debug)
-    echo "==> Building local Android debug APK with Gradle"
-    cd android
-    ./gradlew clean assembleDebug
-    APK="$MOBILE_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
-    echo ""
-    echo "APK: $APK"
+    validate
+    if [ ! -x "$MOBILE_DIR/android/gradlew" ]; then
+      echo "apps/mobile/android/gradlew not found."
+      echo "Generate the native project first:  (cd apps/mobile && npx expo prebuild --platform android)"
+      exit 1
+    fi
+    echo "==> Gradle assembleDebug"
+    cd "$MOBILE_DIR/android"
+    ./gradlew assembleDebug
+    echo
+    echo "Debug APK: $MOBILE_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
     ;;
   *)
-    echo "Unknown mode: $MODE" >&2
-    echo "Use: release-apk | preview | local | debug" >&2
-    exit 2
+    echo "unknown subcommand: $MODE"
+    echo "usage: bash scripts/build_mobile_apk.sh {release-apk|preview|local|debug} [--api URL]"
+    exit 1
     ;;
 esac

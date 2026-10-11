@@ -46,6 +46,11 @@ export function useDataVersion() {
 
 export function useAssistant() {
   return useMutation({
-    mutationFn: (question: string) => api.assistant(question),
+    // Accepts a bare question (stateless) or `{ question, conversationId }` so a
+    // follow-up can join the previous turn's conversation.
+    mutationFn: (input: string | { question: string; conversationId?: string }) =>
+      typeof input === "string"
+        ? api.assistant(input)
+        : api.assistant(input.question, "en", undefined, input.conversationId),
   });
 }

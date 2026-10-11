@@ -156,27 +156,47 @@ def _table(name: str):
 
 
 def current_version() -> dict | None:
-    """The dataset version the canonical tables were last loaded from."""
+    """The dataset version the canonical tables were last loaded from.
+
+    Executed as an explicit column projection through ``mappings()``: on a
+    Core connection (no ORM session) ``select(DatasetVersion)`` yields rows of
+    raw column values, so dereferencing ``row.version`` used to raise
+    ``AttributeError: 'str' object has no attribute 'version'`` and take
+    ``/data/version`` down with a 500 whenever the database was actually
+    serving. Named mappings cannot drift that way, connection or session.
+    """
     from app.models.canonical import DatasetVersion
 
+    statement = (
+        select(
+            DatasetVersion.version,
+            DatasetVersion.pipeline_version,
+            DatasetVersion.git_sha,
+            DatasetVersion.build_timestamp,
+            DatasetVersion.transformation_version,
+            DatasetVersion.source_hash,
+            DatasetVersion.row_counts,
+            DatasetVersion.validation,
+            DatasetVersion.loaded_at,
+        )
+        .order_by(DatasetVersion.loaded_at.desc().nullslast(), DatasetVersion.created_at.desc())
+        .limit(1)
+    )
     with _engine().connect() as connection:
-        row = connection.execute(
-            select(DatasetVersion)
-            .order_by(DatasetVersion.loaded_at.desc().nullslast(), DatasetVersion.created_at.desc())
-            .limit(1)
-        ).scalar_one_or_none()
+        row = connection.execute(statement).mappings().one_or_none()
     if row is None:
         return None
+    loaded_at = row["loaded_at"]
     return {
-        "version": row.version,
-        "pipeline_version": row.pipeline_version,
-        "git_sha": row.git_sha,
-        "build_timestamp": row.build_timestamp,
-        "transformation_version": row.transformation_version,
-        "source_hash": row.source_hash,
-        "row_counts": row.row_counts or {},
-        "validation": row.validation or {},
-        "loaded_at": row.loaded_at.isoformat() if row.loaded_at else None,
+        "version": row["version"],
+        "pipeline_version": row["pipeline_version"],
+        "git_sha": row["git_sha"],
+        "build_timestamp": row["build_timestamp"],
+        "transformation_version": row["transformation_version"],
+        "source_hash": row["source_hash"],
+        "row_counts": row["row_counts"] or {},
+        "validation": row["validation"] or {},
+        "loaded_at": loaded_at.isoformat() if loaded_at else None,
     }
 
 
@@ -267,19 +287,30 @@ def indicator_rows() -> list[dict]:
     """The data dictionary as stored in the database."""
     from app.models.canonical import Indicator
 
+    # Column projection + mappings(): ``.scalars()`` on a Core connection
+    # returns the first *column* (the indicator code string), not the mapped
+    # instance, which made this endpoint raise whenever it answered from a real
+    # database.
+    statement = select(
+        Indicator.indicator_code,
+        Indicator.name,
+        Indicator.description,
+        Indicator.unit_code,
+        Indicator.domain,
+        Indicator.geographic_levels,
+        Indicator.has_crop_dimension,
+    ).order_by(Indicator.domain, Indicator.indicator_code)
     with _engine().connect() as connection:
-        rows = connection.execute(
-            select(Indicator).order_by(Indicator.domain, Indicator.indicator_code)
-        ).scalars().all()
+        rows = connection.execute(statement).mappings().all()
     return [
         {
-            "indicator_code": row.indicator_code,
-            "name": row.name,
-            "description": row.description,
-            "unit_code": row.unit_code,
-            "domain": row.domain,
-            "geographic_levels": row.geographic_levels.split(","),
-            "has_crop_dimension": row.has_crop_dimension,
+            "indicator_code": row["indicator_code"],
+            "name": row["name"],
+            "description": row["description"],
+            "unit_code": row["unit_code"],
+            "domain": row["domain"],
+            "geographic_levels": row["geographic_levels"].split(","),
+            "has_crop_dimension": row["has_crop_dimension"],
         }
         for row in rows
     ]

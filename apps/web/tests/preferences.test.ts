@@ -151,6 +151,7 @@ describe("default analytical context", () => {
       {},
     );
     expect(context).toEqual({
+      view: "period",
       period: "2026B",
       crop: "Maize",
       province: "Eastern",
@@ -213,10 +214,64 @@ describe("default analytical context", () => {
 
   it("leaves everything unset when there are no defaults", () => {
     expect(resolveAnalyticalContext(DEFAULT_PREFERENCES, {})).toEqual({
+      view: "history",
       period: undefined,
       crop: undefined,
       province: undefined,
       district: undefined,
     });
+  });
+});
+
+describe("explicit scope", () => {
+  it("defaults to the all-published-periods scope when nothing is configured", () => {
+    const context = resolveAnalyticalContext(DEFAULT_PREFERENCES, {});
+    expect(context.view).toBe("history");
+  });
+
+  it("lets an explicit view=history override a stored default period", () => {
+    // Without this, "all published periods" is unreachable for anyone who ever
+    // saved a default period in Settings - which is exactly the bug.
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: "2025B" }), {
+      view: "history",
+    });
+    expect(context.view).toBe("history");
+    expect(context.period).toBeUndefined();
+  });
+
+  it("still applies a stored default period when no explicit view is given", () => {
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: "2025B" }), {});
+    expect(context.view).toBe("period");
+    expect(context.period).toBe("2025B");
+  });
+
+  it("lets a release named by the URL win over view=history", () => {
+    // A link that names a release must reproduce what the sender saw.
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: "2025B" }), {
+      view: "history",
+      period: "2026B",
+    });
+    expect(context.view).toBe("period");
+    expect(context.period).toBe("2026B");
+  });
+
+  it("never reports a period scope with no period", () => {
+    // A scope that disagrees with the period it sends would make the UI and the
+    // API request describe different things.
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: null }), {
+      view: "period",
+    });
+    expect(context.view).toBe("history");
+    expect(context.period).toBeUndefined();
+  });
+
+  it("does not apply a stored default period on top of an explicit history view", () => {
+    const context = resolveAnalyticalContext(
+      prefs({ defaultPeriod: "2025B", defaultCrop: "Maize" }),
+      { view: "history" },
+    );
+    // The crop default still applies: only the period dimension is scoped.
+    expect(context.crop).toBe("Maize");
+    expect(context.period).toBeUndefined();
   });
 });

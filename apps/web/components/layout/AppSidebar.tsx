@@ -99,9 +99,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                         className={styles.link}
                       >
                         <Icon className={styles.icon} aria-hidden="true" />
-                        <span className="truncate">
-                          {t(`nav.${item.href.replace(/^\//, "")}`)}
-                        </span>
+                        <span className="truncate">{t(item.labelKey)}</span>
                       </Link>
                     </li>
                   );

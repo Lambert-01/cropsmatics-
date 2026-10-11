@@ -16,7 +16,6 @@
  * All of this is pure so it is unit-testable without a renderer.
  */
 
-import { colors } from "../theme";
 import type { MapLayer } from "./coverage";
 
 /** Higher value is a better outcome, or a neutral magnitude. Light -> deep. */
@@ -25,8 +24,12 @@ export const SCALE_POSITIVE = ["#DDF5EB", "#A7E3C9", "#5FC4A0", "#1E9A73", "#056
 /** Higher value is worse (a burden). Light amber -> deep red. Never green. */
 export const SCALE_BURDEN = ["#FFF3D6", "#F5C877", "#E79A3C", "#D2662A", "#A8201A"] as const;
 
-/** Reserved for "no verified value". Never part of either ramp. */
-export const NO_DATA_COLOR = colors.missing;
+/**
+ * Reserved for "no verified value". Never part of either ramp.
+ *
+ * Read the swatch from the active palette (`useTheme().colors.missing`) rather
+ * than a module constant so it stays legible in dark mode.
+ */
 
 export type ScaleDirection = "higherIsBetter" | "higherIsWorse";
 

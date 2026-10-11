@@ -38,18 +38,18 @@ from scripts.data.common import (
     SAS_SOURCE_IDS,
     SAS_WORKBOOKS,
     log,
+    release_folder_key,
 )
 
 # Only these suffixes are treated as data sources; README/markdown files are
 # provenance documentation, not raw data.
 RAW_SUFFIXES = {".csv", ".xlsx", ".xls", ".json", ".geojson", ".tif", ".tiff", ".gz"}
 
-# Extraction folder name (manifest ``folder``) -> ``common.SAS_RELEASES`` key.
+# Extraction folder key (manifest ``folder``) -> release key. Derived from
+# ``common.SAS_RELEASES`` so a new release needs no edit here (see
+# ``common.release_folder_key``).
 FOLDER_TO_RELEASE: dict[str, str] = {
-    "SAS_2024_Annual": "SAS_2024_ANNUAL",
-    "SAS_2025_Annual": "SAS_2025_ANNUAL",
-    "SAS_2026_Season_A": "SAS_2026A",
-    "SAS_2026_Season_B": "SAS_2026B",
+    release_folder_key(release): release for release in SAS_RELEASES
 }
 
 # Path prefix -> (publisher, dataset_family, access_level). Longest prefix wins.
@@ -66,14 +66,6 @@ PROVIDER_RULES: tuple[tuple[str, str, str, str], ...] = (
     ("data/raw/cropmatics_real_data_2024_2026", "CROPMATICS", "LEGACY_PACK", "PUBLIC"),
     ("data/external/chirps", "CHC_UCSB", "CHIRPS", "PUBLIC"),
 )
-
-# Raw path prefix -> SAS release key (see ``common.SAS_RELEASES``).
-RELEASE_BY_PREFIX: dict[str, str] = {
-    "data/raw/nisr/sas/2024": "SAS_2024_ANNUAL",
-    "data/raw/nisr/sas/2025": "SAS_2025_ANNUAL",
-    "data/raw/nisr/sas/2026/season_a": "SAS_2026A",
-    "data/raw/nisr/sas/2026/season_b": "SAS_2026B",
-}
 
 
 def sha256_file(path: Path) -> str:
@@ -99,6 +91,16 @@ def classify(rel_path: str) -> tuple[str, str, str]:
         if rel_path.startswith(prefix):
             return publisher, family, access
     return "UNSPECIFIED", "UNKNOWN", "UNSPECIFIED"
+
+
+# Raw path prefix -> SAS release key, derived from where each release's tables
+# actually are (longest prefix first, so a nested release path cannot be shadowed).
+RELEASE_BY_PREFIX: dict[str, str] = dict(
+    sorted(
+        ((_rel(SAS_RELEASES[release].parent), release) for release in SAS_RELEASES),
+        key=lambda item: -len(item[0]),
+    )
+)
 
 
 def release_for(rel_path: str) -> str:

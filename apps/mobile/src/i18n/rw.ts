@@ -7,7 +7,26 @@ import type { Strings } from "./en";
 export const rw: Strings = {
   appName: "Cropmatics Rwanda",
   tagline: "Crop Intelligence from Data to Action",
+  splashFooter: "Ubwenge bw'ubuhinzi bw'u Rwanda",
   home: "Ahabanza",
+  // Hero copy kept in English pending native-speaker review (see file header);
+  // short labels are translated below.
+  homeEyebrow: "National agricultural intelligence",
+  homeHeadline: "Smarter decisions for a more productive Rwanda",
+  homeHeroBody: "Turning official data into action for a productive and resilient Rwanda.",
+  homeValueDecisions: "Ibyemezo byiza",
+  homeValueProductivity: "Umusaruro mwinshi",
+  homeValueFoodSystems: "Gahunda z'ibiribwa zikomeye",
+  nationalTrendTitle: "Imigendekere y'ibihingwa ku rwego rw'igihugu",
+  districtOpportunities: "Amahirwe mu turere",
+  whatDataSay: "Ibyo amakuru avuga",
+  kpiCropsAnalysed: "Ibihingwa byasesenguwe",
+  kpiDistrictsCovered: "Uturere twakoreshejwe",
+  filterSeason: "Igihe",
+  seasonAll: "Ibihe byose",
+  scopeNational: "Igihugu",
+  viewAllCrops: "Reba ibihingwa byose",
+  openMap: "Fungura ikarita",
   registerHarvest: "Andika isarura",
   harvestHistory: "Amateka y'isarura",
   riskAnalysis: "Isesengura ry'ibyago",
@@ -443,13 +462,19 @@ export const rw: Strings = {
   myInquiries: "My Inquiries",
   savedItems: "Saved Items",
   settingsTitle: "Settings",
-  appearance: "Appearance",
-  appearanceSystem: "System",
-  appearanceLight: "Light",
-  appearanceDark: "Dark",
+  appearance: "Isura",
+  appearanceSystem: "Sisitemu",
+  appearanceLight: "Umucyo",
+  appearanceDark: "Umwijima",
+  appearanceUnavailable: "Iyi verisiyo ikoresha umuco w'urumuri gusa.",
   dataSettings: "Data",
   offlineCache: "Offline cache",
   clearCachedData: "Clear cached data",
+  clearCacheNote:
+    "Ibyabitswe n'amateka y'ibibazo biragumaho; gusa ibitegereje koherezwa bisibwa.",
+  cacheStatusUpdated: "Amakuru yabitswe yavuguruwe {age}",
+  cacheStatusEmpty: "Nta makuru yabitswe kuri iki gikoresho.",
+  cacheDisabled: "Ububiko bw'amakuru offline buzimye.",
   notifications: "Notifications",
   notificationsInfo: "Information updates",
   notificationsInquiry: "Inquiry responses",
@@ -491,6 +516,17 @@ export const rw: Strings = {
   sameSeasonView: "Igihe kimwe",
   latestPublished: "Igihe giheruka",
   notPublished: "Ntabwo byatangajwe",
+  noPublishedPeriod: "Nta gihe cyatangajwe",
+  noPublishedPeriods: "Nta bihe byatangajwe",
+  noPublishedObservations: "Nta makuru yatangajwe ku byatoranyijwe.",
+  noPublishedComposition: "Nta magabane yatangajwe ku byatoranyijwe.",
+  trendSummaryA11y: "Urugendo, ibihe {count} byatangajwe",
+  resetFilters: "Garuka ku byose",
+  filterAllCrops: "Ibihingwa byose",
+  coverageScopeNote:
+    "Amakuru yose yatangajwe; ntabwo agabanywa n'amahitamo haruguru.",
+  noPublishedSelection: "Nta makuru yatangajwe kuri {metric} muri {selection}.",
+  trendChartA11y: "Imbonerahamwe y'urugendo rwa {metric} kuri {selection}",
   noComparableChange: "Nta gihe kibanziriza gishobora kugereranywa.",
   sourceAndMethod: "Inkomoko n'uburyo",
   cropBoard: "Urutonde rw'ibihingwa",
@@ -511,6 +547,9 @@ export const rw: Strings = {
     "Hitamo igihingwa n'igihe kimwe cy'akarere cyatangajwe kugira ngo ugereranye uturere.",
   noLayerForPeriod: "Iki kipimo ntabwo cyatangajwe mu gihe cyahiswemo.",
   tapForReadout: "Kurura imbonerahamwe usome igihe cyatangajwe.",
+  // Reuses this file's established term for the yield benchmark ("urugero").
+  gapAboveBenchmark: "Hejuru y'urugero",
+  gapBelowBenchmark: "Munsi y'urugero",
   // ---- Data-honesty notes --------------------------------------------------
   gapBenchmarkNote:
     "Icyuho kipimwa ku musaruro ngereranyo wagenwe ku gihingwa na API. Icyuho kinini ntabwo bisobanura igisubizo cyiza kurusha ibindi.",
@@ -533,4 +572,280 @@ export const rw: Strings = {
   nationalData: "NATIONAL DATA",
   districtData: "DISTRICT DATA AVAILABLE",
   verifiedSource: "VERIFIED SOURCE",
+
+  // ---- Inquiry (extended) --------------------------------------------------
+  inquiryHistorySubtitle: "Ibisaba byoherejwe kuri iki gikoresho gusa",
+  inquiryRefreshStatus: "Vugurura imimerere",
+  inquiryCheckStatus: "Reba imimerere",
+  inquiryChecking: "Turagenzura…",
+  inquirySubmittedOn: "Byoherejwe {date}",
+  inquiryHistoryEmptyMessage:
+    "Ohereza icyifuzo cy'amakuru kandi nomero yacyo izagaragara hano.",
+  inquiryNewSubtitle:
+    "Ntubona icyo ukeneye? Ohereza icyifuzo cy'amakuru ku itsinda rya Cropmatics.",
+  inquiryMessagePlaceholder: "Sobanura amakuru ukeneye…",
+  inquiryMessageTooShort: "Nyamuneka sobanura ibyo ukeneye mu buryo burambuye.",
+  inquiryQueued: "Bitegereje koherezwa. Icyifuzo cyawe cyabitswe kuri iki gikoresho.",
+  inquiryDraftsQueued: "{count} inyandiko zitegereje.",
+  inquiryContextOptional: "Ibisobanuro (bidategetswe)",
+  inquiryContactOptional: "Aho twahurira (bidategetswe)",
+  inquiryReferenceNumber: "Nomero y'inyandiko",
+  inquiryReceiptNote:
+    "Keep this reference. Your receipt is stored privately on this device, and only you can read your own inquiry status.",
+
+  // ---- Help (headings translated; long guidance pending native review) -----
+  helpSubtitle: "Uko wakoresha Cropmatics neza",
+  helpExploreTitle: "Shakisha amakuru",
+  helpExploreBody:
+    "Browse crops and districts, or use the unified search to jump straight to an entity.",
+  helpMapsTitle: "Koresha amakarita",
+  helpMapsBody:
+    "Pick a metric, then tap any district that has a verified value. Grey districts have no data for that selection.",
+  helpCompareTitle: "Gereranya amakuru",
+  helpCompareBody:
+    "Compare crops on absolute metrics, or districts on the same crop, period and indicator.",
+  helpAskTitle: "Baza Cropmatics",
+  helpAskBody:
+    "Ask in English or Kinyarwanda. If the published data cannot answer, Cropmatics says so instead of guessing.",
+  helpInquiryTitle: "Ohereza icyifuzo",
+  helpInquiryBody:
+    "Request information the app does not cover. Your receipt is private to this device.",
+  helpOfflineTitle: "Gukoresha nta murandasi",
+  helpOfflineBody:
+    "Home, saved items and Ask history stay available offline. New statistical questions need a connection.",
+  helpSourcesTitle: "Menya inkomoko",
+  helpSourcesBody:
+    "Every analytical view shows the source, period and coverage. The Data Sources page lists what is verified.",
+
+  // ---- Privacy (heading translated; long policy pending native review) -----
+  privacySubtitle: "Ibyo Cropmatics ikusanya — nibyo idakusanya",
+  privacyPoint1:
+    "Browsing public agricultural intelligence does not require an account or any personal farm information.",
+  privacyPoint2:
+    "Inquiry contact fields are optional. If you provide them, only you can read your inquiry back using your private receipt token.",
+  privacyPoint3:
+    "Saved items and Ask history stay on this device unless you explicitly share them.",
+  privacyPoint4:
+    "Location, photos and documents are only requested inside Field Operations, never during Explore.",
+  privacyPoint5:
+    "The public API cannot list other people's inquiries or contact details.",
+  privacyHonestyNote:
+    "This page describes behavior that is actually implemented. Cropmatics does not promise policies it has not built.",
+
+  // ---- Methodology (titles translated; method prose pending native review) -
+  methodologyTitle: "Uburyo bukoreshwa",
+  methodologyCleanTitle: "Uko amakuru asukurwa",
+  methodologyCleanBody:
+    "Official NISR/MINAGRI releases are extracted, validated against documented row counts and published as processed tables. A value that fails validation is dropped, never guessed.",
+  methodologyIndicatorsTitle: "Uko ibipimo bibazwa",
+  methodologyIndicatorsBody:
+    "Each indicator declares how it may be aggregated. Shares of farmers use an unweighted mean of published district rows; indicators that depend on a crop must name that crop first.",
+  methodologyGapTitle: "Icyuho cy'umusaruro kisobanura iki",
+  methodologyGapBody:
+    "The gap index compares an observed district-crop yield against a benchmark (the national median for the same crop). It describes an association, not a proven cause.",
+  methodologyNationalTitle: "Impamvu ibihe bimwe bigira amakuru y'igihugu gusa",
+  methodologyNationalBody:
+    "Some official tables are published only at national level. Where that is the case, the app says so and never colours a district as if district data existed.",
+  methodologyCausationTitle: "Impamvu isano itari impamvu",
+  methodologyCausationBody:
+    "District aggregates describe patterns across many farms and conditions. They cannot prove that changing one practice would cause a yield change.",
+  methodologyAskTitle: "Uko Ask Cropmatics ishingira ku makuru",
+  methodologyAskBody:
+    "Every answer is composed from retrieved, validated values. The assistant cannot invent a figure, and it refuses questions the published statistics cannot support.",
+  methodologyNoClaimNote:
+    "No market prices, weather forecasts, pest forecasts, credit scoring or facility capacities are claimed unless a verified integrated dataset exists.",
+
+  // ---- More ----------------------------------------------------------------
+  moreGroupExploreData: "Shakisha amakuru",
+  moreGroupMyInformation: "Amakuru yanjye",
+  moreGroupCropmatics: "Cropmatics",
+  moreGroupAbout: "Ibyerekeye",
+  moreGroupFieldOperations: "Ibikorwa byo mu murima",
+  moreFieldOperations: "Ibikorwa byo mu murima",
+  moreFooterNote:
+    "Cropmatics transforms Rwanda's official agricultural data into information anyone can explore.",
+
+  // ---- Field operations (extended) -----------------------------------------
+  fieldOperationsTitle: "Ibikorwa byo mu murima",
+  fieldOperationsSubtitle: "Ibikoresho by'inyongera byo gukusanya amakuru",
+  fieldOperationsDisabled:
+    "Field Operations is disabled in this build. Set EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS=true to enable it.",
+  fieldOperationsFooter:
+    "Field Operations records harvests on this device and is separate from the public intelligence experience. Location and photos are only requested here.",
+  harvestRisk: "Ibyago by'isarura",
+  sync: "Kohereza",
+  syncConnection: "Ihuza",
+  syncOnline: "kuri interineti",
+  syncOffline: "nta interineti",
+  syncIdempotentNote:
+    "Sync is idempotent: each record carries a locally generated id that the server treats as an idempotency key, so a repeated send never creates a duplicate.",
+
+  // ---- Small shared labels -------------------------------------------------
+  savedSubtitle: "Byabitswe kuri iki gikoresho",
+  askHistorySubtitle: "Byabitswe kuri iki gikoresho",
+  askStatusGrounded: "Bifite inkomoko",
+  askStatusUnavailable: "Ntabwo bihari",
+  askKeyFigures: "Imibare y'ingenzi",
+  close: "Funga",
+  notAvailable: "Ntabwo bihari",
+
+  // ---- Map / district detail -----------------------------------------------
+  districtMapSubtitle: "Amakuru y'akarere ku ikarita",
+  cropsWithData: "Ibihingwa bifite amakuru",
+  largestProductionCrop: "Igihingwa gikora umusaruro mwinshi",
+  mapGapReadout: "Icyuho cy'umusaruro: {value} {unit} ({period})",
+  mapNoVerifiedValue: "Nta gaciro k'akarere kemejwe ku kipimo cyahiswemo.",
+  districtInputsSubtitle: "Umubare w'abahinzi bavuga ko bakoresha",
+  districtIrrigationSubtitle: "Uburyo bwo kuhira n'inkomoko y'amazi",
+  districtSoilErosionSubtitle: "Imikoreshereze y'ubutaka n'uburyo bwo kurwanya isuri",
+  districtInputsNote: "Aya ni amabara y'abahinzi, atari y'ubuso buhingwa.",
+
+  // ---- Indicators ----------------------------------------------------------
+  aggregation: "Uko bigereranywa",
+
+  // ---- Home ----------------------------------------------------------------
+  featuredInsightsTitle: "Ibyagaragaye byatoranyijwe",
+  featuredInsightsSubtitle: "Bikomoka ku murimo wa Cropmatics",
+
+  // ---- Data sources --------------------------------------------------------
+  dataSourcesHowWeUseTitle: "Uko Cropmatics ikoresha iyi nkomoko",
+  dataSourcesHowWeUseBody:
+    "Only verified, integrated sources appear here. CHIRPS and other planned sources are not listed until they are actually connected.",
+  dataSourcesLimitationsLabel: "Imbogamizi",
+  dataSourcesOpenSource: "Fungura {name}",
+
+  // ---- Storage options -----------------------------------------------------
+  storageTotalCapacity: "Ubushobozi bwose",
+  storageFacilities: "ibigo",
+  storageMetricTonnes: "toni metrike",
+  storageNewInPeriod: "Bishya muri {period}:",
+
+  // ---- Compare (titles translated; method notes pending native review) -----
+  comparePickTwoCropsTitle: "Hitamo nibura ibihingwa bibiri",
+  comparePickTwoCropsMessage:
+    "Raw yield is not compared across crops because they do not share a natural scale. Choose indexed yield to compare the shape of each crop's change instead.",
+  compareNoEligibleIndex: "Nta gihingwa cyatoranyijwe kijuje amabwiriza y'igereranyo.",
+  compareIndexBaselineNote: "100 = {baseline}. Buri gihingwa kigereranywa ukwacyo.",
+  compareIndexA11y: "Igereranyo ry'umusaruro ugereranyijwe wa {crops}",
+  compareNotIndexed: "Ntibigereranywa: {items}.",
+  compareAbsoluteA11y: "Igereranyo rya {crops} mu bihe byatangajwe",
+  compareAbsolutesOnlyNote:
+    "Absolute metrics only. Raw yield is deliberately not compared across crops: different species do not share a natural yield scale.",
+  compareCoverageEligible: "igihugu · ibihingwa {count} bijuje amabwiriza",
+  compareCoverageNationalCrop: "urukurikirane rw'ibihingwa by'igihugu",
+  comparePickTwoDistrictsTitle: "Hitamo nibura uturere tubiri",
+  comparePickTwoDistrictsMessage:
+    "Every district is measured on the same crop, the same metric and one published period.",
+  compareCropsSelected: "{selected} kuri {max} ibihingwa byatoranyijwe",
+  compareDistrictsSelected: "{selected} kuri {max} uturere twatoranyijwe",
+  compareDistrictHint: "uturere {count}",
+  compareGapBenchmarkNote:
+    "A gap is relative to the selected crop's own published benchmark, so it is comparable between these districts and not between crops.",
+
+  // ---- Post-harvest (extended) ---------------------------------------------
+  postHarvestLossesSubtitle: "Umubare w'umusaruro wavuzwe ko watakaye, ku gihingwa",
+  postHarvestNationalSubtitle: "Imibare y'igihugu yatangajwe na MINAGRI",
+  postHarvestProgramSubtitle: "Amakuru ya gahunda yemejwe",
+  postHarvestLossNote:
+    "The loss band is a documented threshold on the reported share, not a calibrated probability of loss.",
+  postHarvestPickCropNote:
+    "Pick a crop to see how its production was used. The comparison below ranks the crops the release reports.",
+  postHarvestNoDistrictNote:
+    "National crop-level shares. This table carries no district dimension, so no district breakdown can be shown.",
+  postHarvestNationalWarning:
+    "National totals across the whole country. These are not facility capacities and are not attached to any district.",
+  postHarvestProgramDistricts: "Uturere twa gahunda: {districts}.",
+  postHarvestProgramNone: "Uturere twa gahunda ntibwatangajwe kuri iyi hitamo.",
+  postHarvestFacilityNote:
+    "Facility-level capacities and exact coordinates are not published, so none are shown.",
+
+  // ---- Source & method sheet -----------------------------------------------
+  sourceMethodTitle: "Inkomoko n'uburyo",
+  sheetSource: "Inkomoko",
+  sheetPeriod: "Igihe",
+  sheetCoverage: "Uko amakuru ariho",
+  sheetUnit: "Igipimo",
+  sheetMethod: "Uburyo",
+  sheetLimitations: "IMBOGA Z'AMAKURU",
+  sheetNotes: "IBISOBANURO",
+  sourceCoverageTitle: "Inkomoko n'ubwuzuzanye",
+  sourceCoveragePeriod: "Igihe {period}",
+  sourceCoverageLevel: "amakuru {level}",
+  sourceCoverageLimitations: "Imbogamizi: {items}",
+
+  // ---- Change indicators ---------------------------------------------------
+  changeVsPrevious: "ugereranyije na {label}",
+  changeSameSeason: "igihe kimwe {label} ({value})",
+
+  // ---- Charts --------------------------------------------------------------
+  periodRangeLabel: "Urwego rw'ibihe",
+  latestCount: "Ibiheruka {count}",
+  expandChart: "Kwagura igishushanyo",
+  collapseChart: "Kugabanya igishushanyo",
+  // ---- Selection -----------------------------------------------------------
+  applySelection: "Emeza ibyatoranyijwe",
+  cancel: "Reka",
+  editSelection: "Hindura",
+  chooseDistrict: "Hitamo akarere",
+  // ---- Home hierarchy ------------------------------------------------------
+  quickComparisons: "Ugereranyo bwihuse",
+  quickComparisonsSubtitle: "Ugereranyo wateguwe ushobora gufungura inshuro imwe",
+  savedCrops: "Ibihingwa wabitse",
+  popularCrops: "Ibihingwa bikunze kuboneka",
+  // ---- Bottom navigation ---------------------------------------------------
+  analyze: "Sesengura",
+  chartsPeriodSwipeHint: "Kurura hejuru cyangwa hasi kugira ngo ujye mu bihe byatangajwe.",
+  chartNoPeriods: "Nta bihe byatangajwe",
+  chartNoDataShort: "Nta makuru",
+  chartNoTrendData: "Nta makuru y'urugendo ahari.",
+  chartNoData: "Nta makuru ahari.",
+  chartNoComposition: "Nta makuru y'ibigize ahari.",
+  chartTimeSeriesA11y: "Igishushanyo cy'igihe",
+  chartLineA11y: "Igishushanyo cy'umurongo. {summary}",
+  chartBarA11y: "Grafu y'ibiti. {summary}",
+  chartHBarA11y: "Grafu y'ibiti y'ubuhagarike. {summary}",
+  chartCompositionA11y: "Igishushanyo cy'ibigize. {items}",
+  chartCompositionReadout: "Ibigize: {items}",
+  composeSumMismatch:
+    "Imigabane yashyizweho irangira {total}{unit}, si 100{unit}. Ibyatanzwe biragaragazwa nk'ubwo byashyizweho.",
+  composeNotPublishedFor: "Ntabwo byashyizweho kuri: {items}.",
+  // ---- Coverage / provenance labels ---------------------------------------
+  coverageNationalCropLevel: "igihugu · igihingwa",
+  coverageDistrictBenchmark: "akarere · gugereranyija igihingwa",
+  districtCoverageCrops: "akarere · {count} ibihingwa",
+  districtCoverageSingleRelease: "akarere · igihembwe kimwe cyatanzwe",
+  districtNoCrossCropAverage:
+    "Nta musaruro uhagaze w'ibihingwa byose agaragarirwa: ibihingwa bitandukanye udafite icyero kimwe. Hitamo igihingwa kugira ngo ugereranye neza.",
+  districtNoBenchmark:
+    "Nta gugereranyo cyatanzwe kuboneka kuri iki kinyabuhanga n'igihe kino, kubera ibyo nta musemburo ugagaragarira.",
+  districtSingleReleaseNote:
+    "Imigabane y'ibyuma, amazi n'ingufu z'akarere biva mu gihembwe kimwe cyatanzwe (2025 Season B). Guhitamo igihe kindi ntiguhindura ibyo.",
+  latestDistrictRelease: "Igihe gishya ku karere: {period}",
+  // ---- Compare -------------------------------------------------------------
+  compareCoverageMetadata:
+    "Ibiranga ubwoko n'igihe: {count} ibihingwa bibihari ku buryo bw'akarere kuri iyi gihe.",
+  compareCoverageObservations: "akarere · {count} imiboneka",
+  compareNotPublishedForPeriod:
+    "Ntabwo byatanzwe kuri igihingwa n'igihe kino: {items}. Nta kintu cyerekanywa kuri byo.",
+  compareChooseCrop: "Hitamo igihingwa",
+  // ---- Map -----------------------------------------------------------------
+  mapDistrictUnknown: "Akarere {district} ntakaboneka. Igereranyo ryerekana igihugu.",
+  mapCoverageDistricts: "akarere · {count} akarere",
+  mapYieldNeedsCropNote:
+    "Umusaruro w'ibihingwa bitandukanye udafite icyero kimwe, kubera ibyo igihingwa kizahitwa mbere y'igereranyo ry'umusaruro.",
+  mapDistrictValuesNote: "Nta makuru ashingiye ku karere yashyizweho kuri iyi nteruro.",
+  mapPeriodNotDistrict:
+    "{period} ntabwo byashyizweho ku buryo bw'akarere kuri iyi ndego, kubera ibyo igereranyo riri ku {fallback}.",
+  mapPeriodNoneForLayer: "Nta gihe cyatanzwe carimo iyi ndego.",
+  // ---- Share ---------------------------------------------------------------
+  shareCropAction: "Sangira",
+  shareCropTitle: "Sangira incamake y'igihingwa",
+  shareCropHeading: "{crop} — Cropmatics Rwanda",
+  shareCropSeries: "Urugendo rw'igihugu: {first} kugeza {last}",
+  shareCropMetric: "{metric}: {value}{unit} ({period})",
+  shareCropSource: "Inkomoko: {source}",
+  shareCropNote: "Ibyatanzwe gusa — nta kintu kirerekanywe kuri iyi kariti.",
+  // ---- Onboarding taglines -------------------------------------------------
+  onboardingTagline: "Ubushakashatsi bw'ubuhinzi bw'u Rwanda mu bigo byawe",
+  onboardingAskTagline: "Baza. Shakisha. Umene urumva.",
 };

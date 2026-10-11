@@ -14,13 +14,16 @@ import pandas as pd
 from fastapi import HTTPException, status
 
 from app.repositories import dataset_repository as repo
+from app.services import period_service
 
 # key -> (label, loader, source_id)
 DATASETS: dict[str, tuple[str, str, str]] = {
     "crop_productivity": (
-        "Crop Productivity (2024A-2026B)",
+        # The label and source list are resolved from the loaded panel at request
+        # time (see ``_resolved_meta``), so a new release cannot leave them stale.
+        "Crop Productivity",
         "crop_productivity",
-        "NISR_SAS_2024_ANNUAL,NISR_SAS_2025_ANNUAL,NISR_SAS_2026A,NISR_SAS_2026B",
+        "",
     ),
     "district_crop_productivity": (
         "District Crop Productivity (2025B legacy)",
@@ -120,6 +123,26 @@ def list_datasets() -> list[dict]:
     ]
 
 
+def _resolved_meta(
+    key: str, label: str, source_id: str, df: pd.DataFrame
+) -> tuple[str, str]:
+    """Dataset label and source ids that reflect what the panel actually holds.
+
+    The multi-period panel now covers 2022A-2026B from six releases, so both the
+    printed range and the provenance list are derived from the data rather than
+    from a literal that only stays true until the next release.
+    """
+    if key == "crop_productivity":
+        label = f"{label} ({period_service.district_range()})"
+        if "source_id" in df.columns:
+            sources = sorted({str(value) for value in df["source_id"].dropna() if str(value)})
+            if sources:
+                source_id = ",".join(sources)
+    elif key == "district_crop_productivity":
+        label = f"{label} ({period_service.single_release_scope()})"
+    return label, source_id
+
+
 def fetch(
     key: str,
     limit: int = 100,
@@ -133,6 +156,7 @@ def fetch(
         raise KeyError(key)
     label, loader_name, source_id = DATASETS[key]
     df: pd.DataFrame = getattr(repo, loader_name)()
+    label, source_id = _resolved_meta(key, label, source_id, df)
 
     allowed = FILTERABLE_COLUMNS.get(key, ())
 

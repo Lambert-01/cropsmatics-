@@ -2,13 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
-import { useAlertsCount } from "../hooks/useAlertsCount";
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
-import { colors, spacing, touch, typography } from "../theme";
+import { radius, spacing, toggledAppearance, touch } from "../theme";
+import { useTheme } from "../theme/theme-context";
 import { BrandMark } from "./BrandMark";
 
-/** A header icon that always meets the minimum touch target. */
 function HeaderAction({
   icon,
   label,
@@ -20,33 +19,48 @@ function HeaderAction({
   onPress: () => void;
   badge?: number;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={badge ? `${label} (${badge})` : label}
       onPress={onPress}
       hitSlop={8}
-      style={{
+      style={({ pressed }) => ({
         minWidth: touch.minTarget,
         minHeight: touch.minTarget,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+        alignItems: "center" as const,
+        justifyContent: "center" as const,
+        opacity: pressed ? 0.7 : 1,
+      })}
     >
-      <Ionicons name={icon} size={22} color={colors.forest} />
+      <View
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: radius.md,
+          backgroundColor: colors.mintSoft,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Ionicons name={icon} size={20} color={colors.primaryStrong} />
+      </View>
       {badge && badge > 0 ? (
         <View
           style={{
             position: "absolute",
-            top: 6,
-            right: 6,
-            minWidth: 16,
-            height: 16,
+            top: 4,
+            right: 4,
+            minWidth: 17,
+            height: 17,
             paddingHorizontal: 3,
             borderRadius: 999,
             backgroundColor: colors.danger,
             alignItems: "center",
             justifyContent: "center",
+            borderWidth: 2,
+            borderColor: colors.surface,
           }}
         >
           <Text style={{ color: colors.white, fontSize: 9, fontWeight: "800" }}>
@@ -58,29 +72,29 @@ function HeaderAction({
   );
 }
 
-/**
- * Compact analytical header.
- *
- * Brand on the left; global search and the notification bell on the right. The
- * language switch lives in More → Settings and the tagline is gone, so the
- * header no longer competes with the data below it. `showInfo` is kept as the
- * public prop name for the right-hand actions so existing screens keep working.
- *
- * `context` is the optional second row — a compact one-line summary of the
- * active data context, e.g. "Latest published period • National".
- */
 export function AppHeader({
   back = false,
   showInfo = true,
   context,
+  showThemeToggle = false,
 }: {
   back?: boolean;
   showInfo?: boolean;
   context?: string | null;
+  /**
+   * Render a one-tap light/dark toggle. Off by default so existing screens are
+   * unchanged; the More screen opts in. Hidden when dark mode is unavailable in
+   * the build, because a control that does nothing is worse than no control.
+   */
+  showThemeToggle?: boolean;
 }) {
+  const { colors, typography, mode, available } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((state) => state.language));
-  const alertsCount = useAlertsCount();
+  const updateSettings = useAppStore((state) => state.updateSettings);
+
+  const themeToggle = showThemeToggle && available;
+  const toggleTheme = () => updateSettings({ appearance: toggledAppearance(mode) });
 
   return (
     <View
@@ -88,6 +102,11 @@ export function AppHeader({
         backgroundColor: colors.surface,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
+        shadowColor: colors.forestDeep,
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
       }}
     >
       <View
@@ -96,7 +115,8 @@ export function AppHeader({
           alignItems: "center",
           gap: spacing.sm,
           paddingHorizontal: spacing.md,
-          minHeight: 52,
+          paddingVertical: 10,
+          minHeight: 56,
         }}
       >
         {back ? (
@@ -105,58 +125,90 @@ export function AppHeader({
             accessibilityLabel={t.back}
             onPress={() => router.back()}
             hitSlop={8}
-            style={{
-              minWidth: touch.minTarget,
-              minHeight: touch.minTarget,
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: -spacing.sm,
-            }}
+            style={({ pressed }) => ({
+              width: 38,
+              height: 38,
+              borderRadius: radius.md,
+              backgroundColor: colors.mintSoft,
+              alignItems: "center" as const,
+              justifyContent: "center" as const,
+              opacity: pressed ? 0.7 : 1,
+            })}
           >
-            <Ionicons name="arrow-back" size={22} color={colors.forest} />
+            <Ionicons name="arrow-back" size={20} color={colors.primaryStrong} />
           </Pressable>
         ) : (
-          <BrandMark size={28} />
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: radius.md,
+              backgroundColor: colors.primary,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <BrandMark size={22} />
+          </View>
         )}
 
-        <Text numberOfLines={1} style={{ ...typography.h2, fontSize: 16, flex: 1 }}>
-          {t.appName}
-        </Text>
-
-        {showInfo ? (
-          <>
-            <HeaderAction
-              icon="search-outline"
-              label={t.search}
-              onPress={() => router.push("/explore/search")}
-            />
-            <HeaderAction
-              icon="notifications-outline"
-              label={t.alerts}
-              badge={alertsCount}
-              onPress={() => router.push("/field-operations/alerts")}
-            />
-          </>
-        ) : null}
-      </View>
-
-      {context ? (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            paddingHorizontal: spacing.md,
-            paddingBottom: spacing.sm,
-            marginTop: -2,
-          }}
-        >
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary }} />
-          <Text numberOfLines={1} style={{ ...typography.micro, flex: 1, color: colors.slate700 }}>
-            {context}
+        <View style={{ flex: 1 }}>
+          <Text style={{ ...typography.h2, fontSize: 17, letterSpacing: -0.3 }}>
+            {t.appName}
           </Text>
+          {context ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 1 }}>
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: colors.primary,
+                }}
+              />
+              <Text
+                numberOfLines={1}
+                style={{ ...typography.micro, color: colors.slate700, flex: 1 }}
+              >
+                {context}
+              </Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
+
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {themeToggle ? (
+            <HeaderAction
+              // The icon shows the mode you would switch *to*.
+              icon={mode === "dark" ? "sunny-outline" : "moon-outline"}
+              label={mode === "dark" ? t.appearanceLight : t.appearanceDark}
+              onPress={toggleTheme}
+            />
+          ) : null}
+          {showInfo ? (
+            <>
+              <HeaderAction
+                icon="search-outline"
+                label={t.search}
+                onPress={() => router.push("/explore/search")}
+              />
+              <HeaderAction
+                icon="notifications-outline"
+                label={t.alerts}
+                onPress={() => router.push("/field-operations/alerts")}
+              />
+            </>
+          ) : null}
+          {/* More is a menu, not a destination: it lives in the header now that
+              it no longer has a slot in the five-tab bar, so field operations,
+              saved items and settings stay one tap from every primary screen. */}
+          <HeaderAction
+            icon="menu-outline"
+            label={t.more}
+            onPress={() => router.push("/more")}
+          />
+        </View>
+      </View>
     </View>
   );
 }

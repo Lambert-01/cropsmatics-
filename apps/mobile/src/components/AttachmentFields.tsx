@@ -1,13 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+// SDK 54 replaced the default `expo-file-system` API with a class-based one.
+// The legacy `getInfoAsync` helper still ships (and is maintained) at
+// `expo-file-system/legacy`; importing it here keeps attachment size checks
+// working without a rewrite.
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { Alert, Pressable, Text, View } from "react-native";
 
 import type { HarvestAttachment, SyncStatus } from "../types";
 import { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../utils/units";
 import { uuidv4 } from "../utils/uuid";
-import { colors, radius, spacing, typography } from "../theme";
+import { radius, spacing, type Palette } from "../theme";
+import { useTheme } from "../theme/theme-context";
 
 export interface PendingAttachment {
   clientUuid: string;
@@ -58,6 +63,7 @@ export function AttachmentFields({
   onChange: (next: PendingAttachment[]) => void;
   labels: Labels;
 }) {
+  const { colors, typography } = useTheme();
   const full = attachments.length >= MAX_ATTACHMENTS;
 
   function guard(asset: PendingAttachment | null): PendingAttachment | null {
@@ -99,7 +105,9 @@ export function AttachmentFields({
     let size = asset.size ?? null;
     if (size == null) {
       try {
-        const info = await FileSystem.getInfoAsync(asset.uri, { size: true });
+        // In the SDK 54 legacy API `size` is always returned; the old
+        // `{ size: true }` option no longer exists.
+        const info = await FileSystem.getInfoAsync(asset.uri);
         if (info.exists && "size" in info) size = info.size ?? null;
       } catch {
         size = null; // size unknown: the server still enforces its own limit
@@ -118,7 +126,7 @@ export function AttachmentFields({
           accessibilityRole="button"
           onPress={addPhoto}
           disabled={full}
-          style={buttonStyle(full)}
+          style={buttonStyle(colors, full)}
         >
           <Ionicons name="image-outline" size={16} color={full ? colors.muted : colors.forest} />
           <Text style={{ color: full ? colors.muted : colors.forest, fontSize: 13 }}>
@@ -129,7 +137,7 @@ export function AttachmentFields({
           accessibilityRole="button"
           onPress={addDocument}
           disabled={full}
-          style={buttonStyle(full)}
+          style={buttonStyle(colors, full)}
         >
           <Ionicons name="document-outline" size={16} color={full ? colors.muted : colors.forest} />
           <Text style={{ color: full ? colors.muted : colors.forest, fontSize: 13 }}>
@@ -186,7 +194,7 @@ export function AttachmentFields({
   );
 }
 
-function buttonStyle(disabled: boolean) {
+function buttonStyle(colors: Palette, disabled: boolean) {
   return {
     flex: 1,
     flexDirection: "row" as const,

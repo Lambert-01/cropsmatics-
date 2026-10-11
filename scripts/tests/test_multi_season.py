@@ -34,20 +34,25 @@ CROP_PRODUCTIVITY = PROCESSED_FILES["crop_productivity"]
 
 def test_period_dimension_is_exactly_the_published_releases():
     assert tuple(VALID_PERIODS) == (
+        "2022A", "2022B", "2022C",
+        "2023A", "2023B", "2023C",
         "2024A", "2024B", "2024C",
         "2025A", "2025B", "2025C",
         "2026A", "2026B",
     )
     # 2026C has not been published - inventing it would fabricate a period.
     assert "2026C" not in VALID_PERIODS
+    # Neither has anything before the 2022 release the owner supplied.
+    assert "2021C" not in VALID_PERIODS
 
 
 def test_normalize_period_accepts_published_and_rejects_unpublished():
     assert normalize_period(2025, "b") == "2025B"
     assert normalize_period("2026", "A") == "2026A"
-    assert split_period("2024C") == (2024, "C")
+    assert normalize_period(2022, "C") == "2022C"
+    assert split_period("2023B") == (2023, "B")
 
-    for bad in (("2026", "C"), (2027, "A"), (2023, "B"), (2025, "D")):
+    for bad in (("2026", "C"), (2027, "A"), (2021, "B"), (2025, "D")):
         with pytest.raises(ValueError):
             normalize_period(*bad)
 
@@ -113,7 +118,9 @@ def test_source_catalog_hashes_every_raw_file(interim_dir):
 
 def test_sas_table_catalog_maps_the_extraction(interim_dir):
     tables = pd.read_csv(require(interim_dir / "sas_table_catalog.csv"))
-    assert len(tables) == 227, "227 extracted sheets across the four releases"
+    # Every extracted sheet of every mapped release: 68 (2022) + 79 (2023)
+    # + 79 (2024) + 80 (2025) + 35 (2026A) + 33 (2026B).
+    assert len(tables) == 374, "374 extracted sheets across the six mapped releases"
     assert tables["sheet"].notna().all()
 
     mapped = tables[tables["mapped"]]
@@ -137,6 +144,114 @@ def test_manifest_row_counts_agree_with_the_extracted_csv(interim_dir):
 
 
 # --- canonical panel --------------------------------------------------------
+
+
+def test_2022_and_2023_productivity_tables_are_mapped():
+    """The supplied 2022/2023 annual workbooks must actually be ingested."""
+    for release, periods in {
+        "SAS_2022_ANNUAL": ("2022A", "2022B", "2022C"),
+        "SAS_2023_ANNUAL": ("2023A", "2023B", "2023C"),
+    }.items():
+        for period in periods:
+            metrics = {
+                spec.metric
+                for spec in tmap.PRODUCTIVITY_TABLES
+                if spec.release == release and spec.period_code == period
+            }
+            assert metrics == PRODUCTIVITY_METRICS, f"{release}/{period} -> {sorted(metrics)}"
+            # Each metric comes from its own sheet, named in the source workbook.
+            sheets = {
+                spec.sheet for spec in tmap.PRODUCTIVITY_TABLES if spec.period_code == period
+            }
+            assert len(sheets) == 4, f"{period} expected four distinct sheets, got {sorted(sheets)}"
+
+
+def test_panel_values_match_the_published_source_cells(processed_dir):
+    """Lineage is only real if the value equals the cell it claims to come from.
+
+    Reads the extracted CSV (never the panel's own copy) and compares the exact
+    published cell to the panel value, for one row per release including the two
+    layout variants the reader now resolves.
+    """
+    from scripts.data.ingest_sas_tables import _resolve_layout
+    from scripts.data.io_sas import read_extracted_table
+
+    panel = pd.read_csv(require(processed_dir / CROP_PRODUCTIVITY))
+
+    # (period, metric column, source sheet, crop label in the sheet, district)
+    checks = [
+        ("2022A", "cultivated_area_ha", "Table 11", "Maize", "Nyarugenge"),
+        ("2022C", "yield_kg_ha", "Table 19", "Sweet potatoes", "Gasabo"),
+        ("2023A", "yield_kg_ha", "Table 16", "Maize", "Nyarugenge"),
+        ("2023A", "production_mt", "Table 22", "Maize", "Nyarugenge"),
+        ("2022B", "production_mt", "Table 24", "Maize", "Nyarugenge"),
+    ]
+    for period, column, sheet, crop_label, district in checks:
+        release = f"SAS_{period[:4]}_ANNUAL"
+        grid = read_extracted_table(release, sheet)
+
+        # Only the *location* of the cell uses the reader's layout resolver; the
+        # value is read straight off the published CSV, so this still catches a
+        # panel value that does not match the cell it claims to come from.
+        layout = _resolve_layout(grid)
+        crop_col = next(
+            c
+            for c in range(layout.label_col + 1, grid.shape[1])
+            if str(grid.iat[layout.crop_row, c]).strip().lower() == crop_label.lower()
+        )
+        data_row = next(
+            r
+            for r in range(layout.header_idx + 1, len(grid))
+            if str(grid.iat[r, layout.label_col]).strip() == district
+        )
+        published = float(str(grid.iat[data_row, crop_col]).replace(",", ""))
+
+        row = panel[
+            (panel["period_code"] == period)
+            & (panel["district"] == district)
+            & (panel["crop_name_raw"] == _canonical_crop_label(crop_label))
+        ]
+        assert len(row) == 1, f"{period}/{district}/{crop_label}: {len(row)} panel rows"
+        assert abs(float(row.iloc[0][column]) - published) < 1e-9, (
+            f"{period}/{district}/{crop_label}/{column}: panel "
+            f"{row.iloc[0][column]} != source cell {published}"
+        )
+
+
+def _canonical_crop_label(published_label: str) -> str:
+    """Published crop label -> canonical crop name (mirrors the reader's map)."""
+    from scripts.data.ingest_sas_tables import _CROP_CANONICAL
+
+    return _CROP_CANONICAL[published_label.lower()]
+
+
+def test_published_yield_consistency_policy_is_scale_aware():
+    """Rounding is not an inconsistency; a large gap is.
+
+    The 2023 release prints whole numbers, so a small relative gap must pass,
+    while the known Rubavu 2026B case (4575.484 published vs 493.922 implied)
+    must be material. The policy is shared with the database loader.
+    """
+    from scripts.data.common import (
+        YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA,
+        is_material_yield_discrepancy,
+        yield_discrepancy_tolerance,
+    )
+
+    assert YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA == 1.0
+    # Rounding of a published whole-number figure (0.05% off) is not material.
+    assert not is_material_yield_discrepancy(16480.0, 1126.0, 14637.0)
+    # A 1 kg/ha gap on a tiny published yield is inside the absolute tolerance.
+    assert not is_material_yield_discrepancy(1.0, 1000.0, 1.0)
+    # The documented 2026B Rubavu case is material.
+    assert is_material_yield_discrepancy(653.47, 1323.02, 4575.484)
+    # A published zero against a real production is material, not a rounding.
+    assert is_material_yield_discrepancy(157.0, 269.0, 0.0)
+    # Incomplete inputs are never flagged.
+    assert not is_material_yield_discrepancy(None, 10.0, 5.0)
+    assert not is_material_yield_discrepancy(1.0, 0.0, 5.0)
+    assert yield_discrepancy_tolerance(1000.0) == pytest.approx(10.0)
+    assert yield_discrepancy_tolerance(10.0) == pytest.approx(1.0)
 
 
 def test_panel_covers_every_period_with_unique_keys(processed_dir):

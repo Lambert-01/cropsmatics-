@@ -8,9 +8,13 @@ import { Badge, Card, PrimaryButton, SecondaryButton } from "../../src/component
 import { listInquiryReceipts } from "../../src/database";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, spacing, typography } from "../../src/theme";
+import { spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 
 export default function InquirySuccessScreen() {
+  const { colors, typography } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ id?: string }>();
@@ -35,14 +39,11 @@ export default function InquirySuccessScreen() {
 
         <Card style={{ gap: spacing.sm }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-            <Text style={{ ...typography.h3, flex: 1 }}>Reference number</Text>
+            <Text style={{ ...typography.h3, flex: 1 }}>{t.inquiryReferenceNumber}</Text>
             <Badge text={receipt?.status ?? "RECEIVED"} />
           </View>
           <Text style={styles.reference}>{receipt?.reference ?? "—"}</Text>
-          <Text style={typography.caption}>
-            Keep this reference. Your receipt is stored privately on this device, and only you can read your own
-            inquiry status.
-          </Text>
+          <Text style={typography.caption}>{t.inquiryReceiptNote}</Text>
         </Card>
 
         <PrimaryButton label={t.inquiryHistory} icon="time-outline" onPress={() => router.replace("/inquiry/history")} />
@@ -52,7 +53,8 @@ export default function InquirySuccessScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) =>
+  StyleSheet.create({
   icon: {
     width: 72,
     height: 72,

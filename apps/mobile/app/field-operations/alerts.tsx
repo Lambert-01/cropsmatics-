@@ -10,7 +10,9 @@ import { strings } from "../../src/i18n";
 import type { Strings } from "../../src/i18n/en";
 import { api } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
-import { colors, radius, spacing, typography } from "../../src/theme";
+import { radius, spacing } from "../../src/theme";
+import type { Palette } from "../../src/theme";
+import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import { isValidIsoDate, todayIso } from "../../src/utils/dates";
 
 type AlertGroup = "attention" | "upcoming" | "updates";
@@ -39,6 +41,8 @@ const GROUP_TITLE: Record<AlertGroup, keyof Strings> = {
 };
 
 export default function AlertsScreen() {
+  const { colors, typography } = useTheme();
+  const panel = useThemedStyles(makePanel);
   const router = useRouter();
   const t = strings(useAppStore((state) => state.language));
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -99,7 +103,7 @@ export default function AlertsScreen() {
         // storage unavailable: no alerts rather than invented ones
       }
       setAlerts(next);
-    }, [t]),
+    }, [t, colors.amber, colors.danger, colors.info]),
   );
 
   // Data/model update notice — only when the server actually reports a build.
@@ -130,7 +134,7 @@ export default function AlertsScreen() {
       active = false;
     };
     // Only re-run when the language changes; the server build is fetched once.
-  }, [t.alertsDataUpdate]);
+  }, [t.alertsDataUpdate, colors.brandGreen]);
 
   return (
     <ScreenLayout active="alerts">
@@ -179,11 +183,12 @@ export default function AlertsScreen() {
   );
 }
 
-const panel = {
-  backgroundColor: colors.surface,
-  borderWidth: 1,
-  borderColor: colors.border,
-  borderRadius: radius.md,
-  padding: spacing.md,
-  gap: spacing.sm,
-} as const;
+const makePanel = (colors: Palette) =>
+  ({
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  }) as const;
