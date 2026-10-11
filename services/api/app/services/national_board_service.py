@@ -156,8 +156,27 @@ def national_totals(axis: list[str]) -> dict:
     }
 
 
-def board(crops: list[str] | None = None) -> dict:
-    """Per-crop national series on one shared period axis."""
+def board(
+    crops: list[str] | None = None,
+    *,
+    year: int | None = None,
+    season: str | None = None,
+) -> dict:
+    """Per-crop national series on one shared period axis.
+
+    ``year`` and ``season`` restrict the axis to the periods that match, which is
+    the only honest way to offer a period filter on a multi-season board: the
+    series, the latest published point and the same-season delta are all derived
+    from ``axis`` afterwards, so a filtered board cannot mix a filtered metric
+    with an unfiltered change. With neither argument the result is byte-identical
+    to the unfiltered board.
+
+    A year resolves to the seasons NISR actually published for it. Selecting a
+    year is therefore never an aggregate across incompatible observations; it
+    selects the published periods of that year and nothing else. A year/season
+    combination with no published data yields an empty axis, never an
+    interpolation.
+    """
     df = repo.national_crop_trends()
     if "is_aggregate" in df.columns:
         df = df[~df["is_aggregate"].astype(bool)].copy()
@@ -173,7 +192,14 @@ def board(crops: list[str] | None = None) -> dict:
         {(int(row["year"]), str(row["season"])) for _, row in df.iterrows()},
         key=lambda item: (item[0], item[1]),
     )
-    axis = [_period(year, season) for year, season in pairs]
+    # Scope before anything is derived from the axis, so the series, the latest
+    # published point and the deltas all describe the same selection.
+    if year is not None:
+        pairs = [item for item in pairs if item[0] == year]
+    if season:
+        wanted_season = str(season).strip().upper()
+        pairs = [item for item in pairs if item[1] == wanted_season]
+    axis = [_period(item_year, item_season) for item_year, item_season in pairs]
 
     if crops:
         order = [name.strip() for name in crops if name.strip()]

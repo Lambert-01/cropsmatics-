@@ -218,6 +218,23 @@ def national_board(
             "Maize,Beans. Omit for every non-aggregate crop."
         ),
     ),
+    period_code: str | None = Query(
+        None,
+        description=(
+            "Restrict the board to one published period, e.g. 2025B. "
+            "Takes precedence over year+season."
+        ),
+    ),
+    year: int | None = Query(
+        None,
+        ge=2000,
+        le=2100,
+        description="Restrict the board to every published season of this year.",
+    ),
+    season: str | None = Query(
+        None,
+        description="A, B or C; combine with year to select one period.",
+    ),
 ) -> NationalBoardResponse:
     """The whole national crop board in one read.
 
@@ -235,7 +252,43 @@ def national_board(
                 detail="national-board accepts between 2 and 40 comma-separated crop names",
             )
 
-    result = national_board_service.board(names)
+    # An unpublished period is a 422 that lists the published ones, matching the
+    # shared analytics filter: a selector must not be able to ask for a season
+    # NISR has not released and receive a silently empty board.
+    scoped_year, scoped_season = year, season.upper() if season else None
+    if period_code:
+        try:
+            scoped_year, scoped_season = period_service.parse(period_code)
+        except period_service.UnknownPeriodError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        if not period_service.is_published(f"{scoped_year}{scoped_season}"):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"period_code {period_code!r} has not been published; "
+                    f"available: {period_service.period_codes()}"
+                ),
+            )
+    elif scoped_season and scoped_season not in period_service.SEASON_LETTERS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"season {season!r} is not one of {period_service.SEASON_LETTERS}",
+        )
+
+    result = national_board_service.board(
+        names, year=scoped_year, season=scoped_season
+    )
+    if not result["periods"]:
+        # Say what the scope really covers instead of returning an empty axis that
+        # reads as "nothing was measured".
+        published = period_service.period_codes()
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"no published national period matches year={scoped_year!r} "
+                f"season={scoped_season!r}; available periods: {published}"
+            ),
+        )
     return NationalBoardResponse(
         **result,
         provenance=Provenance(
