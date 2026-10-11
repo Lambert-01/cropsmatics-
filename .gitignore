@@ -57,6 +57,10 @@ data/processed/*
 !data/processed/.gitkeep
 data/external/*
 !data/external/.gitkeep
+# Owner-provided NISR SAS workbooks: licensed source data that the contract
+# requires staying untracked. They are inventoried (and sha256-verified) by
+# scripts/data/inventory_sas_workbooks.py, never committed.
+data/*.xlsx
 ml/artifacts/*
 !ml/artifacts/.gitkeep
 ml/reports/*
