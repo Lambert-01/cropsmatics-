@@ -22,10 +22,10 @@ outstanding rather than half-done.
 | SAS indicator exposure (practice/irrigation/water/erosion/post-harvest) | Implemented and verified | `used` 56 → 134, `mapped_not_exposed` 78 → 0; two new processed datasets + two new API endpoints + 25 new tests |
 | Data quality warnings surfaced honestly | Implemented and verified (for the new domains) | periods and units reported per indicator; null ≠ 0 asserted; off-total share groups flagged not rescaled |
 | Mobile Analyze workspace | Implemented and verified (code level) | rebuilt screen + `ranking.ts` + 6 unit tests; typecheck and lint clean |
-| Mobile Crops year/season filters | Not yet implemented | — |
+| Mobile Crops year/season filters | Implemented and verified (code level) | server-side board scope + client scope reconciliation + 11 unit tests; API suite 542 passed |
 | Mobile Compare UX | Not yet implemented | — |
 | Mobile Maps gestures/legend/coverage | Not yet implemented | — |
-| Web Interventions redesign | Not yet implemented | — |
+| Web Interventions redesign | Implemented and verified (code + build) | answer-first layout, scenario labelled, weighting disclosed; `next build` EXIT=0, web vitest 182 passed |
 | Web filter pass (`lib/filters`, preferences, reset) | Not yet implemented | — |
 | Other web page consistency pass | Not yet implemented | — |
 | Forecasting revalidation | Not yet implemented | ML suite run only to prove no regression |
@@ -35,6 +35,11 @@ outstanding rather than half-done.
 ---
 
 ## 2. Files changed
+
+**API (board scope)**
+
+* `services/api/app/services/national_board_service.py` (`year`/`season` axis scope)
+* `services/api/app/api/v1/analytics.py` (`period_code`/`year`/`season` params + 422s)
 
 **Data pipeline**
 
@@ -59,6 +64,16 @@ outstanding rather than half-done.
 * `apps/mobile/app/explore/analyze.tsx` (rebuilt as an analytical workspace)
 * `apps/mobile/src/utils/ranking.ts` (new, pure)
 * `apps/mobile/tests/ranking.test.ts` (new)
+* `apps/mobile/app/explore/crops.tsx` (year + season filters)
+* `apps/mobile/src/utils/periodScope.ts` (new, pure)
+* `apps/mobile/tests/period-scope.test.ts` (new)
+* `apps/mobile/src/hooks/queries.ts`, `apps/mobile/src/services/api/analytics.ts` (board scope)
+
+**Web**
+
+* `apps/web/features/interventions/PrioritiesWorkspace.tsx` (answer-first redesign)
+* `apps/web/lib/priority.ts` (+2 pure helpers)
+* `apps/web/tests/priority-workspace.test.ts` (new)
 
 **Tests**
 
@@ -85,6 +100,16 @@ GET /api/v1/analytics/postharvest-history
     ?period_code=&year=&season=&crop=&limit=
   -> { available, crops[], indicators[], periods[], observations[],
        n_observations, share_totals[], shares_off_total, period, note, provenance }
+```
+
+Extended (additive query parameters only; the unscoped response is unchanged):
+
+```
+GET /api/v1/analytics/national-board
+    ?crops=&period_code=&year=&season=
+  -> periods[] is restricted to the published periods that match; an unpublished
+     period, an unmatched year or an invalid season is a 422 naming the available
+     periods
 ```
 
 `GET /api/v1/mobile/indicators` gained an additive `periods: string[]` per
@@ -122,17 +147,21 @@ Repo manifest dataset version moved `0.2.0-de5f544f78983671` →
 python3 -m scripts.data.inventory_sas_workbooks
   -> used 134 | mapped_not_exposed 0 | not_yet_mapped 271 | duplicate 35 | metadata 2
 
-services/api/.venv/bin/pytest services/api/tests      -> 533 passed, 27 skipped
+services/api/.venv/bin/pytest services/api/tests      -> 542 passed, 27 skipped
 services/api/.venv/bin/pytest scripts/tests           ->  94 passed,  1 skipped
 services/api/.venv/bin/pytest ml                      ->  39 passed
-(cd apps/mobile && npm run typecheck && npm run lint) -> clean
-(cd apps/mobile && npm test)                          -> 267 passed / 29 files
+pnpm --filter cropmatics-web typecheck | lint         -> clean, clean
+pnpm --filter cropmatics-web test                     -> 182 passed / 17 files
+(cd apps/web && npx next build)                       -> EXIT=0 (production build)
+(cd apps/mobile && npm run typecheck && npm run lint) -> clean, clean
+(cd apps/mobile && npm test)                          -> 278 passed / 30 files
 
 python3 -m scripts.data.load_postgres --dry-run       -> plan printed, 0 rows rejected
 ```
 
-Baseline for comparison (recorded 2026-10-11): API 519/27, data 83/1, ML 36/3.
-The API and data increases are exactly the new test files.
+Baseline for comparison (recorded 2026-10-11): API 519/27, data 83/1, ML 36/3, web
+vitest 176/16. Every increase is accounted for by a named new test file; no
+pre-existing test was skipped, weakened or deleted to make a suite pass.
 
 Production read-only probe reproduced the deployed state:
 `dataset_version = 0.2.0-535efe5d2bd75b51`, `crop_productivity = 3,738`,
@@ -157,16 +186,17 @@ Production read-only probe reproduced the deployed state:
 
 ## 7. Recommended next work, in order
 
-1. **Mobile Crops filters** (`app/explore/crops.tsx`): year + season filters that
-   resolve to compatible published seasons through `meta/periods`, not an
-   arbitrary aggregate. The multi-period indicator availability added here is the
-   natural backing for it.
-2. **Surface the new domains in the mobile/web UI**: `/analytics/practice-indicators`
-   and `/analytics/postharvest-history` are exposed but not yet rendered; the
-   mobile Indicators screen and the web Interventions workspace are the two
-   obvious consumers.
-3. **Web Interventions redesign** (Milestone E), which the owner flagged
-   specifically.
+1. **Surface the new domains in the mobile/web UI**: `/analytics/practice-indicators`
+   and `/analytics/postharvest-history` are exposed, tested and documented but not
+   yet rendered. The mobile Indicators screen (`app/explore/indicators.tsx`) and the
+   web Interventions workspace are the two obvious consumers, and the domain/period
+   metadata the endpoints return is exactly what a period selector needs.
+2. **Mobile Compare UX** and **Maps gesture/legend work** (Milestone D remainder):
+   district search in the picker, a selected-entity tray, map-to-Compare link that
+   carries the tapped district, zoom/reset and a coverage-aware legend.
+3. **Web filter pass** (handoff §14): verify reset does not reapply saved crop or
+   district preferences, and add the regression tests for preferences, reset, deep
+   links and period changes.
 4. **Forecasting revalidation** (Milestone F) on the unchanged 14-period panel.
 5. **Approve and run the production load**, after which readiness should flip from
    `dataset_version_mismatch` to ready.

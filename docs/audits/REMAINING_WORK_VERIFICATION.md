@@ -142,14 +142,19 @@ its limitations are now derived from the coverage matrix
 
 | Suite | Command | Result |
 |---|---|---|
-| API | `services/api/.venv/bin/pytest services/api/tests` | **533 passed, 27 skipped** (was 519/27; +14 new) |
+| API | `services/api/.venv/bin/pytest services/api/tests` | **542 passed, 27 skipped** (was 519/27; +23 new) |
 | Data | `services/api/.venv/bin/pytest scripts/tests` | **94 passed, 1 skipped** (was 83/1; +11 new) |
 | ML | `services/api/.venv/bin/pytest ml` | **39 passed** (unmodified by this work) |
-| Mobile | `npm --prefix apps/mobile test` | **267 passed** / 29 files |
-| Mobile typecheck / lint | `npm run typecheck`, `npm run lint` | clean |
+| Web | `pnpm --filter cropmatics-web test` | **182 passed** / 17 files (was 176/16) |
+| Web typecheck / lint / build | `tsc --noEmit`, `next lint`, `next build` | clean, clean, **EXIT=0** |
+| Mobile | `npm --prefix apps/mobile test` | **278 passed** / 30 files (was 267/29) |
+| Mobile typecheck / lint | `npm run typecheck`, `npm run lint` | clean, clean |
 
-New tests: `services/api/tests/test_indicator_history.py` (14) and
-`scripts/tests/test_indicator_exposure.py` (11). The pipeline test includes a
+New tests: `services/api/tests/test_indicator_history.py` (14),
+`scripts/tests/test_indicator_exposure.py` (11),
+`services/api/tests/test_national_board_scope.py` (9),
+`apps/web/tests/priority-workspace.test.ts` (6) and
+`apps/mobile/tests/period-scope.test.ts` (11). The pipeline test includes a
 regression guard that fails if any mapped sheet ever loses its processed dataset
 again, and both builders are asserted byte-deterministic against the committed
 artefact.
@@ -173,15 +178,70 @@ changed.
   key, so translation completeness is not degraded.
 * Follows the existing chart/theme conventions; no new dependency.
 
-**Not started in this pass** (see the final report): Crops year/season filters,
-Compare UX, Maps gesture work, web Interventions redesign, web filter pass.
+### Crops catalogue — year and season filters
+
+The catalogue had search, category and saved filters but no period control, which
+the owner reported directly. A working year/season scope was added end to end:
+
+* the server gained a published-period scope on `/analytics/national-board`
+  (`period_code`, `year`, `season`), so the axis, each series, the latest published
+  point and the same-season delta are all derived from the scoped axis. A filtered
+  metric can therefore never sit next to an unfiltered change;
+* a year resolves to the seasons that year really published, so a year selection is
+  never an aggregate across incompatible observations;
+* an unpublished period, an unmatched year or an invalid season is a **422 naming
+  the available periods**, not a silently empty board;
+* the client reconciles its scope against the returned axis
+  (`src/utils/periodScope.ts`, 11 unit tests), so choosing a year clears a season it
+  did not have instead of requesting a period that does not exist;
+* the count row now names the active calendar, and a single pinned season states
+  that there is no same-season predecessor rather than showing a blank change.
+
+With no scope the endpoint response is unchanged, and the home screen, crop detail
+and Analyze hub keep calling it unscoped.
+
+**Not started in this pass** (see the final report): Compare UX and Maps gesture
+work.
 
 ---
 
 ## Milestone E — web Interventions
 
-**Not started.** No web source file was modified in this pass. `apps/web` was
-re-verified as unbroken (see below) but the redesign itself is outstanding.
+**Implemented and verified (code and build level).**
+
+The owner flagged this screen as poorly designed, and the root cause was concrete:
+the workspace opened on a 300px weights panel, so a visitor met an advanced control
+before a single ranked district, and two imported components were never rendered.
+
+What changed:
+
+* the page now **leads with the answer** — the ranked district × crop candidates and
+  a one-line statement of the selection that produced them — so it is useful before
+  any control is touched;
+* the weighting moved behind an explicit **"Adjust weighting" disclosure**; the panel
+  is fully mounted when opened, nothing was removed;
+* an applied scenario is now **labelled as a scenario**, with a one-click return to
+  the baseline. The warning reads "this is a reviewable what-if, not a prediction";
+* `ComponentAvailabilityNotice` is now actually mounted, so which score components
+  carry **no measured value for the selected period** is on the page instead of an
+  unlabelled number;
+* the five-line "what this page does not claim" paragraph became a `SourceNote`;
+* `AIExplainPanel` is now rendered with a real assistant context (it had been
+  imported and dropped).
+
+Pure helpers `headlinePriorities` and `investigationAreas` were extracted into
+`apps/web/lib/priority.ts` and unit tested (6 cases). The headline takes a prefix of
+the **engine's** order — it deliberately does not re-sort, so the headline cannot
+disagree with the table underneath it. Writing those tests found a real bug: a
+`limit` of `0` still returned one row, which is fixed.
+
+Verified: `tsc --noEmit` clean, `next lint` clean, `next build` **EXIT=0**, and
+`vitest run` **182 passed / 17 files**.
+
+Still open for this screen: no browser/DOM test harness exists in the repo (no
+`@testing-library`/`jsdom`), so the layout and the scenario banner are verified by
+typecheck, lint and build, **not by rendering**. That is stated as a limitation
+rather than claiming visual confirmation.
 
 ---
 
@@ -211,6 +271,9 @@ regression from the pipeline change and passes (39 passed).
 * The 15 off-total post-harvest groups are **flagged, not explained**; deciding
   whether they are source rounding or a real publication inconsistency is still
   open.
+* The web redesign is verified by typecheck, lint and a production build, not by
+  rendering: the repo has no DOM/component test harness, and no browser was driven
+  against the page.
 * `Tables_2025_Season_B_0.xlsx` (33 sheets) remains the only wholly unmapped
   workbook; the precedence question is unresolved by design.
 * No screenshot or recording of the mobile Analyze screen exists, because no
