@@ -62,6 +62,23 @@ export function reconcileScope(scope: PeriodScope, periods: readonly string[]): 
 }
 
 /**
+ * A period requested by a link, but only if this view really publishes it.
+ *
+ * Deep links carry a period across screens that do not cover the same calendar:
+ * the map's layers and the district comparison publish different periods. An
+ * incompatible code must be dropped, not forced into a selector that has no data
+ * behind it - the comparison then keeps its own valid default instead.
+ */
+export function compatiblePeriod(
+  requested: string | null | undefined,
+  publishedPeriods: readonly string[],
+): string | null {
+  const code = (requested ?? "").trim().toUpperCase();
+  if (!code) return null;
+  return publishedPeriods.includes(code) ? code : null;
+}
+
+/**
  * The label for a scope, e.g. ``2025``, ``2025 Season B`` or ``All periods``.
  *
  * Used in section captions so a card always states the calendar it belongs to

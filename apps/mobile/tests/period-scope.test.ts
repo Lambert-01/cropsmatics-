@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   availableSeasons,
   availableYears,
+  compatiblePeriod,
   reconcileScope,
   scopeLabel,
 } from "../src/utils/periodScope";
@@ -74,6 +75,35 @@ describe("reconcileScope", () => {
       year: null,
       season: null,
     });
+  });
+});
+
+describe("compatiblePeriod", () => {
+  // The map publishes several periods; the district comparison publishes its own
+  // subset. A link from one to the other must not force an unsupported period.
+  const PUBLISHED = ["2025B", "2026A", "2026B"];
+
+  it("accepts a period this view really publishes", () => {
+    expect(compatiblePeriod("2026A", PUBLISHED)).toBe("2026A");
+  });
+
+  it("drops a period this view does not publish", () => {
+    expect(compatiblePeriod("2024A", PUBLISHED)).toBeNull();
+    expect(compatiblePeriod("2026C", PUBLISHED)).toBeNull();
+  });
+
+  it("treats a missing or blank request as no request", () => {
+    expect(compatiblePeriod(null, PUBLISHED)).toBeNull();
+    expect(compatiblePeriod(undefined, PUBLISHED)).toBeNull();
+    expect(compatiblePeriod("   ", PUBLISHED)).toBeNull();
+  });
+
+  it("normalises case and whitespace before matching", () => {
+    expect(compatiblePeriod(" 2026a ", PUBLISHED)).toBe("2026A");
+  });
+
+  it("returns null when nothing is published at all", () => {
+    expect(compatiblePeriod("2026A", [])).toBeNull();
   });
 });
 

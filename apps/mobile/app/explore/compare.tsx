@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -19,7 +19,14 @@ import { ComparisonSelectionSheet } from "../../src/components/terminal/Comparis
 import { PeriodRangeChips } from "../../src/components/terminal/PeriodRangeChips";
 import { SelectedEntityTray } from "../../src/components/terminal/SelectedEntityTray";
 import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
-import { EmptyState, ErrorState, FilterChip, LoadingSkeleton, SectionHeader } from "../../src/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  FilterChip,
+  ListRow,
+  LoadingSkeleton,
+  SectionHeader,
+} from "../../src/components/ui";
 import { PANEL_UNITS } from "../../src/constants/metrics";
 import { useAllCrops, useAllDistricts, usePeriods } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
@@ -31,6 +38,7 @@ import { useTheme, useThemedStyles } from "../../src/theme/theme-context";
 import type { PeriodRange } from "../../src/utils/analytics";
 import { alignIndexedSeries, applyAxisWindow, toSeriesPoints, valueLookup } from "../../src/utils/analytics";
 import { periodsCarryingLayer } from "../../src/utils/coverage";
+import { compatiblePeriod } from "../../src/utils/periodScope";
 import { mergeCompareSelection } from "../../src/utils/selection";
 import { slugifyEntity } from "../../src/utils/slug";
 
@@ -59,12 +67,15 @@ export default function CompareScreen() {
   const { colors, typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((s) => s.language));
+  const router = useRouter();
   const params = useLocalSearchParams<{
     crop?: string;
     crops?: string;
     mode?: string;
     district?: string;
     districts?: string;
+    /** Compatible period to carry over, e.g. from the map's Compare action. */
+    period?: string;
   }>();
 
   // Quick-comparison links and the map's Compare action remount this screen
@@ -125,6 +136,23 @@ export default function CompareScreen() {
   );
   const activePeriod =
     periodCode ?? periods.data?.latest_district ?? districtPeriods[districtPeriods.length - 1]?.period_code ?? null;
+
+  /**
+   * Carry over a period requested by a link (the map's Compare action passes the
+   * period its layer is showing), but only when this comparison really publishes
+   * that period. "Compatible" is the operative word: the map's layers and the
+   * district comparison do not cover the same calendar, so an incompatible code
+   * is ignored and the comparison keeps its own valid selection rather than
+   * showing a period selector with nothing behind it.
+   */
+  useEffect(() => {
+    if (periodCode) return;
+    const compatible = compatiblePeriod(
+      params.period,
+      districtPeriods.map((period) => period.period_code),
+    );
+    if (compatible) setPeriodCode(compatible);
+  }, [params.period, districtPeriods, periodCode]);
 
   const panel = useQuery({
     queryKey: ["compare-panel", compareCrop, activePeriod],
@@ -453,6 +481,31 @@ export default function CompareScreen() {
                   .replace("{selected}", String(selectedDistricts.length))
                   .replace("{max}", String(MAX_COMPARE_DISTRICTS))}
               </Text>
+
+              {/* Straight into a district's own record from the comparison that
+                  named it, carrying the comparison's crop and period. */}
+              {selectedDistricts.length ? (
+                <View>
+                  {selectedDistricts.map((code) => (
+                    <ListRow
+                      key={code}
+                      title={
+                        districts.data?.find((item) => item.district_code === code)?.district ?? code
+                      }
+                      subtitle={t.viewDistrictDetails}
+                      onPress={() =>
+                        router.push({
+                          pathname: `/explore/district/${code}`,
+                          params: {
+                            crop: compareCrop ?? undefined,
+                            period: activePeriod ?? undefined,
+                          },
+                        } as never)
+                      }
+                    />
+                  ))}
+                </View>
+              ) : null}
               <ComparisonSelectionSheet
                 visible={sheetOpen}
                 title={t.compareDistricts}

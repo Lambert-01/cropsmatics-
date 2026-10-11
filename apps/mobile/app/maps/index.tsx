@@ -351,6 +351,10 @@ export default function MapsScreen() {
                           crop: crop ?? undefined,
                           mode: "districts",
                           district: selectedMeta.district_code,
+                          // The comparison only adopts this when it actually
+                          // publishes the period, so an incompatible layer
+                          // calendar cannot leave its selector empty.
+                          period: effectivePeriod ?? undefined,
                         },
                       }),
                   },
