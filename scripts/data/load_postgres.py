@@ -65,6 +65,9 @@ from app.data.catalogue import (  # noqa: E402
 from scripts.data.common import (  # noqa: E402
     PROCESSED_DIR,
     VALID_PERIODS,
+    YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA,
+    YIELD_CONSISTENCY_REL_TOLERANCE,
+    is_material_yield_discrepancy,
     log,
     normalize_period,
 )
@@ -84,11 +87,10 @@ TABLES = (
 # record provenance rows; no value is derived from this map.
 PANEL_GEOGRAPHY_LEVELS = {"DISTRICT": "district", "NATIONAL": "national"}
 
-# Absolute tolerance for the published-yield vs production/harvested-area
-# consistency flag. Shared policy with scripts/data/validate_raw.py so the
-# warning count in the validation report and the per-row quality flags in the
-# canonical table can never disagree.
-YIELD_CONSISTENCY_TOLERANCE_KG_HA = 1.0
+# Kept as an alias for the published-yield consistency policy, which now lives in
+# scripts/data/common.py so the validator and this loader cannot disagree about
+# which rows are inconsistent (see test_loader_quality_flags.py).
+YIELD_CONSISTENCY_TOLERANCE_KG_HA = YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA
 
 METRIC_COLUMNS = (
     "cultivated_area_ha",
@@ -534,19 +536,14 @@ def panel_rows(
         # preserved; the flag is what lets a UI warn and a forecast trainer
         # exclude the row.
         production, published_yield = metrics["production_mt"], metrics["yield_kg_ha"]
-        if (
-            production is not None
-            and harvested is not None
-            and harvested > 0
-            and published_yield is not None
-            and abs(production * 1000.0 / harvested - published_yield) > YIELD_CONSISTENCY_TOLERANCE_KG_HA
-        ):
+        if is_material_yield_discrepancy(production, harvested, published_yield):
             quality_flag = "review" if quality_flag == "ok" else quality_flag
             implied = production * 1000.0 / harvested
             notes.append(
                 f"published yield {published_yield:.3f} kg/ha differs from "
-                f"production/harvested area ({implied:.3f} kg/ha) by more than "
-                f"{YIELD_CONSISTENCY_TOLERANCE_KG_HA} kg/ha; both official values "
+                f"production/harvested area ({implied:.3f} kg/ha) beyond the "
+                f"documented tolerance ({YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA} kg/ha "
+                f"or {YIELD_CONSISTENCY_REL_TOLERANCE:.0%}); both official values "
                 "preserved unaltered"
             )
         if level == "district" and district_code and district_codes and district_code not in district_codes:

@@ -164,16 +164,30 @@ def test_same_season_change_is_labelled_with_the_comparison_period(client):
 
 
 def test_same_season_change_explains_when_the_previous_release_is_absent(client):
-    """2024A would compare against 2023 Season A, which was never published."""
+    """2022A would compare against 2021 Season A, which was never published."""
     _require_data(client)
-    body = _productivity(client, crop="Maize", period_code="2024A")
+    body = _productivity(client, crop="Maize", period_code="2022A")
     yoy = body["yoy"]
     assert yoy["available"] is False
     assert yoy["change_pct"] is None
-    assert "2023 Season A" in yoy["reason"]
+    assert "2021 Season A" in yoy["reason"]
     # Reported as unavailable, never as a zero change.
     assert _kpi(body, "yoy_yield")["value"] is None
     assert _kpi(body, "yoy_yield")["note"] == yoy["reason"]
+
+
+def test_same_season_change_uses_2023_now_that_it_is_ingested(client):
+    """2024A previously had no comparable prior season; 2023A now exists.
+
+    This is the point of the 2022/2023 expansion: a same-season change that used
+    to be reported as unavailable is now computed from a real published release.
+    """
+    _require_data(client)
+    body = _productivity(client, crop="Maize", period_code="2024A")
+    yoy = body["yoy"]
+    assert yoy["previous_period_code"] == "2023A"
+    assert yoy["available"] is (yoy["change_pct"] is not None)
+    assert "2023 Season A" not in (yoy["reason"] or "")
 
 
 def test_same_season_change_explains_when_the_crop_was_not_tabulated(client):

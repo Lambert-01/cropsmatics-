@@ -27,6 +27,11 @@ from scripts.data.load_postgres import (  # noqa: E402
     YIELD_CONSISTENCY_TOLERANCE_KG_HA,
     panel_rows,
 )
+from scripts.data.common import (  # noqa: E402
+    YIELD_CONSISTENCY_REL_TOLERANCE,
+    is_material_yield_discrepancy,
+    yield_discrepancy_tolerance,
+)
 
 CROP_NAMES = {"CROP-MAI": "Maize"}
 DISTRICT_CODES = {"RW-KG-A"}
@@ -89,10 +94,21 @@ def test_disagreement_within_tolerance_is_not_flagged():
     assert row["quality_flag"] == "ok"
 
 
-def test_disagreement_just_over_tolerance_is_flagged():
-    implied = 200.0 * 1000.0 / 100.0
-    (row,) = _load([_row(yield_kg_ha=implied + YIELD_CONSISTENCY_TOLERANCE_KG_HA + 0.001)])
+def test_rounding_scale_disagreement_is_not_flagged():
+    """The 2023 release prints whole numbers, so a 0.5% gap is rounding.
+
+    2,000.0 kg/ha implied against 2,010.0 published is inside the documented
+    1% relative allowance and must not be reported as an inconsistency.
+    """
+    (row,) = _load([_row(yield_kg_ha=2010.0, production_mt=200.0, harvested_area_ha=100.0)])
+    assert row["quality_flag"] == "ok"
+
+
+def test_material_disagreement_is_flagged():
+    """2% off is past the documented tolerance, so the row is flagged."""
+    (row,) = _load([_row(yield_kg_ha=2040.0, production_mt=200.0, harvested_area_ha=100.0)])
     assert row["quality_flag"] == "review"
+    assert "differs from production/harvested area" in row["quality_note"]
 
 
 def test_zero_harvested_area_never_divides_and_never_flags_yield():
@@ -128,7 +144,19 @@ def test_both_flags_compose_without_downgrading():
 
 
 def test_tolerance_policy_is_the_documented_one():
-    """The loader and the validator must share one tolerance definition."""
+    """The loader and the validator must share one tolerance definition.
+
+    The policy lives in ``scripts/data/common.py``; the validator imports it
+    rather than repeating a literal, so the report's warning count and the
+    per-row ``review`` flags cannot disagree.
+    """
     validator = (REPO_ROOT / "scripts" / "data" / "validate_raw.py").read_text()
-    assert "1.0" in validator  # the validator's inline tolerance
+    assert "YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA" in validator
+    assert "YIELD_CONSISTENCY_REL_TOLERANCE" in validator
     assert YIELD_CONSISTENCY_TOLERANCE_KG_HA == 1.0
+    assert YIELD_CONSISTENCY_REL_TOLERANCE == 0.01
+    # The scale-aware rule itself, stated once and tested at its boundaries.
+    assert yield_discrepancy_tolerance(2000.0) == 20.0
+    assert yield_discrepancy_tolerance(10.0) == 1.0
+    assert not is_material_yield_discrepancy(200.0, 100.0, 2010.0)
+    assert is_material_yield_discrepancy(200.0, 100.0, 2040.0)

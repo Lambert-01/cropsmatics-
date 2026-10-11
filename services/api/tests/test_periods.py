@@ -1,21 +1,24 @@
 """Tests for the period dimension and period-aware endpoints.
 
 The published periods are a property of the data, not of the code: these tests
-assert that the API derives the eight periods NISR has released (2024A-2026B),
+assert that the API derives exactly the periods NISR has released (2022A-2026B),
 that an unpublished season (2026C) is rejected rather than silently answered, and
 that a period filter changes which rows are returned while keeping the existing
 defaults intact.
+
+The list itself is imported from the canonical period dimension instead of being
+repeated here, so adding a release cannot leave the tests asserting a stale
+calendar.
 """
 
 from __future__ import annotations
 
 import pytest
 
-EXPECTED_PERIODS = [
-    "2024A", "2024B", "2024C",
-    "2025A", "2025B", "2025C",
-    "2026A", "2026B",
-]
+from scripts.data.common import VALID_PERIODS
+
+EXPECTED_PERIODS = list(VALID_PERIODS)
+FIRST_PERIOD, LAST_PERIOD = VALID_PERIODS[0], VALID_PERIODS[-1]
 
 
 def _require_periods(client) -> dict:
@@ -28,6 +31,10 @@ def _require_periods(client) -> dict:
     return body
 
 
+def _is_season_c(code: str) -> bool:
+    return code.endswith("C")
+
+
 # --- the catalogue ----------------------------------------------------------
 
 
@@ -35,9 +42,9 @@ def test_published_periods_are_exactly_the_released_ones(client):
     body = _require_periods(client)
     codes = [p["period_code"] for p in body["periods"]]
     assert codes == EXPECTED_PERIODS
-    assert body["count"] == 8
-    assert body["latest"] == "2026B"
-    assert body["latest_district"] == "2026B"
+    assert body["count"] == len(EXPECTED_PERIODS)
+    assert body["latest"] == LAST_PERIOD
+    assert body["latest_district"] == LAST_PERIOD
     # 2026 Season C has not been published - it must never be advertised.
     assert "2026C" not in codes
 
@@ -180,10 +187,11 @@ def test_trend_spans_the_published_periods(client):
     codes = [point["period_code"] for point in body["points"]]
     assert codes == [code for code in EXPECTED_PERIODS if code in codes], "chronological"
     # Maize is not tabulated in the Season C releases, so it has no Season C point.
-    assert all(code not in {"2024C", "2025C"} for code in codes)
-    assert "2026B" in codes
+    assert not any(_is_season_c(code) for code in codes)
+    assert LAST_PERIOD in codes
+    assert FIRST_PERIOD in codes, "2022 must appear now that it is ingested"
     assert set(codes) <= set(body["available_periods"])
-    assert body["provenance"]["source_period"] == "2024A-2026B"
+    assert body["provenance"]["source_period"] == f"{FIRST_PERIOD}-{LAST_PERIOD}"
 
 
 def test_trend_for_a_district_is_the_district_series(client):
@@ -195,7 +203,7 @@ def test_trend_for_a_district_is_the_district_series(client):
     assert body["geography_scope"] == "district"
     assert body["district"] == "Bugesera"
     codes = [point["period_code"] for point in body["points"]]
-    assert codes == ["2024B", "2025B", "2026B"]
+    assert codes == [code for code in EXPECTED_PERIODS if code.endswith("B")]
     for point in body["points"]:
         assert point["values"]["yield_kg_ha"] is not None
 

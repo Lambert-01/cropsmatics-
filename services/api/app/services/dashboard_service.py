@@ -399,8 +399,11 @@ def overview(f: AnalyticsFilters) -> dict:
             "limitations": [
                 "observational district aggregates, not plot-level evidence",
                 "associations are not causation",
-                "district productivity covers 2024A-2026B; district "
-                "input/practice, irrigation and erosion tables cover 2025 Season B only",
+                # Derived from the period catalogue so the scope text cannot
+                # describe a different calendar than the data it annotates.
+                f"district productivity covers {period_service.district_range()}; "
+                "district input/practice, irrigation and erosion tables cover "
+                f"{period_service.single_release_scope()} only",
             ],
         },
     }

@@ -39,7 +39,7 @@ OUT_PATH = DATA_DIR / "source_registry" / "sas_sheet_inventory.csv"
 
 sys.path.insert(0, str(REPO_ROOT))
 from scripts.data import sas_table_map as tmap  # noqa: E402
-from scripts.data.common import SAS_SOURCE_IDS, SAS_WORKBOOKS, log  # noqa: E402
+from scripts.data.common import SAS_SOURCE_IDS, log  # noqa: E402
 
 # The eight supplied workbooks, with the release each one represents. The 2022,
 # 2023 and 2025 Season B files are new sources the reviewed mapping predates.
@@ -56,15 +56,34 @@ WORKBOOKS: tuple[tuple[str, str, str], ...] = (
 )
 
 # Workbook filename -> sas_table_map release key (None = not in the map).
+# 2022 and 2023 are reviewed and mapped (see sas_table_map.PRODUCTIVITY_TABLES);
+# Tables_2025_Season_B_0.xlsx is a separate publication of the 2025B season that
+# the 2025 annual workbook already covers, so it is deliberately left unmapped
+# until its precedence is settled (see docs/data/SAS_COVERAGE_AUDIT.md).
 FILENAME_TO_RELEASE: dict[str, str | None] = {
-    "SAS 2022_Tables_0.xlsx": None,
-    "SAS 2023_Annual Tables (3).xlsx": None,
+    "SAS 2022_Tables_0.xlsx": "SAS_2022_ANNUAL",
+    "SAS 2023_Annual Tables (3).xlsx": "SAS_2023_ANNUAL",
     "SAS 2024_Annual Tables.xlsx": "SAS_2024_ANNUAL",
     "SAS 2025_Annual Tables.xlsx": "SAS_2025_ANNUAL",
     "Tables_2025_Season_B_0.xlsx": None,
     "Tables_2026 Season A (1).xlsx": "SAS_2026A",
     "Tables_2026 Season A.xlsx": "SAS_2026A",
     "Tables_2026 Season B.xlsx": "SAS_2026B",
+}
+
+# Domain -> the processed dataset that surfaces it, i.e. the file the API/loader
+# actually reads. A mapped sheet is only ``used`` when that file exists in this
+# checkout: extracting a CSV is not exposure. When a builder for a domain lands
+# the file appears and the domain becomes exposed automatically - the entries are
+# never edited to claim exposure that is not real.
+DOMAIN_OUTPUTS: dict[str, str] = {
+    "productivity": "crop_productivity.csv",
+    "postharvest": "crop_postharvest_use_multi_period.csv",
+    "practice": "agricultural_practice_observation.csv",
+    "irrigation": "agricultural_practice_observation.csv",
+    "water_source": "agricultural_practice_observation.csv",
+    "erosion_control": "agricultural_practice_observation.csv",
+    "erosion_severity": "agricultural_practice_observation.csv",
 }
 
 # Sheet names that are table-of-contents / cover pages in every SAS release.
@@ -143,6 +162,14 @@ def main() -> int:
             return 1
         hashes[filename] = sha256_of(path)
 
+    # A domain counts as exposed only when its processed dataset exists here.
+    exposed_domains = {
+        domain
+        for domain, filename in DOMAIN_OUTPUTS.items()
+        if (DATA_DIR / "processed" / filename).exists()
+    }
+    log(f"exposed domains (processed dataset present): {sorted(exposed_domains)}")
+
     # Byte-identical copies: the first filename in WORKBOOKS order is canonical.
     canonical_of: dict[str, str] = {}
     seen: dict[str, str] = {}
@@ -161,7 +188,11 @@ def main() -> int:
                 worksheet = workbook[sheet_name]
                 title = sheet_title(worksheet)
                 max_row, max_col = sheet_shape(worksheet)
-                spec = tmap.get_spec(release, sheet_name) if release else None
+                # The 2022 workbook carries padded sheet names ("Table 12 ",
+                # " Table 26"); the extraction strips them for the CSV filename
+                # and the map uses the stripped form, so look up the stripped
+                # name while keeping the printed one for provenance.
+                spec = tmap.get_spec(release, sheet_name.strip()) if release else None
 
                 # Metadata is decided by the sheet NAME only. Data sheets in
                 # the 2022 workbook carry a "List of Tables" banner in A1, so
@@ -177,9 +208,16 @@ def main() -> int:
                 elif is_metadata:
                     stage = "metadata"
                     exclusion_reason = "table-of-contents sheet, non-quantitative"
-                elif spec is not None:
+                elif spec is not None and spec.domain in exposed_domains:
                     stage = "used"
                     exclusion_reason = ""
+                elif spec is not None:
+                    stage = "mapped_not_exposed"
+                    exclusion_reason = (
+                        f"mapped ({spec.domain}) and ingested with full lineage, but "
+                        f"{DOMAIN_OUTPUTS.get(spec.domain, 'no processed dataset')} is "
+                        "not built in this checkout, so no API/UI surface reads it yet"
+                    )
                 else:
                     stage = "not_yet_mapped"
                     exclusion_reason = (

@@ -50,9 +50,43 @@ def _override(reason: str) -> str:
 
 
 # --- productivity (cultivated/harvested area, yield, production) -------------
-# 2024/2025 annual workbooks: three parallel metric blocks of three seasons.
-# 2026 season workbooks: one metric block each (season releases).
+# 2022/2023/2024/2025 annual workbooks: three parallel metric blocks of three
+# seasons. 2026 season workbooks: one metric block each (season releases).
+# The sheet position of each block differs per release and was read from the
+# workbook itself (see docs/data/SAS_COVERAGE_AUDIT.md):
+#   2022 annual  cultivated 11-13, harvested 14-16, yield 17-19, production 23-25
+#   2023 annual  cultivated 10-12, harvested 13-15, yield 16-18, production 22-24
+#   2024 annual  cultivated 10-12, harvested 13-15, yield 16-18, production 21-23
+#   2025 annual  cultivated 13-15, harvested 16-18, yield 19-21, production 24-26
 PRODUCTIVITY_TABLES: tuple[TableSpec, ...] = (
+    # 2022 annual (Season A/B/C). Season C sheets indent their labels into
+    # column 2 instead of column 1 - handled by the reader's layout resolver.
+    TableSpec("SAS_2022_ANNUAL", "Table 11", "2022A", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 12", "2022B", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 13", "2022C", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 14", "2022A", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 15", "2022B", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 16", "2022C", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 17", "2022A", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 18", "2022B", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 19", "2022C", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2022_ANNUAL", "Table 23", "2022A", "productivity", "production", "mt"),
+    TableSpec("SAS_2022_ANNUAL", "Table 24", "2022B", "productivity", "production", "mt"),
+    TableSpec("SAS_2022_ANNUAL", "Table 25", "2022C", "productivity", "production", "mt"),
+    # 2023 annual (Season A/B/C). Production sheets stack the crop labels above
+    # the District row - handled by the reader's layout resolver.
+    TableSpec("SAS_2023_ANNUAL", "Table 10", "2023A", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 11", "2023B", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 12", "2023C", "productivity", "cultivated_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 13", "2023A", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 14", "2023B", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 15", "2023C", "productivity", "harvested_area", "ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 16", "2023A", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 17", "2023B", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 18", "2023C", "productivity", "yield", "kg/ha"),
+    TableSpec("SAS_2023_ANNUAL", "Table 22", "2023A", "productivity", "production", "mt"),
+    TableSpec("SAS_2023_ANNUAL", "Table 23", "2023B", "productivity", "production", "mt"),
+    TableSpec("SAS_2023_ANNUAL", "Table 24", "2023C", "productivity", "production", "mt"),
     # 2024 annual: cultivated area (10-12), harvested area (13-15),
     # yield (16-18), production (21-23). (19/20 and 22/23 variants for
     # large-scale-only yield are separate tables and are not the all-farmer
@@ -384,9 +418,12 @@ def check_mapping() -> list[str]:
             problems.append(f"sheet {key} mapped more than once: {spec.domain}")
         sheet_seen[key] = spec
 
-    # Productivity coverage: all four metrics for all eight periods.
+    # Productivity coverage: all four metrics for every period the map claims.
+    # Derived from the mapping itself (not a hardcoded year list) so a new
+    # release only needs its TableSpecs added, never an edit here.
     expected_metrics = {"cultivated_area", "harvested_area", "yield", "production"}
-    for period in ("2024A", "2024B", "2024C", "2025A", "2025B", "2025C", "2026A", "2026B"):
+    periods = sorted({s.period_code for s in PRODUCTIVITY_TABLES})
+    for period in periods:
         have = {
             s.metric for s in PRODUCTIVITY_TABLES if s.period_code == period
         }

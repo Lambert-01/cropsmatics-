@@ -134,7 +134,7 @@ def trend(
         change=SameSeasonChange(**result["change"]) if result.get("change") else None,
         provenance=Provenance(
             source_id=result["source_id"],
-            source_period="2024A-2026B",
+            source_period=period_service.published_range(),
             method=(
                 "published district (or national) productivity rows per period; "
                 "null means the crop was not tabulated for that period"

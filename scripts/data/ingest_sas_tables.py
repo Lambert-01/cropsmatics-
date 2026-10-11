@@ -22,6 +22,7 @@ both mean the national aggregate and are normalized to ``total``.
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 
 import pandas as pd
 
@@ -47,6 +48,10 @@ _AGGREGATE_CROPS = {
     "vegetables and fruits",
     "total developed land",
     "developed land",
+    # 2022 Table 14 prints the aggregate column as "Developped land" (source
+    # spelling). It is a land aggregate, not a crop, so it must never enter the
+    # crop panel.
+    "developped land",
     "total",
 }
 # Child crop columns dropped because their parent level is kept instead
@@ -77,6 +82,13 @@ _CROP_CANONICAL = {
     "irish potatoes": "Irish potato",
     "yams & taro": "Yams & Taro",
     "yam & taro": "Yams & Taro",
+    # Published label variants across releases, kept verbatim as source:
+    #   2022 Table 12  "Taro & Yams"   (word order)
+    #   2023 Table 13  "Yarms & Taro"  (source typo, verified in the workbook)
+    #   2022/2023      "Ground nuts"   (two words)
+    "taro & yams": "Yams & Taro",
+    "yarms & taro": "Yams & Taro",
+    "ground nuts": "Groundnut",
     "banana": "Banana",
     "bananas": "Banana",
     "bean": "Beans",
@@ -135,46 +147,90 @@ def _read_grid(spec) -> tuple[pd.DataFrame, str]:
     return grid, kind
 
 
-def _header_rows(grid: pd.DataFrame, max_scan: int = 10) -> int:
-    """Index of the row whose column-1 label starts the data header.
+# Row labels that name the row dimension of a published table.
+_HEADER_LABEL_TOKENS = (
+    "district",
+    "disrtict",  # the 2024 workbook's own typo, kept verbatim
+    "crops",
+    "crop",
+    "fertilizer name",
+)
+_HEADER_SCAN_ROWS = 12
 
-    Handles the published header variants: district/crop label rows (including
-    the 2024 "Disrtict" typo), and erosion-severity tables whose label cell is
-    empty but whose band names start in column 2.
+
+@dataclass(frozen=True)
+class _Layout:
+    """Where one published table keeps its row labels and column labels.
+
+    NISR is not internally consistent across releases, so the layout is
+    resolved per sheet instead of assuming a fixed shape:
+
+    * most sheets put the row label in column 1 and the column labels on the
+      same row (2024-2026 annual releases);
+    * some 2022 Season C sheets indent every label into column 2, leaving
+      column 1 empty (``SAS 2022 / Table 13``);
+    * the 2023 production sheets stack the crop labels *above* the
+      ``District`` row (``SAS 2023 / Table 22``: crops on row 3, district
+      label on row 4);
+    * practice sheets keep the district label row and print the indicator
+      names one row above it.
+
+    ``label_col`` is the column holding row labels, ``header_idx`` is the row
+    naming the rows, and ``crop_row`` is the row holding the column labels - the
+    same row as ``header_idx`` unless the published sheet stacked them.
     """
+
+    label_col: int
+    header_idx: int
+    crop_row: int
+
+
+def _looks_like_label(text: object) -> bool:
+    return _clean_label(text).lower().startswith(_HEADER_LABEL_TOKENS)
+
+
+def _resolve_layout(grid: pd.DataFrame, max_scan: int = _HEADER_SCAN_ROWS) -> _Layout:
+    """Find the label column, the header row and the column-label row.
+
+    The district-name row check runs before the token check on each row so a
+    table whose label cell is blank (erosion-severity) or whose label sits in an
+    indented column (2022 Season C) still resolves.
+    """
+    probe_cols = range(min(4, grid.shape[1]))
     for i in range(min(max_scan, len(grid))):
-        label = _clean_label(grid.iat[i, 1]).lower() if grid.shape[1] > 1 else ""
-        first_data = (
-            _clean_label(grid.iat[i + 1, 1]).lower() if len(grid) > i + 1 and grid.shape[1] > 1 else ""
-        )
-        # A district label directly below confirms this is the header row. This
-        # also accepts rows whose first cell is empty but whose second column
-        # (Overall/SSF/LSF scopes) sits above a district row - the 2026
-        # fertilizer/pesticide tables put the indicator names one row higher.
-        if first_data in _DISTRICT_LOWER_NAMES:
-            return i
-        if label.startswith(("district", "disrtict", "crops", "crop", "fertilizer name")):
-            return i
-        if not label and grid.shape[1] > 2:
+        if i + 1 < len(grid):
+            for col in probe_cols:
+                below = _clean_label(grid.iat[i + 1, col]).lower()
+                if below in _DISTRICT_LOWER_NAMES:
+                    return _finish_layout(grid, i, col)
+        for col in probe_cols:
+            if _looks_like_label(grid.iat[i, col]):
+                return _finish_layout(grid, i, col)
+        # Erosion-severity sheets leave the label cell empty and start the band
+        # names in column 2.
+        if grid.shape[1] > 2 and not _clean_label(grid.iat[i, 1]):
             second = _clean_label(grid.iat[i, 2]).lower()
             if second.startswith(("severe", "moderate", "ditches")):
-                return i
+                return _finish_layout(grid, i, 1)
     raise ValueError(f"no header row found in first {max_scan} rows")
+
+
+def _finish_layout(grid: pd.DataFrame, header_idx: int, label_col: int) -> _Layout:
+    crop_row = header_idx
+    if not _crop_cells(grid, header_idx, label_col) and header_idx >= 1:
+        if _crop_cells(grid, header_idx - 1, label_col):
+            crop_row = header_idx - 1
+    return _Layout(label_col=label_col, header_idx=header_idx, crop_row=crop_row)
 
 
 _DISTRICT_LOWER_NAMES: frozenset[str] = frozenset()
 
 
-def _crop_columns(grid: pd.DataFrame, header_idx: int) -> dict[int, str]:
-    """Map column index -> canonical crop name for crop-keyed tables.
-
-    Keeps exactly the dictionary-level crops (skipping aggregates that would
-    double-count their own components and banana/bean subtypes whose parent is
-    kept) so the panel matches the canonical crop dimension.
-    """
+def _crop_cells(grid: pd.DataFrame, row: int, label_col: int) -> dict[int, str]:
+    """Canonical crops named on one candidate header row (may be empty)."""
     out: dict[int, str] = {}
-    for col in range(2, grid.shape[1]):
-        label = _clean_label(grid.iat[header_idx, col]).lower()
+    for col in range(label_col + 1, grid.shape[1]):
+        label = _clean_label(grid.iat[row, col]).lower()
         if not label or label in _AGGREGATE_CROPS or label in _SUBTYPE_CROPS:
             continue
         canonical = _CROP_CANONICAL.get(label)
@@ -186,14 +242,28 @@ def _crop_columns(grid: pd.DataFrame, header_idx: int) -> dict[int, str]:
     return out
 
 
-def _find_title(grid: pd.DataFrame, header_idx: int) -> str:
-    """Nearest non-empty column-1 cell above the header (the table title).
+def _crop_columns(grid: pd.DataFrame, layout: _Layout) -> dict[int, str]:
+    """Map column index -> canonical crop name for crop-keyed tables.
+
+    Keeps exactly the dictionary-level crops (skipping aggregates that would
+    double-count their own components and banana/bean subtypes whose parent is
+    kept) so the panel matches the canonical crop dimension.
+    """
+    return _crop_cells(grid, layout.crop_row, layout.label_col)
+
+
+def _find_title(grid: pd.DataFrame, layout: _Layout) -> str:
+    """Nearest non-empty label-column cell above the header (the table title).
 
     Some sheets (Season C mini tables) carry blank rows above the title, so a
-    fixed row index cannot be used.
+    fixed row index cannot be used. Scans the label column *and* column 1 so a
+    2022 Season C sheet - whose title sits in column 1 while its data labels are
+    indented into column 2 - still reports its printed title.
     """
-    for i in range(header_idx - 1, -1, -1):
-        text = _clean_label(grid.iat[i, 1]) if grid.shape[1] > 1 else ""
+    for i in range(layout.header_idx - 1, -1, -1):
+        text = _clean_label(grid.iat[i, layout.label_col]) if grid.shape[1] > layout.label_col else ""
+        if not text and layout.label_col != 1 and grid.shape[1] > 1:
+            text = _clean_label(grid.iat[i, 1])
         if text:
             return text
     return ""
@@ -211,7 +281,7 @@ def _district_lookup(districts: pd.DataFrame) -> dict[str, str]:
 
 
 def _iter_district_rows(
-    grid: pd.DataFrame, start: int, known_lower: dict[str, str]
+    grid: pd.DataFrame, layout: _Layout, known_lower: dict[str, str]
 ) -> tuple[list[tuple[int, str, str]], str]:
     """Yield ``(row_index, raw_label, scope)`` for rows below the header.
 
@@ -227,8 +297,12 @@ def _iter_district_rows(
     """
     rows: list[tuple[int, str, str]] = []
     source_title = ""
-    for i in range(start + 1, len(grid)):
-        label = _clean_label(grid.iat[i, 1]) if grid.shape[1] > 1 else ""
+    for i in range(layout.header_idx + 1, len(grid)):
+        label = (
+            _clean_label(grid.iat[i, layout.label_col])
+            if grid.shape[1] > layout.label_col
+            else ""
+        )
         if not label:
             continue
         lowered = label.lower()
@@ -284,9 +358,9 @@ def parse_productivity(districts: pd.DataFrame) -> pd.DataFrame:
     rows_out: list[dict] = []
     for spec in tmap.PRODUCTIVITY_TABLES:
         grid, kind = read_table(spec)
-        header_idx = _header_rows(grid)
+        layout = _resolve_layout(grid)
         year, season = split_period(spec.period_code)
-        title = _find_title(grid, header_idx)
+        title = _find_title(grid, layout)
         title_season = _season_from_title(title)
         if title_season is not None and title_season != season:
             # A documented mapping already handles known anomalies; anything
@@ -297,7 +371,7 @@ def parse_productivity(districts: pd.DataFrame) -> pd.DataFrame:
                 + (f" ({spec.period_override_reason})" if spec.period_override_reason else "")
             )
 
-        rows, _ = _iter_district_rows(grid, header_idx, known)
+        rows, _ = _iter_district_rows(grid, layout, known)
         for row_idx, raw_label, scope in rows:
             # Aggregate rows carry a label ("Total", "National", SSF, LSF) in
             # ``row_scope_raw``; ``district`` stays a real district or null so a
@@ -305,7 +379,7 @@ def parse_productivity(districts: pd.DataFrame) -> pd.DataFrame:
             # the two labels NISR uses for the same national row collapse into a
             # single panel row instead of two half-empty ones.
             official = known.get(raw_label.lower()) if scope == "district" else None
-            for col, crop_name in _crop_columns(grid, header_idx).items():
+            for col, crop_name in _crop_columns(grid, layout).items():
                 value = _num(grid.iat[row_idx, col])
                 rows_out.append(
                     {
@@ -343,14 +417,14 @@ def parse_district_indicator_tables(
     rows_out: list[dict] = []
     for spec in specs:
         grid, kind = read_table(spec)
-        header_idx = _header_rows(grid)
+        layout = _resolve_layout(grid)
         year, season = split_period(spec.period_code)
-        title = _find_title(grid, header_idx)
-        rows, _ = _iter_district_rows(grid, header_idx, known)
+        title = _find_title(grid, layout)
+        rows, _ = _iter_district_rows(grid, layout, known)
         for row_idx, raw_label, scope in rows:
             official = known.get(raw_label.lower())
-            for col in range(2, grid.shape[1]):
-                indicator = indicator_from_column(col, grid, header_idx)
+            for col in range(layout.label_col + 1, grid.shape[1]):
+                indicator = indicator_from_column(col, grid, layout)
                 if indicator is None:
                     continue
                 value = _num(grid.iat[row_idx, col])
@@ -363,7 +437,7 @@ def parse_district_indicator_tables(
     return pd.DataFrame(rows_out)
 
 
-def _practice_indicator(col: int, grid: pd.DataFrame, header_idx: int) -> str | None:
+def _practice_indicator(col: int, grid: pd.DataFrame, layout: _Layout) -> str | None:
     """Indicator for the practice tables.
 
     Two layouts exist:
@@ -372,6 +446,7 @@ def _practice_indicator(col: int, grid: pd.DataFrame, header_idx: int) -> str | 
     * two-row header (A/B style): row ``header_idx`` names indicator groups,
       row ``header_idx + 1`` names the Overall/SSF/LSF scope.
     """
+    header_idx = layout.header_idx
     label = _clean_label(grid.iat[header_idx, col])
     lowered = label.lower()
 
@@ -444,13 +519,13 @@ def _practice_indicator_for(label: str, scope: str) -> str | None:
 
 
 def _fixed_indicator_factory(mapping: dict[int, str]):
-    def pick(col: int, grid: pd.DataFrame, header_idx: int) -> str | None:
+    def pick(col: int, grid: pd.DataFrame, layout: _Layout) -> str | None:
         return mapping.get(col)
 
     return pick
 
 
-def _irrigation_water_mapping(grid: pd.DataFrame, header_idx: int) -> dict[int, str]:
+def _irrigation_water_mapping(grid: pd.DataFrame, layout: _Layout) -> dict[int, str]:
     """Column -> indicator for irrigation/water tables.
 
     Two published layouts: technique tables put the modern-technique labels on
@@ -458,8 +533,9 @@ def _irrigation_water_mapping(grid: pd.DataFrame, header_idx: int) -> dict[int, 
     row itself; water-source tables put every label on the header row. Scan
     both rows so both layouts resolve.
     """
+    header_idx = layout.header_idx
     mapping: dict[int, str] = {}
-    for col in range(2, grid.shape[1]):
+    for col in range(layout.label_col + 1, grid.shape[1]):
         indicator = None
         for row in (header_idx + 1, header_idx):
             if row >= len(grid):
@@ -503,11 +579,11 @@ def parse_irrigation_water(districts: pd.DataFrame) -> pd.DataFrame:
     for specs in (tmap.IRRIGATION_TABLES, tmap.WATER_SOURCE_TABLES):
         for spec in specs:
             grid, kind = read_table(spec)
-            header_idx = _header_rows(grid)
-            mapping = _irrigation_water_mapping(grid, header_idx)
+            layout = _resolve_layout(grid)
+            mapping = _irrigation_water_mapping(grid, layout)
             year, season = split_period(spec.period_code)
-            title = _find_title(grid, header_idx)
-            rows, _ = _iter_district_rows(grid, header_idx, known)
+            title = _find_title(grid, layout)
+            rows, _ = _iter_district_rows(grid, layout, known)
             for row_idx, raw_label, scope in rows:
                 official = known.get(raw_label.lower())
                 for col, indicator in mapping.items():
@@ -541,18 +617,20 @@ def parse_erosion(districts: pd.DataFrame) -> pd.DataFrame:
     for specs in (tmap.EROSION_CONTROL_TABLES, tmap.EROSION_SEVERITY_TABLES):
         for spec in specs:
             grid, kind = read_table(spec)
-            header_idx = _header_rows(grid)
+            layout = _resolve_layout(grid)
             year, season = split_period(spec.period_code)
-            title = _find_title(grid, header_idx)
+            title = _find_title(grid, layout)
             is_severity = spec.domain == "erosion_severity"
-            rows, _ = _iter_district_rows(grid, header_idx, known)
+            rows, _ = _iter_district_rows(grid, layout, known)
             for row_idx, raw_label, scope in rows:
                 official = known.get(raw_label.lower())
-                for col in range(2, grid.shape[1]):
+                for col in range(layout.label_col + 1, grid.shape[1]):
                     if is_severity:
-                        indicator = _severity_indicator(_clean(grid.iat[header_idx, col]))
+                        indicator = _severity_indicator(
+                            _clean(grid.iat[layout.crop_row, col])
+                        )
                     else:
-                        indicator = _technique_indicator(grid, header_idx, col)
+                        indicator = _technique_indicator(grid, layout, col)
                     if indicator is None:
                         continue
                     value = _num(grid.iat[row_idx, col])
@@ -565,7 +643,7 @@ def parse_erosion(districts: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows_out)
 
 
-def _technique_indicator(grid: pd.DataFrame, header_idx: int, col: int) -> str | None:
+def _technique_indicator(grid: pd.DataFrame, layout: _Layout, col: int) -> str | None:
     """Indicator for erosion-control tables (two published layouts).
 
     2024/2025 annual releases: one header row naming the control technique
@@ -573,6 +651,7 @@ def _technique_indicator(grid: pd.DataFrame, header_idx: int, col: int) -> str |
     table - ``Plots under erosion control measures`` (adoption) plus three
     ``Measures to control <rate> erosion`` categories, named on a banner row.
     """
+    header_idx = layout.header_idx
     label = _clean_label(grid.iat[header_idx, col]).lower()
     if not label and len(grid) > header_idx + 3:
         # Probe the banner rows below the header and prefer text that actually
@@ -655,19 +734,19 @@ def parse_postharvest(districts: pd.DataFrame, alias_map: pd.DataFrame | None = 
     rows_out: list[dict] = []
     for spec in tmap.POSTHARVEST_TABLES:
         grid, kind = read_table(spec)
-        header_idx = _header_rows(grid)
+        layout = _resolve_layout(grid)
         year, season = split_period(spec.period_code)
-        title = _find_title(grid, header_idx)
+        title = _find_title(grid, layout)
         mapping: dict[int, str] = {}
-        for col in range(2, grid.shape[1]):
-            label = _clean_label(grid.iat[header_idx, col]).lower()
+        for col in range(layout.label_col + 1, grid.shape[1]):
+            label = _clean_label(grid.iat[layout.crop_row, col]).lower()
             for match, indicator in use_cols:
                 if label == match or label.startswith(match):
                     mapping[col] = indicator
                     break
         # Crop-keyed rows (no district lookup): row labels are crop names.
-        for row_idx in range(header_idx + 1, len(grid)):
-            crop_raw = _clean_label(grid.iat[row_idx, 1])
+        for row_idx in range(layout.header_idx + 1, len(grid)):
+            crop_raw = _clean_label(grid.iat[row_idx, layout.label_col])
             if not crop_raw or crop_raw.lower().startswith("source:"):
                 continue
             crop_lower = crop_raw.lower()

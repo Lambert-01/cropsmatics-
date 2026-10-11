@@ -28,6 +28,7 @@ from app.schemas.dashboard import (
 )
 from app.schemas.filters import AnalyticsFilters, analytics_filters
 from app.schemas.storage import StorageInfrastructureResponse
+from app.services import period_service
 from app.services import (
     analytics_service,
     indexed_yield_service,
@@ -39,16 +40,20 @@ from app.services import (
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-_GAP_LIMITATIONS = [
-    "observational district aggregates, not plot-level evidence",
-    "associations are not causation",
-    "benchmark choice materially affects the gap",
-    # District productivity exists for every published period (2024A-2026B); the
-    # district input/practice tables used by the factor analysis are still a
-    # single-release (2025 Season B) extract. See /api/v1/meta/periods.
-    "district productivity covers 2024A-2026B; district input/practice, "
-    "irrigation and erosion tables cover 2025 Season B only",
-]
+def _gap_limitations() -> list[str]:
+    """Limitations built from the period catalogue, not from literals.
+
+    The previous hardcoded "covers 2024A-2026B" became false as soon as 2022 and
+    2023 were ingested. See /api/v1/meta/periods for the full matrix.
+    """
+    return [
+        "observational district aggregates, not plot-level evidence",
+        "associations are not causation",
+        "benchmark choice materially affects the gap",
+        f"district productivity covers {period_service.district_range()}; district "
+        f"input/practice, irrigation and erosion tables cover "
+        f"{period_service.single_release_scope()} only",
+    ]
 
 
 @router.get("/productivity-gap", response_model=GapResponse)
@@ -66,7 +71,7 @@ def productivity_gap(
             source_period="2025-B",
             benchmark_strategy=strategy,
             method="PGI = 100*(benchmark-observed)/benchmark (crop median benchmark)",
-            limitations=_GAP_LIMITATIONS,
+            limitations=_gap_limitations(),
         ),
     )
 
@@ -96,7 +101,7 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
                 else "district aggregation of processed district x crop table; "
                 "no cross-crop yield is computed"
             ),
-            limitations=_GAP_LIMITATIONS
+            limitations=_gap_limitations()
             + [
                 "the same-season change compares one season with the same season "
                 "one year earlier; consecutive seasons are not a time series "
@@ -155,7 +160,7 @@ def heatmap(
             source_period=f.period_code,
             benchmark_strategy=f.benchmark_strategy,
             method="median district x crop value",
-            limitations=_GAP_LIMITATIONS[:3],
+            limitations=_gap_limitations()[:3],
         ),
     )
 

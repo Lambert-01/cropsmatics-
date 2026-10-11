@@ -11,6 +11,7 @@ import pytest
 from app.analytics.productivity_gap import compute_gaps
 from app.schemas.filters import AnalyticsFilters
 from app.services import analytics_service, trend_service
+from scripts.data.common import VALID_PERIODS
 
 
 def _require_data(client) -> None:
@@ -67,7 +68,9 @@ def test_history_scope_carries_the_published_period_timeline(client):
     body = client.get("/api/v1/dashboard/overview").json()
     timeline = body["period_timeline"]
     assert [p["period_code"] for p in timeline] == body["available_periods"]
-    assert len(timeline) == 8
+    # The timeline is the published period dimension itself (2022A-2026B), not a
+    # literal count, so a new release extends it instead of failing the check.
+    assert [p["period_code"] for p in timeline] == list(VALID_PERIODS)
     # Each entry names its own coverage, so a district map cannot be drawn from a
     # period that only published national rows.
     assert all(p["coverage_level"] for p in timeline)

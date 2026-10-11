@@ -30,6 +30,8 @@ from scripts.data.common import (
     PROCESSED_DIR,
     PROCESSED_FILES,
     VALID_PERIODS,
+    YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA,
+    YIELD_CONSISTENCY_REL_TOLERANCE,
     log,
     raw_path,
 )
@@ -38,9 +40,11 @@ HARD_FAIL = False
 ISSUES: list[dict] = []
 
 KNOWN_SEASONS = {"A", "B", "C"}
-# The package covers the NISR 2024-2026 releases. A year outside this range means
-# an unexpected release (or a typo) and is treated as an error.
-PLAUSIBLE_YEARS = {2024, 2025, 2026}
+# The package covers every NISR release the source registry lists (2022-2026).
+# The set is derived from the canonical period dimension rather than hardcoded,
+# so adding a release updates the check instead of silently failing it. A year
+# outside this set still means an unexpected release (or a typo) and is an error.
+PLAUSIBLE_YEARS = {int(period[:4]) for period in VALID_PERIODS}
 # The canonical period dimension: exactly the periods NISR has published as of
 # September 2026. A period outside this set is either a typo or a fabricated
 # season (2026C does not exist), so it fails.
@@ -818,19 +822,60 @@ def _validate_crop_productivity(known_districts: set[str], known_crops: set[str]
         else:
             issue("info", name, "every row carries a source_id")
 
-    # Yield consistency where both a yield and the inputs exist.
-    if {"production_mt", "harvested_area_ha", "yield_kg_ha"}.issubset(df.columns):
-        computed = (df["production_mt"] * 1000.0 / df["harvested_area_ha"]).replace(
-            [float("inf"), float("-inf")], pd.NA
+    _check_published_yield_consistency(name, df)
+
+
+def _check_published_yield_consistency(name: str, df: pd.DataFrame) -> None:
+    """Reconcile published yield against published production / harvested area.
+
+    NISR publishes yield independently of the other two, so they do not always
+    agree. The shared policy in ``scripts/data/common.py`` is scale-aware: a gap
+    within ``max(ABS, REL x published yield)`` is release *rounding* (the 2023
+    workbook prints whole numbers) and is reported as info; a larger gap is a
+    *material* source inconsistency and is reported as a warning naming the
+    affected rows. Official values are never modified - the loader flags the
+    same rows ``review`` so the UI can warn and a forecast trainer can exclude
+    them.
+    """
+    if not {"production_mt", "harvested_area_ha", "yield_kg_ha"}.issubset(df.columns):
+        return
+
+    production = pd.to_numeric(df["production_mt"], errors="coerce")
+    harvested = pd.to_numeric(df["harvested_area_ha"], errors="coerce")
+    published = pd.to_numeric(df["yield_kg_ha"], errors="coerce")
+    implied = (production * 1000.0 / harvested.where(harvested > 0)).replace(
+        [float("inf"), float("-inf")], pd.NA
+    )
+    gap = (implied - published).abs()
+    tolerance = published.abs().mul(YIELD_CONSISTENCY_REL_TOLERANCE).clip(
+        lower=YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA
+    )
+    comparable = gap.notna() & published.notna()
+
+    rounding = int((comparable & (gap <= tolerance)).sum())
+    material = comparable & (gap > tolerance)
+    if rounding:
+        issue(
+            "info",
+            name,
+            "published yield reconciles with production/area within rounding tolerance",
+            rounding,
         )
-        mismatch = int(((computed - df["yield_kg_ha"]).abs() > 1.0).sum())
-        if mismatch:
-            issue(
-                "warn",
-                name,
-                "yield_kg_ha inconsistent with production/area (tolerance 1 kg/ha)",
-                mismatch,
-            )
+    if bool(material.any()):
+        keys = sorted(
+            f"{row.period_code}/{row.row_scope}/{row.district or 'national'}/{row.crop_name_raw}"
+            for row in df[material].itertuples()
+        )
+        issue(
+            "warn",
+            name,
+            "published yield disagrees with production/area beyond the documented "
+            f"tolerance ({YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA} kg/ha or "
+            f"{YIELD_CONSISTENCY_REL_TOLERANCE:.0%}) - official values preserved, "
+            f"rows flagged review: {', '.join(keys[:12])}"
+            + (" ..." if len(keys) > 12 else ""),
+            int(material.sum()),
+        )
 
 
 def _validate_market_prices() -> None:

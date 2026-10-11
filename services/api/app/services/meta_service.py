@@ -40,17 +40,30 @@ REQUIRED_DATASETS: dict[str, str] = {
 
 REQUIRED_DICTIONARIES = ["districts.csv", "crops.csv"]
 
-COVERAGE_NOTES = [
-    "District productivity (area, harvested area, production, yield) is available "
-    "for all eight published periods (2024A-2026B) in the multi-period panel; "
-    "2026 Season C has not been published.",
-    "District input/practice, irrigation and erosion tables are still single-release "
-    "(2025 Season B). See /api/v1/meta/periods for which datasets each period covers.",
-    "2024B, 2025A and 2026A national trend rows are context series and are NOT "
-    "district estimates.",
-    "Post-harvest use shares are national crop-level values, not district values.",
-    "Cold-chain context lists program districts; facility capacity is not verified.",
-]
+
+def coverage_notes() -> list[str]:
+    """Coverage notes derived from the period catalogue (never a literal).
+
+    Built on demand rather than at import: the counts and the range must describe
+    the data that is actually loaded, and importing the module must not depend on
+    the processed tables existing.
+    """
+    from app.services import period_service
+
+    codes = period_service.period_codes()
+    return [
+        "District productivity (area, harvested area, production, yield) is "
+        f"available for all {len(codes)} published periods "
+        f"({period_service.district_range()}) in the multi-period panel; "
+        "2026 Season C has not been published.",
+        "District input/practice, irrigation and erosion tables are still "
+        f"single-release ({period_service.single_release_scope()}). See "
+        "/api/v1/meta/periods for which datasets each period covers.",
+        "2024B, 2025A and 2026A national trend rows are context series and are NOT "
+        "district estimates.",
+        "Post-harvest use shares are national crop-level values, not district values.",
+        "Cold-chain context lists program districts; facility capacity is not verified.",
+    ]
 
 
 def coverage() -> dict:
@@ -58,7 +71,7 @@ def coverage() -> dict:
     try:
         df = repo.data_coverage()
     except Exception:
-        return {"coverage": {}, "details": [], "notes": COVERAGE_NOTES}
+        return {"coverage": {}, "details": [], "notes": coverage_notes()}
 
     df = df.replace({np.nan: None})
     coverage: dict[str, dict[str, str]] = {}
@@ -74,7 +87,7 @@ def coverage() -> dict:
             "n_crops": int(row["n_crops"]) if row["n_crops"] is not None else 0,
             "source_id": row.get("source_id"),
         })
-    return {"coverage": coverage, "details": details, "notes": COVERAGE_NOTES}
+    return {"coverage": coverage, "details": details, "notes": coverage_notes()}
 
 
 def level_for(dataset: str, period: str | None) -> str | None:

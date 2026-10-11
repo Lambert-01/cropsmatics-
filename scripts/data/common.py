@@ -35,12 +35,24 @@ RAW_MARKETS_DIR = RAW_DIR / "markets"
 #   data/raw/nisr/sas/2024/annual/tables/Table 10.csv
 #   data/raw/nisr/sas/2026/season_a/tables/Table 11.csv
 SAS_RELEASES: dict[str, Path] = {
+    "SAS_2022_ANNUAL": RAW_SAS_DIR / "2022" / "annual" / "tables",
+    "SAS_2023_ANNUAL": RAW_SAS_DIR / "2023" / "annual" / "tables",
     "SAS_2024_ANNUAL": RAW_SAS_DIR / "2024" / "annual" / "tables",
     "SAS_2025_ANNUAL": RAW_SAS_DIR / "2025" / "annual" / "tables",
     "SAS_2026A": RAW_SAS_DIR / "2026" / "season_a" / "tables",
     "SAS_2026B": RAW_SAS_DIR / "2026" / "season_b" / "tables",
 }
 SAS_MANIFEST = RAW_SAS_DIR / "manifest.csv"
+
+
+def release_folder_key(release: str) -> str:
+    """Manifest ``folder`` key for a release, derived from its extraction path.
+
+    ``SAS_RELEASES`` is the single source of truth: a release extracted to
+    ``.../2026/season_a/tables`` has the key ``2026_season_a``. Nothing derives a
+    folder name from a hardcoded year list, so adding 2027 is one entry above.
+    """
+    return SAS_RELEASES[release].parent.relative_to(RAW_SAS_DIR).as_posix().replace("/", "_")
 
 # Market provider raw directories (files land here via download/manual export).
 RAW_MARKET_DIRS: dict[str, Path] = {
@@ -60,12 +72,57 @@ FIXTURES_DIR = DATA_DIR / "dev_fixtures"
 # --- pipeline identity (recorded in every processed row) -------------------
 PIPELINE_VERSION = "0.2.0"
 
+# --- published-consistency policy: yield vs production/harvested area --------
+# NISR publishes yield independently of production and harvested area, so the
+# two do not always reconcile. This single policy is shared by the validator
+# (which counts and reports) and the database loader (which flags each row), so
+# the two can never disagree about which rows are inconsistent.
+#
+# The threshold is scale-aware because the releases are not equally precise:
+# the 2023 workbook publishes whole numbers, so an implied yield legitimately
+# differs from the printed yield by a fraction of a percent. Policy therefore:
+#   * within max(ABS, REL x published yield)  -> rounding, reported as info;
+#   * beyond it                               -> material source
+#     inconsistency, reported as a warning, flagged `review` on the row, and
+#     excluded from forecast training unless a sensitivity run says otherwise.
+# Official figures are never overwritten in either case.
+YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA = 1.0
+YIELD_CONSISTENCY_REL_TOLERANCE = 0.01
+
+
+def yield_discrepancy_tolerance(published_yield_kg_ha: float) -> float:
+    """Allowed |implied - published| yield gap before a row is material."""
+    return max(
+        YIELD_CONSISTENCY_ABS_TOLERANCE_KG_HA,
+        YIELD_CONSISTENCY_REL_TOLERANCE * abs(published_yield_kg_ha),
+    )
+
+
+def is_material_yield_discrepancy(
+    production_mt: float | None,
+    harvested_area_ha: float | None,
+    published_yield_kg_ha: float | None,
+) -> bool:
+    """True when published yield and production/area disagree beyond tolerance."""
+    if production_mt is None or harvested_area_ha is None or published_yield_kg_ha is None:
+        return False
+    if harvested_area_ha <= 0:
+        return False
+    implied = production_mt * 1000.0 / harvested_area_ha
+    return abs(implied - published_yield_kg_ha) > yield_discrepancy_tolerance(
+        published_yield_kg_ha
+    )
+
 # --- canonical period dimension --------------------------------------------
-# Exactly the periods NISR has published as of September 2026: the 2024 and
-# 2025 annual releases cover Seasons A/B/C; 2026 covers Seasons A and B only.
-# 2026C is NOT listed because NISR has not published it - inventing it would
-# fabricate a period that does not exist.
+# Exactly the periods NISR has published as of October 2026: the 2022, 2023,
+# 2024 and 2025 annual releases cover Seasons A/B/C; 2026 covers Seasons A and
+# B only. 2026C is NOT listed because NISR has not published it - inventing it
+# would fabricate a period that does not exist. 2022/2023 were added when the
+# owner supplied the corresponding annual workbooks (verified: all three
+# seasons of district-level productivity tables are present in each).
 VALID_PERIODS: tuple[str, ...] = (
+    "2022A", "2022B", "2022C",
+    "2023A", "2023B", "2023C",
     "2024A", "2024B", "2024C",
     "2025A", "2025B", "2025C",
     "2026A", "2026B",
@@ -89,6 +146,8 @@ def split_period(period_code: str) -> tuple[int, str]:
 
 # Source identifiers for the multi-season SAS releases (provenance + registry).
 SAS_SOURCE_IDS: dict[str, str] = {
+    "SAS_2022_ANNUAL": "NISR_SAS_2022_ANNUAL",
+    "SAS_2023_ANNUAL": "NISR_SAS_2023_ANNUAL",
     "SAS_2024_ANNUAL": "NISR_SAS_2024_ANNUAL",
     "SAS_2025_ANNUAL": "NISR_SAS_2025_ANNUAL",
     "SAS_2026A": "NISR_SAS_2026A",
@@ -97,6 +156,8 @@ SAS_SOURCE_IDS: dict[str, str] = {
 
 # Workbook file names as published by NISR (recorded in the source registry).
 SAS_WORKBOOKS: dict[str, str] = {
+    "SAS_2022_ANNUAL": "SAS 2022_Tables_0.xlsx",
+    "SAS_2023_ANNUAL": "SAS 2023_Annual Tables (3).xlsx",
     "SAS_2024_ANNUAL": "SAS 2024_Annual Tables.xlsx",
     "SAS_2025_ANNUAL": "SAS 2025_Annual Tables.xlsx",
     "SAS_2026A": "Tables_2026 Season A.xlsx",
