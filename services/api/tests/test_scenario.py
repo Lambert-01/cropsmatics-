@@ -394,13 +394,22 @@ def test_a_group_with_no_published_rows_is_no_observations_not_zero_yield(client
 # --- model scenario (Mode B) --------------------------------------------------
 
 
-def test_model_scenario_is_off_while_no_validated_model_is_registered(client):
+def test_model_scenario_stays_off_for_a_spatially_validated_model(client):
+    """A registered district-holdout yield model must NOT enable mode B.
+
+    Its metrics are real (the registry now reports them), but a district holdout
+    measures generalization across districts, not a future season, so it is not
+    evidence for a forward-looking scenario.
+    """
     _require_data(client)
     body = _scenario(client, baseline=_side(BASE_PERIOD), scenario=_side(PREVIOUS_PERIOD))
     mode_b = body["model_scenario"]
     assert mode_b["available"] is False
     assert mode_b["reason"]
-    assert "model card" in mode_b["reason"] or "validated" in mode_b["reason"]
+    # The reason states the actual requirement ...
+    assert "chronological" in mode_b["reason"]
+    # ... and names the insufficient card, so a user is not told no model exists.
+    assert "districts" in mode_b["reason"]
     # The warning is present either way, so a future enabled card cannot imply
     # a guaranteed intervention outcome.
     assert "not a" in mode_b["warning"]

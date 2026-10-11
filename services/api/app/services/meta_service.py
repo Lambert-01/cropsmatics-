@@ -396,12 +396,23 @@ def data_version() -> dict:
     }
 
 
-def _metric(metrics: dict, name: str) -> float | None:
-    m = metrics.get(name)
-    if not isinstance(m, dict):
+def _metric(model_metrics: dict, name: str) -> float | None:
+    """One metric from a card's per-model metrics block.
+
+    Callers pass the block already narrowed to one model (``metrics[best]``), so
+    this reads the value directly. It previously required a nested dict and
+    therefore reported ``None`` for every real card - the registry under-reported
+    metrics the model actually had.
+    """
+    if not isinstance(model_metrics, dict):
         return None
-    value = m.get("mae") if name == "mae" else m.get(name)
-    return None if value is None else float(value)
+    value = model_metrics.get(name)
+    if value is None or isinstance(value, dict):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def models() -> list[dict]:
@@ -430,6 +441,14 @@ def models() -> list[dict]:
             "n_test": card.get("n_test"),
             "training_period": card.get("training_period") or card.get("source_period"),
             "validation_method": card.get("validation_split") or card.get("validation"),
+            # How the model was validated, and whether that validation is strong
+            # enough to serve a *future* target. A district holdout is not: it
+            # measures spatial generalization. Cards that do not declare this
+            # default to False, so an old card can never silently enable a
+            # forecast-facing mode.
+            "validation_kind": card.get("validation_kind") or "unspecified",
+            "serves_forecast": bool(card.get("serves_forecast", False)),
+            "forecast_note": card.get("forecast_note"),
             "status": "available",
             "note": card.get("causality_disclaimer"),
         })

@@ -20,10 +20,9 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
+import app.models  # noqa: F401  (registers every table on Base.metadata)
 from app.db.base import Base
 from app.models.canonical import DatasetVersion, Indicator, Unit
-
-import app.models  # noqa: F401  (registers every table on Base.metadata)
 
 # Only the tables these reads touch. A blanket create_all would pull in the
 # GIS tables, which need Spatialite functions SQLite does not provide.
@@ -108,8 +107,9 @@ def test_current_version_on_an_empty_table_is_none(memory_engine, canonical):
 
 def test_current_version_picks_the_most_recently_loaded_release(memory_engine, canonical):
     """Multiple versions: the latest loaded_at wins, not insertion order."""
-    from app.db.base import utcnow
     from datetime import timedelta
+
+    from app.db.base import utcnow
 
     _insert_version(memory_engine, version="old", loaded_at=utcnow() - timedelta(days=30))
     _insert_version(memory_engine, version="new", loaded_at=utcnow())
@@ -132,7 +132,6 @@ def test_indicator_rows_return_dicts_with_resolved_fields(memory_engine, canonic
     indicator_rows() had the same defect as current_version(): the endpoint
     crashed only when a real database was serving.
     """
-    from app.db.base import utcnow
 
     with sessionmaker(bind=memory_engine)() as session:
         session.add(Unit(unit_code="kg_ha", name="Kilograms per hectare", dimension="mass"))

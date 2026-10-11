@@ -38,8 +38,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.repositories import dataset_repository as repo
 from app.schemas.common import Provenance
 from app.schemas.filters import AnalyticsFilters, analytics_filters, apply_filters
-from app.services import period_service
-from app.services import analytics_service, dataset_service, meta_service, postharvest_service
+from app.services import (
+    analytics_service,
+    dataset_service,
+    meta_service,
+    period_service,
+    postharvest_service,
+)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 

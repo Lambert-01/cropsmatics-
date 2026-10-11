@@ -23,14 +23,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.data.load_postgres import (  # noqa: E402
-    YIELD_CONSISTENCY_TOLERANCE_KG_HA,
-    panel_rows,
-)
 from scripts.data.common import (  # noqa: E402
     YIELD_CONSISTENCY_REL_TOLERANCE,
     is_material_yield_discrepancy,
     yield_discrepancy_tolerance,
+)
+from scripts.data.load_postgres import (  # noqa: E402
+    YIELD_CONSISTENCY_TOLERANCE_KG_HA,
+    panel_rows,
 )
 
 CROP_NAMES = {"CROP-MAI": "Maize"}
