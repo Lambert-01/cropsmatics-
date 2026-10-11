@@ -114,6 +114,10 @@ export const en = {
   mapLegend: "Legend",
   map: "Map",
   mapNoData: "No verified value",
+  // Map view controls (zoom/pan). Named as view actions, not data actions.
+  mapZoomIn: "Zoom in",
+  mapZoomOut: "Zoom out",
+  mapResetView: "Reset map view",
   legendHigherIsBetter:
     "Darker shading marks a higher value — the more favourable end of this scale.",
   legendHigherIsWorse:

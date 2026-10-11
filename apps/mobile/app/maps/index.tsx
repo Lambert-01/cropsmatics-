@@ -1,8 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "../../src/components/AppHeader";
@@ -22,6 +29,17 @@ import type { Palette } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { formatValue } from "../../src/utils/analytics";
 import { layerRequiresCrop, linkPeriodToLayer, periodsCarryingLayer } from "../../src/utils/coverage";
+import {
+  ZOOM_STEP,
+  canZoomIn,
+  canZoomOut,
+  clampTransform,
+  isDefaultTransform,
+  panBy,
+  resetTransform,
+  zoomBy,
+  type MapTransform,
+} from "../../src/utils/mapTransform";
 import { resolveDistrictRouteParam } from "../../src/utils/selection";
 import {
   bandPaletteIndex,
@@ -56,6 +74,19 @@ export default function MapsScreen() {
   const [requestedPeriod, setRequestedPeriod] = useState<string | null>(params.period ?? null);
   const [selected, setSelected] = useState<string | null>(null);
   const [mapSize, setMapSize] = useState({ width: 0, height: 0 });
+  /**
+   * Zoom/pan. Clamping lives in `mapTransform` (unit tested), so the gesture code
+   * here only forwards deltas - it cannot leave the map panned off screen.
+   */
+  const [transform, setTransform] = useState<MapTransform>(() => resetTransform());
+  const panStart = useRef<MapTransform | null>(null);
+  // Refs mirror the latest transform/size so the PanResponder can be created
+  // once and still read current values inside its handlers (a memoized
+  // responder that closes over stale state would pan from the wrong origin).
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+  const mapSizeRef = useRef(mapSize);
+  mapSizeRef.current = mapSize;
   const [districtPickerOpen, setDistrictPickerOpen] = useState(false);
   // A deep link can name a district that is not in the catalogue at all; that
   // is different from a real district whose value simply is not published.
@@ -79,6 +110,36 @@ export default function MapsScreen() {
     else if (decision.action === "unknown") setUnknownDistrict(decision.code);
     setDistrictParamApplied(true);
   }, [districtParamApplied, paramDistrict, districtCatalogue.data, districtCatalogue.isLoading]);
+
+  /**
+   * Drag to pan, but only while zoomed in. At scale 1 the responder declines,
+   * so a tap still reaches the district shape underneath; past that it claims
+   * the gesture and forwards the delta, letting `panBy` decide the limit.
+   */
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          transformRef.current.scale > 1 &&
+          (Math.abs(gesture.dx) > 2 || Math.abs(gesture.dy) > 2),
+        onPanResponderGrant: () => {
+          panStart.current = transformRef.current;
+        },
+        onPanResponderMove: (_event, gesture) => {
+          const start = panStart.current ?? transformRef.current;
+          const { width, height } = mapSizeRef.current;
+          setTransform(panBy(start, gesture.dx, gesture.dy, width, height));
+        },
+        onPanResponderRelease: () => {
+          panStart.current = null;
+        },
+        onPanResponderTerminate: () => {
+          panStart.current = null;
+        },
+      }),
+    [],
+  );
 
   const allowedPeriods = useMemo(
     () => periodsCarryingLayer(periods.data?.periods ?? [], metric),
@@ -277,13 +338,18 @@ export default function MapsScreen() {
       {/* The map is the viewport, not a card inside one. */}
       <View
         style={{ flex: 1 }}
+        {...panResponder.panHandlers}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
-          setMapSize((current) =>
-            Math.round(current.width) === Math.round(width) && Math.round(current.height) === Math.round(height)
-              ? current
-              : { width, height },
-          );
+          const changed =
+            Math.round(mapSizeRef.current.width) !== Math.round(width) ||
+            Math.round(mapSizeRef.current.height) !== Math.round(height);
+          if (changed) {
+            setMapSize({ width, height });
+            // A rotate/resize can shrink the frame under an existing zoom, so
+            // the pan limit is recomputed rather than left stale.
+            setTransform((current) => clampTransform(current, width, height));
+          }
         }}
       >
         {isError ? (
@@ -321,7 +387,49 @@ export default function MapsScreen() {
               values={values}
               selected={selected}
               onSelect={(code) => setSelected(code)}
+              transform={transform}
             />
+
+            <View style={styles.zoomControls} pointerEvents="box-none">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.mapZoomIn}
+                accessibilityState={{ disabled: !canZoomIn(transform) }}
+                disabled={!canZoomIn(transform)}
+                onPress={() =>
+                  setTransform((current) =>
+                    zoomBy(current, ZOOM_STEP, mapSize.width, mapSize.height),
+                  )
+                }
+                style={[styles.zoomButton, !canZoomIn(transform) ? styles.zoomButtonDisabled : null]}
+              >
+                <Ionicons name="add" size={20} color={colors.forestDeep} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.mapZoomOut}
+                accessibilityState={{ disabled: !canZoomOut(transform) }}
+                disabled={!canZoomOut(transform)}
+                onPress={() =>
+                  setTransform((current) =>
+                    zoomBy(current, 1 / ZOOM_STEP, mapSize.width, mapSize.height),
+                  )
+                }
+                style={[styles.zoomButton, !canZoomOut(transform) ? styles.zoomButtonDisabled : null]}
+              >
+                <Ionicons name="remove" size={20} color={colors.forestDeep} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t.mapResetView}
+                accessibilityState={{ disabled: isDefaultTransform(transform) }}
+                disabled={isDefaultTransform(transform)}
+                onPress={() => setTransform(resetTransform())}
+                style={[styles.zoomButton, isDefaultTransform(transform) ? styles.zoomButtonDisabled : null]}
+              >
+                <Ionicons name="locate-outline" size={18} color={colors.forestDeep} />
+              </Pressable>
+            </View>
 
             {selectedMeta ? (
               <DistrictDetailSheet
@@ -478,6 +586,24 @@ const makeStyles = (colors: Palette) =>
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   swatch: { width: 13, height: 13, borderRadius: 3, borderWidth: 1, borderColor: colors.border },
   legendText: { fontSize: 10, color: colors.slate700, fontVariant: ["tabular-nums"] },
+  zoomControls: {
+    position: "absolute",
+    top: spacing.sm,
+    right: spacing.sm,
+    gap: 6,
+  },
+  zoomButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...shadow.card,
+  },
+  zoomButtonDisabled: { opacity: 0.4 },
   legendDirection: { fontSize: 10, fontWeight: "600", color: colors.slate700 },
   legendUnit: { fontSize: 10, color: colors.slate500 },
   sheet: {

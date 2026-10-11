@@ -3,6 +3,7 @@ import { View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 
 import { useTheme } from "../theme/theme-context";
+import type { MapTransform } from "../utils/mapTransform";
 
 type Ring = number[][];
 
@@ -96,6 +97,7 @@ export function RwandaMap({
   values,
   selected,
   onSelect,
+  transform,
 }: {
   width: number;
   height?: number;
@@ -103,37 +105,58 @@ export function RwandaMap({
   values: Record<string, MapValue>;
   selected?: string | null;
   onSelect?: (code: string, name: string) => void;
+  /**
+   * Applied zoom/pan. Scaling happens about the container centre, so the offset
+   * limit that keeps the map covering the viewport is `(scale - 1) * size / 2` -
+   * which is exactly what `clampTransform` enforces.
+   */
+  transform?: MapTransform;
 }) {
   const { colors } = useTheme();
   const projected = useMemo(() => buildProjected(width, height), [width, height]);
+  const applied = transform ?? { scale: 1, x: 0, y: 0 };
 
   return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel={`Rwanda district map. ${Object.values(values)
-        .filter((v) => v.value !== null)
-        .length} districts have data for the selected indicator.`}
-      style={{ width, height }}
-    >
-      <Svg width={width} height={height}>
-        <G>
-          {projected.map((shape) => {
-            const entry = values[shape.code];
-            const isSelected = selected === shape.code;
-            return (
-              <Path
-                key={shape.code}
-                d={shape.d}
-                fill={entry?.color ?? colors.slate300}
-                stroke={isSelected ? colors.forestDeep : colors.surface}
-                strokeWidth={isSelected ? 2 : 1}
-                onPress={onSelect ? () => onSelect(shape.code, shape.name) : undefined}
-              />
-            );
-          })}
-        </G>
-      </Svg>
+    // Overflow is hidden here, not on the transform wrapper: the zoomed geometry
+    // must be clipped to the map frame rather than escaping into the screen.
+    <View style={{ width, height, overflow: "hidden" }}>
+      <View
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Rwanda district map. ${Object.values(values)
+          .filter((v) => v.value !== null)
+          .length} districts have data for the selected indicator.`}
+        style={{
+          width,
+          height,
+          transform: [
+            { translateX: applied.x },
+            { translateY: applied.y },
+            { scale: applied.scale },
+          ],
+        }}
+      >
+        <Svg width={width} height={height}>
+          <G>
+            {projected.map((shape) => {
+              const entry = values[shape.code];
+              const isSelected = selected === shape.code;
+              return (
+                <Path
+                  key={shape.code}
+                  d={shape.d}
+                  fill={entry?.color ?? colors.slate300}
+                  stroke={isSelected ? colors.forestDeep : colors.surface}
+                  // The outline thickens with the zoom so a selected district stays
+                  // legible, and thins in screen terms as it shrinks back.
+                  strokeWidth={(isSelected ? 2 : 1) / applied.scale}
+                  onPress={onSelect ? () => onSelect(shape.code, shape.name) : undefined}
+                />
+              );
+            })}
+          </G>
+        </Svg>
+      </View>
     </View>
   );
 }
