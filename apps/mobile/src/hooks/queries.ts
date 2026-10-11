@@ -10,14 +10,37 @@ import { useQuery } from "@tanstack/react-query";
 
 import { analyticsApi, cropsApi, districtsApi, metaApi } from "../services/api";
 
-export function nationalBoardKey(crops?: string[]) {
+/**
+ * A published-period scope for the national board.
+ *
+ * ``periodCode`` selects exactly one release; ``year`` selects every season NISR
+ * published for that year; ``season`` narrows a year. The server resolves all
+ * three against the period catalogue, so the client can never ask for a season
+ * whose observations do not exist and receive a silently empty board.
+ */
+export interface BoardScope {
+  periodCode?: string | null;
+  year?: number | null;
+  season?: string | null;
+}
+
+function boardScopeKey(scope?: BoardScope): string {
+  if (!scope) return "all";
+  const { periodCode, year, season } = scope;
+  if (!periodCode && !year && !season) return "all";
+  return [periodCode ?? "-", year ?? "-", season ?? "-"].join(":");
+}
+
+export function nationalBoardKey(crops?: string[], scope?: BoardScope) {
   // `/analytics/national-board` only needs a server-side subset when at least
   // two crops are requested. A one-crop detail view reuses the cached full board
   // and selects its crop locally; this avoids sending an invalid one-item
   // `crops=` query while keeping Home/Crops/Crop Detail on one authoritative
   // response and one network request.
   const subset = crops && crops.length >= 2 ? [...crops].sort().join(",") : "all";
-  return ["national-board", subset] as const;
+  // The scope is part of the key, so a different year is a different cache entry
+  // rather than a stale board that still shows the previous period's numbers.
+  return ["national-board", subset, boardScopeKey(scope)] as const;
 }
 
 /**
@@ -37,13 +60,19 @@ export function nationalBoardKey(crops?: string[]) {
  * `staleTime` is generous because the published releases change on the order of
  * seasons, not minutes.
  */
-export function useNationalBoard(crops?: string[]) {
+export function useNationalBoard(crops?: string[], scope?: BoardScope) {
   const requestedSubset = crops && crops.length >= 2 ? crops : undefined;
   const selectedCrop = crops?.length === 1 ? crops[0].toLowerCase() : null;
 
   return useQuery({
-    queryKey: nationalBoardKey(crops),
-    queryFn: () => analyticsApi.nationalBoard({ crops: requestedSubset }),
+    queryKey: nationalBoardKey(crops, scope),
+    queryFn: () =>
+      analyticsApi.nationalBoard({
+        crops: requestedSubset,
+        periodCode: scope?.periodCode ?? undefined,
+        year: scope?.year ?? undefined,
+        season: scope?.season ?? undefined,
+      }),
     select: selectedCrop
       ? (data) => ({
           ...data,

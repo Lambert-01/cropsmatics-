@@ -65,9 +65,21 @@ export const analyticsApi = {
    * to ``periods`` and the same-season delta is computed by the service, so the
    * client only presents numbers it did not derive.
    */
-  nationalBoard: (params?: { crops?: string[] }) =>
+  nationalBoard: (params?: {
+    crops?: string[];
+    /** One published period (``2025B``). Takes precedence over year/season. */
+    periodCode?: string | null;
+    /** Every published season of this year, resolved server-side. */
+    year?: number | null;
+    season?: string | null;
+  }) =>
     request<NationalBoardResponse>(
-      `/analytics/national-board${qs({ crops: params?.crops?.join(",") })}`,
+      `/analytics/national-board${qs({
+        crops: params?.crops?.join(","),
+        period_code: params?.periodCode ?? undefined,
+        year: params?.year ?? undefined,
+        season: params?.season ?? undefined,
+      })}`,
     ),
   /**
    * Yield performance indexed to each crop's own published baseline.
