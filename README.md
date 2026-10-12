@@ -244,6 +244,23 @@ API ([07](docs/07_API_ARCHITECTURE.md)), ML
 - Missing values are `null`; capacity is never invented.
 - Synthetic fixtures are test-only and labelled `SYNTHETIC`.
 
+## Data coverage (2022A–2026B)
+
+The canonical district productivity panel covers **14 published periods**
+(2022A–2026B), 30 districts and 17 crops (6,156 rows); 2026 Season C has not been
+published. District practice/irrigation/erosion and post-harvest observations
+cover 2024A–2026B; the legacy single-release factor tables cover 2025 Season B
+only. A value the source did not publish stays `null` everywhere — missing is
+never `0`.
+
+PostgreSQL is the production authority. A deployment serves the built dataset
+only when its content-addressed version matches the image; otherwise analytical
+reads return a structured `503 DATASET_OUT_OF_SYNC` rather than stale figures.
+See [docs/P0_DATABASE_AUTHORITY.md](docs/P0_DATABASE_AUTHORITY.md),
+[docs/FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md) and
+[docs/17_DEPLOYMENT.md](docs/17_DEPLOYMENT.md) (the pre-deploy bootstrap and the
+dashboard checklist).
+
 ## License / provenance
 
 See [DATA_LICENSE_AND_PROVENANCE.md](DATA_LICENSE_AND_PROVENANCE.md) and

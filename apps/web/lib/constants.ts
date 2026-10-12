@@ -1,8 +1,13 @@
 /** UI-side presentation constants. No analytical values live here. */
 
 export const MAP_METRICS = [
+  // Additive quantities first: they are valid for any crop selection (or none),
+  // so the map opens on a metric that always renders instead of one that needs
+  // a crop before it can be coloured.
+  { id: "production", label: "Production" },
+  { id: "harvested_area", label: "Harvested area" },
   { id: "gap", label: "Productivity gap" },
-  { id: "yield", label: "Yield" },
+  { id: "yield", label: "Yield (needs a crop)" },
   { id: "priority", label: "Intervention priority" },
   { id: "input_adoption", label: "Input adoption" },
   { id: "irrigation", label: "Irrigation" },
@@ -15,6 +20,8 @@ export const METRIC_SEMANTICS: Record<
   MapMetricId,
   { higherIs: "better" | "worse" | "neutral"; note: string }
 > = {
+  production: { higherIs: "neutral", note: "Total published production across the crop selection" },
+  harvested_area: { higherIs: "neutral", note: "Total published harvested area across the crop selection" },
   gap: { higherIs: "worse", note: "Higher = yield further below benchmark" },
   yield: { higherIs: "better", note: "Higher = greater observed yield" },
   priority: { higherIs: "neutral", note: "Higher = ranked for earlier investigation" },

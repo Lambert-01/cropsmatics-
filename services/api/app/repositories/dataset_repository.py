@@ -23,6 +23,7 @@ process. Call :func:`clear_cache` after re-running the pipeline.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from functools import cache, lru_cache
 
@@ -47,6 +48,66 @@ class CanonicalDataUnavailable(RuntimeError):
     """
 
     code = "DATABASE_UNAVAILABLE"
+
+
+class DatasetOutOfSync(CanonicalDataUnavailable):
+    """The canonical dataset does not match the processed build.
+
+    Raised in ``required`` mode when the database is reachable and holds data but
+    serves a *different* dataset than the image was built from - the state that
+    used to answer ``200 OK`` with stale figures. The API maps this to a
+    structured ``503`` carrying the expected/loaded versions and period counts.
+    """
+
+    code = "DATASET_OUT_OF_SYNC"
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        expected_version: str | None = None,
+        loaded_version: str | None = None,
+        expected_periods: list[str] | None = None,
+        loaded_periods: list[str] | None = None,
+        reason: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.expected_version = expected_version
+        self.loaded_version = loaded_version
+        self.expected_periods = expected_periods
+        self.loaded_periods = loaded_periods
+        self.reason = reason or "canonical_dataset_out_of_sync"
+        self.retryable = True
+
+
+class PeriodNotServable(DatasetOutOfSync):
+    """A published period has no rows in the serving layer for this selection.
+
+    Raised instead of silently substituting another release's table (the 2025
+    Season B training table), which put one period's figures behind another
+    period's label.
+    """
+
+    def __init__(
+        self,
+        period_code: str,
+        *,
+        expected_periods: list[str] | None = None,
+        loaded_periods: list[str] | None = None,
+        message: str | None = None,
+    ) -> None:
+        super().__init__(
+            message
+            or (
+                f"{period_code} is published but the serving dataset carries no "
+                "district rows for it; no other release is substituted"
+            ),
+            expected_periods=expected_periods,
+            loaded_periods=loaded_periods,
+            reason="period_not_servable",
+        )
+        self.period_code = period_code
+        self.retryable = False
 
 
 # Process-level record of which layer answered each canonical-backed dataset.
@@ -94,6 +155,117 @@ def canonical_source_status() -> dict:
     }
 
 
+def expected_dataset_version() -> str | None:
+    """The dataset version the processed build implies, or None when unreadable."""
+    try:
+        from app.data.versioning import content_version
+
+        return content_version(data_manifest())
+    except Exception:  # noqa: BLE001 - a status helper reports, it does not raise
+        return None
+
+
+@lru_cache(maxsize=1)
+def _panel_period_codes() -> tuple[str, ...]:
+    """Published period codes in the processed panel (the expected period axis)."""
+    try:
+        path = get_settings().processed_dir / "crop_productivity.csv"
+        if not path.exists():
+            return ()
+        codes = pd.read_csv(path, usecols=["period_code"])["period_code"].dropna()
+        return tuple(sorted({str(code) for code in codes}))
+    except Exception:  # noqa: BLE001
+        return ()
+
+
+# The sync state costs a probe plus a version read against PostgreSQL. Every
+# required-mode read must still check identity before answering, but caching the
+# verdict for a few seconds stops a single request - and the out-of-sync handler
+# that used to recompute it - from probing the database several times over.
+# Short enough that a database load performed out-of-band is noticed promptly.
+_SYNC_TTL_SECONDS = 10.0
+_sync_cache: tuple[float, tuple[object, dict]] | None = None
+
+
+def canonical_sync_state() -> dict:
+    """Whether the canonical dataset matches the processed build. Never raises.
+
+    ``in_sync`` is ``True`` (the database serves the built dataset), ``False``
+    (the database is reachable and holds data, but a *different* dataset) or
+    ``None`` (the comparison cannot be made: the database is unreachable, empty,
+    or the manifest is missing). Only the ``False`` case is an out-of-sync error;
+    ``None`` keeps the existing DATABASE_UNAVAILABLE semantics.
+
+    The verdict is memoised for a few seconds (see ``_SYNC_TTL_SECONDS``) so a
+    request that reads several datasets - or the out-of-sync handler - does not
+    re-probe PostgreSQL each time.
+    """
+    global _sync_cache
+    cached = _sync_cache
+    if cached is not None and (time.monotonic() - cached[0]) < _SYNC_TTL_SECONDS:
+        return cached[1]
+    state = _compute_sync_state()
+    _sync_cache = (time.monotonic(), state)
+    return state
+
+
+def _compute_sync_state() -> dict:
+    expected_version = expected_dataset_version()
+    state: dict = {
+        "expected_version": expected_version,
+        "loaded_version": None,
+        "in_sync": None,
+        "expected_periods": None,
+        "loaded_periods": None,
+        "reason": None,
+    }
+    try:
+        canonical = _canonical()
+        probe = canonical.probe()
+    except Exception as error:  # noqa: BLE001
+        state["reason"] = f"canonical probe failed: {type(error).__name__}"
+        return state
+
+    state["reason"] = probe.get("reason")
+    if probe.get("availability") != "ready":
+        return state
+
+    loaded = canonical.current_version() or {}
+    state["loaded_version"] = loaded.get("version")
+    if expected_version is None:
+        state["reason"] = "processed manifest unavailable for comparison"
+        return state
+
+    state["in_sync"] = loaded.get("version") == expected_version
+    if not state["in_sync"]:
+        state["expected_periods"] = list(_panel_period_codes())
+        try:
+            state["loaded_periods"] = canonical.productivity_periods()
+        except Exception:  # noqa: BLE001 - the counts are best-effort detail
+            state["loaded_periods"] = None
+        state["reason"] = "canonical_dataset_out_of_sync"
+    return state
+
+
+def _out_of_sync_error(dataset: str, sync: dict | None = None) -> DatasetOutOfSync:
+    """Build the structured out-of-sync error from the current sync state.
+
+    ``sync`` is the already-computed state from the read that detected the
+    mismatch, so the out-of-sync path never probes PostgreSQL a second time.
+    """
+    sync = sync if sync is not None else canonical_sync_state()
+    return DatasetOutOfSync(
+        "the canonical database is serving a different dataset than the processed "
+        f"build, so '{dataset}' cannot be answered consistently: expected version "
+        f"{sync['expected_version']!r}, loaded {sync['loaded_version']!r}",
+        expected_version=sync["expected_version"],
+        loaded_version=sync["loaded_version"],
+        expected_periods=sync["expected_periods"],
+        loaded_periods=sync["loaded_periods"],
+        reason=sync["reason"],
+    )
+
+
 def _read(dataset: str, fetch, fallback: Callable[[], pd.DataFrame]) -> pd.DataFrame:
     """Serve ``dataset`` from PostgreSQL when the mode and the database allow it.
 
@@ -102,6 +274,32 @@ def _read(dataset: str, fetch, fallback: Callable[[], pd.DataFrame]) -> pd.DataF
     never quietly sourced from a file.
     """
     mode = get_settings().canonical_mode
+
+    if mode == "required":
+        # The identity check runs *before* any read. A reachable database that
+        # serves a different dataset than the image was built from is an
+        # out-of-sync error, never a successful but inconsistent answer.
+        sync = canonical_sync_state()
+        if sync["in_sync"] is False:
+            _SOURCES[dataset] = "out_of_sync"
+            raise _out_of_sync_error(dataset, sync)
+        if sync["in_sync"] is None:
+            _SOURCES[dataset] = "unavailable"
+            raise CanonicalDataUnavailable(
+                f"the canonical database is required (CANONICAL_DATA_MODE=required) "
+                f"but is not serving '{dataset}'"
+            )
+        try:
+            frame = fetch()
+        except Exception as error:  # noqa: BLE001 - report as unavailable
+            _SOURCES[dataset] = "unavailable"
+            raise CanonicalDataUnavailable(
+                f"the canonical database is required (CANONICAL_DATA_MODE=required) "
+                f"but the read for '{dataset}' failed"
+            ) from error
+        _SOURCES[dataset] = "postgres"
+        return frame
+
     if mode != "file":
         try:
             if _canonical().is_ready():
@@ -110,13 +308,6 @@ def _read(dataset: str, fetch, fallback: Callable[[], pd.DataFrame]) -> pd.DataF
                 return frame
         except Exception:  # noqa: BLE001 - probe/read failure is handled below
             pass
-
-    if mode == "required":
-        _SOURCES[dataset] = "unavailable"
-        raise CanonicalDataUnavailable(
-            f"the canonical database is required (CANONICAL_DATA_MODE=required) "
-            f"but is not serving '{dataset}'"
-        )
 
     _SOURCES[dataset] = "processed_csv"
     return fallback()
@@ -310,9 +501,12 @@ def curated_sources() -> pd.DataFrame:
 
 
 def clear_cache() -> None:
-    """Drop cached tables (e.g. after the pipeline is re-run in-process)."""
+    """Drop cached tables and the memoised sync verdict (e.g. after a reload)."""
+    global _sync_cache
+    _sync_cache = None
     _read_csv.cache_clear()
     _csv_columns.cache_clear()
     _canonical_productivity.cache_clear()
     _canonical_observation.cache_clear()
+    _panel_period_codes.cache_clear()
     _SOURCES.clear()

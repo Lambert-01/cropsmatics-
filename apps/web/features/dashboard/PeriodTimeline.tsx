@@ -47,7 +47,10 @@ export function PeriodTimeline({
   const list = (
     <ul className="divide-y divide-forest/[0.06]">
       {cells.map((cell) => {
-        const interactive = typeof onSelect === "function";
+        // A published release the serving panel does not carry must not be
+        // selectable: offering it and then returning an empty or 503 answer is
+        // exactly the confusion the availability flags exist to remove.
+        const interactive = typeof onSelect === "function" && cell.available;
         const content = (
           <>
             <span className="mt-0.5 h-4 w-14 shrink-0 rounded-sm bg-forest/[0.04]">
@@ -77,6 +80,14 @@ export function PeriodTimeline({
             >
               {coverageText(cell)}
             </span>
+            {cell.available ? null : (
+              <span
+                className="shrink-0 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800"
+                title={cell.unavailabilityText ?? undefined}
+              >
+                unavailable
+              </span>
+            )}
             {cell.state === "selected" ? (
               <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-forest-deep">
                 selected
@@ -103,7 +114,7 @@ export function PeriodTimeline({
                 aria-pressed={cell.state === "selected"}
                 aria-label={`${cell.label} — ${coverageText(cell)}${
                   cell.state === "snapshot" ? "; the release the district snapshot came from" : ""
-                }`}
+                }${cell.available ? "" : `; unavailable: ${cell.unavailabilityText}`}`}
                 onClick={() => onSelect!(cell.period_code)}
                 className={cn(
                   "flex w-full items-center gap-2 px-4 py-1.5 text-left transition hover:bg-forest/[0.03]",

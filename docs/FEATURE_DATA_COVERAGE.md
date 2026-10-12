@@ -122,3 +122,69 @@ Where a mockup suggested these, the UI substitutes *"Capacity not verified"*,
 - `services/api/app/services/map_service.py` — `effective_period_filters()`, which
   pins each map layer to the release that carries it.
 - `apps/web/lib/coverage.ts` — the notices and the period/timeline display rules.
+
+## 2022A–2026B repair: period coverage, availability semantics, null policy
+
+### Productivity coverage (what the panel actually publishes)
+
+`crop_productivity.csv` (14 periods, 6,156 rows, 30 districts, 17 crops) is the
+only district-level productivity source. Every period NISR has released is
+present, with the season-C releases tabulating a narrower crop list:
+
+| Periods | District rows | Districts | Crops |
+|---|---|---|---|
+| 2022A, 2022B, 2023A, 2023B | 510 each | 30 | 17 |
+| 2022C, 2023C | 150 each | 30 | 5 |
+| 2024A, 2024B, 2025A, 2025B, 2026A, 2026B | 561 each | 30 | 17 |
+| 2024C, 2025C | 186 each | 30 | 6 |
+
+The national rows for the same periods are what
+`GET /analytics/canonical-trend` charts.
+
+### Practices, irrigation, erosion, post-harvest
+
+| Domain | Dataset | Periods | Level |
+|---|---|---|---|
+| Practices / irrigation / erosion / water source | `agricultural_practice_observation.csv` | 2024A–2026B | district |
+| Post-harvest use shares (multi-period) | `crop_postharvest_use_multi_period.csv` | 2024A–2026B | national crop |
+| Single-release factor / irrigation / erosion tables | `district_productivity_factors.csv`, `irrigation_water.csv`, `erosion_control.csv` | 2025B only | district |
+| National crop context trends (legacy) | `national_crop_trends.csv` | 2024B–2026A (context only) | national |
+
+**2022 and 2023 have no practice/irrigation/erosion/post-harvest data.** Those
+releases published productivity tables only. A 2022 practice request returns no
+rows and says so; it is never filled from the 2025 Season B survey.
+
+### Published vs servable (period availability semantics)
+
+`GET /meta/periods` returns, per period, both facts and keeps them apart:
+
+* `published` — the release exists in the processed/source coverage;
+* `servable` — the canonical dataset in **this deployment** carries rows for it;
+* `canonical_n_rows` / `canonical_n_districts` / `canonical_n_crops` — what the
+  canonical panel holds;
+* `availability_status` (`servable` | `coverage_only` | `not_servable`) and
+  `availability_message`.
+
+All 14 published periods stay visible even when the serving database cannot
+answer them. A published-but-not-loaded period is `coverage_only`, never
+advertised as usable, and never silently substituted with another release.
+
+### Historical vs snapshot semantics
+
+* **Historical overview** (bare `/dashboard`) — all published periods; no figure
+  sums several years into a "combined production" KPI, and no map is coloured for
+  a period it does not describe. Where a district panel still needs one release,
+  the response names it in `snapshot`.
+* **Release snapshot** (`?period=2022A`) — every headline metric shares that one
+  period's district scope.
+
+A stored `defaultPeriod` no longer overrides the dashboard landing scope
+(preference version bumped to 2 so an obsolete stored default is discarded);
+drilldown pages still honour it.
+
+### Null policy
+
+A value the source did not publish stays `null` end to end — CSV → canonical
+table → API → chart. Missing is never `0`. The map renders "No verified value"
+for a null district, and a period the release did not tabulate is an explicit
+`null` on the trend axis, never an interpolated point.

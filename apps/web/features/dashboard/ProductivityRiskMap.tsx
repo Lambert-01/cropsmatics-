@@ -20,7 +20,9 @@ export function ProductivityRiskMap({
   selectedDistrict?: string | null;
   height?: number;
 }) {
-  const [metric, setMetric] = useState<MapMetricId>("gap");
+  // Production works for every crop selection (and for none), so the overview
+  // map renders before a crop is chosen.
+  const [metric, setMetric] = useState<MapMetricId>("production");
   const { data, isLoading } = useMapMetrics(filters, metric);
   const { data: facilities } = useFacilities();
 

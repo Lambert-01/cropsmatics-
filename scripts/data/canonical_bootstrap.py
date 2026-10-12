@@ -42,6 +42,15 @@ if str(API_DIR) not in sys.path:
 
 from scripts.data.common import PROCESSED_DIR, log  # noqa: E402
 
+# The periods the repaired deployment must be able to serve. A non-empty table
+# that holds only the most recent releases is exactly the stale state this
+# verification exists to catch, so the historical seasons are named here rather
+# than inferred from "some rows exist".
+REQUIRED_BOOTSTRAP_PERIODS: tuple[str, ...] = (
+    "2022A", "2022B", "2022C",
+    "2023A", "2023B", "2023C",
+)
+
 
 def needs_load(loaded_version: str | None, expected_version: str) -> bool:
     """Whether the canonical load must run.
@@ -89,8 +98,29 @@ def _current_version(url: str) -> str | None:
     return loaded.get("version") if loaded else None
 
 
-def _verify(url: str) -> bool:
-    """Confirm the database is serving the expected dataset after a load."""
+def _expected_panel(panel_path: Path, manifest: dict) -> dict:
+    """The period set and row count the processed panel implies.
+
+    The period axis is read from the same artefact the loader read, so the
+    expectation can never drift from the build it is verifying.
+    """
+    import pandas as pd
+
+    frame = pd.read_csv(panel_path, usecols=["period_code"])
+    periods = sorted({str(code) for code in frame["period_code"].dropna()})
+    rows = (manifest.get("row_counts") or {}).get("crop_productivity")
+    return {"rows": int(rows) if rows is not None else int(len(frame)), "periods": periods}
+
+
+def _verify(url: str, expected: dict) -> bool:
+    """Confirm the database is serving exactly the expected dataset.
+
+    A non-empty table proves nothing on its own: a stale production database
+    that still holds an older release is non-empty too, which is how a deployment
+    reported success while 2022-2023 were absent. Verification therefore compares
+    the loaded period set and the productivity row count against the processed
+    build, and requires the historical periods to be present.
+    """
     from sqlalchemy import create_engine, inspect, text
 
     engine = create_engine(url, pool_pre_ping=True, future=True)
@@ -101,15 +131,48 @@ def _verify(url: str) -> bool:
                 if table not in names:
                     log(f"ERROR verify: table {table} is missing after the load")
                     return False
-            rows = connection.execute(text("SELECT count(*) FROM crop_productivity")).scalar()
-            if not rows:
-                log("ERROR verify: crop_productivity is empty after the load")
-                return False
+            rows = int(
+                connection.execute(text("SELECT count(*) FROM crop_productivity")).scalar() or 0
+            )
+            periods = {
+                str(row[0])
+                for row in connection.execute(
+                    text("SELECT DISTINCT period_id FROM crop_productivity")
+                )
+            }
     except Exception as error:  # noqa: BLE001 - a bootstrap reports, it does not traceback
         log(f"ERROR verify: {error}")
         return False
-    log(f"verified: crop_productivity holds {int(rows)} rows")
-    return True
+
+    ok = True
+    if rows != expected["rows"]:
+        log(
+            f"ERROR verify: crop_productivity holds {rows} rows, "
+            f"but the processed build has {expected['rows']}"
+        )
+        ok = False
+    missing = sorted(set(expected["periods"]) - periods)
+    if missing:
+        log(f"ERROR verify: periods missing from the database: {', '.join(missing)}")
+        ok = False
+    unexpected = sorted(periods - set(expected["periods"]))
+    if unexpected:
+        log(f"ERROR verify: periods not in the processed build: {', '.join(unexpected)}")
+        ok = False
+    required_absent = [
+        code for code in REQUIRED_BOOTSTRAP_PERIODS
+        if code in expected["periods"] and code not in periods
+    ]
+    if required_absent:
+        log(f"ERROR verify: required period(s) not servable: {', '.join(required_absent)}")
+        ok = False
+
+    if ok:
+        log(
+            f"verified: crop_productivity holds {rows} rows across "
+            f"{len(periods)} periods ({periods and min(periods)}..{max(periods)})"
+        )
+    return ok
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -137,11 +200,16 @@ def main(argv: list[str] | None = None) -> int:
     from scripts.data.load_postgres import main as load_main
 
     manifest_path = PROCESSED_DIR / "manifest.json"
+    panel_path = PROCESSED_DIR / "crop_productivity.csv"
     if not manifest_path.exists():
         log("ERROR processed manifest missing. Run `make data` first.")
         return 1
+    if not panel_path.exists():
+        log("ERROR processed productivity panel missing. Run `make data` first.")
+        return 1
     manifest = json.loads(manifest_path.read_text())
     expected = content_version(manifest)
+    expected_panel = _expected_panel(panel_path, manifest)
 
     url = args.url or get_settings().database_url
     log(f"expected dataset version: {expected}")
@@ -163,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
     log(f"loaded dataset version:   {loaded or '(none)'}")
     if not args.force_load and not needs_load(loaded, expected):
         log("database already serves the expected dataset; skipping the load")
-        return 0 if _verify(url) else 1
+        return 0 if _verify(url, expected_panel) else 1
 
     if args.dry_run:
         log("dry run: a canonical load would run here; nothing was written")
@@ -179,7 +247,11 @@ def main(argv: list[str] | None = None) -> int:
     if after != expected:
         log(f"ERROR version check failed: database reports {after!r}, expected {expected!r}")
         return 1
-    return 0 if _verify(url) else 1
+    # The API runs in a different process from this pre-deploy step, so its
+    # per-process caches are cold when it starts; nothing has to be invalidated
+    # here. A deployment that runs the load in-process must restart the worker.
+    log("canonical data loaded; the API process must start (or restart) to serve it")
+    return 0 if _verify(url, expected_panel) else 1
 
 
 if __name__ == "__main__":

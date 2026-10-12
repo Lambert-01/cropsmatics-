@@ -51,7 +51,13 @@ class PeriodSnapshot(BaseModel):
 
 
 class PeriodTimelineEntry(BaseModel):
-    """One published period on the shared axis, with its own coverage."""
+    """One published period on the shared axis, with its own availability.
+
+    Carries the same availability vocabulary as ``/meta/periods`` (``published``,
+    ``servable``, ``availability_status``) so the overview can disable or explain
+    a release the serving panel does not carry yet, instead of advertising it as
+    usable and letting a client request it.
+    """
 
     period_code: str
     label: str
@@ -60,6 +66,10 @@ class PeriodTimelineEntry(BaseModel):
     n_crops: int = 0
     is_latest: bool = False
     is_latest_district: bool = False
+    published: bool = True
+    servable: bool = False
+    availability_status: str = "not_servable"
+    availability_message: str | None = None
 
 
 class OverviewResponse(BaseModel):
@@ -126,6 +136,12 @@ class SameSeasonYoY(BaseModel):
 class ProductivityResponse(BaseModel):
     period: str | None = None
     period_code: str | None = None
+    #: False when an explicitly requested period could not be served. In that
+    #: case ``kpis`` is empty rather than filled with manufactured zeros.
+    available: bool = True
+    unavailable_reason: str | None = None
+    #: Structured out-of-sync/unavailable detail (code, reason, periods).
+    availability: dict | None = None
     n_observations: int = 0
     kpis: list[KPI] = Field(default_factory=list)
     primary_kpis: list[KPI] = Field(default_factory=list)

@@ -331,6 +331,25 @@ def frame_source_id(df: pd.DataFrame) -> str:
     return LEGACY_SOURCE_ID
 
 
+def resolved_source_id(result: dict, f: AnalyticsFilters) -> str | None:
+    """The source id for a result, never a fabricated identifier.
+
+    A result whose frame names no source falls back to the legacy 2025 Season B
+    identifier (``LEGACY_SOURCE_ID``). When the caller selected a different
+    release that is a false attribution, so the release's own registered
+    canonical source is used instead. When neither exists the field stays null
+    rather than inventing ``NISR_SAS_<period>``, which is not registered.
+    """
+    source = result.get("source_id")
+    if (
+        f.period_code
+        and source in (None, LEGACY_SOURCE_ID)
+        and f.period_code not in legacy_periods()
+    ):
+        return period_service.source_id(f.period_code) or source
+    return source or None
+
+
 def frame_period_code(df: pd.DataFrame) -> str | None:
     """The single period a frame covers, or None when it spans several."""
     if "period_code" in df.columns:
@@ -397,27 +416,54 @@ def productivity_frame(f: AnalyticsFilters | None = None) -> pd.DataFrame:
     With no period selected the frame is the latest published district release,
     resolved by :func:`resolved_period` rather than by whichever table happened
     to be the default.
+
+    An **explicitly** requested period is never answered from a different
+    release. Reading the 2025 Season B training table for a 2022A request is what
+    let empty 2022/2023 results carry 2025B provenance and figures. When the
+    serving layer cannot carry the requested period, this raises
+    :class:`PeriodNotServable` instead of substituting another release.
     """
     if f is None:
         return repo.training_dataset()
 
+    explicit = bool(f.period_key())
     key = resolved_period(f)
-    if not key or key in legacy_periods():
+    if not key:
         return repo.training_dataset()
 
-    try:
-        panel = repo.crop_productivity()
-    except Exception:
+    # 2025 Season B is the release the joined training table *is* and the only
+    # table carrying the district factor columns, so it is read there.
+    if key in legacy_periods():
         return repo.training_dataset()
+
+    # Fall through only for a period the canonical panel owns. Any failure here
+    # (unreachable, out of sync) is propagated, never masked by the training
+    # table.
+    panel = repo.crop_productivity()
     if "period_code" not in panel.columns:
-        return repo.training_dataset()
+        # The canonical panel is the only layer that can answer a non-legacy
+        # period. A panel without ``period_code`` is a contract failure, not a
+        # reason to answer a 2022/2023 request from the 2025B training table: an
+        # explicit historical request must fail honestly instead of silently
+        # returning another release's figures.
+        raise repo.CanonicalDataUnavailable(
+            "the canonical productivity panel carries no 'period_code' column, so "
+            f"{period_service.label(key)} cannot be answered; no other release is "
+            "substituted"
+        )
     frame = panel[panel["period_code"].astype(str) == key]
     if "geography_level" in frame.columns:
         frame = frame[frame["geography_level"] == "DISTRICT"]
     if frame.empty:
-        # The period exists but has no district rows: fall back to the training
-        # table, whose apply_filters then yields an honest empty selection.
-        return repo.training_dataset()
+        raise repo.PeriodNotServable(
+            key,
+            expected_periods=list(panel["period_code"].astype(str).unique()),
+            message=(
+                f"{period_service.label(key)} has no district rows in the serving "
+                f"dataset, so it cannot be answered{' (explicitly requested)' if explicit else ''}; "
+                "no other release is substituted"
+            ),
+        )
     return frame.copy()
 
 
@@ -518,9 +564,47 @@ def gap_report(strategy: str = "national_crop_median", limit: int = 100) -> dict
     }
 
 
+def unavailable_productivity(f: AnalyticsFilters, exc: Exception) -> dict:
+    """A structured "not available" result, never manufactured zeros.
+
+    No KPI is returned at all: a ``0 districts`` / ``0 crops`` / ``0 high-gap``
+    card would read as a measured zero when in fact nothing was served. The
+    reason and the out-of-sync detail travel with the response instead.
+    """
+    return {
+        "period": None,
+        "period_code": f.period_code,
+        "source_id": None,
+        "kpis": [],
+        "primary_kpis": [],
+        "secondary_kpis": [],
+        "yoy": None,
+        "gap_bands": [],
+        "gap_summary": gap_summary(pd.Series(dtype=float)),
+        "rows": [],
+        "n_observations": 0,
+        "available": False,
+        "unavailable_reason": str(exc),
+        "availability": {
+            "code": getattr(exc, "code", "DATASET_OUT_OF_SYNC"),
+            "reason": getattr(exc, "reason", "period_not_servable"),
+            "period_code": getattr(exc, "period_code", f.period_code),
+            "expected_periods": getattr(exc, "expected_periods", None),
+            "retryable": getattr(exc, "retryable", True),
+        },
+    }
+
+
 def productivity(f: AnalyticsFilters) -> dict:
     """KPI + district ranking for the Productivity Intelligence page."""
-    df = apply_filters(productivity_frame(f), f)
+    try:
+        frame = productivity_frame(f)
+    except repo.PeriodNotServable as exc:
+        # An explicitly requested period the serving layer cannot carry is
+        # reported as unavailable, never answered from another release.
+        return unavailable_productivity(f, exc)
+
+    df = apply_filters(frame, f)
     g = gapped(df, f.benchmark_strategy)
     if g.empty:
         # The crop was not tabulated for this period. Report no KPIs at all
@@ -537,6 +621,7 @@ def productivity(f: AnalyticsFilters) -> dict:
             "gap_summary": gap_summary(pd.Series(dtype=float)),
             "rows": [],
             "n_observations": 0,
+            "available": True,
         }
 
     valid = g[g["gap_index"].notna()]
@@ -673,6 +758,7 @@ def productivity(f: AnalyticsFilters) -> dict:
         "gap_summary": summary,
         "rows": records(rows),
         "n_observations": int(len(valid)),
+        "available": True,
     }
 
 

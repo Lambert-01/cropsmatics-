@@ -114,6 +114,45 @@ def _sort_key(code: str) -> tuple[int, str]:
         return (0, str(code))
 
 
+#: Period availability vocabulary, used verbatim in API responses and the UI.
+SERVABLE = "servable"
+NOT_SERVABLE = "not_servable"
+COVERAGE_ONLY = "coverage_only"
+
+
+def _availability(
+    *,
+    published: bool,
+    servable: bool,
+    code: str,
+    coverage_level: str | None,
+    canonical_n_rows: int,
+) -> tuple[str, str]:
+    """The status and a plain-language reason for one period.
+
+    ``servable`` and ``coverage_only`` are deliberately distinct: the first means
+    the canonical panel can answer a request for this period right now, the
+    second means the release exists in the processed coverage but the serving
+    database does not carry it (most often because the database has not been
+    loaded with the current build).
+    """
+    if not published:
+        return NOT_SERVABLE, (
+            f"{label(code)} is not a published period."
+        )
+    if servable:
+        scope = "district" if coverage_level == "district" else "national"
+        return SERVABLE, (
+            f"{label(code)} is servable from the canonical dataset "
+            f"({canonical_n_rows} rows, {scope} level)."
+        )
+    return COVERAGE_ONLY, (
+        f"{label(code)} is published in the coverage matrix but the canonical "
+        "dataset does not carry it in this deployment yet; it is not served as "
+        "a usable period until the database is synchronised with the built data."
+    )
+
+
 # --- data-derived catalogue -------------------------------------------------
 
 
@@ -177,6 +216,13 @@ def catalog() -> dict:
                 # the productivity panel itself substantiated it.
                 "levels": set(),
                 "panel_level": None,
+                # Facts about the *canonical* productivity panel only, so a
+                # period the coverage matrix describes but the canonical panel
+                # does not carry cannot masquerade as servable.
+                "canonical_n_rows": None,
+                "canonical_n_districts": 0,
+                "canonical_n_crops": 0,
+                "canonical_source_id": None,
             },
         )
 
@@ -188,6 +234,10 @@ def catalog() -> dict:
         entry["levels"].add(facts["coverage_level"])
         entry["n_districts"] = facts["n_districts"]
         entry["n_crops"] = facts["n_crops"]
+        entry["canonical_n_rows"] = facts["n_rows"]
+        entry["canonical_n_districts"] = facts["n_districts"]
+        entry["canonical_n_crops"] = facts["n_crops"]
+        entry["canonical_source_id"] = facts["source_id"]
 
     for row in _coverage_rows():
         period = str(row.get("period") or "")
@@ -238,12 +288,29 @@ def catalog() -> dict:
 
     codes = sorted(by_code, key=_sort_key)
     latest = codes[-1]
-    district_codes = [code for code in codes if by_code[code]["coverage_level"] == "district"]
+    # "Latest district" must mean a period the serving panel actually carries
+    # district rows for, not one the coverage matrix merely describes.
+    district_codes = [code for code in codes if by_code[code]["panel_level"] == "district"]
 
     periods = []
     for code in codes:
         entry = by_code[code]
         year, season = parse(code)
+        # Two different facts, kept apart. ``published`` is "the release exists in
+        # the processed/source coverage"; ``servable`` is "the canonical panel in
+        # the serving system actually carries rows for it". Advertising a
+        # published-but-not-servable period as usable is exactly the confusion
+        # this separates.
+        published = True
+        servable = entry["panel_level"] is not None
+        canonical_n_rows = int(entry["canonical_n_rows"] or 0)
+        status, message = _availability(
+            published=published,
+            servable=servable,
+            code=code,
+            coverage_level=entry["coverage_level"],
+            canonical_n_rows=canonical_n_rows,
+        )
         periods.append(
             {
                 "period_code": code,
@@ -258,6 +325,15 @@ def catalog() -> dict:
                 ),
                 "is_latest": code == latest,
                 "is_latest_district": bool(district_codes) and code == district_codes[-1],
+                # --- availability semantics ---
+                "published": published,
+                "servable": servable,
+                "canonical_n_rows": canonical_n_rows,
+                "canonical_n_districts": int(entry["canonical_n_districts"] or 0),
+                "canonical_n_crops": int(entry["canonical_n_crops"] or 0),
+                "canonical_source_id": entry["canonical_source_id"],
+                "availability_status": status,
+                "availability_message": message,
             }
         )
 
@@ -288,6 +364,7 @@ def catalog() -> dict:
             "never inherit coverage it does not have"
         )
 
+    servable = [code for code in codes if by_code[code]["panel_level"] is not None]
     return {
         "periods": periods,
         "period_codes": codes,
@@ -296,6 +373,12 @@ def catalog() -> dict:
         "count": len(codes),
         "panel_periods": panel_codes,
         "matrix_only_periods": matrix_only,
+        # Servable periods are the subset the canonical panel can answer right
+        # now; ``count`` remains the number of *published* periods so a client
+        # cannot lose sight of a release that is merely not loaded yet.
+        "servable_periods": servable,
+        "servable_count": len(servable),
+        "canonical_serving": bool(panels),
         "notes": notes,
     }
 
@@ -312,11 +395,18 @@ def published_range() -> str:
 
 
 def district_range() -> str:
-    """Same, but only the periods that really carry district-level rows."""
+    """Same, but only the periods the serving panel really carries district rows for.
+
+    Uses the panel's own level (``servable``), not the coverage matrix's level: a
+    release can be *published* with a district slide in the coverage matrix while
+    the canonical panel the API actually reads has no district rows for it. Taking
+    the matrix's word there described a coverage-only release as available
+    district coverage.
+    """
     codes = [
         period["period_code"]
         for period in catalog()["periods"]
-        if period.get("coverage_level") == "district"
+        if period.get("servable") and period.get("coverage_level") == "district"
     ]
     return f"{codes[0]}-{codes[-1]}" if codes else ""
 
@@ -345,6 +435,68 @@ def is_published(code: str) -> bool:
         return format_code(*parse(code)) in catalog()["period_codes"]
     except UnknownPeriodError:
         return False
+
+
+def is_servable(code: str) -> bool:
+    """Whether the canonical panel can answer this period in this deployment.
+
+    Distinct from :func:`is_published`: a period can be published (the release
+    exists) yet not servable (the serving database does not carry it yet).
+    """
+    try:
+        canonical = format_code(*parse(code))
+    except UnknownPeriodError:
+        return False
+    for entry in catalog()["periods"]:
+        if entry["period_code"] == canonical:
+            return bool(entry["servable"])
+    return False
+
+
+def servable_periods() -> list[str]:
+    """Published periods the canonical panel actually carries right now."""
+    return [
+        entry["period_code"]
+        for entry in catalog()["periods"]
+        if entry["servable"]
+    ]
+
+
+def source_id(code: str) -> str | None:
+    """The registered source identifier the canonical panel records for a period.
+
+    Returns ``None`` for an unknown period. Deliberately never fabricates an
+    identifier such as ``NISR_SAS_2022A``: only a source the data itself names is
+    returned, so a period's provenance is never an invented string.
+    """
+    try:
+        canonical = format_code(*parse(code))
+    except UnknownPeriodError:
+        return None
+    for entry in catalog()["periods"]:
+        if entry["period_code"] == canonical:
+            return entry.get("canonical_source_id")
+    return None
+
+
+def availability(code: str) -> dict | None:
+    """The availability block for one period (``None`` when unpublished)."""
+    try:
+        canonical = format_code(*parse(code))
+    except UnknownPeriodError:
+        return None
+    for entry in catalog()["periods"]:
+        if entry["period_code"] == canonical:
+            return {
+                "published": entry["published"],
+                "servable": entry["servable"],
+                "availability_status": entry["availability_status"],
+                "availability_message": entry["availability_message"],
+                "canonical_n_rows": entry["canonical_n_rows"],
+                "canonical_n_districts": entry["canonical_n_districts"],
+                "canonical_n_crops": entry["canonical_n_crops"],
+            }
+    return None
 
 
 def require(code: str) -> str:

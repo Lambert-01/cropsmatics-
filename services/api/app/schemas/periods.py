@@ -38,6 +38,21 @@ class PeriodInfo(BaseModel):
     is_latest: bool = False
     is_latest_district: bool = False
 
+    # --- availability semantics ---------------------------------------------
+    #: The release exists in the processed/source coverage.
+    published: bool = True
+    #: The canonical dataset in this deployment actually carries rows for it.
+    #: A published-but-not-servable period must never be advertised as usable.
+    servable: bool = False
+    #: Rows / districts / crops the canonical productivity panel holds for it.
+    canonical_n_rows: int = 0
+    canonical_n_districts: int = 0
+    canonical_n_crops: int = 0
+    canonical_source_id: str | None = None
+    #: servable | coverage_only | not_servable
+    availability_status: str = "not_servable"
+    availability_message: str | None = None
+
 
 class PeriodsResponse(BaseModel):
     count: int = 0
@@ -45,6 +60,11 @@ class PeriodsResponse(BaseModel):
     latest_district: str | None = None
     periods: list[PeriodInfo] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    #: Published periods a client can safely request today.
+    servable_periods: list[str] = Field(default_factory=list)
+    servable_count: int = 0
+    #: Whether the canonical panel is serving at all in this deployment.
+    canonical_serving: bool = False
 
 
 class PeriodProductivityResponse(BaseModel):

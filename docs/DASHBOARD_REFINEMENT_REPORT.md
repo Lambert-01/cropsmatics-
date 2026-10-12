@@ -198,3 +198,30 @@ Environment: macOS, Node 20.20.2, pnpm 9.12.0 (corepack), Python 3.11.15
    district-holdout validation, surfacing real model metrics.
 7. **Register an external climate source** (CHIRPS) before adding rainfall to
    any model.
+
+## 2026-10-12 — scope and data-authority refinement
+
+This pass repaired the data-authority and scope defects behind the "silently
+stale" behaviour:
+
+* **Historical landing.** The dashboard now opens on the all-published-periods
+  overview. A stored default period (a browser could hold
+  `defaultPeriod = "2025B"`) no longer overrides the landing scope, and the
+  preference version was bumped so an obsolete stored default is discarded rather
+  than migrated. Drilldown pages still honour stored defaults.
+* **Availability semantics.** `/meta/periods` separates `published` from
+  `servable` and reports the canonical row/district/crop counts and an
+  `availability_status`, so a period the database does not carry yet is never
+  advertised as usable.
+* **No false fallback.** An explicitly requested period is never answered from a
+  different release; `productivity_frame` raises `PeriodNotServable` and the
+  productivity endpoint returns a structured "unavailable" result with no
+  manufactured zeros.
+* **Structured out-of-sync.** In `required` mode a reachable database that serves
+  a different dataset than the image returns `503 DATASET_OUT_OF_SYNC` with the
+  expected/loaded versions and period counts instead of a successful stale answer.
+* **Map default.** The overview map opens on `production`, which is valid for any
+  crop selection (or none); yield stays crop-gated.
+
+All local checks (pytest, ruff, `pnpm lint/typecheck/test/build`) pass; see the
+delivery notes for the exact commands and results.

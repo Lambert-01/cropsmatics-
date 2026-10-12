@@ -104,7 +104,12 @@ def test_required_mode_analytics_endpoint_reports_typed_error(mode, client):
 
 def test_readiness_in_required_mode_is_not_ready_without_a_database(mode, client):
     mode(CANONICAL_DATA_MODE="required")
-    body = client.get("/api/v1/health/readiness").json()
+    resp = client.get("/api/v1/health/readiness")
+    # not_ready must be a *failing* status code: a 200 body that merely says
+    # not_ready is accepted as healthy by Render, which is how a stale canonical
+    # database stayed in front of traffic.
+    assert resp.status_code == 503
+    body = resp.json()
 
     assert body["status"] == "not_ready"
     assert body["canonical_data_mode"] == "required"
@@ -115,7 +120,11 @@ def test_readiness_in_required_mode_is_not_ready_without_a_database(mode, client
 
 
 def test_readiness_in_preferred_mode_still_reports_ready_on_files(mode, client):
-    body = client.get("/api/v1/health/readiness").json()
+    resp = client.get("/api/v1/health/readiness")
+    # A degraded/ready preferred-mode deployment is still a 200: it can answer
+    # from the processed files, so it must not be failed by a health check.
+    assert resp.status_code == 200
+    body = resp.json()
     assert body["status"] in {"ready", "degraded"}
     assert body["canonical_data_mode"] == "preferred"
 

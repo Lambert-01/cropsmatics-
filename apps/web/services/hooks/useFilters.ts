@@ -24,15 +24,25 @@ import { usePreferences } from "@/components/providers/PreferencesProvider";
  * the same answer to "is this all published periods, or one release?" that the
  * API request is built from.
  */
-export function useFilters() {
+export function useFilters(options?: {
+  /**
+   * National landing scope: ignore stored defaults so a bare dashboard opens on
+   * the historical overview rather than a saved 2025 Season B release.
+   *
+   * Drilldown pages (productivity, yield intelligence, ...) keep the stored
+   * defaults, which is where a saved context is genuinely useful.
+   */
+  landing?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { preferences } = usePreferences();
+  const landing = options?.landing ?? false;
 
   const filters = useMemo<DashboardFilters>(() => {
     const parsed = parseFilters(searchParams);
-    const context = resolveAnalyticalContext(preferences, parsed);
+    const context = resolveAnalyticalContext(preferences, parsed, { landing });
     return {
       ...parsed,
       view: context.view,
@@ -41,7 +51,7 @@ export function useFilters() {
       province: context.province,
       district: context.district,
     };
-  }, [searchParams, preferences]);
+  }, [searchParams, preferences, landing]);
 
   const setFilters = useCallback(
     (patch: Partial<DashboardFilters>) => {

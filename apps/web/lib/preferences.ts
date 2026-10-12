@@ -14,7 +14,17 @@
 import { DEFAULTS_NONE, SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./filters";
 
 export const PREFERENCES_KEY = "cropmatics-preferences";
-export const PREFERENCES_VERSION = 1;
+/**
+ * Bumped to 2 after the dashboard landing-scope repair.
+ *
+ * Version 1 could hold ``defaultPeriod = "2025B"``, which made a bare
+ * ``/dashboard`` open on a single 2025 Season B release instead of the historical
+ * overview. ``normalizePreferences`` discards an entry whose version is not the
+ * current one, so bumping the version guarantees no browser can carry that
+ * obsolete default forward - which is the only way to change stored behaviour,
+ * since a page cannot rewrite a preference it can no longer read.
+ */
+export const PREFERENCES_VERSION = 2;
 
 export type NumberGrouping = "grouped" | "plain";
 export type ThemePreference = "system" | "light" | "dark";
@@ -196,9 +206,21 @@ export function resolveAnalyticalContext(
     district?: string;
     defaults?: string;
   },
+  options?: {
+    /**
+     * The national dashboard landing scope. Stored defaults are suppressed so a
+     * bare ``/dashboard`` always opens on the historical, all-crops, all-districts
+     * overview; an explicit URL selection still wins, so a shared release link
+     * reproduces faithfully.
+     */
+    landing?: boolean;
+  },
 ): { view: ScopeView; period?: string; crop?: string; province?: string; district?: string } {
-  // Rule 4: an explicit "ignore my defaults" view falls back to nothing.
-  const stored = urlFilters.defaults === DEFAULTS_NONE ? null : preferences;
+  // Rule 4: an explicit "ignore my defaults" view falls back to nothing, and the
+  // dashboard landing suppresses them for the same reason "Reset filters" does:
+  // a stored 2025B default period must not become the landing scope.
+  const stored =
+    urlFilters.defaults === DEFAULTS_NONE || options?.landing ? null : preferences;
 
   const explicitPeriod =
     urlFilters.period ||

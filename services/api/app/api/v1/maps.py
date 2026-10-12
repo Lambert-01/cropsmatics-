@@ -10,23 +10,41 @@ from app.schemas.analytics import WeightsIn
 from app.schemas.common import Provenance
 from app.schemas.dashboard import MapMetricsResponse
 from app.schemas.filters import AnalyticsFilters, analytics_filters
-from app.services import map_service
+from app.services import analytics_service, map_service
 
 router = APIRouter(prefix="/maps", tags=["maps"])
 
-MapMetric = Literal["yield", "gap", "priority", "input_adoption", "irrigation", "erosion"]
+MapMetric = Literal[
+    "production",
+    "harvested_area",
+    "yield",
+    "gap",
+    "priority",
+    "input_adoption",
+    "irrigation",
+    "erosion",
+]
 
 
 @router.get("/district-metrics", response_model=MapMetricsResponse)
 def district_metrics(
-    metric: MapMetric = Query("gap", description="yield | gap | priority | input_adoption | irrigation | erosion"),
+    metric: MapMetric = Query(
+        map_service.DEFAULT_METRIC,
+        description=(
+            "production | harvested_area | yield | gap | priority | "
+            "input_adoption | irrigation | erosion"
+        ),
+    ),
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> MapMetricsResponse:
     """District choropleth values for one metric.
 
-    ``yield`` and ``gap`` require a crop selection: raw yields from different
-    crops are not comparable, so the endpoint returns an empty map plus a
-    message instead of an all-crop aggregate.
+    The default metric (``production``) is an additive quantity that is valid for
+    any crop selection, so the map renders before a crop is chosen. ``yield``
+    requires a crop: raw yields from different crops are not comparable, so the
+    endpoint returns an empty map plus a message instead of an all-crop
+    aggregate. ``gap`` stays valid district-wide because it is relative to each
+    crop's own benchmark.
     """
     result = map_service.district_metrics(f, metric=metric)
     limitations = [
@@ -56,7 +74,10 @@ def district_metrics(
     return MapMetricsResponse(
         **result,
         provenance=Provenance(
-            source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
+            # Never default an empty or other-period map to the 2025 Season B
+            # source: the selected release's own registered source is used, and a
+            # null is preferable to a false attribution.
+            source_id=analytics_service.resolved_source_id(result, f),
             source_period=result.get("period_code") or result["period"],
             reference_period=result.get("reference_period"),
             benchmark_strategy=f.benchmark_strategy,
@@ -80,7 +101,7 @@ def weighted_priority_map(
     return MapMetricsResponse(
         **result,
         provenance=Provenance(
-            source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
+            source_id=analytics_service.resolved_source_id(result, f),
             source_period=result.get("period_code") or result["period"],
             reference_period=result.get("reference_period"),
             benchmark_strategy=f.benchmark_strategy,

@@ -55,7 +55,13 @@ export interface PeriodSnapshot {
   note?: string | null;
 }
 
-/** One published period on the shared axis, with its own coverage. */
+/**
+ * One published period on the shared axis, with its own availability.
+ *
+ * `published` (the release exists) is distinct from `servable` (the serving
+ * canonical panel actually carries rows for it): a coverage-only release must be
+ * shown as unavailable and explained, never offered as a usable period.
+ */
 export interface PeriodTimelineEntry {
   period_code: string;
   label: string;
@@ -64,6 +70,10 @@ export interface PeriodTimelineEntry {
   n_crops: number;
   is_latest: boolean;
   is_latest_district: boolean;
+  published?: boolean;
+  servable?: boolean;
+  availability_status?: string;
+  availability_message?: string | null;
 }
 
 export interface OverviewResponse {
@@ -123,6 +133,12 @@ export interface SameSeasonYoY {
 export interface ProductivityResponse {
   period?: string | null;
   period_code?: string | null;
+  /** False when an explicitly requested period could not be served. */
+  available?: boolean;
+  /** Why the period is unavailable; null when it is served. */
+  unavailable_reason?: string | null;
+  /** Structured out-of-sync/unavailable detail (code, reason, periods). */
+  availability?: Record<string, unknown> | null;
   n_observations: number;
   kpis: KPI[];
   primary_kpis: KPI[];
@@ -156,6 +172,38 @@ export interface PeriodTrendResponse {
   unit: Record<string, string>;
   points: PeriodTrendPoint[];
   available_periods: string[];
+  provenance: Provenance;
+}
+
+/** Aligned per-period series from the canonical multi-period panel. */
+export interface CanonicalTrendSeries {
+  production_mt?: (number | null)[];
+  harvested_area_ha?: (number | null)[];
+  yield_kg_ha?: (number | null)[];
+  yield_from_totals_kg_ha?: (number | null)[];
+}
+
+/**
+ * A consistent 2022A-2026B trend from the canonical productivity panel.
+ *
+ * Distinct from `TrendResponse` (the legacy single-release context table): the
+ * axis is every period the panel publishes, `series` is aligned to `periods`,
+ * and a period the release did not tabulate stays `null` rather than being
+ * interpolated. No cross-crop yield is averaged; the only all-crop yield is
+ * production-weighted (`yield_from_totals_kg_ha`).
+ */
+export interface CanonicalTrendResponse {
+  geography_scope: string;
+  district?: string | null;
+  crop?: string | null;
+  periods: string[];
+  period_labels: Record<string, string>;
+  metric_units: Record<string, string>;
+  series: CanonicalTrendSeries;
+  n_crops: number;
+  n_periods: number;
+  source_id?: string | null;
+  method?: string | null;
   provenance: Provenance;
 }
 
@@ -719,6 +767,21 @@ export interface PeriodInfo {
   datasets: PeriodDatasetCoverage[];
   is_latest: boolean;
   is_latest_district: boolean;
+  /**
+   * The release exists in the processed/source coverage. Distinct from
+   * `servable`: a period can be published yet not served by the database yet.
+   */
+  published?: boolean;
+  /** The canonical dataset in this deployment carries rows for it right now. */
+  servable?: boolean;
+  /** Rows / districts / crops the canonical productivity panel holds for it. */
+  canonical_n_rows?: number;
+  canonical_n_districts?: number;
+  canonical_n_crops?: number;
+  canonical_source_id?: string | null;
+  /** "servable" | "coverage_only" | "not_servable". */
+  availability_status?: string;
+  availability_message?: string | null;
 }
 
 export interface PeriodsResponse {
@@ -727,6 +790,11 @@ export interface PeriodsResponse {
   latest_district?: string | null;
   periods: PeriodInfo[];
   notes: string[];
+  /** Published periods a client can safely request today. */
+  servable_periods?: string[];
+  servable_count?: number;
+  /** Whether the canonical panel is serving at all in this deployment. */
+  canonical_serving?: boolean;
 }
 
 export interface SourceItem {

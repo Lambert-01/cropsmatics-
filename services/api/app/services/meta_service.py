@@ -168,17 +168,31 @@ def _database_status() -> str:
     return database_status()[0]
 
 
-def _expected_dataset_identity(manifest: dict) -> dict:
-    """The manifest fields the loader records against a dataset version.
+def _safe_manifest() -> dict:
+    """The processed manifest, or ``{}`` when it is absent/unreadable.
 
-    The loader's content-addressed version is a pure function of exactly these
-    four fields, so comparing them is equivalent to comparing the version string
-    while keeping readiness decoupled from the loader module.
+    Readiness must never raise, and an absent manifest is answered by reporting
+    an unknown expected identity rather than by failing the probe.
     """
+    try:
+        return repo.data_manifest()
+    except Exception:  # noqa: BLE001 - a probe reports, it does not raise
+        return {}
+
+
+def _expected_dataset_identity(manifest: dict) -> dict:
+    """The identity a loaded dataset must carry to match the processed build.
+
+    Computed with the same content-addressed function the loader used, so
+    readiness compares the *actual* expected version (a function of the processed
+    outputs, the raw/SAS inputs and the row counts) instead of echoing whatever
+    version happens to be loaded.
+    """
+    from app.data.versioning import content_version
+
     return {
+        "version": content_version(manifest) if manifest else None,
         "pipeline_version": manifest.get("pipeline_version"),
-        "git_sha": manifest.get("git_sha"),
-        "build_timestamp": manifest.get("build_timestamp"),
         "row_counts": manifest.get("row_counts") or {},
     }
 
@@ -193,6 +207,7 @@ def canonical_readiness() -> dict:
     """
     settings = get_settings()
     mode = settings.canonical_mode
+    expected_identity = _expected_dataset_identity(_safe_manifest())
     result: dict = {
         "mode": mode,
         "database_configured": bool((settings.database_url or "").strip()),
@@ -202,8 +217,17 @@ def canonical_readiness() -> dict:
         "tables_present": False,
         "dataset_loaded": False,
         "version_matches_manifest": None,
+        # The version the *processed build* implies, and the one the database
+        # actually carries. These are deliberately separate fields: reporting the
+        # loaded value as its own expectation is what made the mismatch
+        # undiagnosable.
         "dataset_version": None,
-        "expected_version": None,
+        "expected_version": expected_identity["version"],
+        "expected_pipeline_version": expected_identity["pipeline_version"],
+        "expected_row_counts": expected_identity["row_counts"],
+        "loaded_row_counts": {},
+        "expected_productivity_rows": expected_identity["row_counts"].get("crop_productivity"),
+        "loaded_productivity_rows": None,
         "row_counts": {},
         "blocking": [],
     }
@@ -220,6 +244,8 @@ def canonical_readiness() -> dict:
     result["availability"] = probe.get("availability")
     result["reason"] = probe.get("reason")
     result["row_counts"] = probe.get("row_counts") or {}
+    result["loaded_row_counts"] = dict(result["row_counts"])
+    result["loaded_productivity_rows"] = result["row_counts"].get("crop_productivity")
     result["tables_present"] = result["availability"] != "unavailable" or bool(
         probe.get("row_counts")
     )
@@ -245,9 +271,17 @@ def canonical_readiness() -> dict:
                 if loaded is not None:
                     result["dataset_version"] = loaded.get("version")
                     result["dataset_loaded"] = True
-                    expected = _expected_identity_from_manifest(loaded)
-                    result["expected_version"] = expected.get("version")
-                    result["version_matches_manifest"] = expected.get("matches")
+                    # Compare the recorded loaded version against the version the
+                    # processed build implies - not against itself.
+                    if result["expected_version"] is not None:
+                        result["version_matches_manifest"] = (
+                            loaded.get("version") == result["expected_version"]
+                        )
+                    if result["expected_productivity_rows"] is not None:
+                        result["row_counts_match_manifest"] = (
+                            result["loaded_productivity_rows"]
+                            == result["expected_productivity_rows"]
+                        )
     except Exception:  # noqa: BLE001 - a partial probe is still a useful report
         if "tables_present" not in result or not result["tables_present"]:
             result["blocking"].append("database_inspect")
@@ -261,27 +295,16 @@ def canonical_readiness() -> dict:
     if not result["dataset_loaded"]:
         result["blocking"].append("dataset_not_loaded")
     if result["version_matches_manifest"] is False:
+        # The single, actionable reason: the database is serving a different
+        # dataset than the image was built from.
+        result["blocking"].append("canonical_dataset_out_of_sync")
         result["blocking"].append("dataset_version_mismatch")
+    if result.get("row_counts_match_manifest") is False and (
+        "canonical_dataset_out_of_sync" not in result["blocking"]
+    ):
+        result["blocking"].append("canonical_dataset_out_of_sync")
 
     return result
-
-
-def _expected_identity_from_manifest(loaded: dict) -> dict:
-    """Compare the loaded dataset version against the processed manifest."""
-    try:
-        manifest = repo.data_manifest()
-    except Exception:
-        # No manifest to compare against: report unknown rather than a false pass.
-        return {"version": None, "matches": None}
-
-    expected = _expected_dataset_identity(manifest)
-    matches = all(
-        (loaded.get(key) or {}) == (expected.get(key) or {})
-        if key == "row_counts"
-        else loaded.get(key) == expected.get(key)
-        for key in expected
-    )
-    return {"version": loaded.get("version"), "matches": matches}
 
 
 def readiness() -> dict:
@@ -345,7 +368,15 @@ def readiness() -> dict:
             {
                 "check": "canonical_dataset_version",
                 "status": "mismatch",
-                "detail": "loaded dataset version does not match the processed manifest",
+                "detail": (
+                    "the database is serving a different dataset than the processed "
+                    f"build: expected {canonical_state['expected_version']}, "
+                    f"loaded {canonical_state['dataset_version']}"
+                ),
+                "expected_version": canonical_state["expected_version"],
+                "loaded_version": canonical_state["dataset_version"],
+                "expected_productivity_rows": canonical_state["expected_productivity_rows"],
+                "loaded_productivity_rows": canonical_state["loaded_productivity_rows"],
             }
         )
 

@@ -5,10 +5,10 @@ Deterministic brand-asset generation pipeline for Cropmatics Rwanda.
 Derived exclusively from canonical source: cropmaticlogo.png
 """
 
-import os
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SOURCE_LOGO_PATH = REPO_ROOT / "cropmaticlogo.png"

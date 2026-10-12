@@ -13,7 +13,7 @@ import { useFilters } from "@/services/hooks/useFilters";
 
 export default function MapsPage() {
   const { filters, setFilters } = useFilters();
-  const [metric, setMetric] = useState<MapMetricId>("gap");
+  const [metric, setMetric] = useState<MapMetricId>("production");
   const mapMetrics = useMapMetrics(filters, metric);
   const facilities = useFacilities();
   const productivity = useProductivity(filters);

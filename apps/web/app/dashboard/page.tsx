@@ -12,6 +12,7 @@ import {
   KpiRowSkeleton,
   ScopeNotice,
 } from "@/components/ui/States";
+import { CanonicalTrendChart } from "@/features/dashboard/CanonicalTrendChart";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
@@ -19,18 +20,17 @@ import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
 import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
-import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
 import { GapDumbbell } from "@/features/productivity/GapDumbbell";
 import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import {
+  useCanonicalTrend,
   useInputAdoption,
   useOverview,
   usePracticeIndicators,
   usePriorities,
   useProductivity,
-  useTrends,
 } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
@@ -52,14 +52,20 @@ import { useFilters } from "@/services/hooks/useFilters";
  * answers its question and then gets out of the way.
  */
 export default function DashboardPage() {
-  const { filters, setFilters } = useFilters();
+  // The national dashboard is a *landing* page: it opens on the historical,
+  // all-crops, all-districts overview and never lets a stored default period
+  // (e.g. a legacy `defaultPeriod = "2025B"`) override the landing scope. A
+  // release named in the URL still wins, so a shared link reproduces faithfully.
+  const { filters, setFilters } = useFilters({ landing: true });
 
   const overview = useOverview(filters);
   const districtMode = overview.data?.coverage_level === "district";
   const priorities = usePriorities(filters, 16, districtMode);
-  // National trends are deliberately multi-period: this panel names its own
-  // scope rather than following the selected release.
-  const trends = useTrends(filters.crop, filters.compare);
+  // The trend reads the canonical multi-period panel (2022A-2026B): one period
+  // axis, no release mixing, and a period the release did not tabulate is a gap
+  // in the line. It ignores `compare` - a cross-crop yield comparison is not a
+  // published number and the panel deliberately does not derive one.
+  const canonicalTrend = useCanonicalTrend(filters.crop, filters.district);
   const inputAdoption = useInputAdoption();
   // The practice panel is district-grained and the endpoint pages its full
   // 9,468-row table, so the request waits for a district: an unfiltered
@@ -84,7 +90,10 @@ export default function DashboardPage() {
         subtitle="Turning official data into action for a productive and resilient Rwanda."
       />
 
-      <AnalyticsFilterBar />
+      {/* The period axis is owned by `PeriodScopeControl` below. The filter bar
+          is restricted to the non-period filters so the page does not present
+          two different period controls that can disagree. */}
+      <AnalyticsFilterBar supported={["crop", "province", "district", "benchmark"]} />
 
       {/* The published axis as a control, not as a list. Fourteen releases are
           fully reachable here (explicit all-periods scope, year, season, and a
@@ -183,14 +192,15 @@ export default function DashboardPage() {
               benchmarkStrategy={priorities.data?.provenance?.benchmark_strategy ?? null}
               period={priorities.data?.provenance?.source_period ?? null}
             />
-            <YieldTrendChart
-              data={trends.data}
-              isLoading={trends.isLoading}
-              isFetching={trends.isFetching}
-              hasError={trends.isError}
-              errorMessage={(trends.error as Error)?.message}
-              onRetry={() => trends.refetch()}
+            <CanonicalTrendChart
+              data={canonicalTrend.data}
+              isLoading={canonicalTrend.isLoading}
+              isFetching={canonicalTrend.isFetching}
+              hasError={canonicalTrend.isError}
+              errorMessage={(canonicalTrend.error as Error)?.message}
+              onRetry={() => canonicalTrend.refetch()}
               crop={filters.crop}
+              district={filters.district}
             />
           </div>
 
@@ -252,14 +262,15 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid gap-4 xl:grid-cols-2">
-            <YieldTrendChart
-              data={trends.data}
-              isLoading={trends.isLoading}
-              isFetching={trends.isFetching}
-              hasError={trends.isError}
-              errorMessage={(trends.error as Error)?.message}
-              onRetry={() => trends.refetch()}
+            <CanonicalTrendChart
+              data={canonicalTrend.data}
+              isLoading={canonicalTrend.isLoading}
+              isFetching={canonicalTrend.isFetching}
+              hasError={canonicalTrend.isError}
+              errorMessage={(canonicalTrend.error as Error)?.message}
+              onRetry={() => canonicalTrend.refetch()}
               crop={filters.crop}
+              district={filters.district}
             />
             <InputAdoptionChart
               data={inputAdoption.data}

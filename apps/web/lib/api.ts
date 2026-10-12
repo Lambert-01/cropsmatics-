@@ -4,6 +4,7 @@ import type {
   AllocationResponse,
   AssistantContext,
   AssistantResponse,
+  CanonicalTrendResponse,
   CoverageResponse,
   Crop,
   DatasetInfo,
@@ -108,6 +109,19 @@ export const api = {
     if (crop) params.set("crop", crop);
     if (compare) params.set("compare", compare);
     return get<TrendResponse>("/analytics/trends", params.toString());
+  },
+  /**
+   * The canonical multi-period trend (2022A-2026B) from the productivity panel.
+   *
+   * Distinct from `/analytics/trends`: one period axis, no release mixing, and
+   * a period the release did not tabulate preserved as `null`. A district trend
+   * requires a crop (the API rejects district-without-crop with a 422).
+   */
+  canonicalTrend: (crop?: string, district?: string) => {
+    const params = new URLSearchParams();
+    if (crop) params.set("crop", crop);
+    if (district && crop) params.set("district", district);
+    return get<CanonicalTrendResponse>("/analytics/canonical-trend", params.toString());
   },
   inputAdoption: () => get<TrendResponse>("/analytics/input-adoption"),
   // The backend only applies `crop` here (national crop-level dataset);

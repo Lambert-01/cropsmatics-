@@ -31,6 +31,7 @@ from app.schemas.filters import AnalyticsFilters, analytics_filters
 from app.schemas.storage import StorageInfrastructureResponse
 from app.services import (
     analytics_service,
+    canonical_trend_service,
     indexed_yield_service,
     meta_service,
     national_board_service,
@@ -41,6 +42,12 @@ from app.services import (
 )
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+
+def _resolved_source_id(result: dict, f: AnalyticsFilters) -> str | None:
+    """Source id for a result, never a fabricated identifier (see the service)."""
+    return analytics_service.resolved_source_id(result, f)
+
 
 def _gap_limitations() -> list[str]:
     """Limitations built from the period catalogue, not from literals.
@@ -84,6 +91,9 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
     return ProductivityResponse(
         period=result["period"],
         period_code=result.get("period_code"),
+        available=result.get("available", True),
+        unavailable_reason=result.get("unavailable_reason"),
+        availability=result.get("availability"),
         n_observations=result["n_observations"],
         kpis=result["kpis"],
         primary_kpis=result.get("primary_kpis", []),
@@ -93,7 +103,10 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
         gap_summary=result.get("gap_summary"),
         rows=result["rows"],
         provenance=Provenance(
-            source_id=result.get("source_id") or "NISR_SAS_2025B_DISTRICT_CROP",
+            # Never attach the 2025 Season B legacy source to an empty 2022/2023
+            # result: an explicitly requested period names its own registered
+            # source, and null is preferable to an invented identifier.
+            source_id=_resolved_source_id(result, f),
             source_period=f.period_code or result["period"],
             benchmark_strategy=f.benchmark_strategy,
             method=(
@@ -154,11 +167,7 @@ def heatmap(
         min_value=result["min_value"],
         unit=result["unit"],
         provenance=Provenance(
-            source_id=(
-                f"NISR_SAS_{f.period_code}"
-                if f.period_code
-                else "NISR_SAS_2025B_DISTRICT_CROP"
-            ),
+            source_id=_resolved_source_id(result, f),
             source_period=f.period_code,
             benchmark_strategy=f.benchmark_strategy,
             method="median district x crop value",
@@ -358,6 +367,43 @@ def indexed_yield(
             limitations=indexed_yield_service.LIMITATIONS,
         ),
     )
+
+
+@router.get("/canonical-trend")
+def canonical_trend(
+    crop: str | None = Query(
+        None,
+        description=(
+            "One crop name for a published per-crop national series, e.g. Maize. "
+            "Omit for the summed national totals."
+        ),
+    ),
+    district: str | None = Query(
+        None,
+        description=(
+            "A district name. Requires crop; answers a district x crop trend from "
+            "the canonical panel."
+        ),
+    ),
+) -> dict:
+    """A consistent 2022A-2026B trend from the canonical productivity panel.
+
+    Distinct from the legacy ``/analytics/trends`` (which still serves the
+    single-release context table for the pages that need it): this endpoint uses
+    the panel's published national rows, so the axis is every period NISR has
+    released and the methodology does not mix releases in one visual.
+    """
+    try:
+        if district and crop:
+            return canonical_trend_service.district_crop_trend(district, crop)
+        if district and not crop:
+            raise HTTPException(
+                status_code=422,
+                detail="a district trend requires a crop selection",
+            )
+        return canonical_trend_service.national_trend(crop)
+    except canonical_trend_service.CanonicalTrendUnavailable as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/input-adoption", response_model=TrendResponse)
@@ -590,10 +636,7 @@ def intervention_priorities(
         components_unavailable=result["components_unavailable"],
         component_availability=result["component_availability"],
         provenance=Provenance(
-            source_id=(
-                result.get("source_id")
-                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
-            ),
+            source_id=_resolved_source_id(result, f),
             source_period=f.period_code or "2025-B",
             method="weighted transparent score over normalized components",
             limitations=_priority_limitations(result),
@@ -616,10 +659,7 @@ def intervention_priorities_weighted(
         components_unavailable=result["components_unavailable"],
         component_availability=result["component_availability"],
         provenance=Provenance(
-            source_id=(
-                result.get("source_id")
-                or (f"NISR_SAS_{f.period_code}" if f.period_code else "NISR_SAS_2025B_DISTRICT_CROP")
-            ),
+            source_id=_resolved_source_id(result, f),
             source_period=f.period_code or "2025-B",
             method="user-adjusted weights over transparent normalized components",
             limitations=_priority_limitations(result),

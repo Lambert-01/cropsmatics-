@@ -18,10 +18,9 @@ Hand-edited after autogenerate for three reasons:
 
 from __future__ import annotations
 
-from alembic import op
 import geoalchemy2  # noqa: F401  (referenced by the geometry columns below)
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = '4c12c6b6c457'
 down_revision = None

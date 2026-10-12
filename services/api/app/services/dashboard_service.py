@@ -73,6 +73,13 @@ def _period_timeline() -> list[dict]:
             "n_crops": int(p.get("n_crops") or 0),
             "is_latest": bool(p.get("is_latest")),
             "is_latest_district": bool(p.get("is_latest_district")),
+            # Availability travels with the axis so a client can disable a
+            # coverage-only release and explain why, instead of offering it and
+            # then receiving an empty or 503 answer.
+            "published": bool(p.get("published", True)),
+            "servable": bool(p.get("servable")),
+            "availability_status": p.get("availability_status", "not_servable"),
+            "availability_message": p.get("availability_message"),
         }
         for p in periods
     ]

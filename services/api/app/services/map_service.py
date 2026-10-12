@@ -63,6 +63,8 @@ from app.services.analytics_service import (
 )
 
 METRICS = {
+    "production": ("Production", "metric tonnes"),
+    "harvested_area": ("Harvested area", "ha"),
     "yield": ("Yield", "kg/ha"),
     "gap": ("Productivity gap", "%"),
     "priority": ("Intervention priority", "score (0-1)"),
@@ -70,6 +72,13 @@ METRICS = {
     "irrigation": ("Irrigation adoption", "% of farmers"),
     "erosion": ("Erosion protection", "% of farmers"),
 }
+
+#: The metric a map opens on: additive quantities that are valid for *any* crop
+#: selection (or none), so the default choropleth never needs a crop to render.
+#: ``yield`` is a raw crop yield and is never aggregated across crops, so it stays
+#: crop-gated; ``gap`` is relative to each crop's own benchmark and remains valid
+#: district-wide (see the module docstring).
+DEFAULT_METRIC = "production"
 
 # Metrics whose value is a raw crop yield: a crop selection is mandatory.
 CROP_REQUIRED_METRICS = frozenset({"yield"})
@@ -217,7 +226,7 @@ def _empty(
 
 
 def district_metrics(
-    f: AnalyticsFilters, metric: str = "gap", weights: dict | None = None
+    f: AnalyticsFilters, metric: str = DEFAULT_METRIC, weights: dict | None = None
 ) -> dict:
     if metric not in METRICS:
         raise ValueError(f"unknown metric {metric!r}; expected one of {list(METRICS)}")
@@ -304,7 +313,22 @@ def district_metrics(
         erosion = _first(grp, "erosion_protection_farmers_pct")
         priority = prio_by_district.get(district)
 
+        # Additive quantities, valid summed across crops for a district. A null
+        # stays null (a district that published nothing is not a zero).
+        production = (
+            float(grp["production_mt"].sum())
+            if "production_mt" in grp and grp["production_mt"].notna().any()
+            else None
+        )
+        harvested_area = (
+            float(grp["harvested_area_ha"].sum())
+            if "harvested_area_ha" in grp and grp["harvested_area_ha"].notna().any()
+            else None
+        )
+
         value = {
+            "production": production,
+            "harvested_area": harvested_area,
             "yield": yield_med,
             "gap": gap_med,
             "priority": priority,
@@ -324,6 +348,8 @@ def district_metrics(
                 "yield_kg_ha": _round(yield_med),
                 "benchmark_yield_kg_ha": _round(bench_med),
                 "gap_index": _round(gap_med),
+                "production_mt": _round(production),
+                "harvested_area_ha": _round(harvested_area),
                 "input_adoption_pct": _round(adoption),
                 "priority_band": band_by_district.get(district),
                 "priority_score": _round(priority),

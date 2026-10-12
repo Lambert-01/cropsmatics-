@@ -343,3 +343,76 @@ describe("explicit scope", () => {
     expect(context.period).toBeUndefined();
   });
 });
+
+describe("dashboard landing scope (historical default)", () => {
+  it("ignores a stored 2025B default period so a bare /dashboard is historical", () => {
+    // Regression: a browser could retain
+    // `cropmatics-preferences.defaultPeriod = "2025B"`, which made a bare
+    // /dashboard open on a single 2025 Season B release instead of the overview.
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: "2025B" }), {}, {
+      landing: true,
+    });
+    expect(context.view).toBe(SCOPE_HISTORY);
+    expect(context.period).toBeUndefined();
+  });
+
+  it("also ignores stored crop/province/district on the landing scope", () => {
+    const context = resolveAnalyticalContext(
+      prefs({
+        defaultPeriod: "2025B",
+        defaultCrop: "Maize",
+        defaultProvince: "Kigali City",
+        defaultDistrict: "Gasabo",
+      }),
+      {},
+      { landing: true },
+    );
+    expect(context).toEqual({
+      view: SCOPE_HISTORY,
+      period: undefined,
+      crop: undefined,
+      province: undefined,
+      district: undefined,
+    });
+  });
+
+  it("still honours a release named in the URL (a shared link reproduces)", () => {
+    const context = resolveAnalyticalContext(
+      prefs({ defaultPeriod: "2025B" }),
+      { period: "2022A", crop: "Maize" },
+      { landing: true },
+    );
+    expect(context.view).toBe(SCOPE_PERIOD);
+    expect(context.period).toBe("2022A");
+    expect(context.crop).toBe("Maize");
+  });
+
+  it("keeps applying stored defaults on drilldown pages (no landing option)", () => {
+    const context = resolveAnalyticalContext(prefs({ defaultPeriod: "2025B" }), {});
+    expect(context.period).toBe("2025B");
+  });
+});
+
+describe("obsolete stored defaults cannot survive the version migration", () => {
+  it("discards a version-1 entry that held defaultPeriod=2025B", () => {
+    // The version bump is the only way to change stored behaviour in a browser
+    // this build cannot read: an old (version 1) entry is dropped, not guessed.
+    const legacy = JSON.stringify({
+      version: 1,
+      defaultPeriod: "2025B",
+      defaultCrop: "Maize",
+      defaultProvince: null,
+      defaultDistrict: null,
+      numberGrouping: "grouped",
+      compactTables: false,
+      reducedMotion: false,
+      theme: "system",
+      mapLabels: true,
+      showSources: true,
+    });
+    const loaded = loadPreferences(memoryStorage({ [PREFERENCES_KEY]: legacy }));
+    expect(loaded.defaultPeriod).toBeNull();
+    expect(loaded.defaultCrop).toBeNull();
+    expect(loaded).toEqual(DEFAULT_PREFERENCES);
+  });
+});

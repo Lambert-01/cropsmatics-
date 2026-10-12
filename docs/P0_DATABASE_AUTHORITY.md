@@ -252,3 +252,80 @@ exist yet** — a map `change` layer and an indexed trend. The map offers the si
   never substituted from another district.
 - **Drivers** states `ASSOCIATION IS NOT CAUSATION` and names the reference
   release the practice survey actually comes from.
+
+## 2022A–2026B repair (canonical content identity and out-of-sync contract)
+
+The production database was stale: it held 8 periods (2024A–2026B, 3,738
+productivity rows) while the built panel holds 14 periods (2022A–2026B, 6,156
+rows). No read ever failed, because a stale database is still "non-empty" — so
+the gap was silent. The following changes make that state impossible to publish
+quietly.
+
+### Content-addressed dataset identity
+
+`content_version()` (now in `app/data/versioning.py`, re-exported by
+`scripts/data/load_postgres.py`) is derived **only from content**:
+
+* the pipeline/transformation version,
+* the SHA-256 of every canonical processed output,
+* the SHA-256 of every raw source **and of every relevant SAS release**
+  (`manifest.json["sas_inputs"]`, one hash per published extraction),
+* the row counts.
+
+`build_timestamp` and `git_sha` are deliberately excluded. They change on every
+rebuild of identical data, so including them made "same version" mean "same
+clock" and made the pre-deploy bootstrap re-load thousands of unchanged rows on
+every deploy. Identical inputs and outputs now hash identically; any changed
+figure changes the hash.
+
+### Verification is not "the table is non-empty"
+
+`scripts/data/canonical_bootstrap.py` now verifies, after the load:
+
+* the productivity row count equals the processed panel's,
+* the database's period set equals the processed panel's, and
+* the historical periods (`2022A`–`2023C`) are present.
+
+A pass prints the verified row count and period range. A non-empty table that
+holds only the recent releases fails.
+
+### Readiness reports the real expectation
+
+`GET /health/readiness` → `canonical_state` now carries `expected_version`
+(the processed build's version, **not** an echo of the loaded one),
+`dataset_version` (loaded), `expected_productivity_rows` and
+`loaded_productivity_rows`, and `expected_row_counts` vs `loaded_row_counts`.
+When they disagree the blocking list contains `canonical_dataset_out_of_sync`,
+and the `canonical_dataset_version` check carries the expected and loaded
+versions and counts.
+
+### Out-of-sync is a structured 503, not a successful stale read
+
+In `CANONICAL_DATA_MODE=required` the identity check runs **before** any read.
+A reachable database that serves a different dataset than the image was built
+from raises `DatasetOutOfSync`, which the API maps to:
+
+```json
+{
+  "code": "DATASET_OUT_OF_SYNC",
+  "message": "... expected version '0.2.0-...', loaded '0.2.0-...'",
+  "expected_version": "0.2.0-...",
+  "loaded_version": "0.2.0-...",
+  "expected_periods": ["2022A", "..."],
+  "loaded_periods": ["2024A", "..."],
+  "retryable": true
+}
+```
+
+An unreachable or empty database keeps returning `DATABASE_UNAVAILABLE`; only a
+reachable-but-different dataset is `DATASET_OUT_OF_SYNC`.
+
+### Release flow
+
+The canonical load is a **release step**, never a request and never the Start
+Command. `render.yaml` declares
+`preDeployCommand: python /app/scripts/data/canonical_bootstrap.py`, a
+uvicorn-only Start Command and `healthCheckPath: /api/v1/health/readiness`. A
+blueprint does not update a service that already exists, so the dashboard
+checklist in `docs/17_DEPLOYMENT.md` §5 remains the source of truth for the live
+service.

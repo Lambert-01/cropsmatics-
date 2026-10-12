@@ -356,3 +356,38 @@ def test_other_indicator_files_load_or_are_absent(filename, processed_dir):
     rows, stats = observation_rows("0.2.0-test", crop_by_name, district_codes)
     assert stats.rejected_rows == 0
     assert rows
+
+
+# --- content-addressed dataset identity -------------------------------------
+
+_VERSION_BASE = {
+    "pipeline_version": "0.2.0",
+    "sources": {"district_crop_productivity": {"sha256": "a" * 64}},
+    "sas_inputs": {"2022_annual": {"sha256": "b" * 64}},
+    "outputs": {"crop_productivity": {"sha256": "c" * 64}},
+    "row_counts": {"crop_productivity": 6156},
+}
+
+
+def test_content_version_ignores_build_time_identity():
+    """A rebuild of identical data must not change the version.
+
+    ``build_timestamp`` and ``git_sha`` used to be part of the hash, so every
+    deploy produced a new version and the bootstrap re-loaded thousands of
+    unchanged rows.
+    """
+    assert content_version(
+        {**_VERSION_BASE, "build_timestamp": "2026-01-01T00:00:00", "git_sha": "aaa"}
+    ) == content_version(
+        {**_VERSION_BASE, "build_timestamp": "2027-09-09T09:09:09", "git_sha": "zzz"}
+    )
+
+
+def test_content_version_changes_when_a_processed_output_changes():
+    changed = {**_VERSION_BASE, "outputs": {"crop_productivity": {"sha256": "d" * 64}}}
+    assert content_version(changed) != content_version(_VERSION_BASE)
+
+
+def test_content_version_changes_when_a_sas_input_changes():
+    changed = {**_VERSION_BASE, "sas_inputs": {"2022_annual": {"sha256": "e" * 64}}}
+    assert content_version(changed) != content_version(_VERSION_BASE)

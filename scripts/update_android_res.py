@@ -1,5 +1,6 @@
-from PIL import Image, ImageDraw
 from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 repo_root = Path(".").resolve()
 app_icon = Image.open(repo_root / "apps/mobile/assets/branding/app-icon-1024.png").convert("RGBA")

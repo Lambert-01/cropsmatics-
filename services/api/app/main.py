@@ -9,7 +9,11 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.repositories.dataset_repository import CanonicalDataUnavailable, DatasetUnavailable
+from app.repositories.dataset_repository import (
+    CanonicalDataUnavailable,
+    DatasetOutOfSync,
+    DatasetUnavailable,
+)
 
 configure_logging()
 settings = get_settings()
@@ -50,6 +54,33 @@ async def _dataset_unavailable(_: Request, exc: DatasetUnavailable) -> JSONRespo
             "code": "DATA_NOT_AVAILABLE",
             "detail": str(exc),
             "hint": "run `make data` to build processed tables",
+        },
+    )
+
+
+@app.exception_handler(DatasetOutOfSync)
+async def _dataset_out_of_sync(_: Request, exc: DatasetOutOfSync) -> JSONResponse:
+    """A reachable database that serves a different dataset than the image.
+
+    Returned as a typed ``503`` with the expected/loaded versions and period
+    counts, so a client can show an honest out-of-sync state and retry rather
+    than present stale figures as current.
+    """
+    return JSONResponse(
+        status_code=503,
+        content={
+            "code": exc.code,
+            "message": str(exc),
+            "expected_version": exc.expected_version,
+            "loaded_version": exc.loaded_version,
+            "expected_periods": exc.expected_periods,
+            "loaded_periods": exc.loaded_periods,
+            "reason": exc.reason,
+            "retryable": True,
+            "hint": (
+                "the database has not been synchronised with the built dataset; "
+                "run python scripts/data/canonical_bootstrap.py"
+            ),
         },
     )
 

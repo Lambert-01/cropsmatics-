@@ -84,3 +84,26 @@ carries it and names that. See `FEATURE_DATA_COVERAGE.md`.
    coloured from a release other than the one its own subtitle names, and no
    panel presents a single release's figures under an "all published periods"
    heading.
+
+## 2022A–2026B trends and period availability (this pass)
+
+| Dataset | Service | Endpoint | UI |
+|---|---|---|---|
+| `crop_productivity.csv` (national rows) | `canonical_trend_service.national_trend` | `GET /analytics/canonical-trend?crop=` | Overview / trend visual |
+| `crop_productivity.csv` (district rows) | `canonical_trend_service.district_crop_trend` | `GET /analytics/canonical-trend?crop=&district=` | District + crop trend |
+| `crop_productivity.csv` | `map_service.district_metrics` | `GET /maps/district-metrics?metric=production\|harvested_area` | Overview map (crop-agnostic default) |
+| `crop_productivity.csv` | `period_service.catalog` | `GET /meta/periods` | Period scope control, availability badges |
+
+`GET /analytics/canonical-trend` is deliberately **separate** from the legacy
+`GET /analytics/trends`: the legacy endpoint still serves the single-release
+context table for the pages that need it, and the two methodologies are never
+mixed in one visual. The canonical trend reports its source, unit, geography,
+period axis and method with every response, preserves published nulls, never
+averages raw crop yields, and never adds a crop family total to its own
+varieties (the canonical panel stores one row per canonical crop, asserted at
+read time).
+
+The overview map opens on `production` — an additive quantity valid for any crop
+selection (or none) — instead of a metric that needs a crop before it can be
+coloured. Yield remains crop-gated; `gap` remains valid district-wide because it
+is relative to each crop's own benchmark.

@@ -52,6 +52,9 @@ API_DIR = ROOT / "services" / "api"
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
+# ``content_version`` is re-exported from this module (``canonical_bootstrap`` and
+# the tests import it here). It lives with the application so the loader and the
+# API readiness probe compute the same expected version from the same manifest.
 from app.data.catalogue import (  # noqa: E402
     INDICATORS,
     SOURCES,
@@ -62,6 +65,7 @@ from app.data.catalogue import (  # noqa: E402
     source_table_id,
     validate_catalogue,
 )
+from app.data.versioning import content_version  # noqa: E402,F401
 from scripts.data.common import (  # noqa: E402
     PROCESSED_DIR,
     VALID_PERIODS,
@@ -176,23 +180,6 @@ def values_match(left, right) -> bool:
     if isinstance(left, float) and isinstance(right, float):
         return abs(left - right) < 1e-9
     return left == right
-
-
-def content_version(manifest: dict) -> str:
-    """Content-addressed dataset version — stable for identical inputs."""
-    payload = json.dumps(
-        {
-            "pipeline_version": manifest.get("pipeline_version"),
-            "git_sha": manifest.get("git_sha"),
-            "build_timestamp": manifest.get("build_timestamp"),
-            "row_counts": manifest.get("row_counts"),
-        },
-        sort_keys=True,
-        default=str,
-    )
-    digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
-    pipeline = manifest.get("pipeline_version") or "0.0.0"
-    return f"{pipeline}-{digest}"
 
 
 # --------------------------------------------------------------------------

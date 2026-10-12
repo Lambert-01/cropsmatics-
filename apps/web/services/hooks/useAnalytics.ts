@@ -207,6 +207,20 @@ export function useTrends(crop?: string, compare?: string) {
   });
 }
 
+/**
+ * The canonical multi-period trend from the productivity panel.
+ *
+ * Keyed on the crop and district only: the axis is every published period, so
+ * changing the selected release does not re-key or tear down the chart.
+ */
+export function useCanonicalTrend(crop?: string, district?: string) {
+  return useQuery({
+    queryKey: ["canonical-trend", crop ?? "national", district ?? ""],
+    queryFn: () => api.canonicalTrend(crop, district),
+    staleTime: FIVE_MIN,
+  });
+}
+
 export function useInputAdoption() {
   return useQuery({
     queryKey: ["input-adoption"],

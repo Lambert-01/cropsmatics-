@@ -30,10 +30,16 @@ confused:
   **A repository can never attest to these.** They are listed as a checklist in
   §5 and must be confirmed by hand.
 
-There is no `render.yaml` in this repository, and the Dockerfile's `CMD` starts
-`uvicorn` directly. Nothing in the repository therefore proves that a Render
-service runs `canonical_bootstrap.py` before starting the API. Treat §5 as work
-to confirm, not as a description of the current state.
+A `render.yaml` blueprint is now committed. It declares the release flow
+(`preDeployCommand: python /app/scripts/data/canonical_bootstrap.py`), a
+uvicorn-only Start Command, and `healthCheckPath: /api/v1/health/readiness`.
+
+**A blueprint does not update a service that already exists.** Render applies a
+blueprint only when a service is created from it or explicitly synced to it, so
+adding `render.yaml` does not change a hand-configured service. It is a validated
+template and a review artefact, not proof of the live configuration. Nothing in
+the repository can prove that the deployed service runs the bootstrap before
+starting the API, so §5 remains work to confirm by hand.
 
 ## 2. API build and start
 
@@ -75,8 +81,18 @@ expected content version  vs  version currently in the database
 
 It is idempotent, non-destructive (never drops or truncates), and exits non-zero
 when the database cannot be reached, migrated, loaded or verified. The dataset
-version is content-addressed over the processed manifest, so "same version" means
-the same inputs rather than a coincidental timestamp.
+version is content-addressed over the processed manifest — the pipeline version,
+the SHA-256 of every canonical processed output, the SHA-256 of every raw/SAS
+input and the row counts — so "same version" means the same data. The build
+timestamp and git SHA are deliberately excluded: they change on every rebuild of
+identical data, and including them made the bootstrap re-load thousands of
+unchanged rows on every deploy.
+
+Verification is more than "the table is not empty": a stale database that still
+holds an older release is non-empty too. The bootstrap compares the loaded period
+set and productivity row count against the processed build, and fails when a
+required historical period (2022A–2023C) is absent. A pass prints the row count
+and the period range it verified.
 
 `--dry-run` reports the plan without writing; `--force-load` reloads even when
 the version matches; `--skip-migrations` is for a platform that migrates
@@ -141,7 +157,14 @@ Confirm each of these by hand; none is provable from the repository.
 - [ ] `CORS_ORIGINS` lists the deployed web origins, and nothing else.
 - [ ] `JWT_SECRET` is a fresh random value, not the template default.
 - [ ] The most recent deploy's pre-deploy log contains the bootstrap's
-      `verified: crop_productivity holds N rows` line.
+      `verified: crop_productivity holds N rows across M periods (...)` line,
+      with `N` = 6,156 and `M` = 14 for the 2022A–2026B build.
+- [ ] `healthCheckPath` is `/api/v1/health/readiness`.
+- [ ] The blueprint/ service tracks `branch: main` (a blueprint without it can
+      follow the repository default branch, which need not be where releases land).
+- [ ] Automatic deployment is on (`autoDeploy: true` in `render.yaml`). It is safe
+      because the pre-deploy bootstrap aborts the deploy on an out-of-sync
+      database, and readiness returns 503 in that state.
 
 Then confirm the running service:
 
@@ -166,11 +189,27 @@ curl -s $API/data/coverage | jq
 | `tables_present` | `true` |
 | `dataset_loaded` | `true` |
 | `version_matches_manifest` | `true` |
+| `expected_version` | equals `dataset_version` (the processed build's version) |
+| `expected_productivity_rows` | equals `loaded_productivity_rows` (6,156 for the 2022A–2026B build) |
 | `blocking` | `[]` |
 
+`/health/readiness` returns HTTP **503** whenever `status` is `not_ready` (and
+200 for `ready`/`degraded`). Render and the Docker `HEALTHCHECK` act on the
+status code, so a body that says `not_ready` inside a 200 was silently accepted
+as healthy - which is how a stale canonical database stayed in front of traffic.
+Confirm the code, not just the body:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' $API/health/readiness   # 200 when ready
+```
+
 In `required` mode the overall `status` is `not_ready` — never `ready` — while any
-of those fail, and the failing step is named in `blocking`. Readiness exposes no
-credentials and no filesystem paths.
+of those fail, and the failing step is named in `blocking`. When the loaded
+dataset differs from the processed build the blocking list contains
+`canonical_dataset_out_of_sync`, and the `canonical_dataset_version` check
+carries the expected and loaded versions plus the expected and loaded row counts
+so a deploy can be diagnosed without guesswork. Readiness exposes no credentials
+and no filesystem paths.
 
 Representative analytical reads, all of which must be served by the database:
 

@@ -21,3 +21,26 @@ def test_load_runs_when_the_database_version_differs():
 
 def test_load_runs_against_an_empty_database():
     assert needs_load(None, "0.4.0-def456") is True
+
+
+# --- verification expectations (no database) --------------------------------
+
+def test_expected_panel_matches_the_processed_build(processed_dir):
+    """The verified period set and row count come from the built artefact."""
+    import json
+
+    import pandas as pd
+
+    from scripts.data.canonical_bootstrap import REQUIRED_BOOTSTRAP_PERIODS, _expected_panel
+    from scripts.tests.conftest import require
+
+    panel_path = require(processed_dir / "crop_productivity.csv")
+    manifest = json.loads(require(processed_dir / "manifest.json").read_text())
+    expected = _expected_panel(panel_path, manifest)
+
+    frame = pd.read_csv(panel_path)
+    assert expected["rows"] == len(frame)
+    assert expected["rows"] == manifest["row_counts"]["crop_productivity"]
+    assert len(expected["periods"]) == frame["period_code"].nunique()
+    # The historical periods the repaired deployment must be able to serve.
+    assert set(REQUIRED_BOOTSTRAP_PERIODS).issubset(set(expected["periods"]))

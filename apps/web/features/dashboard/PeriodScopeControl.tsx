@@ -58,6 +58,12 @@ export function PeriodScopeControl({
 
   const summary = useMemo(() => publishedRangeSummary(periods), [periods]);
   const coverageNote = useMemo(() => axisCoverageNote(periods), [periods]);
+  // Releases the serving dataset does not carry yet. They stay visible in the
+  // axis (the release exists) but cannot be selected, and the reason is named.
+  const unavailable = useMemo(
+    () => periods.filter((item) => item.servable === false),
+    [periods],
+  );
 
   // The selected release, resolved from whatever selection is active. A legacy
   // year+season link is named by its own code so the label never goes blank.
@@ -191,6 +197,17 @@ export function PeriodScopeControl({
 
         <CoveragePopover periods={periods} className="pb-0.5" />
       </div>
+
+      {unavailable.length > 0 ? (
+        <p className="mt-2 flex items-start gap-1.5 border-t border-forest/5 pt-2 text-[11px] leading-relaxed text-amber-700">
+          <span aria-hidden="true">ⓘ</span>
+          {unavailable.length === 1
+            ? `${unavailable[0]?.period_code} is published but the serving dataset does not carry it yet, so it cannot be selected. It becomes available after the database is synchronised with the built data.`
+            : `${unavailable.length} published releases (${unavailable
+                .map((item) => item.period_code)
+                .join(", ")}) are not carried by the serving dataset yet, so they cannot be selected. They become available after the database is synchronised with the built data.`}
+        </p>
+      ) : null}
 
       {coverageNote ? (
         <p className="mt-2 flex items-start gap-1.5 border-t border-forest/5 pt-2 text-[11px] leading-relaxed text-amber-700">

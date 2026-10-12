@@ -1,0 +1,61 @@
+# Render blueprint for the Cropmatics Rwanda API.
+#
+# IMPORTANT: this file is a validated *template*, not a live description of the
+# currently deployed service. Render applies a blueprint only when a service is
+# created from it (or explicitly synced to it); adding this file does NOT change
+# an existing service that was configured by hand in the dashboard. Confirm the
+# Pre-Deploy Command, the Start Command, the health path and the environment in
+# the dashboard against docs/17_DEPLOYMENT.md §5.
+#
+# The three things this blueprint exists to state, because none of them is
+# provable from application code:
+#   * the canonical load runs as a release step (preDeployCommand), never on a
+#     request and never from the Start Command;
+#   * the Start Command is uvicorn only;
+#   * the health path is the deep readiness probe, so a deployment that cannot
+#     serve the canonical dataset is not marked healthy.
+services:
+  - type: web
+    name: cropmatics-api
+    runtime: docker
+    # Pin the production branch explicitly. Without it a blueprint can track the
+    # repository default branch, which is not necessarily where releases land.
+    branch: main
+    plan: starter
+    region: frankfurt
+    # Build context is the repository root: the image runs the data pipeline at
+    # build time and needs the committed raw sources, dictionaries and scripts.
+    dockerfilePath: ./services/api/Dockerfile
+    dockerContext: .
+    # Release step: apply migrations, load the canonical dataset only when its
+    # content version differs, then verify the period set and row count. Runs to
+    # completion before the new instance is put in front of traffic; a non-zero
+    # exit aborts the deploy instead of starting uvicorn against a stale database.
+    preDeployCommand: python /app/scripts/data/canonical_bootstrap.py
+    # Start Command stays limited to uvicorn. Render runs it through a shell, so
+    # $PORT (assigned by Render) is what the process must bind to.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Deep readiness, not liveness: in CANONICAL_DATA_MODE=required this reports
+    # not_ready and returns HTTP 503 while the canonical dataset does not match
+    # the image, so a stale-database deploy fails its health check instead of
+    # being accepted as healthy.
+    healthCheckPath: /api/v1/health/readiness
+    # Deploy on every push to `main`. The release step above is what makes a
+    # deploy safe: an out-of-sync database aborts the deploy rather than serving
+    # stale figures, so automatic deployment cannot publish a broken release.
+    autoDeploy: true
+    envVars:
+      # production implies CANONICAL_DATA_MODE=required; it is set explicitly as
+      # belt and braces so a read can never be answered from a stale CSV.
+      - key: ENVIRONMENT
+        value: production
+      - key: CANONICAL_DATA_MODE
+        value: required
+      # Secrets are never committed or templated: set them in the dashboard.
+      # DATABASE_URL must stay server-side only - never NEXT_PUBLIC_*/EXPO_PUBLIC_*.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

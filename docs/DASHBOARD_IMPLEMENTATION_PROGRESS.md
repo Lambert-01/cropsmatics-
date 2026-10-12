@@ -10,6 +10,25 @@ Statuses: `NOT STARTED` · `IN PROGRESS` · `FUNCTIONAL` · `VERIFIED`
 `VERIFIED` in the phase tables below means implemented and exercised by the
 local checks listed in [DASHBOARD_REFINEMENT_REPORT.md](DASHBOARD_REFINEMENT_REPORT.md).
 
+### Current status (2026-10-13) — read first
+
+`VERIFIED` in the tables below is a **local** status only. The canonical-data
+repair (content-addressed dataset version, out-of-sync detection, the 2022A–2026B
+period axis, canonical provenance) is **not deployed**: the changes are
+uncommitted/unpushed and the live Render service still reports `not_ready` with
+an eight-period database. Specifically:
+
+* the owner must run the Render pre-deploy bootstrap
+  (`python /app/scripts/data/canonical_bootstrap.py`) before the live service can
+  report 14 periods and 6,156 productivity rows;
+* the *database-served* historical path is exercised only by
+  `test_canonical_integration.py`, which skips without PostgreSQL — this machine
+  has no Docker/Postgres, so it is **not** proven here;
+* production endpoint verification requires dashboard access and is not claimed.
+
+Do not read a `VERIFIED` widget row as "live in production". It means the code
+passed the local checks named in this document.
+
 ### Verification levels (read this before trusting a status)
 
 | Level | Meaning |
@@ -131,7 +150,8 @@ storage-context add-on, and finish the mobile implementation.
 | Rwanda map + choropleth modes | `/maps/district-metrics` | `RwandaDistrictMap` | yes (geoBoundaries) | VERIFIED |
 | Map legend / tooltip / controls | `/maps/district-metrics` | `MapLegend`, `MapTooltip`, `MapControls` | yes | VERIFIED |
 | Priority district/crop table | `/analytics/intervention-priorities` | `PriorityTable` | yes | VERIFIED |
-| Crop yield trend | `/analytics/trends` | `YieldTrendChart` | 06 | VERIFIED |
+| Crop yield trend | `/analytics/canonical-trend` | `CanonicalTrendChart` | canonical panel | LOCAL VERIFIED |
+| Legacy national trend (kept for pages that need the single-release context table) | `/analytics/trends` | `YieldTrendChart` | 06 | LOCAL VERIFIED |
 | Input adoption chart | `/analytics/input-adoption` | `InputAdoptionChart` | 07 | VERIFIED |
 | Productivity gap heatmap | `/analytics/heatmap` | `GapHeatmap` | 01 | VERIFIED |
 | Insight panel + provenance | overview provenance | `InsightPanel`, `ProvenanceCard` | yes | VERIFIED |
@@ -197,3 +217,15 @@ storage-context add-on, and finish the mobile implementation.
 | Component-render tests (jsdom/Testing Library) | NOT STARTED |
 | MapLibre/Map Tiles basemap (SVG choropleth used instead) | NOT STARTED (deliberate) |
 | Pixel comparison against the 8 reference images | BLOCKED — needs a human reviewer |
+
+## 2026-10-12 — scope repair (historical landing, availability, map default)
+
+| Item | Status | Evidence |
+|---|---|---|
+| Bare `/dashboard` opens in historical mode regardless of a stored default period | VERIFIED | `useFilters({ landing: true })`; `tests/preferences.test.ts` "dashboard landing scope" |
+| Obsolete stored `defaultPeriod="2025B"` cannot survive | VERIFIED | `PREFERENCES_VERSION = 2`; migration test in `tests/preferences.test.ts` |
+| Drilldown pages keep honouring stored defaults | VERIFIED | preferences test "keeps applying stored defaults on drilldown pages" |
+| Per-period `published` / `servable` / `canonical_*` availability | VERIFIED | `/meta/periods`; `services/api/tests/test_dataset_sync_and_fallback.py` |
+| Map opens on a crop-agnostic metric (`production`) | VERIFIED | `ProductivityRiskMap`, `app/maps/page.tsx`, `MAP_METRICS` |
+| Explicit unavailable period is never answered from 2025B | VERIFIED | `productivity_frame` + `PeriodNotServable`; `test_dataset_sync_and_fallback.py` |
+| Out-of-sync database returns structured 503, not stale data | VERIFIED | `DatasetOutOfSync`; handler in `app/main.py` |

@@ -213,3 +213,40 @@ describe("coverage labels", () => {
     expect(coverageExplanation("unknown", "2026 Season B")).toContain("No coverage level");
   });
 });
+
+describe("period availability", () => {
+  it("treats a missing servable flag as available (older responses keep working)", () => {
+    const cell = periodTimelineState([timelineItem("2025B")], { view: "period", selectedPeriod: "2025B" })[0]!;
+    expect(cell.available).toBe(true);
+    expect(cell.unavailabilityText).toBeNull();
+  });
+
+  it("marks a published-but-not-servable release unavailable and explains why", () => {
+    const item = timelineItem("2022A", {
+      servable: false,
+      availability_status: "coverage_only",
+      availability_message: "2022 Season A is published but not carried by the canonical dataset yet.",
+    });
+    const cell = periodTimelineState([item], { view: "period", selectedPeriod: "2022A" })[0]!;
+    expect(cell.available).toBe(false);
+    expect(cell.unavailabilityText).toContain("not carried by the canonical dataset");
+  });
+
+  it("falls back to a default explanation when the API sends no message", () => {
+    const cell = periodTimelineState(
+      [timelineItem("2023C", { servable: false })],
+      {},
+    )[0]!;
+    expect(cell.available).toBe(false);
+    expect(cell.unavailabilityText).not.toBeNull();
+  });
+
+  it("never marks a servable release unavailable", () => {
+    const cell = periodTimelineState(
+      [timelineItem("2026B", { servable: true })],
+      {},
+    )[0]!;
+    expect(cell.available).toBe(true);
+    expect(cell.unavailabilityText).toBeNull();
+  });
+});

@@ -83,6 +83,39 @@ export interface PeriodTimelineItem {
   n_crops: number;
   is_latest: boolean;
   is_latest_district: boolean;
+  /** The release exists in the processed/source coverage. */
+  published?: boolean;
+  /** The serving canonical panel actually carries rows for it. */
+  servable?: boolean;
+  /** ``servable`` | ``coverage_only`` | ``not_servable``. */
+  availability_status?: string;
+  availability_message?: string | null;
+}
+
+/**
+ * Whether a release on the axis can actually be requested.
+ *
+ * ``published`` means the release exists; ``servable`` means the serving panel
+ * carries it. A client must not offer a published-but-not-servable release for
+ * selection, so this is the single predicate that decides it. A missing field is
+ * treated as available, so an older response without the availability block
+ * keeps working.
+ */
+export function isPeriodServable(
+  item: Pick<PeriodTimelineItem, "servable">,
+): boolean {
+  return item.servable !== false;
+}
+
+/** Short reason a release cannot be used, or null when it can be requested. */
+export function periodUnavailabilityText(
+  item: Pick<PeriodTimelineItem, "servable" | "availability_message">,
+): string | null {
+  if (isPeriodServable(item)) return null;
+  return (
+    item.availability_message ??
+    "published, but the canonical dataset does not carry it in this deployment yet"
+  );
 }
 
 /**
@@ -102,6 +135,10 @@ export interface PeriodTimelineCell extends PeriodTimelineItem {
   state: PeriodTimelineState;
   /** Plain-language coverage, e.g. "30 districts" or "national only". */
   coverageText: string;
+  /** False when the serving panel cannot answer this release yet. */
+  available: boolean;
+  /** Why it cannot be used, or null when it can. */
+  unavailabilityText: string | null;
 }
 
 /**
@@ -181,6 +218,8 @@ export function periodTimelineState(
       ...item,
       state: selected ? "selected" : snapshot ? "snapshot" : "available",
       coverageText: coverageText(item),
+      available: isPeriodServable(item),
+      unavailabilityText: periodUnavailabilityText(item),
     };
   });
 }
