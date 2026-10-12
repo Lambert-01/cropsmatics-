@@ -569,6 +569,58 @@ export interface PostHarvestResponse {
   provenance: Provenance;
 }
 
+/** One use indicator of the multi-period post-harvest panel (2024A-2026B). */
+export interface PostharvestHistoryIndicator {
+  indicator_code: string;
+  unit?: string | null;
+  periods: string[];
+  n_observations: number;
+  n_null: number;
+}
+
+export interface PostharvestHistoryObservation {
+  period_code: string;
+  year?: number | null;
+  season?: string | null;
+  crop: string;
+  indicator_code: string;
+  value?: number | null;
+  unit?: string | null;
+  /** Published total of the crop x period group, never rescaled. */
+  shares_sum_pct?: number | null;
+  shares_sum_ok?: boolean | null;
+  source_id?: string | null;
+  source_release?: string | null;
+}
+
+export interface PostharvestShareTotal {
+  period_code: string;
+  crop: string;
+  shares_sum_pct?: number | null;
+  shares_sum_ok?: boolean | null;
+}
+
+/**
+ * `GET /analytics/postharvest-history`.
+ *
+ * `observations` is the filtered slice; `share_totals` and `shares_off_total`
+ * describe the whole published panel, so a reader is told about a flagged group
+ * even when a crop filter hides it.
+ */
+export interface PostharvestHistoryResponse {
+  available: boolean;
+  crops: string[];
+  indicators: PostharvestHistoryIndicator[];
+  periods: string[];
+  observations: PostharvestHistoryObservation[];
+  n_observations: number;
+  share_totals: PostharvestShareTotal[];
+  shares_off_total: number;
+  period?: string | null;
+  note?: string | null;
+  provenance: Provenance;
+}
+
 export interface HeatmapCell {
   district: string;
   crop: string;
