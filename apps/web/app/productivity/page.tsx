@@ -9,6 +9,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
+import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
@@ -19,7 +20,14 @@ import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
 import { GapDumbbell } from "@/features/productivity/GapDumbbell";
 import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
-import { useFactors, useInputAdoption, useOverview, useProductivity, useTrends } from "@/services/hooks/useAnalytics";
+import {
+  useFactors,
+  useInputAdoption,
+  useOverview,
+  usePracticeIndicators,
+  useProductivity,
+  useTrends,
+} from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
 /**
@@ -46,6 +54,14 @@ export default function ProductivityPage() {
   const factors = useFactors(filters, districtMode && Boolean(filters.crop));
   const trends = useTrends(filters.crop, filters.compare);
   const inputs = useInputAdoption();
+  // District-scoped practice indicators. The full panel is 9,468 rows, so the
+  // request waits for a district and pages one district's ~306 rows; an
+  // unfiltered read is one arbitrary page, never a national picture.
+  const practiceIndicators = usePracticeIndicators({
+    district: filters.district ?? undefined,
+    limit: 500,
+    enabled: Boolean(filters.district),
+  });
   const benchmarkStrategy =
     productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
 
@@ -164,6 +180,19 @@ export default function ProductivityPage() {
           {/* Two-period change answers "who moved?", which is a different
               question from "who is below benchmark" and needs its own frame. */}
           <DistrictChangePanel filters={filters} />
+
+          {/* Adoption and practice indicators: district-grained, and a single
+              release. They sat inside the Overview's "detailed analysis" hash
+              before; here they are one of the page's own answers. */}
+          <PracticeIndicatorsPanel
+            data={practiceIndicators.data}
+            district={filters.district}
+            isLoading={practiceIndicators.isLoading}
+            isFetching={practiceIndicators.isFetching}
+            hasError={practiceIndicators.isError}
+            errorMessage={(practiceIndicators.error as Error)?.message}
+            onRetry={() => practiceIndicators.refetch()}
+          />
 
           {/* Evidence & methods: model diagnostics and factor associations are
               not the district answer, so they never precede it. Associations are

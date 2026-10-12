@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
+import Link from "next/link";
 
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
@@ -17,39 +18,34 @@ import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
-import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
-import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
-import { GapDumbbell } from "@/features/productivity/GapDumbbell";
-import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import {
   useCanonicalTrend,
   useInputAdoption,
   useOverview,
-  usePracticeIndicators,
   usePriorities,
-  useProductivity,
 } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
 /**
  * The Overview: one decision question per screenful.
  *
- * 1. **Scope** - the filter bar, the compact period scope control, and an
- *    explicit scope line, so a reader knows what every figure below covers
- *    before reading one. The published axis itself lives behind the control's
- *    coverage popover: it is reference material, not the answer.
+ * 1. **Scope** - the filter bar (non-period filters only), the compact period
+ *    scope control, and an explicit scope line, so a reader knows what every
+ *    figure below covers before reading one. The period axis is owned by exactly
+ *    one control; a second period selector in the filter bar would be a control
+ *    that can disagree with the first.
  * 2. **Headline** - at most four KPIs, one scope and one period.
  * 3. **Where to look** - the map as the visual anchor, with the short priority
  *    answer beside it. Selecting a district re-scopes the page.
- * 4. **Evidence** - one crop trend and the ranked comparison.
- * 5. **Details** - gap views, adoption trends and the full matrix, one
- *    interaction away rather than competing with the answer for attention.
- *
- * The panels are not ordered by size or by authoring history; each screenful
- * answers its question and then gets out of the way.
+ * 4. **Evidence** - the canonical multi-period trend and the ranked comparison.
+ * 5. **Where to go deeper** - the gap distribution, adoption/practice detail,
+ *    district x crop matrix and model diagnostics are *answers*, but to
+ *    different questions. They live on their own pages, reached from one compact
+ *    card, instead of being stacked inside a disclosure whose nested chart cards
+ *    made this page read as a workspace rather than an overview.
  */
 export default function DashboardPage() {
   // The national dashboard is a *landing* page: it opens on the historical,
@@ -66,22 +62,9 @@ export default function DashboardPage() {
   // in the line. It ignores `compare` - a cross-crop yield comparison is not a
   // published number and the panel deliberately does not derive one.
   const canonicalTrend = useCanonicalTrend(filters.crop, filters.district);
+  // The national adoption trend stays on the landing page: it is a national
+  // context series (not district estimates) and does not need a district.
   const inputAdoption = useInputAdoption();
-  // The practice panel is district-grained and the endpoint pages its full
-  // 9,468-row table, so the request waits for a district: an unfiltered
-  // response is one arbitrary page, never a national picture. The national
-  // adoption trend stays with `inputAdoption` above.
-  const practiceIndicators = usePracticeIndicators({
-    district: filters.district ?? undefined,
-    limit: 500,
-    enabled: Boolean(filters.district),
-  });
-  // The gap views read the productivity panel's own published columns (observed
-  // yield, benchmark, gap index) rather than deriving a shortfall locally, so
-  // the dashboard and the Productivity page can never disagree about a number.
-  const productivity = useProductivity(filters, districtMode);
-  const benchmarkStrategy =
-    productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
 
   return (
     <div className="space-y-5">
@@ -184,7 +167,7 @@ export default function DashboardPage() {
             ) : null}
           </div>
 
-          {/* Screenful 2: one trend and the ranked comparison. */}
+          {/* Screenful 2: the canonical trend and the ranked comparison. */}
           <div className="grid gap-5 xl:grid-cols-2">
             <PriorityTable
               rows={priorities.data?.rows ?? []}
@@ -203,61 +186,6 @@ export default function DashboardPage() {
               district={filters.district}
             />
           </div>
-
-          {/* Details: useful to an analyst, and not the answer. Collapsed so the
-              page leads with its decision question instead of ten charts. */}
-          <details className="card group px-4 py-3">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-slate-700 marker:content-none">
-              <span>
-                Detailed analysis
-                <span className="ml-1.5 font-normal text-slate-400">
-                  gap distribution, adoption trends, full district x crop matrix
-                </span>
-              </span>
-              <ChevronDown
-                className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
-                aria-hidden="true"
-              />
-            </summary>
-
-            <div className="mt-4 space-y-5">
-              <div className="grid gap-5 xl:grid-cols-2">
-                <GapRankedBars
-                  rows={productivity.data?.rows ?? []}
-                  isLoading={productivity.isLoading}
-                  period={productivity.data?.period}
-                  benchmark={benchmarkStrategy}
-                />
-                <GapDumbbell
-                  rows={productivity.data?.rows ?? []}
-                  isLoading={productivity.isLoading}
-                  period={productivity.data?.period}
-                  benchmark={benchmarkStrategy}
-                />
-              </div>
-
-              <InputAdoptionChart
-                data={inputAdoption.data}
-                isLoading={inputAdoption.isLoading}
-                isFetching={inputAdoption.isFetching}
-                hasError={inputAdoption.isError}
-                errorMessage={(inputAdoption.error as Error)?.message}
-                onRetry={() => inputAdoption.refetch()}
-              />
-
-              <PracticeIndicatorsPanel
-                data={practiceIndicators.data}
-                district={filters.district}
-                isLoading={practiceIndicators.isLoading}
-                isFetching={practiceIndicators.isFetching}
-                hasError={practiceIndicators.isError}
-                errorMessage={(practiceIndicators.error as Error)?.message}
-                onRetry={() => practiceIndicators.refetch()}
-              />
-
-              <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
-            </div>
-          </details>
         </>
       ) : (
         <>
@@ -281,19 +209,72 @@ export default function DashboardPage() {
               onRetry={() => inputAdoption.refetch()}
             />
           </div>
-          <PracticeIndicatorsPanel
-            data={practiceIndicators.data}
-            district={filters.district}
-            isLoading={practiceIndicators.isLoading}
-            isFetching={practiceIndicators.isFetching}
-            hasError={practiceIndicators.isError}
-            errorMessage={(practiceIndicators.error as Error)?.message}
-            onRetry={() => practiceIndicators.refetch()}
-          />
         </>
       )}
 
+      <ExploreFurther districtMode={districtMode} />
+
       {overview.data ? <ProvenanceCard provenance={overview.data.provenance} /> : null}
     </div>
+  );
+}
+
+/**
+ * One compact card that routes to the pages that own the deeper answers.
+ *
+ * The Overview used to bury five analytical views (gap distribution, dumbbell,
+ * adoption, practice indicators, full matrix) inside an expandable card, each a
+ * chart card nested in another card. That answered detail questions on the
+ * landing page and made the overview read as a workspace. The answers still
+ * exist - on the pages built to hold them - and this is the one place that says
+ * where.
+ */
+function ExploreFurther({ districtMode }: { districtMode: boolean }) {
+  const links = [
+    {
+      href: "/productivity",
+      title: "Productivity Intelligence",
+      body: "Gap distribution, district ranking, the full district x crop matrix and practice indicators.",
+    },
+    {
+      href: "/yield-intelligence",
+      title: "Yield Intelligence",
+      body: "Per-crop trends, spatial views, gap persistence and the forecasting publication gate.",
+    },
+    {
+      href: "/interventions",
+      title: "Intervention Planner",
+      body: "Weighted priority ranking you can adjust, with the components and their availability shown.",
+    },
+  ] as const;
+
+  return (
+    <section aria-label="Explore further" className="card px-4 py-4">
+      <h2 className="text-sm font-semibold text-forest-deep">
+        {districtMode ? "Where to look next" : "Explore the analysis"}
+      </h2>
+      <p className="mt-1 text-xs text-slate-500">
+        The Overview answers one question. The detailed analyses live on their own pages so neither
+        is read out of context.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        {links.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="group flex flex-col rounded-lg border border-forest/10 bg-forest/[0.02] p-3 transition hover:border-forest/25 hover:bg-forest/[0.05]"
+          >
+            <span className="flex items-center justify-between gap-2 text-sm font-semibold text-forest-deep">
+              {link.title}
+              <ArrowRight
+                className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="mt-1 text-xs leading-relaxed text-slate-600">{link.body}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

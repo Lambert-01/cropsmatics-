@@ -29,6 +29,13 @@ an eight-period database. Specifically:
 Do not read a `VERIFIED` widget row as "live in production". It means the code
 passed the local checks named in this document.
 
+**Overview simplification (2026-10-13):** the dashboard no longer stacks five
+analytical views inside a nested "Detailed analysis" disclosure. The Overview now
+answers one question (map + insight, ranked comparison + the canonical
+multi-period trend) and routes to the pages that own the deeper answers via a
+single "Explore further" card. The practice-indicators panel moved to
+`/productivity`; the gap bars/dumbbell/matrix already lived there.
+
 ### Verification levels (read this before trusting a status)
 
 | Level | Meaning |
