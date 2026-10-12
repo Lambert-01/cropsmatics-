@@ -278,3 +278,159 @@ regression from the pipeline change and passes (39 passed).
   workbook; the precedence question is unresolved by design.
 * No screenshot or recording of the mobile Analyze screen exists, because no
   device or emulator was available to render it.
+
+---
+
+# Phase P1 — CI repair, disappearing charts, coverage labels, compact period scope
+
+Session date 2026-10-12, branch `milestone-1-2-readiness-reconciliation`, baseline
+commit `1005ddc`. Everything below names the command that produced it.
+
+## P1.1 — The two red CI jobs, reproduced and fixed
+
+The handoff listed `Data pipeline: Ruff` and `API: pytest unit/canonical
+integration` as failing at `1005ddc`. Both were reproduced locally, and the API
+one turned out to be **three** defects, not one.
+
+| # | Failure | Root cause | Fix |
+|---|---|---|---|
+| 1 | `ruff check scripts/data` → `B905` | `build_agricultural_practice_observation.py:141` built a domain column with `zip()` and no `strict=` | added `strict=False` (the two frames are the same length by construction; the rule is about being explicit) |
+| 2 | Canonical load rolled back → 17 DB tests failed | `data_source` is the FK target of `source_table.source_id`, but the 2022/2023 ingestion and the legacy district pack added `NISR_SAS_2022_ANNUAL`, `NISR_SAS_2023_ANNUAL` and `NISR_SAS_2025B_DISTRICT_CROP` to the panel **without** declaring them in `app.data.catalogue.SOURCES` | the three `SourceDef`s are declared; the loader now inserts 16 `data_source` rows and exits 0 |
+| 3 | `test_periods_cover_every_published_release` asserted 8 periods | the literal set was written when the panel was 2024A–2026B; the panel is now 2022A–2026B, so the test failed on a *correct* panel | the expectation is derived from `data/processed/crop_productivity.csv` (the file the loader read), plus a multi-year guard |
+
+Reproduction and proof:
+
+```
+.venv/bin/ruff check scripts/data scripts/tests          -> All checks passed!
+.venv/bin/python -m scripts.data.load_postgres --url <test db>
+    -> period 14 | data_source 16 | source_table 62 | crop_productivity 6156 | EXIT=0
+    (before: ForeignKeyViolation source_table_source_id_fkey, whole run rolled back)
+CANONICAL_TEST_DATABASE_URL=... pytest services/api/tests/test_canonical_integration.py
+    -> 26 passed, 1 skipped   (before: 17 failed, 9 passed, 1 skipped)
+```
+
+The DB-backed suite was run for real, not skipped, against an **isolated Neon
+database** (`cropmatics_ci_canonical_test`) created for the purpose and dropped
+afterwards. Production was never written to; verified unchanged afterwards:
+`crop_productivity = 3,738`, `dataset_version = 0.2.0-535efe5d2bd75b51`,
+`loaded_at = 2026-10-02`.
+
+Two new guards keep this class of failure in the fast suite instead of only in CI:
+
+* `services/api/tests/test_source_catalogue_consistency.py` (4 tests) — every
+  `source_id` cited by any processed artefact must be declared, ids must be
+  unique, and a declared `registry_name` must resolve to a registry row.
+* `services/api/tests/test_period_coverage_sources.py` (6 tests) — the period
+  catalogue's coverage derivation (see P1.3).
+
+## P1.2 — "Chart appears, then disappears"
+
+**Root cause, traced and fixed.** Three independent defects combined:
+
+1. `AnalyticsFilterBar` wrote the `year`/`season` pair *derived from* a selected
+   period back into the URL. `lib/filters.ts` documents the opposite contract
+   ("the canonical period wins in the URL; year/season are only written when no
+   period code is selected"), and `filtersToApiQuery` already derives the pair, so
+   the write changed **nothing the API saw** while changing the filter object.
+2. Every analytical hook keyed on the raw filter object (`queryKey: ["overview",
+   filters]`). Adding a derived field produced a *new key for the same release*,
+   so React Query dropped the loaded response and refetched it — an
+   already-rendered chart was replaced by a skeleton.
+3. Charts used `if (isLoading) return <Skeleton/>`, which treats *any* in-flight
+   request as "nothing to read", so the same symptom was reachable from a
+   background refetch too.
+
+Fixes:
+
+* the filter bar no longer writes the derived pair; a stale legacy pair is cleared
+  instead (one description of the scope in the URL);
+* `lib/filters.ts` gains `scopeKey(filters)`, derived from `filtersToApiQuery`, so
+  **the query key is exactly the request**: same query ⇒ same cache entry. All
+  analytical hooks in `useAnalytics.ts` now key on it;
+* the chart visibility decision moved to `lib/chartState.ts`
+  (`chartDisplayState`), where "has data" always beats "is fetching" and beats
+  "failed": a valid chart is never blanked by a later request. A separate
+  `UpdatingPill` marks a substate update instead of a skeleton.
+
+Regression tests: `apps/web/tests/chart-state.test.ts` (8 cases incl. "keeps a
+loaded chart while a background refetch is in flight", "…when a later request
+fails") and `apps/web/tests/filters.test.ts` → `scope identity (the query key)`
+(5 cases incl. the exact period-vs-period+derived-pair regression).
+
+## P1.3 — "Coverage unknown"
+
+**Two causes, both fixed.**
+
+*Backend*: `period_service.catalog()` took a period's `coverage_level` only from
+the productivity panel and never from the coverage matrix. A period the serving
+panel does not substantiate — exactly what a production database older than the
+pipeline produces — ended up `coverage_level = None` even though the matrix
+described it. `_strongest_level` now derives the level from every layer that
+records one (district > national_crop > national), `None` is preserved when
+nothing was recorded, and the catalogue notes now say which periods only the
+matrix describes instead of asserting panel coverage that is absent.
+
+*Frontend*: `PeriodTimeline`'s local `coverageText` recognised only two of the
+three published levels and rendered `national_crop` as the literal string
+"coverage unknown". It is now `coverageText()` in `lib/coverage.ts`, exported and
+tested, with `national_crop` → "national · crop level", a district level with no
+count → "district rows" (never a borrowed 30), and an unrecorded level →
+"coverage not recorded".
+
+## P1.4 — The oversized 14-period list
+
+Replaced, not restyled. The Overview's opening element is now
+`PeriodScopeControl`: an explicit **All published periods** scope, a **Year**
+select, a **Season** select limited to the seasons that year really published, a
+compact scope summary, a data-derived supporting line
+("Historical data: 2022–2026 · Latest published season: 2026 Season B · 14
+releases" — the latest is taken from the axis order, so it is not hardcoded), and
+a **Coverage** popover holding the full per-release timeline one interaction away.
+The default Overview no longer spends a screenful listing releases.
+
+Helpers live in `lib/periodControl.ts` and are tested in
+`apps/web/tests/period-control.test.ts` (14 cases).
+
+## P1.5 — Verification actually run
+
+```
+ruff check scripts/data scripts/tests            All checks passed!
+ruff check services/api/app services/api/tests   All checks passed!
+ruff check ml/src ml/tests                       All checks passed!
+pytest services/api/tests                        548 passed, 27 skipped   (was 542/27)
+pytest services/api/tests (CANONICAL_TEST_DATABASE_URL=...)  26 passed, 1 skipped
+pytest scripts/tests                             94 passed, 1 skipped
+pytest ml                                        39 passed
+pnpm --filter cropmatics-web typecheck           clean
+pnpm --filter cropmatics-web lint                clean
+pnpm --filter cropmatics-web test                235 passed / 20 files  (was 182/17)
+pnpm --filter cropmatics-web build               EXIT=0
+apps/mobile typecheck / lint                     clean
+apps/mobile npm test                             296 passed / 31 files
+python -m scripts.data.run_all.py                EXIT=0
+```
+
+`ortools==9.11.4210` was installed into the local venv (it is pinned in
+`services/api/requirements-ml.txt`) so the three optimisation tests run locally
+instead of skipping; that is why the local API baseline is 542 passed / 27 skipped
+here rather than 542 / 30.
+
+## P1.6 — Known non-claims for this phase
+
+* No DOM/browser harness was added. The web tests are pure-function tests; the
+  period control and the chart panels are verified by typecheck, lint, unit tests
+  and a production build, **not by rendering**. `BROWSER_VERIFIED` is not claimed.
+* The mobile app was not modified in this phase.
+* Productivity, Yield Intelligence, Interventions, Post-Harvest, Storage, Crops
+  catalogue and crop-detail pages were **not** redesigned in this phase.
+* Forecasting was not revalidated; the 271 unmapped SAS sheets were not reviewed.
+* Production was not loaded; `production load` remains **blocked on explicit
+  approval**, unchanged from the previous record.
+
+## P1.7 — Environment note for the next agent
+
+Stale `__pycache__` bytecode in this checkout embeds the path
+`/Users/apple/Desktop/AgriNexus_Rwanda_Starter_Package` (the directory the repo
+was previously called). Pytest therefore *prints* skip locations under that old
+path. The results are correct; only the displayed path is stale. A dangling
+`git worktree` registration for the same old path remains listed as `prunable`.

@@ -180,6 +180,9 @@ export function scopeSummaryText(opts: {
  * A canonical ``period`` is sent as ``period_code`` together with its derived
  * ``year``/``season`` so that period-aware endpoints (dashboard, analytics,
  * maps) and legacy year/season endpoints select the same release.
+ *
+ * This is the single description of what a scope *requests*, which is why
+ * :func:`scopeKey` is derived from it rather than from the filter object.
  */
 export function filtersToApiQuery(filters: DashboardFilters): string {
   const params = new URLSearchParams();
@@ -201,4 +204,27 @@ export function filtersToApiQuery(filters: DashboardFilters): string {
   if (filters.district) params.set("district", filters.district);
   params.set("benchmark_strategy", filters.benchmark ?? DEFAULT_BENCHMARK);
   return params.toString();
+}
+
+/**
+ * The query-key identity of an analytical scope.
+ *
+ * React Query caches and refetches by key, so the key *is* the definition of
+ * "the same selection". Keying on the raw filter object made two filters that
+ * describe one release look like two different scopes: a period plus the
+ * year/season pair derived from it produced a second key for the same release,
+ * so a chart that had already rendered was torn down and refetched - which is
+ * the "chart appears, then disappears" behaviour, not a loading state.
+ *
+ * Derived from :func:`filtersToApiQuery`, so the key is exactly the request: if
+ * two filters produce the same API query they share a cache entry, and if the
+ * query differs the key differs. History scope deliberately sends no period, so
+ * every history scope shares one entry, as it should.
+ */
+export function scopeKey(filters: DashboardFilters): string {
+  const params = new URLSearchParams(filtersToApiQuery(filters));
+  return [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
 }

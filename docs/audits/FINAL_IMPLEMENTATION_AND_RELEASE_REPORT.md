@@ -213,3 +213,77 @@ Production read-only probe reproduced the deployed state:
 * No new i18n key was added, so Kinyarwanda completeness is unchanged rather than
   improved by this pass.
 * CI was not run.
+
+---
+
+# Addendum — Phase P1 (2026-10-12)
+
+Companion detail: `REMAINING_WORK_VERIFICATION.md` → "Phase P1".
+
+## Requirement status after P1
+
+| Requirement | Status |
+|---|---|
+| Data-pipeline Ruff job passes | `LOCALLY_VERIFIED` — `ruff check scripts/data scripts/tests` clean |
+| API "unit/canonical integration" job passes | `LOCALLY_VERIFIED` against an isolated Neon database: 26 passed, 1 skipped (was 17 failed) |
+| DB tests run, not skipped, on isolated infrastructure | `LOCALLY_VERIFIED` — dedicated throwaway Neon database, created for the run and dropped afterwards |
+| Charts do not disappear after a filter change or refetch | `IMPLEMENTED` + `LOCALLY_VERIFIED` (unit) — root cause fixed; `BROWSER_VERIFIED` **not** claimed |
+| "Coverage unknown" no longer appears for a known level | `IMPLEMENTED` + `LOCALLY_VERIFIED` (API + unit) |
+| No fabricated district counts | `LOCALLY_VERIFIED` — covered by `coverageText` tests |
+| Overview no longer dominated by a 14-period list | `IMPLEMENTED` + `LOCALLY_VERIFIED` (build + unit); rendering **not** visually confirmed |
+| History remains discoverable / year + season filtering intuitive | `IMPLEMENTED` — all-periods scope, year, season and a coverage popover |
+| Source quality flags visible | unchanged from the previous phase (not extended here) |
+| GitHub Actions green on the final commit | `PENDING` — CI was not run from here; the failures reported at `1005ddc` are reproduced and fixed locally |
+| Production database load | `BLOCKED — explicit approval required` (unchanged; production verified byte-identical afterwards) |
+| Production readiness | not claimed |
+
+## Files changed in P1
+
+**API / data**
+* `services/api/app/data/catalogue.py` — declare `NISR_SAS_2022_ANNUAL`,
+  `NISR_SAS_2023_ANNUAL`, `NISR_SAS_2025B_DISTRICT_CROP` (fixes the loader FK)
+* `services/api/app/services/period_service.py` — coverage level derived from every
+  substantiating layer; data-derived notes; `panel_periods` / `matrix_only_periods`
+* `scripts/data/build_agricultural_practice_observation.py` — `zip(strict=False)`
+* `services/api/tests/test_canonical_integration.py` — period expectation derived
+  from the processed panel
+* `services/api/tests/test_source_catalogue_consistency.py` (new, 4 tests)
+* `services/api/tests/test_period_coverage_sources.py` (new, 6 tests)
+
+**Web**
+* `apps/web/lib/filters.ts` — `scopeKey()` (centralised query-key identity)
+* `apps/web/lib/chartState.ts` (new) — the chart-visibility rule
+* `apps/web/lib/coverage.ts` — exported, precise `coverageText` / `coverageExplanation` / `strongestCoverage`
+* `apps/web/lib/periodControl.ts` (new) — period-axis helpers for the compact control
+* `apps/web/lib/series.ts` (new) — multi-series selection rules
+* `apps/web/services/hooks/useAnalytics.ts` — all analytical query keys on `scopeKey`
+* `apps/web/components/filters/AnalyticsFilterBar.tsx` — no derived year/season write
+* `apps/web/components/ui/States.tsx` — `UpdatingPill`
+* `apps/web/features/dashboard/PeriodScopeControl.tsx` (new) — the compact scope control
+* `apps/web/features/dashboard/PeriodTimeline.tsx` — compact, read-only coverage list
+* `apps/web/features/dashboard/YieldTrendChart.tsx`, `InputAdoptionChart.tsx`
+* `apps/web/app/dashboard/page.tsx` — scope control first; charts get state, not just `isLoading`
+* tests: `chart-state.test.ts`, `period-control.test.ts`, `series.test.ts` (new),
+  `filters.test.ts` and `coverage.test.ts` extended
+
+## Measured results
+
+```
+API           548 passed, 27 skipped   (+6 new; baseline 542/27)
+API canonical  26 passed,  1 skipped   (isolated Neon DB; was 17 failed / 9 passed)
+data pipeline  94 passed,  1 skipped
+ML             39 passed
+web            235 passed / 20 files   (baseline 182/17), typecheck + lint clean, build EXIT=0
+mobile         296 passed / 31 files   (not modified in this phase), typecheck + lint clean
+pipeline       scripts/data/run_all.py EXIT=0; every CI-asserted artefact present
+```
+
+## What is still not done (honest list)
+
+The seven-page design-system reconstruction, the Productivity / Yield Intelligence
+/ Interventions / Post-Harvest / Storage page redesigns, the Crops catalogue and
+crop-detail work, the whole mobile workstream, the forecasting revalidation, the
+271 unmapped SAS sheets, the browser/device verification gates, and the production
+load all remain **outstanding**. P1 deliberately fixed the reported functional
+bugs and the red CI first, because every later phase depends on the data path and
+the query layer being correct.

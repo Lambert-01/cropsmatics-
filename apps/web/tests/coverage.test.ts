@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  coverageExplanation,
   coverageLimitations,
+  coverageMode,
+  coverageText,
   periodSpan,
   periodTimelineState,
   sortPeriods,
+  strongestCoverage,
   type CoverageDetailRow,
   type PeriodTimelineItem,
 } from "@/lib/coverage";
@@ -150,11 +154,62 @@ describe("published-period timeline", () => {
     );
     expect(cells[0].coverageText).toBe("30 districts");
     expect(cells[1].coverageText).toBe("national only");
-    expect(cells[2].coverageText).toBe("coverage unknown");
+    // Was the literal string "coverage unknown": a label that says nothing and
+    // was simply wrong for every level the API publishes but this function did
+    // not recognise. A level nobody recorded now says so explicitly.
+    expect(cells[2].coverageText).toBe("coverage not recorded");
   });
 
   it("marks nothing when there is no scope or snapshot" , () => {
     const cells = periodTimelineState(ALL_PERIODS.map((p) => timelineItem(p)), {});
     expect(cells.every((c) => c.state === "available")).toBe(true);
+  });
+});
+
+describe("coverage labels", () => {
+  it("recognises every level the API publishes", () => {
+    expect(coverageMode("district")).toBe("district");
+    expect(coverageMode("national")).toBe("national");
+    // The level the timeline used to fall through to "coverage unknown".
+    expect(coverageMode("national_crop")).toBe("national_crop");
+    expect(coverageMode("NATIONAL_CROP")).toBe("national_crop");
+    expect(coverageMode(" district ")).toBe("district");
+    expect(coverageMode(null)).toBe("unknown");
+    expect(coverageMode("something-new")).toBe("unknown");
+  });
+
+  it("labels a national crop-level release precisely", () => {
+    expect(coverageText({ coverage_level: "national_crop", n_districts: 0 })).toBe(
+      "national · crop level",
+    );
+  });
+
+  it("never invents a district count", () => {
+    // A district-level statement with no count names the level; it does not
+    // borrow 30 from somewhere else.
+    expect(coverageText({ coverage_level: "district", n_districts: 0 })).toBe("district rows");
+    expect(coverageText({ coverage_level: "district", n_districts: 30 })).toBe("30 districts");
+    expect(coverageText({ coverage_level: "district", n_districts: 1 })).toBe("1 district");
+  });
+
+  it("says a level was not recorded instead of calling it unknown", () => {
+    expect(coverageText({ coverage_level: null })).toBe("coverage not recorded");
+    expect(coverageText({})).toBe("coverage not recorded");
+  });
+
+  it("picks the strongest substantiated level for a mixed period", () => {
+    expect(strongestCoverage(["national", "district"])).toBe("district");
+    expect(strongestCoverage(["national", "national_crop"])).toBe("national_crop");
+    expect(strongestCoverage(["national"])).toBe("national");
+    expect(strongestCoverage([])).toBe("unknown");
+    expect(strongestCoverage([null, ""])).toBe("unknown");
+  });
+
+  it("explains a level without contradicting its label", () => {
+    expect(coverageExplanation("district", "2026 Season B")).toContain("District-level");
+    expect(coverageExplanation("national_crop", "2026 Season B")).toContain(
+      "no district estimate",
+    );
+    expect(coverageExplanation("unknown", "2026 Season B")).toContain("No coverage level");
   });
 });

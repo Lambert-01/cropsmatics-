@@ -11,6 +11,26 @@ export type CoverageMode = "district" | "national" | "national_crop" | "unknown"
 
 export const COVERAGE_MODES: CoverageMode[] = ["district", "national", "national_crop", "unknown"];
 
+/**
+ * The full published vocabulary, in order of decreasing geographic breadth.
+ *
+ * A period's level is the *strongest* level any dataset substantiates for it, so
+ * a period that carries a mixed set is described by its district rows rather
+ * than by the weakest contributor.
+ */
+export const COVERAGE_PRECEDENCE: CoverageMode[] = [
+  "district",
+  "national_crop",
+  "national",
+  "unknown",
+];
+
+/** The strongest supported mode in a set; `unknown` only when nothing is known. */
+export function strongestCoverage(levels: Iterable<string | null | undefined>): CoverageMode {
+  const modes = new Set([...levels].map((level) => coverageMode(level)));
+  return COVERAGE_PRECEDENCE.find((mode) => modes.has(mode)) ?? "unknown";
+}
+
 /** Map a coverage level from `/meta/data-coverage` to a display mode. */
 export function coverageMode(level?: string | null): CoverageMode {
   const normalised = (level ?? "").trim().toLowerCase();
@@ -84,10 +104,55 @@ export interface PeriodTimelineCell extends PeriodTimelineItem {
   coverageText: string;
 }
 
-function coverageText(item: PeriodTimelineItem): string {
-  if (item.coverage_level === "district") return `${item.n_districts} districts`;
-  if (item.coverage_level === "national") return "national only";
-  return "coverage unknown";
+/**
+ * Plain-language coverage for one published period.
+ *
+ * Exported because this string is the whole answer to "what do these districts
+ * cover?". It used to live inside the timeline component and recognised only two
+ * of the three levels the API publishes, so a period the catalogue had labelled
+ * `national_crop` was shown as "coverage unknown" - a label that says nothing and
+ * was simply wrong. An unrecognised level is now named as *not recorded*, which
+ * is a statement about the serving system rather than a mystery.
+ */
+export function coverageText(item: {
+  coverage_level?: string | null;
+  n_districts?: number | null;
+}): string {
+  switch (coverageMode(item.coverage_level)) {
+    case "district": {
+      const n = Number(item.n_districts ?? 0);
+      if (n > 0) return `${n} district${n === 1 ? "" : "s"}`;
+      // A district-level statement with no district count is not a count we can
+      // state; naming the level is honest, inventing "30" is not.
+      return "district rows";
+    }
+    case "national_crop":
+      return "national · crop level";
+    case "national":
+      return "national only";
+    default:
+      return "coverage not recorded";
+  }
+}
+
+/**
+ * A longer explanation for a coverage level, used in titles and notices.
+ *
+ * Kept next to :func:`coverageText` so the short and long forms can never
+ * disagree about what a level means.
+ */
+export function coverageExplanation(mode: CoverageMode, period?: string | null): string {
+  const label = period ? period : "this selection";
+  switch (mode) {
+    case "district":
+      return `District-level observations are available for ${label}.`;
+    case "national_crop":
+      return `Only national crop-level figures are published for ${label}; no district estimate exists for it.`;
+    case "national":
+      return `Only national figures are published for ${label}; no district estimate exists for it.`;
+    default:
+      return `No coverage level has been recorded for ${label} in the serving catalogue, so no district estimate is drawn from it.`;
+  }
 }
 
 /**

@@ -3,7 +3,7 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText, splitPeriod } from "@/lib/filters";
+import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText } from "@/lib/filters";
 import { cn } from "@/lib/cn";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -364,18 +364,23 @@ export function AnalyticsFilterBar({
   /**
    * Keep the canonical period and the legacy year/season pair in step.
    *
-   * - A selected period always resolves to its year and season.
-   * - A year+season pair that names an unpublished period is invalid, so the
-   *   season is cleared automatically (e.g. 2026 Season C does not exist).
-   * - A valid pair is canonicalised to its period code so period-aware
-   *   endpoints receive ``period_code``.
+   * Only one direction is needed: a legacy ``year``+``season`` link that names a
+   * published period is canonicalised to its period code.
+   *
+   * The other direction (writing year/season back for a selected period) was a
+   * real bug and is deliberately gone. ``filtersToQuery`` and
+   * ``filtersToApiQuery`` both derive the pair from the period, so writing it
+   * into the URL changed nothing the API saw while changing the filter object -
+   * a second ``router.replace``, a second query key for the same release, and
+   * therefore a chart that rendered and was then torn down. A stale legacy pair
+   * is now cleared instead, so the URL keeps exactly one description of the
+   * scope.
    */
   useEffect(() => {
     if (periods.length === 0) return;
     if (filters.period) {
-      const { year, season } = splitPeriod(filters.period);
-      if (year && season && (filters.year !== year || filters.season !== season)) {
-        setFilters({ year, season });
+      if (filters.year !== undefined || filters.season !== undefined) {
+        setFilters({ year: undefined, season: undefined });
       }
       return;
     }
