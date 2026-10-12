@@ -2,8 +2,8 @@
 
 **Crop Intelligence from Data to Action.**
 
-A full-stack agricultural decision-intelligence platform for the **NISR 2026 Big
-Data Hackathon — Track 1: Agricultural Productivity**. Cropmatics Rwanda combines
+A full-stack agricultural decision-intelligence platform for the
+**[NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity](https://statistics.gov.rw/about/hackathon/2026-hackathon-competition)**. Cropmatics Rwanda combines
 agricultural informatics, statistical analysis, machine learning, geospatial
 intelligence and optimization to turn official agricultural statistics,
 geospatial information and operational field data into actionable insights for
@@ -66,11 +66,15 @@ infra                 infrastructure notes
 
 ## Datasets
 
-Real NISR/MINAGRI-derived data for 2024–2026 lives under
-`data/raw/cropmatics_real_data_2024_2026/`, including the original NISR Season B
-workbook (`raw_official/`). District × crop productivity and district
-input/practice tables are the analytical core; national trends provide context.
-Synthetic demo records are isolated in `data/dev_fixtures/` and clearly labelled.
+NISR SAS worksheet extracts for 2022–2026 live under `data/raw/nisr/sas/`.
+Unique source workbooks are organized by year and release in `workbooks/`
+subfolders; owner-supplied workbooks remain untracked, while the extracted CSVs
+and their manifest are versioned for a reproducible Docker build. The separate
+curated 2025B original is retained in the 2025B workbook folder for provenance.
+The 2025B derived pack remains under `data/raw/cropmatics_real_data_2024_2026/`;
+MINAGRI inputs are under `data/raw/external/minagri/`. Neither unreviewed SAS
+sheets nor operational app records are presented as official analytical values.
+Synthetic demo records are isolated in `data/dev_fixtures/`.
 
 See [05_DATASET_CATALOG](docs/05_DATASET_CATALOG.md) and
 [DATA_PROVENANCE](docs/DATA_PROVENANCE.md).
@@ -79,15 +83,21 @@ See [05_DATASET_CATALOG](docs/05_DATASET_CATALOG.md) and
 
 | Area | State |
 |---|---|
-| Data layer + pipeline | ✅ Working (validate → normalize → build) |
-| Reference dictionaries | ✅ 30 districts, 17 crop categories |
-| Backend skeleton + analytics/optimization endpoints | ✅ Working (DB-backed auth/harvest pending DB) |
-| ML modules + tests | ✅ Working (gap, priority, risk, metrics, optimizer) |
-| Web app | ✅ Dashboard shell; 10 working pages + 3 coming-soon (see docs/DASHBOARD_IMPLEMENTATION_PROGRESS.md) |
-| Mobile app | ✅ Starts; offline harvest registration + sync queue + refreshed dashboard/wizard |
-| Database migrations | ⚠️ Alembic configured; first revision not yet generated |
+| Data layer + pipeline | Functional; 14 productivity periods, with narrower coverage for other indicators and unmapped source sheets |
+| Reference dictionaries | 30 districts, 17 crop categories |
+| Backend analytics and optimization | Implemented; production canonical dataset is currently out of sync |
+| ML modules | Gap, priority, risk and optimizer implemented; forecast output is withheld without sufficient validation |
+| Web app | Deployed dashboard, crop, map and analysis routes; check the live build and API readiness before a demo |
+| Mobile app | Expo app with offline registration and sync; APK/network verification remains device-specific |
+| Database migrations | Implemented; production readiness must still be checked |
 | Auth/RBAC, notifications, reports export | ⚠️ Partial / scaffolded |
-| Deployment | ⚠️ Documented, not provisioned |
+| Deployment | Web on Vercel and API on Render; see live readiness before a demo |
+
+As checked on 2026-10-12, the production API reported `database: connected` but
+`status: not_ready`: its loaded PostgreSQL dataset did not match the processed
+manifest. A reachable database alone does not prove the analytical data are
+current. See `GET /api/v1/health/readiness`; run the documented canonical
+bootstrap in the deployment environment before claiming production readiness.
 
 Full details: [REPOSITORY_REFINEMENT_REPORT](docs/REPOSITORY_REFINEMENT_REPORT.md).
 Dashboard work (this pass): [DASHBOARD_REFINEMENT_REPORT](docs/DASHBOARD_REFINEMENT_REPORT.md),
@@ -109,7 +119,9 @@ Dashboard work (this pass): [DASHBOARD_REFINEMENT_REPORT](docs/DASHBOARD_REFINEM
 | `/data-explorer` | Search, filter and download every processed dataset |
 | `/transparency` | Sources, coverage, algorithms, models, limitations, AI usage |
 | `/assistant` | Grounded Q&A over validated analytics |
-| `/yield-intelligence`, `/markets`, `/settings` | Professional "coming in next module" screens |
+| `/yield-intelligence` | Yield workspaces and forecast status; no forecast is shown without qualifying evidence |
+| `/markets` | Market data-status screen; verified price observations are not yet loaded |
+| `/settings` | Application settings |
 
 The web interface never computes an official analytical value: filters requery
 the Python API, and the frontend only renders what the API returns.
@@ -128,8 +140,8 @@ pnpm install
 # 3. API virtualenv
 make install-api             # creates services/api/.venv and installs deps
 
-# 4. Build analytical tables from raw official data
-make data                    # -> data/processed/training_district_crop.csv
+# 4. Build analytical tables from versioned official extracts
+make data                    # uses services/api/.venv; rebuilds data/processed/
 ```
 
 ### Run
@@ -140,6 +152,13 @@ make web                     # Next.js on http://localhost:3000
 make mobile                  # Expo dev server
 ```
 
+Entry files: `apps/web/app/page.tsx` redirects to `/dashboard`;
+`services/api/app/main.py` creates the FastAPI app;
+`apps/mobile/app/index.tsx` is the Expo home screen; and
+`scripts/data/run_all.py` starts the reproducible data build. Use `make dev`
+to start the local API and web together, or `make api`, `make web`, and
+`make mobile` separately. `scripts/dev.sh status` reports local services.
+
 ### Database
 
 ```bash
@@ -147,6 +166,12 @@ make db-up                   # PostGIS via docker compose
 make migrate                 # apply Alembic migrations
 make db-init                 # or create tables directly from models (dev)
 ```
+
+The API reads `DATABASE_URL` from the environment (`.env` locally; a secret
+environment variable on Render). Do not commit credentials. Confirm a live
+connection and the correct dataset version at
+`/api/v1/health/readiness`; `database: connected` with `status: not_ready`
+means the connection works but the analytical database still needs attention.
 
 ### Share the mobile app (QR / link install)
 

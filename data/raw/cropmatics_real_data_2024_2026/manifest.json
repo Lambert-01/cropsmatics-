@@ -1,7 +1,8 @@
 {
   "package": "Cropmatics Real Data Pack 2024-2026",
   "created": "2026-09-25",
-  "original_uploaded_workbook_included": true,
+  "original_uploaded_workbook_included": false,
+  "original_uploaded_workbook_path": "data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx",
   "synthetic_records_included": false,
   "files": [
     "01_district_crop_productivity_2025B.csv",

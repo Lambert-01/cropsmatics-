@@ -39,8 +39,11 @@ access_type, license_or_terms, raw_file, processing_script, notes
 | `MINAGRI_ACES_COLDCHAIN_2026` | cold-chain district context | `08_verified_cold_chain_context_2026.csv` |
 | `MOBILE_OPERATIONAL` | app-captured operational data | runtime only |
 
-Raw files live under `data/raw/cropmatics_real_data_2024_2026/`; the original NISR
-workbook is in `raw_official/`. Machine-readable source registry:
+The 2025B derived CSVs live under `data/raw/cropmatics_real_data_2024_2026/`.
+The distinct original NISR workbook is retained at
+`data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
+Multi-period SAS worksheet extracts and owner-supplied workbooks are also under
+`data/raw/nisr/sas/`. Machine-readable source registry:
 `data/source_registry/data_sources.csv` and
 `data/raw/cropmatics_real_data_2024_2026/09_source_registry.csv`.
 

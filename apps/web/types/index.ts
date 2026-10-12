@@ -1185,3 +1185,89 @@ export interface DistrictFeatureProperties {
   province: string;
   agro_ecological_zone: string;
 }
+
+// --- national crop board -----------------------------------------------------
+
+/**
+ * A same-season delta computed server-side from two published observations.
+ * `available` is false whenever the comparison cannot be made and `reason`
+ * says which — a missing comparison is never reported as a 0 % change.
+ */
+export interface SameSeasonChange {
+  metric: string;
+  unit?: string | null;
+  available: boolean;
+  reason?: string | null;
+  period_code?: string | null;
+  period_label?: string | null;
+  previous_period_code?: string | null;
+  previous_period_label?: string | null;
+  current_value?: number | null;
+  previous_value?: number | null;
+  change_pct?: number | null;
+  change_abs?: number | null;
+}
+
+/** One crop on the national board, aligned to the shared period axis. */
+export interface NationalBoardCrop {
+  crop: string;
+  coverage: string;
+  n_published_periods: number;
+  latest_published_period?: string | null;
+  latest_published_label?: string | null;
+  /** metric -> value per position of `periods`; null = not tabulated. */
+  series: Record<string, (number | null)[]>;
+  changes: Record<string, SameSeasonChange>;
+}
+
+/** The all-crop national total, on the same axis (never an average of yields). */
+export interface NationalBoardTotals {
+  series: Record<string, (number | null)[]>;
+  changes: Record<string, SameSeasonChange>;
+}
+
+export interface NationalBoardResponse {
+  metric_units: Record<string, string>;
+  periods: string[];
+  period_labels: Record<string, string>;
+  crops: NationalBoardCrop[];
+  national?: NationalBoardTotals | null;
+  provenance: Provenance;
+}
+
+// --- forecast publication gate ---------------------------------------------
+
+/** One candidate forecast target and the backtest's verdict on it. */
+export interface ForecastTargetDecision {
+  target_id?: string | null;
+  /** `ok` (published) | `insufficient_evidence` (suppressed, with reasons). */
+  status?: string | null;
+  reasons: string[];
+  n_series: number;
+  n_series_eligible: number;
+  decision_note?: string | null;
+  skill_vs_naive?: number | null;
+  next_period?: string | null;
+  point_estimate?: number | null;
+  unit?: string | null;
+  interval?: number[] | null;
+  interval_coverage?: number | null;
+}
+
+/**
+ * The forecast publication decision, served verbatim from the chronological
+ * backtest. `serves_forecast` is the only signal to branch on: when it is
+ * false there is no forecast to draw — only the evidence verdict, which is a
+ * complete answer.
+ */
+export interface ForecastStatusResponse {
+  report_available: boolean;
+  serves_forecast: boolean;
+  generated?: string | null;
+  policy: Record<string, number | boolean | string>;
+  policy_is_default?: boolean | null;
+  method_note?: string | null;
+  targets: ForecastTargetDecision[];
+  note: string;
+  provenance: Provenance;
+}

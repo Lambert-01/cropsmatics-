@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.analytics.productivity_gap import STRATEGIES
 from app.schemas.analytics import (
+    ForecastStatusResponse,
     GapResponse,
     IndexedYieldResponse,
     PriorityRequest,
@@ -31,6 +32,7 @@ from app.schemas.storage import StorageInfrastructureResponse
 from app.services import (
     analytics_service,
     indexed_yield_service,
+    meta_service,
     national_board_service,
     period_service,
     postharvest_service,
@@ -520,6 +522,40 @@ def postharvest_history(f: AnalyticsFilters = Depends(analytics_filters)) -> dic
             ],
         ).model_dump(),
     }
+
+
+@router.get("/forecast-status", response_model=ForecastStatusResponse)
+def forecast_status() -> ForecastStatusResponse:
+    """Whether a validated forecast may be served, and why not when it may not.
+
+    The answer is read from the chronological backtest report
+    (``ml/reports/forecast/backtest.json``), which is the publication gate: a
+    target is only publishable when a default-policy rolling-origin backtest
+    cleared every gate. With no passing target the response still returns 200 —
+    "no forecast, here is the evidence verdict" is a complete result, not an
+    error — and every blocking reason travels with it so a client can explain
+    the absence honestly instead of hiding the workspace.
+    """
+    status = meta_service.forecast_status()
+    return ForecastStatusResponse(
+        **status,
+        provenance=Provenance(
+            source_id="ML_FORECAST_BACKTEST",
+            source_period=status.get("generated"),
+            method=(
+                "rolling-origin expanding-window backtest against naive "
+                "baselines; publication decided by a fixed default policy"
+            ),
+            limitations=[
+                "a forecast is served only when its target passed every "
+                "publication gate under the default policy",
+                "associations and scenarios elsewhere in the product are not "
+                "forecasts and are never derived from this report",
+                "skill is scored one step ahead on the same season only",
+                "no causal claim about any input is implied by any target here",
+            ],
+        ),
+    )
 
 
 def _priority_limitations(result: dict) -> list[str]:

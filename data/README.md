@@ -8,12 +8,11 @@ This directory contains the authoritative data inputs, dictionaries and generate
 data/
 ├── raw/                         # IMMUTABLE official/source inputs
 │   ├── nisr/
-│   │   └── sas/                 # Multi-season NISR SAS table extractions (2024A–2026B)
+│   │   └── sas/                 # 2022–2026 NISR releases: workbooks/ and tables/
 │   ├── external/
 │   │   └── minagri/             # Verified MINAGRI post-harvest/storage context
 │   ├── markets/                 # Provider drop-folder; currently no verified observations
-│   └── cropmatics_real_data_2024_2026/
-│       └── raw_official/        # Original official workbook retained for provenance
+│   └── cropmatics_real_data_2024_2026/  # 2025B derived pack
 ├── dictionaries/                # Crop/geography/code mappings and variable contracts
 ├── source_registry/             # Dataset provenance and access terms
 ├── interim/                     # Regenerable pipeline intermediates (gitignored)
@@ -26,8 +25,8 @@ data/
 ## What is authoritative
 
 1. **Official raw inputs live under `data/raw/` and are immutable.** Never edit these files in place. Corrections, normalisation and mappings belong in `scripts/data/` and write to `interim/` or `processed/`.
-2. **`data/raw/nisr/sas/` is the multi-season statistical source layer.** It covers the published 2024A–2026B periods and is interpreted through the reviewed mapping in `scripts/data/sas_table_map.py`.
-3. **`data/raw/cropmatics_real_data_2024_2026/` remains as a curated official-source pack and provenance bridge.** Its CSVs and original workbook are source inputs/reference material, not disposable generated output.
+2. **`data/raw/nisr/sas/` is the multi-season statistical source layer.** It contains published 2022A–2026B extracts plus year/release `workbooks/` folders. The reviewed mapping in `scripts/data/sas_table_map.py` determines which sheets are ingested. Owner-supplied XLSX files are untracked; the tracked CSV extractions and manifest are the Docker inputs.
+3. **`data/raw/cropmatics_real_data_2024_2026/` remains as a curated official-source pack and provenance bridge.** Its derived CSVs are active source inputs. The distinct curated 2025B original was moved unchanged to `data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
 4. **MINAGRI storage/post-harvest inputs under `data/raw/external/minagri/` are retained** because the active pipeline builds the storage infrastructure and cold-chain context from them.
 5. **Synthetic development fixtures are never production statistics.** They stay under `data/dev_fixtures/synthetic/` and must never be loaded into production analytical tables.
 
@@ -38,35 +37,13 @@ data/
 Rebuild all generated analytical data with:
 
 ```bash
-python scripts/data/run_all.py
+make data
 ```
 
-The current deterministic pipeline runs:
-
-```text
-catalog_raw
-→ ingest_sas_tables
-→ build_crop_productivity
-→ ingest_market_prices
-→ validate_raw
-→ normalize_geography
-→ normalize_crops
-→ build_district_crop_dataset
-→ build_factor_dataset
-→ build_irrigation
-→ build_erosion
-→ build_postharvest_dataset
-→ build_national_trends
-→ build_input_trends
-→ build_cold_chain
-→ build_postharvest_infrastructure
-→ build_cold_chain_network_summary
-→ build_training_dataset
-→ build_dashboard_summary
-→ build_data_coverage
-→ build_sources
-→ build_manifest
-```
+The deterministic pipeline ingests mapped SAS tables, builds the multi-period
+productivity/practice/post-harvest outputs and 2025B compatibility tables,
+validates them, and records a content-addressed manifest. Its exact current
+order is defined in `scripts/data/run_all.py`.
 
 ## Key official source inputs
 

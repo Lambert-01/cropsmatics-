@@ -7,6 +7,43 @@ from pydantic import BaseModel, Field, model_validator
 from app.schemas.common import Provenance
 
 
+class ForecastTargetDecision(BaseModel):
+    """One candidate forecast target and the backtest's verdict on it."""
+
+    target_id: str | None = None
+    #: ``ok`` (published) | ``insufficient_evidence`` (suppressed, with reasons).
+    status: str | None = None
+    reasons: list[str] = Field(default_factory=list)
+    n_series: int = 0
+    n_series_eligible: int = 0
+    decision_note: str | None = None
+    skill_vs_naive: float | None = None
+    next_period: str | None = None
+    point_estimate: float | None = None
+    unit: str | None = None
+    interval: list[float] | None = None
+    interval_coverage: float | None = None
+
+
+class ForecastStatusResponse(BaseModel):
+    """The forecast publication decision, served verbatim from the backtest.
+
+    ``serves_forecast`` is the only signal a client should branch on. When it is
+    false there is no forecast to draw - only the evidence verdict and the
+    reasons it failed - and that state is a valid, complete answer.
+    """
+
+    report_available: bool
+    serves_forecast: bool
+    generated: str | None = None
+    policy: dict = Field(default_factory=dict)
+    policy_is_default: bool | None = None
+    method_note: str | None = None
+    targets: list[ForecastTargetDecision] = Field(default_factory=list)
+    note: str
+    provenance: Provenance
+
+
 class ProductivityRow(BaseModel):
     year: int
     season: str

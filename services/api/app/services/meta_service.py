@@ -15,6 +15,10 @@ from app.core.config import REPO_ROOT, get_settings
 from app.repositories import dataset_repository as repo
 
 MODELS_DIR = REPO_ROOT / "ml" / "reports"
+# The chronological backtest's publication decision. Deliberately one level
+# below MODELS_DIR (which the model registry globs) so it can never be
+# registered as a model card; it is the *gate*, not a model.
+FORECAST_REPORT = MODELS_DIR / "forecast" / "backtest.json"
 
 # Processed tables the public analytical endpoints depend on.
 # Keyed by the same logical dataset names the data manifest uses, so readiness
@@ -453,3 +457,95 @@ def models() -> list[dict]:
             "note": card.get("causality_disclaimer"),
         })
     return out
+
+
+def forecast_status() -> dict:
+    """The forecast publication decision from the chronological backtest.
+
+    Reads ``ml/reports/forecast/backtest.json`` — written by
+    ``python -m ml.src.pipelines.run_forecast_backtest`` — and reports it
+    verbatim: the gate result, the policy it was judged under, and the blocking
+    reasons per candidate target. Nothing here is computed, and no forecast is
+    produced by this function: if the backtest says the published record cannot
+    validate a next-season forecast, the API says exactly that.
+
+    Never raises: a missing or corrupt report is an honest
+    ``report_available: false`` with a reason, because "we have no validated
+    forecast" must be answerable even in a deployment where the ML reports were
+    not built.
+    """
+    base = {
+        "report_available": False,
+        "serves_forecast": False,
+        "generated": None,
+        "policy": {},
+        "policy_is_default": None,
+        "method_note": None,
+        "targets": [],
+        "note": (
+            "No backtest report is present in this deployment, so no forecast "
+            "is served. Forecasting is published only from a default-policy "
+            "chronological backtest."
+        ),
+    }
+    if not FORECAST_REPORT.exists():
+        return base
+    try:
+        report = json.loads(FORECAST_REPORT.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {**base, "note": "The backtest report exists but could not be read; no forecast is served."}
+
+    targets = []
+    for target in report.get("targets") or []:
+        if not isinstance(target, dict):
+            continue
+        metrics = target.get("metrics") or {}
+        chosen = target.get("candidate") or target.get("best_naive") or None
+        chosen_metrics = metrics.get(chosen, {}) if isinstance(chosen, str) else {}
+        targets.append(
+            {
+                "target_id": target.get("target_id"),
+                "status": target.get("status"),
+                "reasons": [str(r) for r in (target.get("reasons") or [])],
+                "n_series": int(target.get("n_series") or 0),
+                "n_series_eligible": int(target.get("n_series_eligible") or 0),
+                "decision_note": target.get("decision_note"),
+                "skill_vs_naive": target.get("skill_vs_naive"),
+                "next_period": target.get("next_period"),
+                "point_estimate": target.get("point_estimate"),
+                "unit": target.get("unit"),
+                "interval": target.get("interval"),
+                "interval_coverage": (
+                    chosen_metrics.get("interval_coverage")
+                    if isinstance(chosen_metrics, dict)
+                    else None
+                ),
+            }
+        )
+
+    serves = bool(report.get("serves_forecast"))
+    if targets:
+        note = (
+            "A next-season forecast is published for every target the backtest "
+            "marked ok."
+            if serves
+            else (
+                "No forecast is served: the chronological backtest judged every "
+                "candidate target insufficient against its publication policy. "
+                "This is an evidence verdict about the published record, not a "
+                "service outage."
+            )
+        )
+    else:
+        note = base["note"]
+
+    return {
+        "report_available": True,
+        "serves_forecast": serves,
+        "generated": report.get("generated"),
+        "policy": report.get("policy") or {},
+        "policy_is_default": report.get("policy_is_default"),
+        "method_note": report.get("method_note"),
+        "targets": targets,
+        "note": note,
+    }

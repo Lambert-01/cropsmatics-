@@ -17,6 +17,7 @@ import { FactorAssociationChart } from "@/features/productivity/FactorAssociatio
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import { AIExplainPanel } from "@/features/yield-intelligence/AIExplainPanel";
 import { DistrictYieldDrawer } from "@/features/yield-intelligence/DistrictYieldDrawer";
+import { ForecastPanel } from "@/features/yield-intelligence/ForecastPanel";
 import { SimulationLab } from "@/features/yield-intelligence/SimulationLab";
 import { YieldGapDistribution } from "@/features/yield-intelligence/YieldGapDistribution";
 import {
@@ -264,6 +265,11 @@ export default function YieldIntelligencePage() {
               benchmark={filters.benchmark}
             />
           ) : null}
+
+          {/* The publication gate. It renders whatever the backtest decided —
+              including "no forecast may be served" with the reasons — so the
+              absence of a forecast is explained rather than hidden. */}
+          {workspace === "forecast" ? <ForecastPanel /> : null}
 
           {workspace === "ai" ? (
             <AIExplainPanel

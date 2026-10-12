@@ -9,11 +9,9 @@ of:
                            dataset (its release appears in the extraction).
 * ``mapped_not_exposed`` — mapped in ``sas_table_map`` but not surfaced by an
                            equivalent multi-period screen yet.
-* ``duplicate``          — byte-identical copy of another supplied workbook
-                           (same SHA-256); retained on disk, never ingested.
 * ``metadata``           — table-of-contents / cover sheets, non-quantitative.
-* ``not_yet_mapped``     — quantitative sheet from a release the reviewed
-                           mapping does not cover yet (2022, 2023, 2025B).
+* ``not_yet_mapped``     — worksheet without a reviewed table specification;
+                           preserved but not exposed as analytical data.
 
 Nothing is inferred from free text beyond the printed title, which is stored
 verbatim. A sheet is never marked ``used`` merely because a CSV was extracted:
@@ -39,10 +37,11 @@ OUT_PATH = DATA_DIR / "source_registry" / "sas_sheet_inventory.csv"
 
 sys.path.insert(0, str(REPO_ROOT))
 from scripts.data import sas_table_map as tmap  # noqa: E402
-from scripts.data.common import SAS_SOURCE_IDS, log  # noqa: E402
+from scripts.data.common import RAW_SAS_DIR, SAS_SOURCE_IDS, log  # noqa: E402
 
-# The eight supplied workbooks, with the release each one represents. The 2022,
-# 2023 and 2025 Season B files are new sources the reviewed mapping predates.
+# Eight unique workbooks, including both distinct 2025B originals. The 2025B
+# seasonal sources are retained but not mapped until publication precedence is
+# settled against the 2025 annual release.
 WORKBOOKS: tuple[tuple[str, str, str], ...] = (
     # (filename, canonical year, season-or-annual)
     ("SAS 2022_Tables_0.xlsx", "2022", "annual"),
@@ -50,23 +49,22 @@ WORKBOOKS: tuple[tuple[str, str, str], ...] = (
     ("SAS 2024_Annual Tables.xlsx", "2024", "annual"),
     ("SAS 2025_Annual Tables.xlsx", "2025", "annual"),
     ("Tables_2025_Season_B_0.xlsx", "2025", "B"),
-    ("Tables_2026 Season A (1).xlsx", "2026", "A"),
+    ("Tables_2025_Season_B_0_curated_official.xlsx", "2025", "B"),
     ("Tables_2026 Season A.xlsx", "2026", "A"),
     ("Tables_2026 Season B.xlsx", "2026", "B"),
 )
 
 # Workbook filename -> sas_table_map release key (None = not in the map).
 # 2022 and 2023 are reviewed and mapped (see sas_table_map.PRODUCTIVITY_TABLES);
-# Tables_2025_Season_B_0.xlsx is a separate publication of the 2025B season that
-# the 2025 annual workbook already covers, so it is deliberately left unmapped
-# until its precedence is settled (see docs/data/SAS_COVERAGE_AUDIT.md).
+# The standalone 2025B workbooks are separate sources from the 2025 annual
+# release and remain unmapped until their precedence is settled.
 FILENAME_TO_RELEASE: dict[str, str | None] = {
     "SAS 2022_Tables_0.xlsx": "SAS_2022_ANNUAL",
     "SAS 2023_Annual Tables (3).xlsx": "SAS_2023_ANNUAL",
     "SAS 2024_Annual Tables.xlsx": "SAS_2024_ANNUAL",
     "SAS 2025_Annual Tables.xlsx": "SAS_2025_ANNUAL",
     "Tables_2025_Season_B_0.xlsx": None,
-    "Tables_2026 Season A (1).xlsx": "SAS_2026A",
+    "Tables_2025_Season_B_0_curated_official.xlsx": None,
     "Tables_2026 Season A.xlsx": "SAS_2026A",
     "Tables_2026 Season B.xlsx": "SAS_2026B",
 }
@@ -118,6 +116,11 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
+def workbook_path(filename: str, year: str, season: str) -> Path:
+    release_folder = "annual" if season == "annual" else f"season_{season.lower()}"
+    return RAW_SAS_DIR / year / release_folder / "workbooks" / filename
+
+
 def sheet_title(worksheet) -> str:
     """The first non-empty text cell in the sheet's top-left region.
 
@@ -155,8 +158,8 @@ def main() -> int:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     hashes: dict[str, str] = {}
-    for filename, _, _ in WORKBOOKS:
-        path = DATA_DIR / filename
+    for filename, year, season in WORKBOOKS:
+        path = workbook_path(filename, year, season)
         if not path.exists():
             log(f"MISSING workbook: {filename}")
             return 1
@@ -170,7 +173,7 @@ def main() -> int:
     }
     log(f"exposed domains (processed dataset present): {sorted(exposed_domains)}")
 
-    # Byte-identical copies: the first filename in WORKBOOKS order is canonical.
+    # Detect accidental duplicate source files if the inventory expands later.
     canonical_of: dict[str, str] = {}
     seen: dict[str, str] = {}
     for filename, _, _ in WORKBOOKS:
@@ -179,7 +182,7 @@ def main() -> int:
 
     rows: list[dict] = []
     for filename, year, season in WORKBOOKS:
-        path = DATA_DIR / filename
+        path = workbook_path(filename, year, season)
         release = FILENAME_TO_RELEASE[filename]
         is_duplicate = canonical_of[filename] != filename
         workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -221,10 +224,15 @@ def main() -> int:
                 else:
                     stage = "not_yet_mapped"
                     exclusion_reason = (
-                        f"release not covered by the reviewed sas_table_map; "
-                        f"candidate for mapping before {year} data are exposed"
+                        "sheet has no reviewed sas_table_map specification; "
+                        "preserved for source review, not exposed as analytical data"
                     )
 
+                source_kind = (
+                    "curated original"
+                    if filename.endswith("_curated_official.xlsx")
+                    else "owner-supplied workbook"
+                )
                 rows.append(
                     {
                         "file": filename,
@@ -248,9 +256,9 @@ def main() -> int:
                         "ingestion_stage": stage,
                         "exclusion_reason": exclusion_reason,
                         "source_provenance": (
-                            "NISR Seasonal Agricultural Survey (owner-supplied "
-                            f"workbook; source_id "
-                            f"{SAS_SOURCE_IDS.get(release, 'UNASSIGNED')})"
+                            "NISR Seasonal Agricultural Survey ("
+                            f"{source_kind}; "
+                            f"source_id {SAS_SOURCE_IDS.get(release, 'UNASSIGNED')})"
                         ),
                     }
                 )
@@ -260,7 +268,7 @@ def main() -> int:
     rows.sort(key=lambda r: (r["year"], r["season"], r["file"], r["sheet"]))
 
     with open(OUT_PATH, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+        writer = csv.DictWriter(handle, fieldnames=COLUMNS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

@@ -5,10 +5,12 @@
 ```text
 data/
 ├── raw/                 IMMUTABLE official sources
+│   ├── nisr/sas/<year>/<release>/
+│   │   ├── tables/*.csv            versioned worksheet extracts
+│   │   └── workbooks/*.xlsx        original SAS workbooks
 │   └── cropmatics_real_data_2024_2026/
-│       ├── 01..09_*.csv            official-derived extracts
-│       ├── Cropmatics_Core_*.xlsx   combined workbook
-│       └── raw_official/*.xlsx     original NISR workbook
+│       ├── 01..09_*.csv            2025B official-derived extracts
+│       └── Cropmatics_Core_*.xlsx   combined workbook
 ├── external/            third-party open data (rainfall, soil, OSM) — not yet populated
 ├── interim/             intermediate transforms (regenerable)
 │   ├── legacy_official_derived/    superseded extracts (provenance only)

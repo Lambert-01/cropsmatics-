@@ -1,7 +1,11 @@
 # Cropmatics Real Data Pack (2024-2026)
 
 This package contains **real NISR/MINAGRI-derived data only** for the analytical layers.
-The original official NISR 2025 Season B workbook you uploaded is included unchanged under `raw_official/`.
+The original official NISR 2025 Season B workbook is retained unchanged at
+`../nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
+It is distinct from the separately supplied
+`../nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0.xlsx`; neither is
+silently substituted for the 2025 annual workbook used by the active pipeline.
 
 ## Recommended files for the project
 
@@ -89,7 +93,7 @@ Add rainfall later only after obtaining a verified open climate dataset.
 These aggregate district factors are **associations**, not proof of causality.
 Do not say that changing one factor will automatically cause a specific yield increase.
 
-## Raw official files still worth downloading
+## Original NISR workbooks
 
 The official source pages listed in `09_source_registry.csv` provide:
 - SAS 2024 Annual Tables.xlsx
@@ -97,4 +101,6 @@ The official source pages listed in `09_source_registry.csv` provide:
 - Tables_2026 Season A.xlsx
 - Tables_2026 Season B.xlsx
 
-This environment could verify those releases on the NISR website, but could not mirror the remote XLSX binaries directly into the sandbox. The source registry therefore preserves the official download locations/pages.
+The locally supplied originals are organized under `data/raw/nisr/sas/` by
+year and release. Owner-supplied XLSX files are intentionally untracked; the
+extracted worksheet CSVs, manifest, and reviewed table map are versioned.

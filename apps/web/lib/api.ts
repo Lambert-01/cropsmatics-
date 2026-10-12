@@ -13,6 +13,7 @@ import type {
   DistrictSummaryResponse,
   FacilitiesResponse,
   FactorsResponse,
+  ForecastStatusResponse,
   HeatmapResponse,
   MapMetricsResponse,
   MarketDispersionGroup,
@@ -20,6 +21,7 @@ import type {
   MarketStatus,
   MarketTrendSeries,
   ModelsResponse,
+  NationalBoardResponse,
   OverviewResponse,
   PeriodTrendResponse,
   PeriodsResponse,
@@ -87,6 +89,20 @@ export const api = {
   ) => get<MapMetricsResponse>("/maps/district-metrics", `${filtersToApiQuery(filters)}&metric=${metric}`),
   weightedPriorityMap: (filters: DashboardFilters, weights: Record<string, number>) =>
     post<MapMetricsResponse>("/maps/district-metrics", weights, filtersToApiQuery(filters)),
+  /**
+   * The whole national crop board in one read: every crop's series on one
+   * shared period axis, with the same-season delta computed server-side.
+   *
+   * The scope travels to the server (never filtered in the client), so a
+   * period-scoped board cannot mix a filtered value with an unfiltered change.
+   */
+  nationalBoard: (params?: { periodCode?: string; year?: number; season?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.periodCode) query.set("period_code", params.periodCode);
+    if (params?.year) query.set("year", String(params.year));
+    if (params?.season) query.set("season", params.season);
+    return get<NationalBoardResponse>("/analytics/national-board", query.toString());
+  },
   trends: (crop?: string, compare?: string) => {
     const params = new URLSearchParams();
     if (crop) params.set("crop", crop);
@@ -143,6 +159,12 @@ export const api = {
   },
   storageInfrastructure: () =>
     get<StorageInfrastructureResponse>("/analytics/storage-infrastructure"),
+  /**
+   * The forecast publication decision (chronological backtest). Answers 200
+   * even when no forecast may be served — the evidence verdict *is* the
+   * answer — so a client can explain the absence instead of hiding it.
+   */
+  forecastStatus: () => get<ForecastStatusResponse>("/analytics/forecast-status"),
   priorities: (filters: DashboardFilters, limit = 50) =>
     get<PriorityResponse>(
       "/analytics/intervention-priorities",

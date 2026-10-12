@@ -53,6 +53,11 @@ export const YIELD_WORKSPACES: readonly YieldWorkspace[] = [
     description: "Recalculate the ranking under stated assumptions.",
   },
   {
+    id: "forecast",
+    label: "Forecast",
+    description: "Whether a next-season forecast is validated — and why not when it is not.",
+  },
+  {
     id: "ai",
     label: "AI Analyst",
     description: "A grounded explanation of the current selection.",

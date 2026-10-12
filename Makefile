@@ -137,11 +137,11 @@ test-ml: ## Run ML tests
 # ---------- data / ML ----------
 .PHONY: data
 data: ## Run the full data pipeline (validate → normalize → build)
-	$(PY) scripts/data/run_all.py
+	$(PYTHON) scripts/data/run_all.py
 
 .PHONY: data-validate
 data-validate: ## Validate raw datasets only
-	$(PY) scripts/data/validate_raw.py
+	$(PYTHON) scripts/data/validate_raw.py
 
 .PHONY: ml
 ml: ## Build training dataset + baseline model metrics

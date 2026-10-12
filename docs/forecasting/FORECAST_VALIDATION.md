@@ -1,6 +1,6 @@
 # Forecast Validation Report
 
-**Generated:** 2026-10-11
+**Generated:** 2026-10-12
 **Policy:** minimum history 3 observations · minimum folds 3 · series coverage 90% · interval level 80% · minimum interval coverage 60%
 **Default policy:** yes
 
@@ -37,9 +37,9 @@ Series: 30 · folds per series: min 2, max 2 · observations excluded by the pub
 
 | Method | n | MAE | RMSE | bias | sMAPE | interval coverage | mean interval width |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| naive_last | 60 | 86.7 | 112.6 | 27.7 | 4.89 | 100% | 912.3 |
-| seasonal_mean | 60 | 165.3 | 206.4 | -129.5 | 9.48 | 100% | 719.1 |
-| seasonal_median | 60 | 160.4 | 205.9 | -108.3 | 9.43 | 100% | 733.2 |
+| naive_last | 60 | 86.7 | 112.6 | 27.7 | 4.89 | 93% | 912.3 |
+| seasonal_mean | 60 | 165.3 | 206.4 | -129.5 | 9.48 | 87% | 719.1 |
+| seasonal_median | 60 | 160.4 | 205.9 | -108.3 | 9.43 | 85% | 733.2 |
 | drift | 60 | 213.7 | 262.9 | 155.4 | 11.31 | — | — |
 
 ### `district_maize_yield_next_season_b` — insufficient_evidence
@@ -55,9 +55,9 @@ Series: 30 · folds per series: min 2, max 2 · observations excluded by the pub
 
 | Method | n | MAE | RMSE | bias | sMAPE | interval coverage | mean interval width |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| naive_last | 60 | 62.6 | 82.2 | -15.3 | 5.54 | 100% | 257.1 |
-| seasonal_mean | 60 | 77.5 | 103.1 | 4.9 | 6.95 | 100% | 166.4 |
-| seasonal_median | 60 | 72.9 | 97.1 | -5.8 | 6.53 | 100% | 176.6 |
+| naive_last | 60 | 62.6 | 82.2 | -15.3 | 5.54 | 72% | 257.1 |
+| seasonal_mean | 60 | 77.5 | 103.1 | 4.9 | 6.95 | 50% | 166.4 |
+| seasonal_median | 60 | 72.9 | 97.1 | -5.8 | 6.53 | 48% | 176.6 |
 | drift | 60 | 110.9 | 142.6 | -63.8 | 10.40 | — | — |
 
 ### `district_beans_yield_next_season_a` — insufficient_evidence
@@ -73,9 +73,9 @@ Series: 30 · folds per series: min 2, max 2 · observations excluded by the pub
 
 | Method | n | MAE | RMSE | bias | sMAPE | interval coverage | mean interval width |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| naive_last | 60 | 31.8 | 41.6 | 1.7 | 4.35 | 100% | 448.8 |
-| seasonal_mean | 60 | 47.0 | 58.6 | -29.4 | 7.01 | 100% | 336.6 |
-| seasonal_median | 60 | 41.7 | 52.8 | -22.6 | 5.99 | 100% | 335.5 |
+| naive_last | 60 | 31.8 | 41.6 | 1.7 | 4.35 | 93% | 448.8 |
+| seasonal_mean | 60 | 47.0 | 58.6 | -29.4 | 7.01 | 78% | 336.6 |
+| seasonal_median | 60 | 41.7 | 52.8 | -22.6 | 5.99 | 78% | 335.5 |
 | drift | 60 | 82.1 | 102.1 | 5.9 | 12.51 | — | — |
 
 ### `district_beans_yield_next_season_b` — insufficient_evidence
@@ -91,9 +91,9 @@ Series: 30 · folds per series: min 2, max 2 · observations excluded by the pub
 
 | Method | n | MAE | RMSE | bias | sMAPE | interval coverage | mean interval width |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| naive_last | 60 | 35.8 | 44.8 | -1.8 | 4.94 | 100% | 151.9 |
-| seasonal_mean | 60 | 57.6 | 70.5 | 34.8 | 7.64 | 100% | 124.1 |
-| seasonal_median | 60 | 59.7 | 75.8 | 35.2 | 7.87 | 100% | 130.7 |
+| naive_last | 60 | 35.8 | 44.8 | -1.8 | 4.94 | 75% | 151.9 |
+| seasonal_mean | 60 | 57.6 | 70.5 | 34.8 | 7.64 | 53% | 124.1 |
+| seasonal_median | 60 | 59.7 | 75.8 | 35.2 | 7.87 | 57% | 130.7 |
 | drift | 60 | 69.3 | 89.7 | -31.0 | 9.09 | — | — |
 
 ### `national_maize_yield_next_season_b` — insufficient_evidence

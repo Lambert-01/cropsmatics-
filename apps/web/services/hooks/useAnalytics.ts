@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import { scopeKey, type DashboardFilters } from "@/lib/filters";
+import { SCOPE_HISTORY, scopeKey, type DashboardFilters } from "@/lib/filters";
 import type {
   AssistantContext,
   PriorityScenarioRequest,
@@ -12,6 +12,7 @@ import type {
 } from "@/types";
 
 const FIVE_MIN = 5 * 60 * 1000;
+const ONE_HOUR = 60 * 60 * 1000;
 
 /**
  * Every analytical query is keyed on the scope identity, never on the filter
@@ -33,6 +34,44 @@ export function useProductivity(filters: DashboardFilters, enabled = true) {
     queryFn: () => api.productivity(filters),
     staleTime: FIVE_MIN,
     enabled,
+  });
+}
+
+/**
+ * The national crop board, scoped to the period the URL describes.
+ *
+ * The board is a national dataset: it has no district or province dimension,
+ * so the key is the period scope alone. Two different district selections
+ * therefore share one cache entry (same request, same answer), and history
+ * scope deliberately requests the full published axis — exactly the request
+ * `filtersToApiQuery` would build, so the key still *is* the request.
+ */
+export function useNationalBoard(filters: DashboardFilters, enabled = true) {
+  const period =
+    filters.view === SCOPE_HISTORY ? undefined : filters.period || undefined;
+  const params = period
+    ? { periodCode: period }
+    : filters.view === SCOPE_HISTORY
+      ? {}
+      : { year: filters.year, season: filters.season ?? undefined };
+  return useQuery({
+    queryKey: ["national-board", params],
+    queryFn: () => api.nationalBoard(params),
+    staleTime: FIVE_MIN,
+    enabled,
+  });
+}
+
+/**
+ * The forecast publication gate. Keyed on nothing mutable: the backtest report
+ * changes only when the ML pipeline is rerun, so an hour of staleness costs
+ * nothing and a background refetch can never blink the verdict on screen.
+ */
+export function useForecastStatus() {
+  return useQuery({
+    queryKey: ["forecast-status"],
+    queryFn: api.forecastStatus,
+    staleTime: ONE_HOUR,
   });
 }
 

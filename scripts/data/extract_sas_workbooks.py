@@ -33,14 +33,14 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.data.common import (  # noqa: E402
-    DATA_DIR,
     RAW_SAS_DIR,
     SAS_MANIFEST,
+    SAS_RELEASES,
     log,
     release_folder_key,
 )
 
-# release key -> (workbook filename in data/, extraction subfolder under sas/).
+# release key -> (workbook filename in release workbooks/, extraction subfolder).
 # 2024 is listed for the fidelity check only: its extraction already exists
 # out-of-band, so re-extracting it and diffing proves this script reproduces
 # the format the pipeline already consumes.
@@ -131,7 +131,7 @@ def extract(release: str, verify_fidelity: bool = False) -> int:
         log(f"unknown release: {release!r} (known: {sorted(RELEASE_SOURCES)})")
         return 1
     workbook_name, folder = RELEASE_SOURCES[release]
-    workbook_path = DATA_DIR / workbook_name
+    workbook_path = SAS_RELEASES[release].parent / "workbooks" / workbook_name
     if not workbook_path.exists():
         log(f"workbook not found: {workbook_path}")
         return 1

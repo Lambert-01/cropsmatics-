@@ -1,10 +1,10 @@
 # SAS Coverage Audit — 2022 through 2026 Season B
 
-**Generated:** 2026-10-11
-**Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `python -m scripts.data.inventory_sas_workbooks`)
-**Checkout:** `mobile-intelligence-v2-local` @ `7fc2dc5` + the P2 expansion in this pass
+**Generated:** 2026-10-12
+**Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `services/api/.venv/bin/python -m scripts.data.inventory_sas_workbooks` after `make install-api`)
+**Scope:** current local source archive and regenerated sheet inventory
 
-Every worksheet of every owner-supplied workbook is inventoried and classified
+Every worksheet of every retained SAS workbook is inventoried and classified
 into exactly one disposition. Nothing is silently dropped, and a sheet is never
 marked *used* merely because a CSV was extracted from it: *used* requires both
 the reviewed mapping (`scripts/data/sas_table_map.py`) **and** the processed
@@ -22,46 +22,48 @@ classifier cannot claim exposure that is not real.
 | `SAS 2024_Annual Tables.xlsx` | `5c7c6024d9a7` | 79 | `SAS_2024_ANNUAL` | Extracted + mapped |
 | `SAS 2025_Annual Tables.xlsx` | `3a6ed44f1e97` | 80 | `SAS_2025_ANNUAL` | Extracted + mapped |
 | `Tables_2025_Season_B_0.xlsx` | `49b045312731` | 33 | *(none)* | Seasonal source; **not ingested** (precedence undecided) |
-| `Tables_2026 Season A (1).xlsx` | `c4e4cb4c4e69` | 35 | `SAS_2026A` | Extracted + mapped (canonical copy) |
-| `Tables_2026 Season A.xlsx` | `c4e4cb4c4e69` | 35 | `SAS_2026A` | **Byte-identical duplicate** of the file above |
+| `Tables_2025_Season_B_0_curated_official.xlsx` | `6fdfd6ababdf` | 33 | *(none)* | Distinct curated original; **not ingested** |
+| `Tables_2026 Season A.xlsx` | `c4e4cb4c4e69` | 35 | `SAS_2026A` | Extracted + mapped; sole retained copy |
 | `Tables_2026 Season B.xlsx` | `5ca81c6b0a54` | 33 | `SAS_2026B` | Extracted + mapped |
+
+The curated original is retained under `2025/season_b/workbooks/`. Its hash
+differs from the owner-supplied 2025B workbook (`49b045312731`), so it was
+not removed as a duplicate. Both 2025B sources appear in the inventory.
 
 ### 2026 Season A duplicate — resolved
 
-`Tables_2026 Season A (1).xlsx` and `Tables_2026 Season A.xlsx` have the **same
-SHA-256** (`c4e4cb4c4e697febac1cb332280189a4dc6ff7f10d0de956bff279b284c5d4c2`),
-so they are byte-for-byte identical, not two revisions. Both stay on disk; the
-inventory marks the second `duplicate` and it is never ingested separately, so no
-precedence conflict can arise.
+`Tables_2026 Season A (1).xlsx` and `Tables_2026 Season A.xlsx` had the same
+SHA-256 (`c4e4cb4c4e697febac1cb332280189a4dc6ff7f10d0de956bff279b284c5d4c2`).
+The redundant `(1)` copy was removed; the unsuffixed file is unchanged.
 
-## Sheet disposition (442 sheet instances)
+## Sheet disposition (440 unique sheet instances)
 
 | Disposition | Sheets | Meaning |
 |---|---:|---|
 | `used` | 134 | Mapped **and** powering a published processed dataset (`crop_productivity.csv` or `agricultural_practice_observation.csv` or `crop_postharvest_use_multi_period.csv`) |
 | `mapped_not_exposed` | 0 | *(none left)* Mapped and ingested to `data/interim` with full lineage, but no processed dataset surfaces the domain yet |
-| `not_yet_mapped` | 271 | Quantitative sheets the reviewed mapping does not cover |
-| `duplicate` | 35 | The byte-identical 2026A copy |
+| `not_yet_mapped` | 304 | Sheets the reviewed mapping does not cover, including both 2025B originals |
 | `metadata` | 2 | Table-of-contents sheets (`List of tables` in 2022, `Contents` in 2025) |
 
 Per workbook:
 
-| File | used | mapped_not_exposed | not_yet_mapped | duplicate | metadata |
-|---|---:|---:|---:|---:|---:|
-| SAS 2022 | 12 | 0 | 55 | 0 | 1 |
-| SAS 2023 | 12 | 0 | 67 | 0 | 0 |
-| SAS 2024 annual | 42 | 0 | 37 | 0 | 0 |
-| SAS 2025 annual | 42 | 0 | 37 | 0 | 1 |
-| 2025 Season B | 0 | 0 | 33 | 0 | 0 |
-| 2026 Season A (canonical) | 13 | 0 | 22 | 0 | 0 |
-| 2026 Season A (copy) | 0 | 0 | 0 | 35 | 0 |
-| 2026 Season B | 13 | 0 | 20 | 0 | 0 |
+| File | used | mapped_not_exposed | not_yet_mapped | metadata |
+|---|---:|---:|---:|---:|
+| SAS 2022 | 12 | 0 | 55 | 1 |
+| SAS 2023 | 12 | 0 | 67 | 0 |
+| SAS 2024 annual | 42 | 0 | 37 | 0 |
+| SAS 2025 annual | 42 | 0 | 37 | 1 |
+| 2025 Season B | 0 | 0 | 33 | 0 |
+| 2025 Season B curated original | 0 | 0 | 33 | 0 |
+| 2026 Season A | 13 | 0 | 22 | 0 |
+| 2026 Season B | 13 | 0 | 20 | 0 |
 
 > The previously reported "110 used / 227 extracted" count described the
 > 2024–2026 extracted sheets only, and it counted a sheet as used when it was
 > *mapped*. Recounted against the expanded denominator, 56 sheets reached a
 > processed dataset at that time, 78 were mapped but not surfaced, and 271
-> remained to be reviewed.
+> remained to be reviewed at that time. The curated 2025B original adds another
+> 33 unreviewed sheets to the current archive.
 >
 > **Every mapped sheet is now exposed.** The practice, irrigation, water-source,
 > erosion-control, erosion-severity and post-harvest domains were materialized by
@@ -161,20 +163,20 @@ forecast trainer exclude a row.
   rows) rather than letting a period selector imply coverage that is not there.
 * **2026C does not exist** and is rejected by `normalize_period`; the period
   dimension lists exactly what NISR has published.
-* **`Tables_2025_Season_B_0.xlsx` remains uningested.** The 2025B rows in the
-  panel come from the 2025 annual workbook. Whether the standalone seasonal
-  workbook revises those figures must be settled by a cell-level comparison
-  before it is ingested, otherwise one of the two publications would silently win.
+* **Both standalone 2025B originals remain uningested.** The 2025B rows in the
+  panel come from the 2025 annual workbook. The two standalone originals differ
+  by hash; their cell-level differences and publication precedence must be
+  settled before either is ingested.
 * NISR SAS publications are official statistics; the
-  `DATA_LICENSE_AND_PROVENANCE.md` obligations apply. The workbooks stay untracked
-  in git by design — the inventory records their hashes so any build can verify
-  which bytes it used, and neither workbook is redistributed by this repository.
+  `DATA_LICENSE_AND_PROVENANCE.md` obligations apply. Owner-supplied workbooks
+  stay untracked in git; the separately curated 2025B original remains
+  versioned. The inventory records the owner-supplied workbook hashes.
 
 ## Next steps (ordered)
 
-1. Cell-level comparison of `Tables_2025_Season_B_0.xlsx` against the 2025
-   annual Season B tables, then record the precedence decision. **Still open** -
-   this remains the only supplied workbook that is wholly unmapped.
+1. Compare both standalone 2025B originals against each other and the 2025
+   annual Season B tables, then record publication precedence. **Still open** -
+   these are the two wholly unmapped 2025B workbook sources.
 2. ~~Materialize the multi-period practice/irrigation/erosion/post-harvest
    domains into processed datasets.~~ **Done**: `used` is now 134 and
    `mapped_not_exposed` is 0. The pipeline order in `scripts/data/run_all.py`
@@ -189,5 +191,5 @@ forecast trainer exclude a row.
    The web/mobile period selectors still need to read that availability.
 4. Forecast work must exclude the 89 `review`-flagged rows from training, or
    include them only in a documented sensitivity run.
-5. Map the remaining 271 `not_yet_mapped` sheets, starting with the 33 sheets of
-   the standalone `Tables_2025_Season_B_0.xlsx` once its precedence is settled.
+5. Review the remaining 304 `not_yet_mapped` sheets, starting with both distinct
+   2025B originals once their publication precedence is settled.
