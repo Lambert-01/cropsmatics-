@@ -275,6 +275,94 @@ export interface PostHarvestResponse {
   provenance: Provenance;
 }
 
+// ---- Multi-period practice & post-harvest histories ------------------------
+//
+// These are the long-form, period-aware companions to the legacy single-release
+// tables. Every row names its own period, and a missing value is `null`, never 0.
+
+export interface PracticeObservation {
+  period_code: string;
+  year: number | null;
+  season: string | null;
+  geography_level: string | null;
+  district: string | null;
+  district_code: string | null;
+  province: string | null;
+  domain: string;
+  indicator_code: string;
+  value: number | null;
+  unit: string | null;
+  source_id: string | null;
+  source_sheet: string | null;
+}
+
+/** Per-indicator coverage of the *unfiltered* table, so a screen can state
+ *  what exists instead of guessing from the current slice. */
+export interface PracticeIndicatorAvailability {
+  domain: string;
+  indicator_code: string;
+  unit: string | null;
+  periods: string[];
+  geography_levels?: string[];
+  n_observations: number;
+  n_null: number;
+}
+
+export interface PracticeIndicatorResponse {
+  available: boolean;
+  domain: string | null;
+  domains: string[];
+  indicators: PracticeIndicatorAvailability[];
+  periods: string[];
+  observations: PracticeObservation[];
+  n_observations: number;
+  period: string | null;
+  note: string | null;
+  provenance: Provenance;
+}
+
+export interface PostHarvestHistoryObservation {
+  period_code: string;
+  year: number | null;
+  season: string | null;
+  crop: string | null;
+  canonical_crop_name: string | null;
+  indicator_code: string;
+  value: number | null;
+  unit: string | null;
+  shares_sum_pct: number | null;
+  shares_sum_ok: boolean | null;
+}
+
+export interface PostHarvestShareTotal {
+  period_code: string;
+  crop: string;
+  shares_sum_pct: number | null;
+  shares_sum_ok: boolean | null;
+}
+
+export interface PostHarvestHistoryResponse {
+  available: boolean;
+  crops: string[];
+  indicators: {
+    indicator_code: string;
+    unit: string | null;
+    periods: string[];
+    n_observations: number;
+    n_null: number;
+  }[];
+  periods: string[];
+  observations: PostHarvestHistoryObservation[];
+  n_observations: number;
+  share_totals: PostHarvestShareTotal[];
+  /** Period × crop groups whose published shares do not total 100 ± tolerance;
+   *  they are flagged, never rescaled. */
+  shares_off_total: number;
+  period: string | null;
+  note: string | null;
+  provenance: Provenance;
+}
+
 // ---- Factor associations ---------------------------------------------------
 
 /**

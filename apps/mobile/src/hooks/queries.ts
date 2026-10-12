@@ -95,3 +95,70 @@ export function useAllDistricts() {
 export function usePeriods() {
   return useQuery({ queryKey: ["meta-periods"], queryFn: metaApi.periods });
 }
+
+/**
+ * Multi-period district practice/irrigation/water/erosion observations.
+ *
+ * The scope (period/year/season plus district or domain) is part of the query
+ * key so switching a district or a period reads a fresh slice instead of a
+ * stale one, and the response carries its own coverage metadata for the UI to
+ * state what is actually published.
+ */
+export function usePracticeIndicators(params?: {
+  domain?: string;
+  periodCode?: string;
+  year?: number;
+  season?: string;
+  district?: string;
+  province?: string;
+  limit?: number;
+}) {
+  const domain = params?.domain ?? null;
+  const periodCode = params?.periodCode ?? null;
+  const year = params?.year ?? null;
+  const season = params?.season ?? null;
+  const district = params?.district ?? null;
+  const province = params?.province ?? null;
+  const limit = params?.limit ?? null;
+  return useQuery({
+    queryKey: ["practice-indicators", domain, periodCode, year, season, district, province, limit],
+    queryFn: () =>
+      analyticsApi.practiceIndicators({
+        domain: domain ?? undefined,
+        periodCode: periodCode ?? undefined,
+        year: year ?? undefined,
+        season: season ?? undefined,
+        district: district ?? undefined,
+        province: province ?? undefined,
+        limit: limit ?? undefined,
+      }),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/** Multi-period crop post-harvest use shares (2024A–2026B). */
+export function usePostharvestHistory(params?: {
+  periodCode?: string;
+  year?: number;
+  season?: string;
+  crop?: string;
+  limit?: number;
+}) {
+  const periodCode = params?.periodCode ?? null;
+  const year = params?.year ?? null;
+  const season = params?.season ?? null;
+  const crop = params?.crop ?? null;
+  const limit = params?.limit ?? null;
+  return useQuery({
+    queryKey: ["postharvest-history", periodCode, year, season, crop, limit],
+    queryFn: () =>
+      analyticsApi.postharvestHistory({
+        periodCode: periodCode ?? undefined,
+        year: year ?? undefined,
+        season: season ?? undefined,
+        crop: crop ?? undefined,
+        limit: limit ?? undefined,
+      }),
+    staleTime: 10 * 60 * 1000,
+  });
+}
