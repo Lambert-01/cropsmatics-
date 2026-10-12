@@ -43,7 +43,45 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def database_url() -> str:
     assert TEST_URL
+    _refuse_production_target(TEST_URL)
     return TEST_URL
+
+
+def _refuse_production_target(url: str) -> None:
+    """Fail loudly rather than migrate and load the production database.
+
+    ``CANONICAL_TEST_DATABASE_URL`` is read from the environment, so a stale
+    shell, a copied CI variable or a ``.env`` edit can point it at the real
+    database. The fixture then applies the migration chain and runs the loader
+    against it, which is exactly the write-based production incident these tests
+    exist to prevent. The target must therefore differ from every configured
+    production URL: the live ``DATABASE_URL`` and the one in ``.env``.
+    """
+    from sqlalchemy import make_url
+
+    target = make_url(url)
+    for configured in _production_candidates():
+        try:
+            production = make_url(configured)
+        except Exception:
+            continue
+        if target.host and target.host == production.host and target.database == production.database:
+            raise RuntimeError(
+                "CANONICAL_TEST_DATABASE_URL points at the configured production "
+                "database. Use a throwaway database: these tests migrate and load."
+            )
+
+
+def _production_candidates() -> list[str]:
+    """URLs this checkout treats as production. Values are never logged."""
+    found = [os.environ.get("DATABASE_URL")]
+    env_file = REPO_ROOT / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("DATABASE_URL="):
+                found.append(line.split("=", 1)[1].strip())
+    return [value for value in found if value]
 
 
 @pytest.fixture(scope="module")

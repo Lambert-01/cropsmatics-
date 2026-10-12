@@ -1,14 +1,9 @@
 import { describe, expect, it } from "vitest";
-
-import {
-  activeTabForSegments,
-  MENU_ROOTS,
-  normalizeActiveTab,
-  TABS,
-  tabHref,
-} from "../src/utils/navigation";
+import { activeTabForSegments, MENU_ROOTS, normalizeActiveTab, TABS, tabHref } from "../src/utils/navigation";
 import { FIELD_OPERATIONS_ITEM, MENU_GROUPS, menuRoot } from "../src/utils/menu";
+import { resolveOnboardingRoute, shouldStartInOnboarding, type OnboardingState } from "../src/utils/onboarding";
 
+// merged from navigation-state.test.ts
 describe("bottom navigation destinations", () => {
   it("has exactly the five documented destinations in order", () => {
     expect(TABS.map((tab) => tab.id)).toEqual(["home", "crops", "analyze", "map", "ask"]);
@@ -118,5 +113,56 @@ describe("More menu reachability", () => {
       expect(item.icon.length).toBeGreaterThan(0);
       expect(item.href.startsWith("/")).toBe(true);
     }
+  });
+});
+
+
+// merged from onboarding-state.test.ts
+const state = (overrides: Partial<OnboardingState> = {}): OnboardingState => ({
+  hydrated: false,
+  onboardingComplete: false,
+  ...overrides,
+});
+
+describe("resolveOnboardingRoute", () => {
+  it("waits for hydration before deciding anything", () => {
+    expect(resolveOnboardingRoute(state(), [])).toBeNull();
+  });
+
+  it("sends a fresh session into onboarding once hydrated", () => {
+    expect(resolveOnboardingRoute(state({ hydrated: true }), [])).toBe("/onboarding");
+  });
+
+  it("does not redirect a session that is already inside onboarding", () => {
+    expect(resolveOnboardingRoute(state({ hydrated: true }), ["onboarding"])).toBeNull();
+  });
+
+  it("lets a completed session through to the app", () => {
+    expect(
+      resolveOnboardingRoute(state({ hydrated: true, onboardingComplete: true }), []),
+    ).toBeNull();
+  });
+
+  it("keeps a completed session out of onboarding even if it deep-links there", () => {
+    // Returning to /onboarding after completion is allowed to render, but the
+    // guard must not force a *new* redirect loop.
+    expect(
+      resolveOnboardingRoute(state({ hydrated: true, onboardingComplete: true }), ["onboarding"]),
+    ).toBeNull();
+  });
+});
+
+describe("shouldStartInOnboarding", () => {
+  it("is true only once hydrated and not yet complete", () => {
+    expect(shouldStartInOnboarding(state())).toBe(false);
+    expect(shouldStartInOnboarding(state({ hydrated: true }))).toBe(true);
+    expect(shouldStartInOnboarding(state({ hydrated: true, onboardingComplete: true }))).toBe(false);
+  });
+
+  it("models the Skip outcome: once marked complete, the next launch starts in the app", () => {
+    // Skip must set onboardingComplete = true; this is the state that results.
+    const afterSkip: OnboardingState = { hydrated: true, onboardingComplete: true };
+    expect(resolveOnboardingRoute(afterSkip, [])).toBeNull();
+    expect(shouldStartInOnboarding(afterSkip)).toBe(false);
   });
 });

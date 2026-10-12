@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { priorityBand, PRIORITY_BANDS } from "@/lib/constants";
 import { benchmarkLabel, fmtNumber, periodLabel } from "@/lib/format";
-import { riskStyle } from "@/lib/theme";
+import { riskStyle, RISK } from "@/lib/theme";
 
 describe("priorityBand", () => {
   it("maps each band to colour + icon + text", () => {
@@ -23,6 +23,15 @@ describe("priorityBand", () => {
 });
 
 describe("riskStyle", () => {
+  it("maps every band to its published style, with an icon and a label", () => {
+    for (const band of ["LOW", "MODERATE", "HIGH"] as const) {
+      const s = riskStyle(band);
+      expect(s).toBe(RISK[band]);
+      expect(s.icon.length).toBeGreaterThan(0);
+      expect(s.label.length).toBeGreaterThan(0);
+    }
+  });
+
   it("never communicates risk by colour alone", () => {
     for (const band of ["LOW", "MODERATE", "HIGH"] as const) {
       const s = riskStyle(band);
@@ -30,6 +39,12 @@ describe("riskStyle", () => {
       expect(s.label).toBeTruthy();
       expect(s.hint).toBeTruthy();
     }
+  });
+
+  it("is case-insensitive and falls back safely", () => {
+    expect(riskStyle("high").label).toBe("High");
+    expect(riskStyle(null).label).toBe("Moderate");
+    expect(riskStyle("nonsense").label).toBe("Moderate");
   });
 });
 
