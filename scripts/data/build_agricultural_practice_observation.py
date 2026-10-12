@@ -138,7 +138,7 @@ def build(long_df: pd.DataFrame, dim_district: pd.DataFrame) -> tuple[pd.DataFra
 
     df["domain"] = [
         _domain_of(release, sheet)
-        for release, sheet in zip(df["source_release"], df["source_sheet"])
+        for release, sheet in zip(df["source_release"], df["source_sheet"], strict=False)
     ]
 
     unmapped = df[df["domain"].isna()]

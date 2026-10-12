@@ -122,15 +122,33 @@ def test_the_panel_is_loaded_in_full(engine, loaded):
 
 
 def test_periods_cover_every_published_release(engine, loaded):
-    with engine.connect() as connection:
-        from sqlalchemy import text
+    """The loaded period axis must equal the panel's, whatever it currently is.
 
+    Deliberately compared against the processed artefact rather than a literal
+    set of release codes. The literal version went stale the moment the panel
+    expanded to 2022-2026: it kept asserting the old eight releases while the
+    pipeline published fourteen, so CI failed on a correct panel. Deriving the
+    expectation from the same file the loader read cannot drift again.
+    """
+    import pandas as pd
+
+    panel = pd.read_csv(REPO_ROOT / "data" / "processed" / "crop_productivity.csv")
+    expected = {str(code) for code in panel["period_code"].dropna().unique()}
+    assert expected, "the processed panel published no periods at all"
+
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
         periods = {
-            row[0] for row in connection.execute(text("SELECT DISTINCT period_id FROM crop_productivity"))
+            str(row[0])
+            for row in connection.execute(
+                text("SELECT DISTINCT period_id FROM crop_productivity")
+            )
         }
-    assert periods == {
-        "2024A", "2024B", "2024C", "2025A", "2025B", "2025C", "2026A", "2026B"
-    }
+    assert periods == expected
+    # And the axis really is multi-year: a regression to one release would still
+    # satisfy the set equality above if the panel itself collapsed.
+    assert len({code[:4] for code in periods}) >= 2
 
 
 def test_reloading_is_idempotent(engine, loaded, loader):
