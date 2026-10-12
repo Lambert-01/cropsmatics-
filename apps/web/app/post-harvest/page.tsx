@@ -10,10 +10,11 @@ import { LossByCropChart } from "@/features/postharvest/LossByCropChart";
 import { RiskClassificationTable } from "@/features/postharvest/RiskClassificationTable";
 import { StorageVsSoldChart } from "@/features/postharvest/StorageVsSoldChart";
 import { UseCompositionChart } from "@/features/postharvest/UseCompositionChart";
+import { UseHistoryPanel } from "@/features/postharvest/UseHistoryPanel";
 import { NationalInfrastructureSummary } from "@/features/storage/NationalInfrastructureSummary";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { useFilters } from "@/services/hooks/useFilters";
-import { usePostHarvest, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
+import { usePostHarvest, usePostharvestHistory, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
 
 /**
  * The first screenful: which crop leads each share.
@@ -29,6 +30,7 @@ export default function PostHarvestPage() {
   // The post-harvest dataset supports the crop filter only; the filter bar
   // below says so explicitly instead of silently dropping the rest.
   const postHarvest = usePostHarvest(filters);
+  const history = usePostharvestHistory();
   const infrastructure = useStorageInfrastructure();
   const crops = postHarvest.data?.crops ?? [];
   const headlines = postHarvest.data?.headlines ?? [];
@@ -92,6 +94,18 @@ export default function PostHarvestPage() {
       <RiskClassificationTable crops={crops} />
 
       <UseCompositionChart crops={crops} isLoading={postHarvest.isLoading} />
+
+      {/* The same use shares across every published release, so the page answers
+          "how did this change?" and not only "what is it now?". */}
+      <UseHistoryPanel
+        data={history.data}
+        isLoading={history.isLoading}
+        isFetching={history.isFetching}
+        hasError={Boolean(history.error)}
+        errorMessage={history.error ? (history.error as Error).message : undefined}
+        onRetry={() => history.refetch()}
+        initialCrop={filters.crop ?? undefined}
+      />
 
       {/* Official national storage capacity context for the same period. */}
       <section aria-labelledby="national-infra" className="space-y-4">

@@ -190,6 +190,22 @@ export function usePostHarvest(filters: DashboardFilters) {
 }
 
 /**
+ * The multi-period post-harvest panel, fetched whole and once.
+ *
+ * Keyed on the request, not on the page's crop/period selection: those are
+ * applied client-side by `lib/postharvestHistory`, so changing crop or release
+ * re-renders from cache instead of issuing a request that could land after a
+ * slower one and blank the chart.
+ */
+export function usePostharvestHistory() {
+  return useQuery({
+    queryKey: ["postharvest-history", 2000],
+    queryFn: () => api.postharvestHistory({ limit: 2000 }),
+    staleTime: FIVE_MIN,
+  });
+}
+
+/**
  * National MINAGRI infrastructure totals + cold-chain program context.
  * National/program level only, so it is not filter-dependent.
  */

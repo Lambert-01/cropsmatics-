@@ -23,6 +23,7 @@ import type {
   OverviewResponse,
   PeriodTrendResponse,
   PeriodsResponse,
+  PostharvestHistoryResponse,
   PostHarvestResponse,
   PriorityResponse,
   PriorityScenarioRequest,
@@ -99,6 +100,21 @@ export const api = {
     const params = new URLSearchParams();
     if (filters?.crop) params.set("crop", filters.crop);
     return get<PostHarvestResponse>("/analytics/post-harvest", params.toString());
+  },
+  /**
+   * Multi-period post-harvest use shares (2024A-2026B, 1,573 observations).
+   *
+   * The whole panel is requested in one call: the panel is small, and pivoting
+   * between crops and releases client-side then never refetches, so a chart
+   * cannot be torn down by a background request. The response still carries
+   * `n_observations` and `periods` so the UI can state what it is showing.
+   */
+  postharvestHistory: (params?: { crop?: string; periodCode?: string; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.crop) query.set("crop", params.crop);
+    if (params?.periodCode) query.set("period_code", params.periodCode);
+    query.set("limit", String(params?.limit ?? 2000));
+    return get<PostharvestHistoryResponse>("/analytics/postharvest-history", query.toString());
   },
   storageInfrastructure: () =>
     get<StorageInfrastructureResponse>("/analytics/storage-infrastructure"),

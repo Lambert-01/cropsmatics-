@@ -394,7 +394,38 @@ def test_a_group_with_no_published_rows_is_no_observations_not_zero_yield(client
 # --- model scenario (Mode B) --------------------------------------------------
 
 
-def test_model_scenario_stays_off_for_a_spatially_validated_model(client):
+# The registry is a directory of JSON model cards, not a database table. These
+# two tests therefore build their own cards in a temporary directory and point
+# ``meta_service.MODELS_DIR`` at it: ``ml/reports`` is gitignored (the real card
+# is a training artefact), so a test that reads whatever happens to be on the
+# developer's disk passes locally and fails on a clean CI checkout.
+_SPATIAL_CARD = {
+    "name": "yield_baseline",
+    "version": "test",
+    "target": "yield_kg_ha",
+    "best_model": "ridge",
+    "metrics": {"ridge": {"mae": 1316.2, "rmse": 2174.1, "r2": 0.801}},
+    "validation_split": "district holdout (every 5th district)",
+    "validation_kind": "district_holdout",
+    "serves_forecast": False,
+}
+
+
+def _with_model_cards(client, monkeypatch, tmp_path, cards):
+    """Serve the scenario endpoint from ``cards`` instead of the checkout."""
+    import json
+    from pathlib import Path
+
+    from app.services import meta_service
+
+    for index, card in enumerate(cards):
+        (Path(tmp_path) / f"card_{index}.json").write_text(json.dumps(card))
+    monkeypatch.setattr(meta_service, "MODELS_DIR", Path(tmp_path))
+
+
+def test_model_scenario_stays_off_for_a_spatially_validated_model(
+    client, tmp_path, monkeypatch
+):
     """A registered district-holdout yield model must NOT enable mode B.
 
     Its metrics are real (the registry now reports them), but a district holdout
@@ -402,6 +433,7 @@ def test_model_scenario_stays_off_for_a_spatially_validated_model(client):
     evidence for a forward-looking scenario.
     """
     _require_data(client)
+    _with_model_cards(client, monkeypatch, tmp_path, [_SPATIAL_CARD])
     body = _scenario(client, baseline=_side(BASE_PERIOD), scenario=_side(PREVIOUS_PERIOD))
     mode_b = body["model_scenario"]
     assert mode_b["available"] is False
@@ -412,6 +444,22 @@ def test_model_scenario_stays_off_for_a_spatially_validated_model(client):
     assert "districts" in mode_b["reason"]
     # The warning is present either way, so a future enabled card cannot imply
     # a guaranteed intervention outcome.
+    assert "not a" in mode_b["warning"]
+
+
+def test_model_scenario_stays_off_when_no_model_card_exists_at_all(client, tmp_path, monkeypatch):
+    """A clean checkout (CI) has no ``ml/reports/*.json`` at all.
+
+    Mode B must still stay off, and the reason must say that no qualifying model
+    is registered rather than naming a card that does not exist.
+    """
+    _require_data(client)
+    _with_model_cards(client, monkeypatch, tmp_path, [])
+    body = _scenario(client, baseline=_side(BASE_PERIOD), scenario=_side(PREVIOUS_PERIOD))
+    mode_b = body["model_scenario"]
+    assert mode_b["available"] is False
+    assert "chronological" in mode_b["reason"]
+    assert "districts" not in mode_b["reason"]
     assert "not a" in mode_b["warning"]
 
 
