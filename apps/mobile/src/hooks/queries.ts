@@ -112,6 +112,9 @@ export function usePracticeIndicators(params?: {
   district?: string;
   province?: string;
   limit?: number;
+  /** A screen that only renders one geography can hold the request until that
+   *  geography is chosen instead of fetching a page of the full table. */
+  enabled?: boolean;
 }) {
   const domain = params?.domain ?? null;
   const periodCode = params?.periodCode ?? null;
@@ -120,6 +123,7 @@ export function usePracticeIndicators(params?: {
   const district = params?.district ?? null;
   const province = params?.province ?? null;
   const limit = params?.limit ?? null;
+  const enabled = params?.enabled ?? true;
   return useQuery({
     queryKey: ["practice-indicators", domain, periodCode, year, season, district, province, limit],
     queryFn: () =>
@@ -133,6 +137,7 @@ export function usePracticeIndicators(params?: {
         limit: limit ?? undefined,
       }),
     staleTime: 10 * 60 * 1000,
+    enabled,
   });
 }
 
