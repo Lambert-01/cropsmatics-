@@ -16,30 +16,13 @@ import { ChartSkeleton, EmptyState, ErrorState, UpdatingPill } from "@/component
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { chartDisplayState, isUpdating as showUpdating } from "@/lib/chartState";
 import { fmtPct, periodLabel } from "@/lib/format";
+import {
+  buildPracticeSeries,
+  practiceIndicatorLabel,
+  PRACTICE_DOMAIN_LABELS,
+  practiceSpan,
+} from "@/lib/practiceIndicators";
 import type { PracticeIndicatorResponse } from "@/types";
-
-const DOMAIN_LABELS: Record<string, string> = {
-  practices: "Agricultural practices",
-  irrigation: "Irrigation",
-  water_source: "Water sources",
-  erosion_control: "Erosion control",
-  erosion_severity: "Erosion severity",
-};
-
-const INDICATOR_LABELS: Record<string, string> = {
-  improved_seed_pct: "Improved seed",
-  inorganic_fertilizer_pct: "Inorganic fertiliser",
-  organic_fertilizer_pct: "Organic fertiliser",
-  pesticide_pct: "Pesticide",
-  irrigation_pct: "Irrigation",
-  anti_erosion_pct: "Erosion protection",
-  agroforestry_pct: "Agroforestry",
-  mechanization_pct: "Mechanisation",
-};
-
-function indicatorLabel(code: string) {
-  return INDICATOR_LABELS[code] ?? code.replace(/_pct$/, "").replace(/_/g, " ");
-}
 
 const SERIES_COLORS = [
   CHART.primary,
@@ -53,15 +36,22 @@ const SERIES_COLORS = [
 /**
  * Multi-period practice indicator trends.
  *
- * Shows how agricultural practice adoption has changed across published
- * releases. Each indicator is one line; the domain selector keeps the chart
- * readable by limiting to one domain at a time.
+ * Shows how practice, irrigation, water-source and erosion shares have
+ * changed across published releases (2024A-2026B). Each indicator is one
+ * line; the domain selector keeps the chart readable by limiting to one
+ * domain at a time.
+ *
+ * The dataset is district-grained. With a district selected the chart draws
+ * that district's published shares; without one it draws only rows the
+ * release published at NATIONAL level. It never averages districts on the
+ * client: that would be an invented statistic presented as an official one.
  *
  * Published values are used as published. A null means not published — it is
  * never shown as 0% and never interpolated across a gap.
  */
 export function PracticeIndicatorsPanel({
   data,
+  district,
   isLoading,
   isFetching,
   hasError,
@@ -69,6 +59,8 @@ export function PracticeIndicatorsPanel({
   onRetry,
 }: {
   data?: PracticeIndicatorResponse;
+  /** The selected district, or null/undefined for national rows only. */
+  district?: string | null;
   isLoading?: boolean;
   isFetching?: boolean;
   hasError?: boolean;
@@ -80,33 +72,22 @@ export function PracticeIndicatorsPanel({
 
   const observations = useMemo(() => data?.observations ?? [], [data]);
   const domains = useMemo(() => data?.domains ?? [], [data]);
-  const periods = useMemo(() => {
-    const seen = new Set<string>();
-    observations.forEach((o) => seen.add(o.period_code));
-    return Array.from(seen).sort();
-  }, [observations]);
+  // The response names the releases the *domain* is published for, even when
+  // the filtered slice has no row for one of them - so an unpublished release
+  // keeps its slot as a gap instead of quietly disappearing from the axis.
+  const periods = useMemo(() => data?.periods ?? [], [data]);
 
   const activeDomain = domain || domains[0] || "";
 
-  // Build one series per indicator in the active domain.
   const series = useMemo(() => {
     const domainObs = observations.filter(
       (o) => !activeDomain || o.domain === activeDomain,
     );
-    const indicatorCodes = Array.from(new Set(domainObs.map((o) => o.indicator_code)));
-
-    return indicatorCodes.map((code, idx) => ({
-      code,
-      label: indicatorLabel(code),
+    return buildPracticeSeries(domainObs, periods, district ?? null).map((s, idx) => ({
+      ...s,
       color: SERIES_COLORS[idx % SERIES_COLORS.length],
-      points: periods.map((p) => {
-        const obs = domainObs.find(
-          (o) => o.indicator_code === code && o.period_code === p,
-        );
-        return { period: p, value: obs?.value ?? null };
-      }),
     }));
-  }, [observations, activeDomain, periods]);
+  }, [observations, activeDomain, periods, district]);
 
   // Recharts needs one row per period with all indicator values.
   const chartData = useMemo(
@@ -143,17 +124,17 @@ export function PracticeIndicatorsPanel({
         title="Practice adoption trends"
         subtitle={
           data
-            ? `${periods.length} published releases · ${data.n_observations.toLocaleString("en-US")} observations`
+            ? `${practiceSpan(periods) ?? "no releases"} published · ${data.n_observations.toLocaleString("en-US")} district observations`
             : "Multi-period agricultural practice indicators"
         }
         action={<UpdatingPill active={updating} />}
       />
 
-      {!data || observations.length === 0 ? (
+      {!data || observations.length === 0 || (!district && !observations.some((o) => o.geography_level === "NATIONAL")) ? (
         <div className="p-4">
           <EmptyState
-            title="No practice indicator data for this selection."
-            hint="Try a different district or period."
+            title="This dataset is published per district."
+            hint="Select a district to explore its practice, irrigation and erosion shares across releases. The dashboard above already shows the national adoption trend."
           />
         </div>
       ) : (
@@ -170,14 +151,15 @@ export function PracticeIndicatorsPanel({
               >
                 {domains.map((d) => (
                   <option key={d} value={d}>
-                    {DOMAIN_LABELS[d] ?? d}
+                    {PRACTICE_DOMAIN_LABELS[d] ?? d}
                   </option>
                 ))}
               </select>
             </label>
             <p className="pb-1 text-[11px] text-slate-500">
-              {DOMAIN_LABELS[activeDomain] ?? activeDomain} ·{" "}
-              {series.length} indicator{series.length !== 1 ? "s" : ""}
+              {PRACTICE_DOMAIN_LABELS[activeDomain] ?? activeDomain} ·{" "}
+              {district ?? "national rows"} · {series.length} indicator
+              {series.length !== 1 ? "s" : ""}
             </p>
           </div>
 
@@ -190,8 +172,8 @@ export function PracticeIndicatorsPanel({
             ) : (
               <>
                 <p className="sr-only">
-                  {DOMAIN_LABELS[activeDomain]} across {periods.length} releases:{" "}
-                  {series.map((s) => s.label).join(", ")}.
+                  {PRACTICE_DOMAIN_LABELS[activeDomain]} for {district ?? "the national rows"} across{" "}
+                  {periods.length} releases: {series.map((s) => s.label).join(", ")}.
                 </p>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
@@ -203,7 +185,7 @@ export function PracticeIndicatorsPanel({
                       labelFormatter={(label) => periodLabel(String(label))}
                       formatter={(value, name) => [
                         value === null ? "no data" : fmtPct(Number(value)),
-                        indicatorLabel(String(name)),
+                        practiceIndicatorLabel(String(name)),
                       ]}
                     />
                     {series.map((s) => (
@@ -240,9 +222,9 @@ export function PracticeIndicatorsPanel({
 
             <SourceNote>
               {data?.note ?? "Published practice adoption shares from NISR SAS district surveys."}
-              {data?.provenance?.source_id ? ` Source: ${data.provenance.source_id}.` : ""}
-              {" "}A null value means the indicator was not published for that release — it is never
-              shown as 0%.
+              {data?.provenance?.source_id ? ` Source: ${data.provenance.source_id}.` : ""}{" "}
+              A published 0% is a real share of zero; a gap means the release published nothing for
+              that indicator.
             </SourceNote>
           </CardBody>
         </>

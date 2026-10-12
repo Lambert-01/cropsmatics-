@@ -61,7 +61,15 @@ export default function DashboardPage() {
   // scope rather than following the selected release.
   const trends = useTrends(filters.crop, filters.compare);
   const inputAdoption = useInputAdoption();
-  const practiceIndicators = usePracticeIndicators({ district: filters.district, limit: 500 });
+  // The practice panel is district-grained and the endpoint pages its full
+  // 9,468-row table, so the request waits for a district: an unfiltered
+  // response is one arbitrary page, never a national picture. The national
+  // adoption trend stays with `inputAdoption` above.
+  const practiceIndicators = usePracticeIndicators({
+    district: filters.district ?? undefined,
+    limit: 500,
+    enabled: Boolean(filters.district),
+  });
   // The gap views read the productivity panel's own published columns (observed
   // yield, benchmark, gap index) rather than deriving a shortfall locally, so
   // the dashboard and the Productivity page can never disagree about a number.
@@ -229,6 +237,7 @@ export default function DashboardPage() {
 
               <PracticeIndicatorsPanel
                 data={practiceIndicators.data}
+                district={filters.district}
                 isLoading={practiceIndicators.isLoading}
                 isFetching={practiceIndicators.isFetching}
                 hasError={practiceIndicators.isError}
@@ -263,6 +272,7 @@ export default function DashboardPage() {
           </div>
           <PracticeIndicatorsPanel
             data={practiceIndicators.data}
+            district={filters.district}
             isLoading={practiceIndicators.isLoading}
             isFetching={practiceIndicators.isFetching}
             hasError={practiceIndicators.isError}

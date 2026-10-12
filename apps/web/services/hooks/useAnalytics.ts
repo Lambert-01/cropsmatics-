@@ -255,10 +255,15 @@ export function usePracticeIndicators(params?: {
   domain?: string;
   periodCode?: string;
   limit?: number;
+  /** Gate the request until the caller has a geography the response can be
+   *  honest about; an unfiltered call only ever returns one arbitrary page
+   *  of the table, which must not be charted as a trend. */
+  enabled?: boolean;
 }) {
   return useQuery({
     queryKey: ["practice-indicators", params?.district ?? "", params?.domain ?? "", params?.periodCode ?? ""],
     queryFn: () => api.practiceIndicators(params),
     staleTime: FIVE_MIN,
+    enabled: params?.enabled ?? true,
   });
 }
