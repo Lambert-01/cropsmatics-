@@ -143,12 +143,16 @@ export function usePostharvestHistory(params?: {
   season?: string;
   crop?: string;
   limit?: number;
+  /** A screen that only renders the panel for one crop can hold the request
+   *  until that crop is chosen instead of fetching an unfiltered panel. */
+  enabled?: boolean;
 }) {
   const periodCode = params?.periodCode ?? null;
   const year = params?.year ?? null;
   const season = params?.season ?? null;
   const crop = params?.crop ?? null;
   const limit = params?.limit ?? null;
+  const enabled = params?.enabled ?? true;
   return useQuery({
     queryKey: ["postharvest-history", periodCode, year, season, crop, limit],
     queryFn: () =>
@@ -160,5 +164,6 @@ export function usePostharvestHistory(params?: {
         limit: limit ?? undefined,
       }),
     staleTime: 10 * 60 * 1000,
+    enabled,
   });
 }

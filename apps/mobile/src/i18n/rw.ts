@@ -762,6 +762,10 @@ export const rw: Strings = {
   postHarvestProgramNone: "Uturere twa gahunda ntibwatangajwe kuri iyi hitamo.",
   postHarvestFacilityNote:
     "Facility-level capacities and exact coordinates are not published, so none are shown.",
+  postHarvestHistoryTitle: "Use over time",
+  postHarvestHistorySubtitle: "{crop}, published shares by release",
+  postHarvestHistoryFlagged:
+    "{flagged} of {total} crop-release groups do not total 100%. They are flagged as published, never rescaled.",
 
   // ---- Source & method sheet -----------------------------------------------
   sourceMethodTitle: "Inkomoko n'uburyo",

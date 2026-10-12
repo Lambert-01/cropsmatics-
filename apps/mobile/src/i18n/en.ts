@@ -777,6 +777,10 @@ export const en = {
   postHarvestProgramNone: "Program districts are not published for this selection.",
   postHarvestFacilityNote:
     "Facility-level capacities and exact coordinates are not published, so none are shown.",
+  postHarvestHistoryTitle: "Use over time",
+  postHarvestHistorySubtitle: "{crop}, published shares by release",
+  postHarvestHistoryFlagged:
+    "{flagged} of {total} crop-release groups do not total 100%. They are flagged as published, never rescaled.",
 
   // ---- Source & method sheet -----------------------------------------------
   sourceMethodTitle: "Source & method",

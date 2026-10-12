@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useState } from "react";
 
-import { HorizontalBarChart, StackedShareBar } from "../../src/components/charts";
+import { HorizontalBarChart, MultiSeriesChart, StackedShareBar } from "../../src/components/charts";
 import { DataSection, DataWarning } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import {
@@ -13,13 +13,18 @@ import {
   LoadingSkeleton,
   SectionHeader,
 } from "../../src/components/ui";
-import { useAllCrops, usePeriods } from "../../src/hooks/queries";
+import { useAllCrops, usePeriods, usePostharvestHistory } from "../../src/hooks/queries";
 import { strings } from "../../src/i18n";
 import { postHarvestApi } from "../../src/services/api";
 import { useAppStore } from "../../src/store/useAppStore";
 import { spacing } from "../../src/theme";
 import { useTheme } from "../../src/theme/theme-context";
 import { releaseLabel } from "../../src/utils/coverage";
+import {
+  availableHistoryIndicators,
+  historySeries,
+  HISTORY_INDICATORS,
+} from "../../src/utils/postharvestHistory";
 
 /**
  * The published post-harvest table is a single national crop-level release with
@@ -30,9 +35,22 @@ export default function PostHarvestScreen() {
   const { colors, typography } = useTheme();
   const t = strings(useAppStore((s) => s.language));
   const [crop, setCrop] = useState<string | null>(null);
+  const [indicator, setIndicator] = useState<string>("sold_pct");
 
   const crops = useAllCrops();
   const periods = usePeriods();
+  // The history panel is fetched only once a crop is chosen: with no crop the
+  // endpoint returns the whole 1,573-row panel, which this screen never shows.
+  const history = usePostharvestHistory({ crop: crop ?? undefined, enabled: crop !== null });
+  const historyObservations = history.data?.observations ?? [];
+  const indicatorChoices = availableHistoryIndicators(historyObservations, crop ?? "");
+  const activeIndicator = indicatorChoices.includes(indicator)
+    ? indicator
+    : (indicatorChoices[0] ?? "");
+  const indicatorSeries =
+    crop && activeIndicator
+      ? historySeries(historyObservations, crop, activeIndicator, history.data?.periods ?? [])
+      : [];
   const summary = useQuery({
     queryKey: ["postharvest", crop],
     queryFn: () => postHarvestApi.summary({ crop: crop ?? undefined }),
@@ -100,6 +118,73 @@ export default function PostHarvestScreen() {
           <Text style={typography.caption}>{t.postHarvestPickCropNote}</Text>
         </DataSection>
       )}
+
+      {/* The same shares, over time. Only the releases this crop was actually
+          published for carry a value: a release with nothing published holds a
+          gap, so the line never bridges data that does not exist. */}
+      {crop ? (
+        <DataSection
+          title={t.postHarvestHistoryTitle}
+          subtitle={t.postHarvestHistorySubtitle.replace("{crop}", crop)}
+        >
+          {history.isError ? (
+            <ErrorState message={t.errorGeneric} onRetry={() => void history.refetch()} />
+          ) : history.isLoading ? (
+            <LoadingSkeleton height={220} />
+          ) : indicatorSeries.length ? (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chips}
+                keyboardShouldPersistTaps="handled"
+              >
+                {indicatorChoices.map((code) => {
+                  const meta = HISTORY_INDICATORS.find((item) => item.code === code);
+                  return (
+                    <FilterChip
+                      key={code}
+                      label={String(meta ? t[meta.key] : code)}
+                      selected={code === activeIndicator}
+                      onPress={() => setIndicator(code)}
+                    />
+                  );
+                })}
+              </ScrollView>
+
+              <MultiSeriesChart
+                series={[
+                  {
+                    key: activeIndicator,
+                    label: String(
+                      t[HISTORY_INDICATORS.find((item) => item.code === activeIndicator)?.key ?? "sold"],
+                    ),
+                    color: colors.primary,
+                    points: indicatorSeries.map((point) => ({
+                      label: releaseLabel(point.period, periods.data?.periods ?? []) ?? point.period,
+                      value: point.value,
+                    })),
+                  },
+                ]}
+                unit="%"
+                height={220}
+                accessibilityLabel={`${t.postHarvestHistoryTitle} — ${crop}`}
+              />
+
+              {(history.data?.shares_off_total ?? 0) > 0 ? (
+                <DataWarning
+                  text={t.postHarvestHistoryFlagged
+                    .replace("{flagged}", String(history.data?.shares_off_total))
+                    .replace("{total}", String(history.data?.share_totals?.length ?? 0))}
+                />
+              ) : null}
+              {history.data?.note ? <DataWarning tone="slate" text={history.data.note} /> : null}
+            </>
+          ) : (
+            <EmptyState title={t.chartNoTrendData} icon="time-outline" />
+          )}
+        </DataSection>
+      ) : null}
 
       {crop === null && summary.data?.crops?.length ? (
         <DataSection title={t.losses} subtitle={t.postHarvestLossesSubtitle}>

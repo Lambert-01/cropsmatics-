@@ -72,6 +72,7 @@ export const PENDING_KINYARWANDA_REVIEW: readonly string[] = [
   "notificationsInfo", "notificationsInquiry", "offline", "offlineCache", "offlineCached",
   "onboardingDescription", "onboardingTitle", "organicFertilizer", "other", "overview",
   "period", "pesticide", "popularQuestions", "postHarvest", "postHarvestFacilityNote",
+  "postHarvestHistoryFlagged", "postHarvestHistorySubtitle", "postHarvestHistoryTitle",
   "postHarvestLossNote", "postHarvestNationalWarning", "postHarvestNoDistrictNote",
   "postHarvestPickCropNote", "postHarvestSubtitle", "postHarvestTitle", "privacy",
   "privacyHonestyNote", "privacyPoint1", "privacyPoint2", "privacyPoint3", "privacyPoint4",
