@@ -15,8 +15,9 @@ import {
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { NationalContextBadge } from "@/components/ui/NationalContextBadge";
-import { ChartSkeleton, EmptyState } from "@/components/ui/States";
+import { ChartSkeleton, EmptyState, ErrorState, UpdatingPill } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
+import { chartDisplayState, isUpdating as showUpdating } from "@/lib/chartState";
 import { fmtCompact, fmtNumber, periodLabel } from "@/lib/format";
 import type { TrendResponse } from "@/types";
 
@@ -25,14 +26,29 @@ const COMPARE_COLORS = [CHART.primary, CHART.amber, CHART.blue, CHART.green, "#7
 export function YieldTrendChart({
   data,
   isLoading,
+  isFetching,
+  hasError,
+  errorMessage,
+  onRetry,
   crop,
 }: {
   data?: TrendResponse;
   isLoading?: boolean;
+  /** A newer response is in flight for the same scope while `data` is still valid. */
+  isFetching?: boolean;
+  hasError?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   crop?: string;
 }) {
   const motion = useChartMotion();
   const isCompare = data?.kind === "crop_trends_compare";
+  const chartTitle = isCompare
+    ? `Crop comparison (${data?.compared_crops?.length ?? 0} crops)`
+    : crop
+      ? `${crop} national trend`
+      : "National crop trend";
+  const updating = showUpdating({ hasData: (data?.points?.length ?? 0) > 0, isFetching });
 
   const points = useMemo(
     () =>
@@ -56,30 +72,50 @@ export function YieldTrendChart({
       }));
   }, [isCompare, data]);
 
-  if (isLoading) return <ChartSkeleton />;
+  // A skeleton is shown only when there is genuinely nothing to read. Once a
+  // response has loaded, a later refetch (or even a failure) must not replace the
+  // chart with a placeholder - that is what made the national trend appear and
+  // then disappear after a filter change. The rule itself lives in
+  // `lib/chartState`, where it is unit tested.
+  const state = chartDisplayState({ hasData: points.length > 0, isLoading, hasError });
+  if (state === "loading") return <ChartSkeleton />;
+  if (state === "error") {
+    return (
+      <Card>
+        <CardHeader title={chartTitle} subtitle="The published national series could not be loaded" />
+        <div className="p-4">
+          <ErrorState message={errorMessage} onRetry={onRetry} />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader
-        title={
-          isCompare
-            ? `Crop comparison (${data?.compared_crops?.length ?? 0} crops)`
-            : crop
-              ? `${crop} national trend`
-              : "National crop trend"
-        }
+        title={chartTitle}
         subtitle={
           isCompare
             ? "Harvested area and production per crop — yield is not compared across crops (incomparable natural scales)"
-            : "Production and yield by published period — only real periods are shown"
+            : "Production (metric tonnes, left axis) and yield (t/ha, right axis) by published period"
         }
         action={
-          isCompare ? <NationalContextBadge note="district filter not applicable" /> : undefined
+          <div className="flex items-center gap-2">
+            {isCompare ? <NationalContextBadge note="district filter not applicable" /> : null}
+            <UpdatingPill active={updating} />
+          </div>
         }
       />
       {points.length === 0 ? (
         <div className="p-4">
-          <EmptyState />
+          <EmptyState
+            title="No national trend is published for this selection."
+            hint={
+              crop
+                ? `No published production/yield series for ${crop}. Try another crop, or clear the crop filter for the national aggregate.`
+                : "No published national trend rows were returned. Try another period or refresh the catalogue."
+            }
+          />
         </div>
       ) : (
         <div className="h-[280px] px-2 pt-3">

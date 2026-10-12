@@ -15,7 +15,7 @@ import {
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
-import { PeriodTimeline } from "@/features/dashboard/PeriodTimeline";
+import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
@@ -35,8 +35,10 @@ import { useFilters } from "@/services/hooks/useFilters";
 /**
  * The Overview: one decision question per screenful.
  *
- * 1. **Scope** - the filter bar, an explicit scope line, and the published-period
- *    axis, so a reader knows what every figure below covers before reading one.
+ * 1. **Scope** - the filter bar, the compact period scope control, and an
+ *    explicit scope line, so a reader knows what every figure below covers
+ *    before reading one. The published axis itself lives behind the control's
+ *    coverage popover: it is reference material, not the answer.
  * 2. **Headline** - at most four KPIs, one scope and one period.
  * 3. **Where to look** - the map as the visual anchor, with the short priority
  *    answer beside it. Selecting a district re-scopes the page.
@@ -73,6 +75,20 @@ export default function DashboardPage() {
 
       <AnalyticsFilterBar />
 
+      {/* The published axis as a control, not as a list. Fourteen releases are
+          fully reachable here (explicit all-periods scope, year, season, and a
+          coverage popover) without spending the first screen on them. */}
+      {overview.data ? (
+        <PeriodScopeControl
+          periods={overview.data.period_timeline ?? []}
+          view={filters.view}
+          period={filters.period}
+          year={filters.year}
+          season={filters.season}
+          onChange={(patch) => setFilters(patch)}
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2 px-1">
         <CompareCropsControl />
         <CropEntryPoint crop={filters.crop} />
@@ -102,35 +118,6 @@ export default function DashboardPage() {
 
       {overview.data ? (
         <CoverageNotice level={overview.data.coverage_level} period={overview.data.period} />
-      ) : null}
-
-      {/* The published axis is what makes "all published periods" a legible
-          scope rather than an absence of one, and it is how a reader switches
-          release without leaving the page. */}
-      {overview.data ? (
-        <PeriodTimeline
-          periods={overview.data.period_timeline ?? []}
-          view={filters.view}
-          selectedPeriod={filters.period}
-          snapshotPeriod={overview.data.snapshot?.period_code}
-          onSelect={(periodCode) =>
-            setFilters(
-              periodCode
-                ? {
-                    period: periodCode,
-                    view: "period",
-                    year: undefined,
-                    season: undefined,
-                  }
-                : {
-                    period: undefined,
-                    view: "history",
-                    year: undefined,
-                    season: undefined,
-                  },
-            )
-          }
-        />
       ) : null}
 
       {overview.error ? (
@@ -188,6 +175,10 @@ export default function DashboardPage() {
             <YieldTrendChart
               data={trends.data}
               isLoading={trends.isLoading}
+              isFetching={trends.isFetching}
+              hasError={trends.isError}
+              errorMessage={(trends.error as Error)?.message}
+              onRetry={() => trends.refetch()}
               crop={filters.crop}
             />
           </div>
@@ -227,6 +218,10 @@ export default function DashboardPage() {
               <InputAdoptionChart
                 data={inputAdoption.data}
                 isLoading={inputAdoption.isLoading}
+                isFetching={inputAdoption.isFetching}
+                hasError={inputAdoption.isError}
+                errorMessage={(inputAdoption.error as Error)?.message}
+                onRetry={() => inputAdoption.refetch()}
               />
 
               <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
@@ -238,11 +233,19 @@ export default function DashboardPage() {
           <YieldTrendChart
             data={trends.data}
             isLoading={trends.isLoading}
+            isFetching={trends.isFetching}
+            hasError={trends.isError}
+            errorMessage={(trends.error as Error)?.message}
+            onRetry={() => trends.refetch()}
             crop={filters.crop}
           />
           <InputAdoptionChart
             data={inputAdoption.data}
             isLoading={inputAdoption.isLoading}
+            isFetching={inputAdoption.isFetching}
+            hasError={inputAdoption.isError}
+            errorMessage={(inputAdoption.error as Error)?.message}
+            onRetry={() => inputAdoption.refetch()}
           />
         </div>
       )}

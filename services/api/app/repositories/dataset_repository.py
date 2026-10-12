@@ -206,6 +206,32 @@ def postharvest_use() -> pd.DataFrame:
     return _observation_read("crop_postharvest_use", "crop_postharvest_use.csv")
 
 
+def agricultural_practice_observation() -> pd.DataFrame:
+    """Multi-period district practice/irrigation/erosion observations (2024A-2026B).
+
+    Long form: one row per period x geography x domain x indicator, carrying the
+    published unit and the full source lineage (workbook, sheet, row). This is
+    the processed dataset that surfaces the 78 SAS sheets which were previously
+    mapped and ingested but exposed nowhere, so ``inventory_sas_workbooks`` can
+    honestly report them as ``used``.
+
+    Not routed through the canonical database: the schema does not model this
+    long indicator form yet, so it reads the processed artefact. Nulls are
+    published nulls (a district/period/indicator NISR did not tabulate has no
+    row at all, never a zero).
+    """
+    return _load("agricultural_practice_observation.csv")
+
+
+def postharvest_use_multi_period() -> pd.DataFrame:
+    """Multi-period crop post-harvest use shares (2024A-2026B), long form.
+
+    The multi-period counterpart of :func:`postharvest_use`, which stays the
+    2025 Season B single-release table its existing clients read.
+    """
+    return _load("crop_postharvest_use_multi_period.csv")
+
+
 def national_crop_trends() -> pd.DataFrame:
     return _load("national_crop_trends.csv")
 

@@ -333,6 +333,10 @@ export const rw: Strings = {
   mapLegend: "Legend",
   map: "Ikarita",
   mapNoData: "Nta gaciro kemejwe",
+  // Ibikoresho byo kureba ikarita (kwegera no kurenga).
+  mapZoomIn: "Egera hafi",
+  mapZoomOut: "Jya kure",
+  mapResetView: "Subiza ikarita ku ntangiriro",
   // Technical direction wording: kept in English pending native-speaker review,
   // matching this file's convention for long methodological sentences.
   legendHigherIsBetter:

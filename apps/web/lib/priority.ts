@@ -8,7 +8,7 @@
  */
 
 import { fmtNumber } from "@/lib/format";
-import type { PlannerWeights } from "@/types";
+import type { PlannerWeights, PriorityRow } from "@/types";
 
 /** The engine's internal weight keys, in the order the planner presents them. */
 export const ENGINE_WEIGHT_KEYS = ["wg", "wv", "wf", "wr", "wc"] as const;
@@ -119,6 +119,37 @@ export const COMPONENT_LABELS: Record<string, string> = {
 
 export function componentLabel(component: string): string {
   return COMPONENT_LABELS[component] ?? component.replace(/_/g, " ");
+}
+
+/**
+ * The headline answer for the priorities workspace.
+ *
+ * The engine already returned the candidates in score order, so this only takes
+ * a prefix. It deliberately does **not** re-sort: a browser re-rank is exactly
+ * the thing the workspace is careful never to do, and re-sorting here would let
+ * the headline disagree with the table underneath it.
+ */
+export function headlinePriorities(rows: PriorityRow[], limit: number): PriorityRow[] {
+  return rows.slice(0, Math.max(0, limit));
+}
+
+/**
+ * One candidate per district, in engine order - the districts where review
+ * should start. A district appears once, under its best-ranked candidate, so the
+ * list reads as "where to look", not as a second copy of the ranking.
+ */
+export function investigationAreas(rows: PriorityRow[], limit: number): PriorityRow[] {
+  const wanted = Math.max(0, limit);
+  if (wanted === 0) return [];
+  const seen = new Set<string>();
+  const out: PriorityRow[] = [];
+  for (const row of rows) {
+    if (seen.has(row.district)) continue;
+    seen.add(row.district);
+    out.push(row);
+    if (out.length >= wanted) break;
+  }
+  return out;
 }
 
 /** Human sentence for a component status, used in tooltips and notices. */

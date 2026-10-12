@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
-import type { DashboardFilters } from "@/lib/filters";
+import { scopeKey, type DashboardFilters } from "@/lib/filters";
 import type {
   AssistantContext,
   PriorityScenarioRequest,
@@ -13,9 +13,15 @@ import type {
 
 const FIVE_MIN = 5 * 60 * 1000;
 
+/**
+ * Every analytical query is keyed on the scope identity, never on the filter
+ * object. Two filters that issue the same API request therefore share one cache
+ * entry instead of the second one being treated as a new scope - which is what
+ * used to tear down an already-rendered chart and refetch it. See `scopeKey`.
+ */
 export function useOverview(filters: DashboardFilters) {
   return useQuery({
-    queryKey: ["overview", filters],
+    queryKey: ["overview", scopeKey(filters)],
     queryFn: () => api.overview(filters),
     staleTime: FIVE_MIN,
   });
@@ -23,7 +29,7 @@ export function useOverview(filters: DashboardFilters) {
 
 export function useProductivity(filters: DashboardFilters, enabled = true) {
   return useQuery({
-    queryKey: ["productivity", filters],
+    queryKey: ["productivity", scopeKey(filters)],
     queryFn: () => api.productivity(filters),
     staleTime: FIVE_MIN,
     enabled,
@@ -46,7 +52,7 @@ export function useProductivityAtPeriod(
 ) {
   const pinned: DashboardFilters = { ...filters, period: periodCode, year: undefined, season: undefined };
   return useQuery({
-    queryKey: ["productivity-at", pinned],
+    queryKey: ["productivity-at", scopeKey(pinned)],
     queryFn: () => api.productivity(pinned),
     staleTime: FIVE_MIN,
     enabled: enabled && Boolean(periodCode),
@@ -123,7 +129,7 @@ export function useSensitivity() {
 
 export function useFactors(filters: DashboardFilters, enabled = Boolean(filters.crop)) {
   return useQuery({
-    queryKey: ["factors", filters],
+    queryKey: ["factors", scopeKey(filters)],
     queryFn: () => api.factors(filters),
     staleTime: FIVE_MIN,
     enabled,
@@ -132,7 +138,7 @@ export function useFactors(filters: DashboardFilters, enabled = Boolean(filters.
 
 export function useHeatmap(filters: DashboardFilters, metric: "gap" | "yield" = "gap", enabled = true) {
   return useQuery({
-    queryKey: ["heatmap", filters, metric],
+    queryKey: ["heatmap", scopeKey(filters), metric],
     queryFn: () => api.heatmap(filters, metric),
     staleTime: FIVE_MIN,
     enabled,
@@ -141,7 +147,7 @@ export function useHeatmap(filters: DashboardFilters, metric: "gap" | "yield" = 
 
 export function useMapMetrics(filters: DashboardFilters, metric: string, enabled = true) {
   return useQuery({
-    queryKey: ["map-metrics", filters, metric],
+    queryKey: ["map-metrics", scopeKey(filters), metric],
     queryFn: () => api.mapDistrictMetrics(filters, metric),
     staleTime: FIVE_MIN,
     enabled,
@@ -177,7 +183,7 @@ export function useInputAdoption() {
  */
 export function usePostHarvest(filters: DashboardFilters) {
   return useQuery({
-    queryKey: ["post-harvest", filters],
+    queryKey: ["post-harvest", scopeKey(filters)],
     queryFn: () => api.postHarvest(filters),
     staleTime: FIVE_MIN,
   });
@@ -197,7 +203,7 @@ export function useStorageInfrastructure() {
 
 export function usePriorities(filters: DashboardFilters, limit = 50, enabled = true) {
   return useQuery({
-    queryKey: ["priorities", filters, limit],
+    queryKey: ["priorities", scopeKey(filters), limit],
     queryFn: () => api.priorities(filters, limit),
     staleTime: FIVE_MIN,
     enabled,

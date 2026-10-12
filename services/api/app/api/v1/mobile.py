@@ -15,15 +15,33 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.common import Provenance
 from app.schemas.mobile import MobileHomeResponse, MobileIndicatorsResponse
-from app.services import mobile_service
+from app.services import mobile_service, period_service
 
 router = APIRouter(prefix="/mobile", tags=["mobile"])
 
-INDICATOR_LIMITATIONS = [
-    "an indicator is only offered when its period carries real coverage",
-    "district-level indicators exist only for 2025 Season B",
-    "a missing value is returned as null, never as zero",
-]
+def _indicator_limitations() -> list[str]:
+    """Limitations built from the coverage matrix, not from literals.
+
+    The multi-period SAS indicator domains (practice, irrigation, water source,
+    erosion, post-harvest) really do cover more than one season, while the legacy
+    wide district tables still serve a single release. Writing either claim down
+    as a constant is how a screen ends up describing a calendar the data does
+    not have, so both ranges are read from the tables themselves.
+    """
+    multi = mobile_service.multi_period_indicator_range()
+    legacy = period_service.single_release_scope()
+    limitations = [
+        "an indicator is only offered when its period carries real coverage",
+    ]
+    if multi:
+        limitations.append(
+            f"multi-period SAS indicator domains cover {multi}; the legacy wide "
+            f"district tables still serve {legacy} only"
+        )
+    else:
+        limitations.append(f"district-level indicators exist only for {legacy}")
+    limitations.append("a missing value is returned as null, never as zero")
+    return limitations
 
 
 @router.get("/home", response_model=MobileHomeResponse)
@@ -58,6 +76,6 @@ def indicators() -> MobileIndicatorsResponse:
             source_id="NISR_SAS_2025B_DISTRICT_CROP",
             source_period=period,
             method="indicator registry cross-checked against the processed coverage matrix",
-            limitations=INDICATOR_LIMITATIONS,
+            limitations=_indicator_limitations(),
         ),
     )

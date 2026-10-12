@@ -4,7 +4,9 @@ import type {
   NationalBoardResponse,
   PeriodProductivityResponse,
   PeriodTrendResponse,
+  PostHarvestHistoryResponse,
   PostHarvestResponse,
+  PracticeIndicatorResponse,
   TrendResponse,
 } from "../../types";
 import { qs, request } from "./client";
@@ -65,9 +67,21 @@ export const analyticsApi = {
    * to ``periods`` and the same-season delta is computed by the service, so the
    * client only presents numbers it did not derive.
    */
-  nationalBoard: (params?: { crops?: string[] }) =>
+  nationalBoard: (params?: {
+    crops?: string[];
+    /** One published period (``2025B``). Takes precedence over year/season. */
+    periodCode?: string | null;
+    /** Every published season of this year, resolved server-side. */
+    year?: number | null;
+    season?: string | null;
+  }) =>
     request<NationalBoardResponse>(
-      `/analytics/national-board${qs({ crops: params?.crops?.join(",") })}`,
+      `/analytics/national-board${qs({
+        crops: params?.crops?.join(","),
+        period_code: params?.periodCode ?? undefined,
+        year: params?.year ?? undefined,
+        season: params?.season ?? undefined,
+      })}`,
     ),
   /**
    * Yield performance indexed to each crop's own published baseline.
@@ -82,6 +96,55 @@ export const analyticsApi = {
       `/analytics/indexed-yield${qs({ crops: params.crops.join(",") })}`,
     ),
   inputAdoption: () => request<TrendResponse>("/analytics/input-adoption"),
+  /**
+   * Multi-period district practice/irrigation/water/erosion observations
+   * (2024A–2026B). This is the period-aware companion to the legacy
+   * single-release irrigation/erosion tables, which stay unchanged.
+   *
+   * ``domain`` names one of practice | irrigation | water_source |
+   * erosion_control | erosion_severity; omit it for all domains.
+   */
+  practiceIndicators: (params?: {
+    domain?: string;
+    periodCode?: string;
+    year?: number;
+    season?: string;
+    district?: string;
+    province?: string;
+    limit?: number;
+  }) =>
+    request<PracticeIndicatorResponse>(
+      `/analytics/practice-indicators${qs({
+        domain: params?.domain,
+        period_code: params?.periodCode,
+        year: params?.year,
+        season: params?.season,
+        district: params?.district,
+        province: params?.province,
+        limit: params?.limit,
+      })}`,
+    ),
+  /**
+   * Multi-period crop post-harvest use shares (2024A–2026B). Reports the
+   * published share totals per period × crop and how many fall outside the
+   * rounding tolerance, so a screen can say so rather than silently rescaling.
+   */
+  postharvestHistory: (params?: {
+    periodCode?: string;
+    year?: number;
+    season?: string;
+    crop?: string;
+    limit?: number;
+  }) =>
+    request<PostHarvestHistoryResponse>(
+      `/analytics/postharvest-history${qs({
+        period_code: params?.periodCode,
+        year: params?.year,
+        season: params?.season,
+        crop: params?.crop,
+        limit: params?.limit,
+      })}`,
+    ),
   /**
    * District practice adoption correlated with a crop's yield.
    *

@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULTS_NONE,
   DEFAULT_BENCHMARK,
   filtersToApiQuery,
   filtersToQuery,
   isHistoryScope,
   mergeFilters,
+  parseDefaultsMode,
   parseFilters,
   parseView,
+  scopeKey,
   scopeSummaryText,
   splitPeriod,
 } from "@/lib/filters";
@@ -103,6 +106,98 @@ describe("canonical period handling", () => {
     expect(params.get("period_code")).toBeNull();
     expect(params.get("year")).toBe("2024");
     expect(params.get("season")).toBe("C");
+  });
+});
+
+describe("scope identity (the query key)", () => {
+  it("keys on the release, not on how the release was written down", () => {
+    // The regression behind "a chart appears and then disappears": the period
+    // was the selector of record, and the filter bar then wrote the year/season
+    // pair *derived from it* back into the URL. The API request did not change,
+    // but the query key did - so React Query treated one release as two scopes,
+    // dropped the loaded chart and refetched it.
+    const canonical = scopeKey({ view: "period", period: "2026B", crop: "Maize" });
+    const withDerivedPair = scopeKey({
+      view: "period",
+      period: "2026B",
+      year: 2026,
+      season: "B",
+      crop: "Maize",
+    });
+    expect(withDerivedPair).toBe(canonical);
+  });
+
+  it("gives two genuinely different releases different keys", () => {
+    expect(scopeKey({ view: "period", period: "2026A" })).not.toBe(
+      scopeKey({ view: "period", period: "2026B" }),
+    );
+  });
+
+  it("gives the same key to every history scope", () => {
+    // History scope deliberately sends no period, so a leftover period on the
+    // object cannot turn "all published periods" into one release.
+    expect(scopeKey({ view: "history" })).toBe(
+      scopeKey({ view: "history", period: "2024A", year: 2024, season: "A" }),
+    );
+    expect(scopeKey({ view: "history" })).not.toBe(scopeKey({ view: "period", period: "2024A" }));
+  });
+
+  it("separates scopes that differ by crop, geography or benchmark", () => {
+    const base = { view: "period" as const, period: "2026B" };
+    const keys = [
+      scopeKey(base),
+      scopeKey({ ...base, crop: "Maize" }),
+      scopeKey({ ...base, district: "Bugesera" }),
+      scopeKey({ ...base, province: "Eastern" }),
+      scopeKey({ ...base, benchmark: "agro_ecological_peer_group" }),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("is exactly the API request, so a shared key means a shared cache entry", () => {
+    const filters = { view: "period" as const, period: "2025B", crop: "Beans" };
+    const entries = scopeKey(filters).split("&").sort();
+    expect(entries).toEqual(
+      [...new URLSearchParams(filtersToApiQuery(filters)).entries()]
+        .map(([key, value]) => `${key}=${value}`)
+        .sort(),
+    );
+  });
+});
+
+describe("reset-filter link (view=history&defaults=none)", () => {
+  /** The exact URL `useFilters().reset()` writes. */
+  const RESET_URL = "view=history&defaults=none";
+
+  it("round-trips through the URL so a reset link stays a reset", () => {
+    const parsed = parseFilters(new URLSearchParams(RESET_URL));
+    expect(parsed.view).toBe("history");
+    expect(parsed.defaults).toBe("none");
+
+    // Writing it back out must preserve the flag, otherwise the reset would be a
+    // one-render effect that snapping a filter undoes.
+    const rewritten = new URLSearchParams(filtersToQuery(parsed));
+    expect(rewritten.get("view")).toBe("history");
+    expect(rewritten.get("defaults")).toBe("none");
+  });
+
+  it("ignores an unrecognised defaults value", () => {
+    expect(parseDefaultsMode("nonsense")).toBeUndefined();
+    expect(parseDefaultsMode(null)).toBeUndefined();
+    expect(parseDefaultsMode(DEFAULTS_NONE)).toBe(DEFAULTS_NONE);
+  });
+
+  it("does not add the flag to ordinary links", () => {
+    const params = new URLSearchParams(filtersToQuery({ view: "history", crop: "Maize" }));
+    expect(params.get("defaults")).toBeNull();
+  });
+
+  it("keeps the flag when a filter is applied after a reset", () => {
+    // The user reset, then narrowed to one crop. They still do not want stored
+    // defaults re-applied around the crop they just chose.
+    const params = new URLSearchParams(filtersToQuery({ view: "history", defaults: "none", crop: "Beans" }));
+    expect(params.get("crop")).toBe("Beans");
+    expect(params.get("defaults")).toBe("none");
   });
 });
 

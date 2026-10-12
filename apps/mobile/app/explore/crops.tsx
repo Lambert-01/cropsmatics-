@@ -16,6 +16,12 @@ import { spacing } from "../../src/theme";
 import type { Palette } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { computeMovers } from "../../src/utils/movers";
+import {
+  availableSeasons,
+  availableYears,
+  reconcileScope,
+  scopeLabel,
+} from "../../src/utils/periodScope";
 import { slugifyEntity } from "../../src/utils/slug";
 
 /** Row height the skeleton must match, so the list does not jump when it lands. */
@@ -33,11 +39,17 @@ export default function CropsScreen() {
   const [category, setCategory] = useState<string>("all");
   const [scope, setScope] = useState<"all" | "saved">("all");
   const [metric, setMetric] = useState<BoardMetric>("production_mt");
+  // Published-period scope. `periods` is the axis the board returned, so the
+  // controls below can only offer years and seasons the release actually has.
+  const [year, setYear] = useState<number | null>(null);
+  const [season, setSeason] = useState<string | null>(null);
 
   const crops = useAllCrops();
   // One request for the whole board: the series are already aligned to a shared
-  // period axis and the same-season change is computed by the service.
-  const board = useNationalBoard();
+  // period axis and the same-season change is computed by the service. The
+  // year/season scope is applied by the server, so a filtered board is filtered
+  // data rather than a filtered label.
+  const board = useNationalBoard(undefined, { year, season });
   const { savedCodes, toggle } = useSavedCrops();
 
   const byName = useMemo(() => {
@@ -45,6 +57,24 @@ export default function CropsScreen() {
     for (const crop of board.data?.crops ?? []) map.set(crop.crop.toLowerCase(), crop);
     return map;
   }, [board.data]);
+
+  // Memoised because the scope controls below derive from it: reading it off
+  // `board.data` inline would mint a new array each render and re-run them.
+  const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
+  const years = useMemo(() => availableYears(periods), [periods]);
+  const seasons = useMemo(() => availableSeasons(periods, year), [periods, year]);
+  const scopeName = scopeLabel({ year, season });
+
+  /**
+   * Applying a year can invalidate the season (2024 has only Season B). The
+   * scope is reconciled against the axis the server returned, so a stale season
+   * is cleared instead of requesting a period that does not exist.
+   */
+  const changeYear = (next: number | null) => {
+    const reconciled = reconcileScope({ year: next, season }, periods);
+    setYear(reconciled.year);
+    setSeason(reconciled.season);
+  };
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -130,6 +160,49 @@ export default function CropsScreen() {
         ))}
       </ScrollView>
 
+      {/* Published-period scope. A year resolves to its own seasons server-side. */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chips}
+      >
+        <FilterChip
+          label={t.filterAll}
+          selected={year === null}
+          onPress={() => changeYear(null)}
+        />
+        {years.map((item) => (
+          <FilterChip
+            key={item}
+            label={String(item)}
+            selected={year === item}
+            onPress={() => changeYear(item)}
+          />
+        ))}
+      </ScrollView>
+
+      {year !== null && seasons.length ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+        >
+          <FilterChip
+            label={String(year)}
+            selected={season === null}
+            onPress={() => setSeason(null)}
+          />
+          {seasons.map((item) => (
+            <FilterChip
+              key={item}
+              label={`${year} ${item}`}
+              selected={season === item}
+              onPress={() => setSeason(item)}
+            />
+          ))}
+        </ScrollView>
+      ) : null}
+
       <MetricSelector
         label={t.selectIndicator}
         value={metric}
@@ -173,14 +246,17 @@ export default function CropsScreen() {
         <>
           <View style={styles.countRow}>
             <Text style={typography.micro}>
-              {`${rows.length} ${t.crops} · ${t.nationalSeries}`}
+              {`${rows.length} ${t.crops} · ${scopeName || t.nationalSeries}`}
             </Text>
             <Text style={typography.micro}>
-              {board.data?.periods.length
-                ? `${board.data.periods[0]}–${board.data.periods[board.data.periods.length - 1]}`
-                : ""}
+              {periods.length ? `${periods[0]}–${periods[periods.length - 1]}` : ""}
             </Text>
           </View>
+          {/* A single pinned period has no same-season predecessor to compare
+              with, so say so instead of leaving the row blank. */}
+          {year !== null && season !== null ? (
+            <Text style={typography.caption}>{t.noComparableChange}</Text>
+          ) : null}
           <View>
             {rows.map((crop) => {
               const saved = Boolean(savedCodes[crop.crop_code]);

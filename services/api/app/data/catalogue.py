@@ -374,6 +374,27 @@ class SourceDef:
 
 
 SOURCES: tuple[SourceDef, ...] = (
+    # 2022 and 2023 were ingested to extend the canonical panel back to the
+    # start of the published multi-season series. They are declared here for the
+    # same reason every other source is: `data_source` is the foreign key target
+    # of `source_table.source_id`, so a source cited by the processed panel but
+    # missing from this tuple makes the canonical load fail its constraint and
+    # roll the whole run back. Neither release has an entry in the curated
+    # registry, so `registry_name` is None rather than invented.
+    SourceDef(
+        "NISR_SAS_2022_ANNUAL",
+        "NISR",
+        "NISR SAS 2022 Annual Tables",
+        None,
+        "public page + downloadable Excel/PDF",
+    ),
+    SourceDef(
+        "NISR_SAS_2023_ANNUAL",
+        "NISR",
+        "NISR SAS 2023 Annual Tables",
+        None,
+        "public page + downloadable Excel/PDF",
+    ),
     SourceDef(
         "NISR_SAS_2024_ANNUAL",
         "NISR",
@@ -429,6 +450,15 @@ SOURCES: tuple[SourceDef, ...] = (
         "NISR_SAS_2025B_POSTHARVEST_USE",
         "NISR",
         "NISR SAS 2025 Season B use of production",
+        "NISR SAS 2025 Annual",
+        "public page + downloadable Excel/PDF",
+    ),
+    # The legacy single-release district pack. Cited by the district_crop_
+    # productivity artefact, so it must resolve as a `data_source` too.
+    SourceDef(
+        "NISR_SAS_2025B_DISTRICT_CROP",
+        "NISR",
+        "NISR SAS 2025 Season B district crop productivity",
         "NISR SAS 2025 Annual",
         "public page + downloadable Excel/PDF",
     ),

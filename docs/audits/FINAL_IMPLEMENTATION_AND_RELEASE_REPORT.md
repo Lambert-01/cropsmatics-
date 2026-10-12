@@ -1,0 +1,289 @@
+# Final implementation and release report — 2026-10-12
+
+Companion to `docs/audits/REMAINING_WORK_VERIFICATION.md` (the running ledger).
+Every status below is one of: **Implemented and verified** · **Implemented,
+awaiting device/deployment verification** · **Blocked** · **Not yet implemented**.
+
+Scope of this pass, in the handoff's own priority order: SAS indicator exposure,
+then mobile Analyze. Mobile Crops/Compare/Maps, the web Interventions redesign and
+the forecasting rework were **not** attempted; they are listed honestly as
+outstanding rather than half-done.
+
+---
+
+## 1. Requirement status
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Continue from the latest milestone branch | Implemented and verified | `git ls-remote` matches the handoff; work committed on `milestone-1-2-readiness-reconciliation` |
+| Inspect PR #3 before new work | Implemented and verified (state partially) | `refs/pull/3/head` = `5121766` = starting HEAD; open/merged state could not be read (no `gh`, repo not public) |
+| Read-only production verification over Neon | Implemented and verified | direct `SELECT`s + `load_postgres --dry-run`; production unchanged (3,738 rows) |
+| Production data load | Blocked — explicit approval required | not executed; plan recorded |
+| SAS indicator exposure (practice/irrigation/water/erosion/post-harvest) | Implemented and verified | `used` 56 → 134, `mapped_not_exposed` 78 → 0; two new processed datasets + two new API endpoints + 25 new tests |
+| Data quality warnings surfaced honestly | Implemented and verified (for the new domains) | periods and units reported per indicator; null ≠ 0 asserted; off-total share groups flagged not rescaled |
+| Mobile Analyze workspace | Implemented and verified (code level) | rebuilt screen + `ranking.ts` + 6 unit tests; typecheck and lint clean |
+| Mobile Crops year/season filters | Implemented and verified (code level) | server-side board scope + client scope reconciliation + 11 unit tests; API suite 542 passed |
+| Mobile Compare UX | Not yet implemented | — |
+| Mobile Maps gestures/legend/coverage | Not yet implemented | — |
+| Web Interventions redesign | Implemented and verified (code + build) | answer-first layout, scenario labelled, weighting disclosed; `next build` EXIT=0, web vitest 182 passed |
+| Web filter pass (`lib/filters`, preferences, reset) | Not yet implemented | — |
+| Other web page consistency pass | Not yet implemented | — |
+| Forecasting revalidation | Not yet implemented | ML suite run only to prove no regression |
+| Mobile device smoke test (Samsung) | Blocked — no device access | recorded `DEVICE_VERIFICATION_PENDING` |
+| Deployment SHA verification (Vercel/Render) | Blocked — no dashboard access | — |
+
+---
+
+## 2. Files changed
+
+**API (board scope)**
+
+* `services/api/app/services/national_board_service.py` (`year`/`season` axis scope)
+* `services/api/app/api/v1/analytics.py` (`period_code`/`year`/`season` params + 422s)
+
+**Data pipeline**
+
+* `scripts/data/build_agricultural_practice_observation.py` (new)
+* `scripts/data/build_crop_postharvest_multi_period.py` (new)
+* `scripts/data/build_data_coverage.py` (register the two new datasets)
+* `scripts/data/run_all.py` (wire both builders into the deterministic order)
+* `data/source_registry/sas_sheet_inventory.csv` (regenerated: 134 `used`, 0 `mapped_not_exposed`)
+
+**API**
+
+* `services/api/app/repositories/dataset_repository.py` (+2 readers)
+* `services/api/app/services/analytics_service.py` (+2 service functions, +`_availability`)
+* `services/api/app/api/v1/analytics.py` (+2 endpoints)
+* `services/api/app/services/mobile_service.py` (`periods` per indicator, derived range)
+* `services/api/app/api/v1/mobile.py` (limitations derived from coverage)
+* `services/api/app/services/period_service.py` (catalogue note corrected)
+* `services/api/app/schemas/mobile.py` (`periods` field)
+
+**Mobile**
+
+* `apps/mobile/app/explore/analyze.tsx` (rebuilt as an analytical workspace)
+* `apps/mobile/src/utils/ranking.ts` (new, pure)
+* `apps/mobile/tests/ranking.test.ts` (new)
+* `apps/mobile/app/explore/crops.tsx` (year + season filters)
+* `apps/mobile/src/utils/periodScope.ts` (new, pure)
+* `apps/mobile/tests/period-scope.test.ts` (new)
+* `apps/mobile/src/hooks/queries.ts`, `apps/mobile/src/services/api/analytics.ts` (board scope)
+
+**Web**
+
+* `apps/web/features/interventions/PrioritiesWorkspace.tsx` (answer-first redesign)
+* `apps/web/lib/priority.ts` (+2 pure helpers)
+* `apps/web/tests/priority-workspace.test.ts` (new)
+
+**Tests**
+
+* `services/api/tests/test_indicator_history.py` (new, 14)
+* `scripts/tests/test_indicator_exposure.py` (new, 11)
+
+**Docs**
+
+* `docs/data/SAS_COVERAGE_AUDIT.md` (dispositions, coverage claims, next steps)
+* `docs/audits/REMAINING_WORK_VERIFICATION.md` (new ledger)
+* `docs/audits/FINAL_IMPLEMENTATION_AND_RELEASE_REPORT.md` (this file)
+
+---
+
+## 3. New API contracts (additive only)
+
+```
+GET /api/v1/analytics/practice-indicators
+    ?period_code=&year=&season=&district=&province=&domain=&limit=
+  -> { available, domain, domains[], periods[], indicators[], observations[],
+       n_observations, period, note, provenance }
+
+GET /api/v1/analytics/postharvest-history
+    ?period_code=&year=&season=&crop=&limit=
+  -> { available, crops[], indicators[], periods[], observations[],
+       n_observations, share_totals[], shares_off_total, period, note, provenance }
+```
+
+Extended (additive query parameters only; the unscoped response is unchanged):
+
+```
+GET /api/v1/analytics/national-board
+    ?crops=&period_code=&year=&season=
+  -> periods[] is restricted to the published periods that match; an unpublished
+     period, an unmatched year or an invalid season is a 422 naming the available
+     periods
+```
+
+`GET /api/v1/mobile/indicators` gained an additive `periods: string[]` per
+indicator. No existing field changed shape; no existing endpoint changed
+behaviour.
+
+`domain` accepts `practice | irrigation | water_source | erosion_control |
+erosion_severity`. An unrecognised domain returns `available: false` with the
+published list in `note` — it does not 500 and does not silently widen the
+selection.
+
+---
+
+## 4. Dataset counts and coverage
+
+| | Before | After |
+|---|---:|---:|
+| `agricultural_practice_observation.csv` | (absent) | 9,468 rows, 8 periods, 30 districts, 5 domains, 306 published nulls |
+| `crop_postharvest_use_multi_period.csv` | (absent) | 1,573 rows, 8 periods, 17 crops, 11 indicators, 15 groups off ±1 pt |
+| `data_coverage.csv` rows | 38 | 53 |
+| Productivity panel | 6,156 rows, 14 periods | unchanged |
+| Sheet inventory `used` | 56 | 134 |
+| Sheet inventory `mapped_not_exposed` | 78 | 0 |
+| 89 material yield inconsistencies | flagged | unchanged (no value touched) |
+| Production Neon dataset | `0.2.0-535efe5d2bd75b51`, 3,738 rows | unchanged |
+
+Repo manifest dataset version moved `0.2.0-de5f544f78983671` →
+`0.2.0-6c2a6cd910d4596f` because two outputs were added to the hashed manifest.
+
+---
+
+## 5. Verification commands and results
+
+```
+python3 -m scripts.data.inventory_sas_workbooks
+  -> used 134 | mapped_not_exposed 0 | not_yet_mapped 271 | duplicate 35 | metadata 2
+
+services/api/.venv/bin/pytest services/api/tests      -> 542 passed, 27 skipped
+services/api/.venv/bin/pytest scripts/tests           ->  94 passed,  1 skipped
+services/api/.venv/bin/pytest ml                      ->  39 passed
+pnpm --filter cropmatics-web typecheck | lint         -> clean, clean
+pnpm --filter cropmatics-web test                     -> 182 passed / 17 files
+(cd apps/web && npx next build)                       -> EXIT=0 (production build)
+(cd apps/mobile && npm run typecheck && npm run lint) -> clean, clean
+(cd apps/mobile && npm test)                          -> 278 passed / 30 files
+
+python3 -m scripts.data.load_postgres --dry-run       -> plan printed, 0 rows rejected
+```
+
+Baseline for comparison (recorded 2026-10-11): API 519/27, data 83/1, ML 36/3, web
+vitest 176/16. Every increase is accounted for by a named new test file; no
+pre-existing test was skipped, weakened or deleted to make a suite pass.
+
+Production read-only probe reproduced the deployed state:
+`dataset_version = 0.2.0-535efe5d2bd75b51`, `crop_productivity = 3,738`,
+`agricultural_observation = 1,477`.
+
+---
+
+## 6. What is blocked, and on what
+
+1. **Production database load** — needs explicit owner approval. The plan is
+   unchanged in shape from 2026-10-11 but now also carries the two new processed
+   artefacts into the manifest version. Nothing was written.
+2. **Samsung device smoke test** — no handset/emulator reachable from this
+   environment. `adb devices` was not run. Reported as pending, never as passed.
+3. **PR #3 merge state and deployment SHAs** — no GitHub CLI, repo not publicly
+   readable, and no Vercel/Render dashboard access.
+4. **`Tables_2025_Season_B_0.xlsx` precedence** — a data question, not a
+   permission one: 33 sheets stay unmapped until the 2025B figures it republishes
+   are compared cell-by-cell against the 2025 annual Season B tables.
+
+---
+
+## 7. Recommended next work, in order
+
+1. **Surface the new domains in the mobile/web UI**: `/analytics/practice-indicators`
+   and `/analytics/postharvest-history` are exposed, tested and documented but not
+   yet rendered. The mobile Indicators screen (`app/explore/indicators.tsx`) and the
+   web Interventions workspace are the two obvious consumers, and the domain/period
+   metadata the endpoints return is exactly what a period selector needs.
+2. **Mobile Compare UX** and **Maps gesture/legend work** (Milestone D remainder):
+   district search in the picker, a selected-entity tray, map-to-Compare link that
+   carries the tapped district, zoom/reset and a coverage-aware legend.
+3. **Web filter pass** (handoff §14): verify reset does not reapply saved crop or
+   district preferences, and add the regression tests for preferences, reset, deep
+   links and period changes.
+4. **Forecasting revalidation** (Milestone F) on the unchanged 14-period panel.
+5. **Approve and run the production load**, after which readiness should flip from
+   `dataset_version_mismatch` to ready.
+
+---
+
+## 8. Explicit non-claims
+
+* No screenshot or recording of the new mobile Analyze screen exists — no device
+  or emulator was available. The screen is verified by typecheck, lint and unit
+  tests on its logic, not by rendering.
+* No source value was modified: the 89 material yield inconsistencies and the 15
+  off-total post-harvest groups remain flagged, not corrected.
+* No new i18n key was added, so Kinyarwanda completeness is unchanged rather than
+  improved by this pass.
+* CI was not run.
+
+---
+
+# Addendum — Phase P1 (2026-10-12)
+
+Companion detail: `REMAINING_WORK_VERIFICATION.md` → "Phase P1".
+
+## Requirement status after P1
+
+| Requirement | Status |
+|---|---|
+| Data-pipeline Ruff job passes | `LOCALLY_VERIFIED` — `ruff check scripts/data scripts/tests` clean |
+| API "unit/canonical integration" job passes | `LOCALLY_VERIFIED` against an isolated Neon database: 26 passed, 1 skipped (was 17 failed) |
+| DB tests run, not skipped, on isolated infrastructure | `LOCALLY_VERIFIED` — dedicated throwaway Neon database, created for the run and dropped afterwards |
+| Charts do not disappear after a filter change or refetch | `IMPLEMENTED` + `LOCALLY_VERIFIED` (unit) — root cause fixed; `BROWSER_VERIFIED` **not** claimed |
+| "Coverage unknown" no longer appears for a known level | `IMPLEMENTED` + `LOCALLY_VERIFIED` (API + unit) |
+| No fabricated district counts | `LOCALLY_VERIFIED` — covered by `coverageText` tests |
+| Overview no longer dominated by a 14-period list | `IMPLEMENTED` + `LOCALLY_VERIFIED` (build + unit); rendering **not** visually confirmed |
+| History remains discoverable / year + season filtering intuitive | `IMPLEMENTED` — all-periods scope, year, season and a coverage popover |
+| Source quality flags visible | unchanged from the previous phase (not extended here) |
+| GitHub Actions green on the final commit | `PENDING` — CI was not run from here; the failures reported at `1005ddc` are reproduced and fixed locally |
+| Production database load | `BLOCKED — explicit approval required` (unchanged; production verified byte-identical afterwards) |
+| Production readiness | not claimed |
+
+## Files changed in P1
+
+**API / data**
+* `services/api/app/data/catalogue.py` — declare `NISR_SAS_2022_ANNUAL`,
+  `NISR_SAS_2023_ANNUAL`, `NISR_SAS_2025B_DISTRICT_CROP` (fixes the loader FK)
+* `services/api/app/services/period_service.py` — coverage level derived from every
+  substantiating layer; data-derived notes; `panel_periods` / `matrix_only_periods`
+* `scripts/data/build_agricultural_practice_observation.py` — `zip(strict=False)`
+* `services/api/tests/test_canonical_integration.py` — period expectation derived
+  from the processed panel
+* `services/api/tests/test_source_catalogue_consistency.py` (new, 4 tests)
+* `services/api/tests/test_period_coverage_sources.py` (new, 6 tests)
+
+**Web**
+* `apps/web/lib/filters.ts` — `scopeKey()` (centralised query-key identity)
+* `apps/web/lib/chartState.ts` (new) — the chart-visibility rule
+* `apps/web/lib/coverage.ts` — exported, precise `coverageText` / `coverageExplanation` / `strongestCoverage`
+* `apps/web/lib/periodControl.ts` (new) — period-axis helpers for the compact control
+* `apps/web/lib/series.ts` (new) — multi-series selection rules
+* `apps/web/services/hooks/useAnalytics.ts` — all analytical query keys on `scopeKey`
+* `apps/web/components/filters/AnalyticsFilterBar.tsx` — no derived year/season write
+* `apps/web/components/ui/States.tsx` — `UpdatingPill`
+* `apps/web/features/dashboard/PeriodScopeControl.tsx` (new) — the compact scope control
+* `apps/web/features/dashboard/PeriodTimeline.tsx` — compact, read-only coverage list
+* `apps/web/features/dashboard/YieldTrendChart.tsx`, `InputAdoptionChart.tsx`
+* `apps/web/app/dashboard/page.tsx` — scope control first; charts get state, not just `isLoading`
+* tests: `chart-state.test.ts`, `period-control.test.ts`, `series.test.ts` (new),
+  `filters.test.ts` and `coverage.test.ts` extended
+
+## Measured results
+
+```
+API           548 passed, 27 skipped   (+6 new; baseline 542/27)
+API canonical  26 passed,  1 skipped   (isolated Neon DB; was 17 failed / 9 passed)
+data pipeline  94 passed,  1 skipped
+ML             39 passed
+web            235 passed / 20 files   (baseline 182/17), typecheck + lint clean, build EXIT=0
+mobile         296 passed / 31 files   (not modified in this phase), typecheck + lint clean
+pipeline       scripts/data/run_all.py EXIT=0; every CI-asserted artefact present
+```
+
+## What is still not done (honest list)
+
+The seven-page design-system reconstruction, the Productivity / Yield Intelligence
+/ Interventions / Post-Harvest / Storage page redesigns, the Crops catalogue and
+crop-detail work, the whole mobile workstream, the forecasting revalidation, the
+271 unmapped SAS sheets, the browser/device verification gates, and the production
+load all remain **outstanding**. P1 deliberately fixed the reported functional
+bugs and the red CI first, because every later phase depends on the data path and
+the query layer being correct.

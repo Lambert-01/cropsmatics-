@@ -5,7 +5,9 @@
                 -> ingest_market_prices -> validate_raw
                 -> normalize_geography -> normalize_crops
                 -> build_district_crop -> build_factor -> build_irrigation
-                -> build_erosion -> build_postharvest -> build_national_trends
+                -> build_erosion -> build_postharvest
+                -> build_practice_observation -> build_postharvest_multi
+                -> build_national_trends
                 -> build_input_trends -> build_cold_chain
                 -> build_postharvest_infrastructure -> build_cold_chain_network_summary
                 -> build_training
@@ -42,6 +44,8 @@ STEPS = [
     "scripts.data.build_irrigation",
     "scripts.data.build_erosion",
     "scripts.data.build_postharvest_dataset",
+    "scripts.data.build_agricultural_practice_observation",
+    "scripts.data.build_crop_postharvest_multi_period",
     "scripts.data.build_national_trends",
     "scripts.data.build_input_trends",
     "scripts.data.build_cold_chain",

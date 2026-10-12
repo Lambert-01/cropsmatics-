@@ -935,6 +935,164 @@ def erosion_summary(f: AnalyticsFilters) -> dict:
     return {"districts": records(df), "period": period_of(df)}
 
 
+# --- multi-period SAS indicator domains -------------------------------------
+# Practice, irrigation, water-source, erosion and post-harvest observations were
+# ingested with full lineage long before anything exposed them. These helpers are
+# the exposure layer. They read the long processed tables, honour the shared
+# period/district/crop filter, and report indicator availability from the
+# *unfiltered* table so a screen can state what exists instead of guessing.
+#
+# The legacy wide tables (``irrigation_water.csv`` and friends) are left exactly
+# as they are: they are the 2025 Season B single-release extract existing clients
+# already read, and replacing them would change live answers.
+
+PRACTICE_DOMAINS: tuple[str, ...] = (
+    "practice",
+    "irrigation",
+    "water_source",
+    "erosion_control",
+    "erosion_severity",
+)
+
+
+def _availability(df: pd.DataFrame, group_keys: list[str]) -> list[dict]:
+    """Per-indicator availability: unit, scopes, periods and observation count."""
+    if df.empty:
+        return []
+    out: list[dict] = []
+    for key, group in df.groupby(group_keys, dropna=False):
+        key = key if isinstance(key, tuple) else (key,)
+        record = dict(zip(group_keys, (None if pd.isna(k) else k for k in key), strict=False))
+        record["unit"] = (
+            group["unit"].dropna().iloc[0] if "unit" in group and group["unit"].notna().any() else None
+        )
+        record["periods"] = sorted(group["period_code"].dropna().astype(str).unique().tolist())
+        if "geography_level" in group.columns:
+            record["geography_levels"] = sorted(
+                group["geography_level"].dropna().astype(str).unique().tolist()
+            )
+        record["n_observations"] = int(group["value"].notna().sum()) if "value" in group else 0
+        record["n_null"] = int(group["value"].isna().sum()) if "value" in group else 0
+        out.append(record)
+    return out
+
+
+def practice_indicator_history(f: AnalyticsFilters, domain: str | None = None) -> dict:
+    """Multi-period district practice/irrigation/erosion observations (2024A-2026B).
+
+    Honest by construction: the returned ``periods``, ``domains`` and
+    ``indicators`` describe what the processed table actually carries, while
+    ``observations`` is the filtered slice. A period or indicator with no rows is
+    absent rather than reported as zero, and a published null stays null.
+    """
+    try:
+        df = repo.agricultural_practice_observation()
+    except Exception as exc:  # noqa: BLE001 - report unavailability, do not 500
+        return {
+            "available": False,
+            "domains": [],
+            "indicators": [],
+            "periods": [],
+            "observations": [],
+            "period": f.period_code,
+            "note": f"the multi-period practice dataset is not built: {exc}",
+        }
+
+    domains = sorted(df["domain"].dropna().astype(str).unique().tolist())
+    if domain and domain not in domains:
+        return {
+            "available": False,
+            "domains": domains,
+            "indicators": [],
+            "periods": [],
+            "observations": [],
+            "period": f.period_code,
+            "note": (
+                f"domain {domain!r} is not one of the published domains: "
+                f"{', '.join(domains)}"
+            ),
+        }
+
+    scoped = df[df["domain"].astype(str) == domain] if domain else df
+    periods = sorted(scoped["period_code"].dropna().astype(str).unique().tolist())
+
+    observations = apply_filters(scoped, f, crop_column="district")
+    observations = observations[observations["value"].notna() | observations["value"].isna()]
+    note = None
+    if f.period_code and f.period_code not in periods:
+        note = (
+            f"the practice/irrigation/erosion domain is published for "
+            f"{', '.join(periods)}; {f.period_code} therefore has no rows"
+        )
+
+    return {
+        "available": True,
+        "domain": domain,
+        "domains": domains,
+        "indicators": _availability(scoped, ["domain", "indicator_code"]),
+        "periods": periods,
+        "observations": records(observations.head(f.limit)),
+        "n_observations": int(len(observations)),
+        "period": f.period_code or (periods[-1] if periods else None),
+        "note": note,
+    }
+
+
+def postharvest_history(f: AnalyticsFilters) -> dict:
+    """Multi-period crop post-harvest use shares (2024A-2026B).
+
+    Published shares of a crop's use are meant to total 100 per crop and period.
+    Where they do not, the group is reported by ``shares_off_total`` - the
+    published shares are never rescaled to force a total.
+    """
+    try:
+        df = repo.postharvest_use_multi_period()
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "available": False,
+            "crops": [],
+            "indicators": [],
+            "periods": [],
+            "observations": [],
+            "period": f.period_code,
+            "note": f"the multi-period post-harvest dataset is not built: {exc}",
+        }
+
+    periods = sorted(df["period_code"].dropna().astype(str).unique().tolist())
+    observations = apply_filters(df, f, crop_column="crop")
+
+    flagged = 0
+    if "shares_sum_ok" in df.columns:
+        groups = df.groupby(["period_code", "crop"], dropna=False)["shares_sum_ok"].first()
+        flagged = int((~groups.astype(bool)).sum())
+
+    groups = (
+        df.groupby(["period_code", "crop"], dropna=False)
+        .agg(
+            shares_sum_pct=("shares_sum_pct", "first") if "shares_sum_pct" in df else ("value", "sum"),
+            shares_sum_ok=("shares_sum_ok", "first") if "shares_sum_ok" in df else ("value", "first"),
+        )
+        .reset_index()
+    )
+
+    return {
+        "available": True,
+        "crops": sorted(df["crop"].dropna().astype(str).unique().tolist()),
+        "indicators": _availability(df, ["indicator_code"]),
+        "periods": periods,
+        "observations": records(observations.head(f.limit)),
+        "n_observations": int(len(observations)),
+        "share_totals": records(groups),
+        "shares_off_total": flagged,
+        "period": f.period_code or (periods[-1] if periods else None),
+        "note": (
+            "published shares of a crop's total use; they are meant to total 100 "
+            "per crop and period, and any group outside the +/-1 point rounding "
+            "tolerance is flagged, never rescaled"
+        ),
+    }
+
+
 def normalise_weights(weights: dict | None) -> dict:
     """The fully-specified weighting actually used, defaults filled in."""
     return {**ip.DEFAULT_WEIGHTS, **(weights or {})}

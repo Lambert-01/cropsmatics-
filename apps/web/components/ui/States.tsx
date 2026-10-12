@@ -99,6 +99,34 @@ export function EmptyState({
   );
 }
 
+/**
+ * "Updating" affordance for a panel that already shows valid data.
+ *
+ * Deliberately separate from the loading skeleton. A skeleton means "there is
+ * nothing to read yet"; this means "what you are reading is real and a newer
+ * answer is on the way". Collapsing the two is what made a background refetch
+ * look like the chart had vanished: the panel was replaced by a placeholder even
+ * though the previous response was still valid for the selection on screen.
+ */
+export function UpdatingPill({
+  active,
+  label = "Updating",
+}: {
+  active?: boolean;
+  label?: string;
+}) {
+  if (!active) return null;
+  return (
+    <span
+      role="status"
+      className="inline-flex items-center gap-1.5 rounded-full border border-forest/15 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+    >
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
 export function ErrorState({
   message,
   onRetry,

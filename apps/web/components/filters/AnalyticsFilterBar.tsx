@@ -3,7 +3,7 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { SCOPE_HISTORY, scopeSummaryText, splitPeriod } from "@/lib/filters";
+import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText } from "@/lib/filters";
 import { cn } from "@/lib/cn";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -364,18 +364,23 @@ export function AnalyticsFilterBar({
   /**
    * Keep the canonical period and the legacy year/season pair in step.
    *
-   * - A selected period always resolves to its year and season.
-   * - A year+season pair that names an unpublished period is invalid, so the
-   *   season is cleared automatically (e.g. 2026 Season C does not exist).
-   * - A valid pair is canonicalised to its period code so period-aware
-   *   endpoints receive ``period_code``.
+   * Only one direction is needed: a legacy ``year``+``season`` link that names a
+   * published period is canonicalised to its period code.
+   *
+   * The other direction (writing year/season back for a selected period) was a
+   * real bug and is deliberately gone. ``filtersToQuery`` and
+   * ``filtersToApiQuery`` both derive the pair from the period, so writing it
+   * into the URL changed nothing the API saw while changing the filter object -
+   * a second ``router.replace``, a second query key for the same release, and
+   * therefore a chart that rendered and was then torn down. A stale legacy pair
+   * is now cleared instead, so the URL keeps exactly one description of the
+   * scope.
    */
   useEffect(() => {
     if (periods.length === 0) return;
     if (filters.period) {
-      const { year, season } = splitPeriod(filters.period);
-      if (year && season && (filters.year !== year || filters.season !== season)) {
-        setFilters({ year, season });
+      if (filters.year !== undefined || filters.season !== undefined) {
+        setFilters({ year: undefined, season: undefined });
       }
       return;
     }
@@ -414,6 +419,12 @@ export function AnalyticsFilterBar({
   }, [filters, periods]);
 
   const activeCount = activeChips.length;
+  /**
+   * A reset turns the stored defaults off for this view. That is a mode, not a
+   * filter, so it is shown as its own chip with a way back: leaving it silent
+   * would mean a user could not tell why their saved crop stopped appearing.
+   */
+  const defaultsMuted = filters.defaults === DEFAULTS_NONE;
 
   /** One-line human summary, e.g. "2026 Season B · Maize · Eastern · Bugesera". */
   const scopeSummary = useMemo(() => {
@@ -445,7 +456,7 @@ export function AnalyticsFilterBar({
    * written as two separate URL updates.
    */
   const set = (
-    patch: Partial<Record<FilterKey | "view", string | number | undefined>>,
+    patch: Partial<Record<FilterKey | "view" | "defaults", string | number | undefined>>,
   ) => setFilters(patch as never);
 
   /* ------------------------------------------------------------- */
@@ -543,7 +554,7 @@ export function AnalyticsFilterBar({
       <div className="card hidden items-end gap-3 px-4 py-3 md:flex">
         {controlsNode}
         <div className="ml-auto flex shrink-0 items-center gap-2 pb-0.5">
-          {activeCount > 0 ? (
+          {activeCount > 0 || defaultsMuted ? (
             <button
               type="button"
               onClick={reset}
@@ -633,6 +644,19 @@ export function AnalyticsFilterBar({
             }
           />
         ))}
+        {defaultsMuted ? (
+          <button
+            type="button"
+            onClick={() => set({ defaults: undefined })}
+            className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 py-0.5 pl-2.5 pr-2 text-xs text-amber-800"
+            aria-label="Saved defaults are off. Re-apply my saved defaults"
+            title="Reset turned your saved defaults off. Click to use them again."
+          >
+            <span className="text-amber-700/80">Saved defaults:</span>
+            <span className="font-semibold">off</span>
+            <RotateCcw className="h-3 w-3" aria-hidden="true" />
+          </button>
+        ) : null}
         {activeCount > 0 ? (
           <button
             type="button"

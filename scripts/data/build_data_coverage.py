@@ -83,6 +83,11 @@ def main() -> int:
         "irrigation_water",
         "erosion_control",
         "crop_postharvest_use",
+        # Multi-period SAS indicator domains materialized from the same
+        # interim long tables as the panel (2024A-2026B), so their periods are
+        # described per dataset instead of being advertised as single-release.
+        "agricultural_practices",
+        "crop_postharvest_use_multi",
         "national_crop_trends",
         "national_input_trends",
         "cold_chain_context",
