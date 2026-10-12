@@ -25,6 +25,7 @@ import type {
   PeriodsResponse,
   PostharvestHistoryResponse,
   PostHarvestResponse,
+  PracticeIndicatorResponse,
   PriorityResponse,
   PriorityScenarioRequest,
   PriorityScenarioResponse,
@@ -115,6 +116,30 @@ export const api = {
     if (params?.periodCode) query.set("period_code", params.periodCode);
     query.set("limit", String(params?.limit ?? 2000));
     return get<PostharvestHistoryResponse>("/analytics/postharvest-history", query.toString());
+  },
+  /**
+   * Multi-period practice / irrigation / water-source / erosion observations
+   * (2024A-2026B).
+   *
+   * The district is requested rather than filtered here: one district's five
+   * domains are ~306 rows, while the whole panel is 9,468 - far past the
+   * endpoint's default slice. `n_observations` still reports the untruncated
+   * count so a caller can tell a complete response from a capped one.
+   */
+  practiceIndicators: (params?: {
+    district?: string;
+    province?: string;
+    domain?: string;
+    periodCode?: string;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.district) query.set("district", params.district);
+    if (params?.province) query.set("province", params.province);
+    if (params?.domain) query.set("domain", params.domain);
+    if (params?.periodCode) query.set("period_code", params.periodCode);
+    query.set("limit", String(params?.limit ?? 500));
+    return get<PracticeIndicatorResponse>("/analytics/practice-indicators", query.toString());
   },
   storageInfrastructure: () =>
     get<StorageInfrastructureResponse>("/analytics/storage-infrastructure"),

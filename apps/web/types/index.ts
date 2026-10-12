@@ -621,6 +621,58 @@ export interface PostharvestHistoryResponse {
   provenance: Provenance;
 }
 
+/**
+ * One district (or national) row of the multi-period practice panel
+ * (2024A-2026B): agricultural practice, irrigation technique, water source and
+ * erosion control/severity shares.
+ */
+export interface PracticeObservation {
+  period_code: string;
+  year?: number | null;
+  season?: string | null;
+  geography_level?: string | null;
+  district?: string | null;
+  district_code?: string | null;
+  province?: string | null;
+  domain: string;
+  indicator_code: string;
+  /** Published share; `null` means not published, never 0. */
+  value?: number | null;
+  unit?: string | null;
+  source_id?: string | null;
+  source_release?: string | null;
+  source_sheet?: string | null;
+}
+
+/**
+ * Coverage of an indicator across the **whole** table, not across the current
+ * filter: the endpoint derives it before the district/period filter is applied.
+ * A screen may state what exists; it must not present these periods as what the
+ * selected district published.
+ */
+export interface PracticeIndicatorAvailability {
+  domain: string;
+  indicator_code: string;
+  unit?: string | null;
+  periods: string[];
+  geography_levels?: string[];
+  n_observations: number;
+  n_null: number;
+}
+
+export interface PracticeIndicatorResponse {
+  available: boolean;
+  domain?: string | null;
+  domains: string[];
+  indicators: PracticeIndicatorAvailability[];
+  periods: string[];
+  observations: PracticeObservation[];
+  n_observations: number;
+  period?: string | null;
+  note?: string | null;
+  provenance: Provenance;
+}
+
 export interface HeatmapCell {
   district: string;
   crop: string;

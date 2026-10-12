@@ -16,6 +16,7 @@ import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
+import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
@@ -26,6 +27,7 @@ import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import {
   useInputAdoption,
   useOverview,
+  usePracticeIndicators,
   usePriorities,
   useProductivity,
   useTrends,
@@ -59,6 +61,15 @@ export default function DashboardPage() {
   // scope rather than following the selected release.
   const trends = useTrends(filters.crop, filters.compare);
   const inputAdoption = useInputAdoption();
+  // The practice panel is district-grained and the endpoint pages its full
+  // 9,468-row table, so the request waits for a district: an unfiltered
+  // response is one arbitrary page, never a national picture. The national
+  // adoption trend stays with `inputAdoption` above.
+  const practiceIndicators = usePracticeIndicators({
+    district: filters.district ?? undefined,
+    limit: 500,
+    enabled: Boolean(filters.district),
+  });
   // The gap views read the productivity panel's own published columns (observed
   // yield, benchmark, gap index) rather than deriving a shortfall locally, so
   // the dashboard and the Productivity page can never disagree about a number.
@@ -224,30 +235,51 @@ export default function DashboardPage() {
                 onRetry={() => inputAdoption.refetch()}
               />
 
+              <PracticeIndicatorsPanel
+                data={practiceIndicators.data}
+                district={filters.district}
+                isLoading={practiceIndicators.isLoading}
+                isFetching={practiceIndicators.isFetching}
+                hasError={practiceIndicators.isError}
+                errorMessage={(practiceIndicators.error as Error)?.message}
+                onRetry={() => practiceIndicators.refetch()}
+              />
+
               <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
             </div>
           </details>
         </>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <YieldTrendChart
-            data={trends.data}
-            isLoading={trends.isLoading}
-            isFetching={trends.isFetching}
-            hasError={trends.isError}
-            errorMessage={(trends.error as Error)?.message}
-            onRetry={() => trends.refetch()}
-            crop={filters.crop}
+        <>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <YieldTrendChart
+              data={trends.data}
+              isLoading={trends.isLoading}
+              isFetching={trends.isFetching}
+              hasError={trends.isError}
+              errorMessage={(trends.error as Error)?.message}
+              onRetry={() => trends.refetch()}
+              crop={filters.crop}
+            />
+            <InputAdoptionChart
+              data={inputAdoption.data}
+              isLoading={inputAdoption.isLoading}
+              isFetching={inputAdoption.isFetching}
+              hasError={inputAdoption.isError}
+              errorMessage={(inputAdoption.error as Error)?.message}
+              onRetry={() => inputAdoption.refetch()}
+            />
+          </div>
+          <PracticeIndicatorsPanel
+            data={practiceIndicators.data}
+            district={filters.district}
+            isLoading={practiceIndicators.isLoading}
+            isFetching={practiceIndicators.isFetching}
+            hasError={practiceIndicators.isError}
+            errorMessage={(practiceIndicators.error as Error)?.message}
+            onRetry={() => practiceIndicators.refetch()}
           />
-          <InputAdoptionChart
-            data={inputAdoption.data}
-            isLoading={inputAdoption.isLoading}
-            isFetching={inputAdoption.isFetching}
-            hasError={inputAdoption.isError}
-            errorMessage={(inputAdoption.error as Error)?.message}
-            onRetry={() => inputAdoption.refetch()}
-          />
-        </div>
+        </>
       )}
 
       {overview.data ? <ProvenanceCard provenance={overview.data.provenance} /> : null}

@@ -240,3 +240,30 @@ export function useFacilities(district?: string) {
     staleTime: FIVE_MIN,
   });
 }
+
+/**
+ * Multi-period agricultural practice indicators.
+ *
+ * Scoped by district when provided — the full panel is 9,468 rows, so a
+ * district scope keeps the response to ~306 rows. `n_observations` in the
+ * response still reports the untruncated count so callers can detect a capped
+ * response. Domain is optional; omitting it returns all five domains.
+ */
+export function usePracticeIndicators(params?: {
+  district?: string;
+  province?: string;
+  domain?: string;
+  periodCode?: string;
+  limit?: number;
+  /** Gate the request until the caller has a geography the response can be
+   *  honest about; an unfiltered call only ever returns one arbitrary page
+   *  of the table, which must not be charted as a trend. */
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: ["practice-indicators", params?.district ?? "", params?.domain ?? "", params?.periodCode ?? ""],
+    queryFn: () => api.practiceIndicators(params),
+    staleTime: FIVE_MIN,
+    enabled: params?.enabled ?? true,
+  });
+}
