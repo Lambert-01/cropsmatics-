@@ -120,6 +120,36 @@ Either form works because the script resolves its own repository root from
 stay separate from the service's Start Command; a bootstrap failure must abort
 the deploy rather than let `uvicorn` come up anyway.
 
+### Plan limitation: the Free plan cannot run a Pre-Deploy Command
+
+Render documents that the pre-deploy command **"is available for paid web
+services, private services, and background workers"**
+(<https://render.com/docs/deploys>). A Free web service therefore cannot run the
+release step at all — which is why `render.yaml`'s `preDeployCommand` is a
+release *intent* that has to be matched by a plan that supports it.
+
+Consequences to keep straight:
+
+* On the Free plan the bootstrap must run **out of band**: from a checkout of the
+  exact commit the deployed image was built from (or from the image itself),
+  with the production `DATABASE_URL` in the environment. `.github/workflows/release-database.yml`
+  implements that as a manual, approval-gated workflow whose default is a dry run.
+* The load must **never** move into the Start Command or a request handler:
+  several instances would run it concurrently on every boot, and a request that
+  triggers a migration makes availability depend on traffic.
+* Since the content version is content-addressed, the release step must build the
+  dataset from the **same commit** as the image. A build from a warm working tree
+  can produce a different dataset than a pristine one — `scripts/data/check_idempotent_build.py`
+  proves the build is now idempotent, and CI runs it.
+* Deploy order matters: deploy first (the image carries the expectation), then
+  run the release step for that commit, then confirm readiness is 200. When the
+  database already matches, the step prints "database already serves the expected
+  dataset" and writes nothing.
+
+`--dry-run` is safe to run against production at any time: as of this revision it
+applies no migrations and writes no rows, and reports the pending migration state,
+the expected version and the loaded version.
+
 ## 4. API environment variables (production)
 
 | Variable | Value | Why |
@@ -148,7 +178,8 @@ Confirm each of these by hand; none is provable from the repository.
 
 - [ ] Render service builds from `services/api/Dockerfile` with the repo root as
       context.
-- [ ] Pre-Deploy Command is set to the bootstrap command from §3.
+- [ ] The instance type supports a Pre-Deploy Command (Free does not), or the
+      out-of-band release workflow is used instead.
 - [ ] Start Command is the existing `uvicorn` command, unchanged.
 - [ ] `ENVIRONMENT=production` is set.
 - [ ] `DATABASE_URL` is set in the Render dashboard (marked secret) and is absent

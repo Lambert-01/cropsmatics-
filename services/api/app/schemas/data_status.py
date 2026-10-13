@@ -5,6 +5,22 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class CanonicalSyncState(BaseModel):
+    """Whether the loaded dataset is the one this build published.
+
+    ``in_sync`` is ``True``, ``False`` (a reachable database serving a different
+    dataset - every analytical read is refused until it is synchronised) or
+    ``None`` (the comparison could not be made). Carrying it next to ``source``
+    keeps two different questions apart: which layer answered, and whether what
+    that layer holds is current.
+    """
+
+    in_sync: bool | None = None
+    expected_version: str | None = None
+    loaded_version: str | None = None
+    reason: str | None = None
+
+
 class DataEnvelope(BaseModel):
     """A canonical-data answer, with the source that served it.
 
@@ -17,6 +33,7 @@ class DataEnvelope(BaseModel):
     data: dict
     source: str
     generated_at: str
+    canonical_sync: CanonicalSyncState = Field(default_factory=CanonicalSyncState)
     limitations: list[str] = Field(default_factory=list)
 
 

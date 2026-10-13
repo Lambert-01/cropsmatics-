@@ -702,6 +702,23 @@ def _match_technique(label: str) -> str | None:
     return _TECHNIQUE_WORDS.get(label)
 
 
+def _alias_map() -> pd.DataFrame:
+    """The crop alias map, derived rather than read from a previous build.
+
+    ``normalize_crops`` (which writes ``data/interim/crop_alias_map.csv``) runs
+    after this step, so reading that file made the parsed crop names depend on
+    whether an earlier ``make data`` had left one behind: a pristine build (the
+    API image, a fresh checkout, CI) kept the raw published labels while a second
+    build in the same tree resolved them to canonical names. The two builds then
+    hashed to two different dataset versions, and the deploy's own identity check
+    rejected the load. The map is a pure function of committed inputs, so it is
+    derived here from the same source of truth.
+    """
+    from scripts.data.normalize_crops import alias_map
+
+    return alias_map()
+
+
 def parse_postharvest(districts: pd.DataFrame, alias_map: pd.DataFrame | None = None) -> pd.DataFrame:
     """Production-use shares per crop per period (crop-level, national)."""
     use_cols = [
@@ -798,9 +815,12 @@ def main() -> int:
     log("parsing erosion tables...")
     erosion = parse_erosion(districts)
     log("parsing post-harvest use tables...")
-    alias_path = INTERIM_DIR / "crop_alias_map.csv"
-    alias_map = pd.read_csv(alias_path) if alias_path.exists() else None
-    postharvest = parse_postharvest(districts, alias_map)
+    try:
+        alias_frame = _alias_map()
+    except ValueError as error:
+        log(f"ERROR: {error}")
+        return 1
+    postharvest = parse_postharvest(districts, alias_frame)
 
     INTERIM_DIR.mkdir(parents=True, exist_ok=True)
     productivity.to_csv(INTERIM_DIR / "sas_productivity_long.csv", index=False)

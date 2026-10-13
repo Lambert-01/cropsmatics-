@@ -1,0 +1,106 @@
+# Canonical database release step — manual, approval-gated, read-only by default.
+#
+# Why this workflow exists
+# ------------------------
+# The canonical load is a *release* step and must never run on a request or from
+# the service's Start Command. The intended home for it is Render's Pre-Deploy
+# Command, which `render.yaml` declares:
+#
+#     preDeployCommand: python /app/scripts/data/canonical_bootstrap.py
+#
+# Render documents that the pre-deploy command "is available for paid web
+# services" (https://render.com/docs/deploys). The production service runs on the
+# Free plan, so that step does not execute at all - which is why the canonical
+# database was still serving a 2026-09-28 dataset while the image expected the
+# current one, and why every canonical-backed analytics endpoint answered
+# `503 DATASET_OUT_OF_SYNC`.
+#
+# Until the service is on a plan that supports a pre-deploy command, this is the
+# secure alternative: a human-triggered release step that keeps migrations and
+# the data load separate from request serving.
+#
+# Two properties make it safe:
+#
+#  1. **It is never automatic.** `workflow_dispatch` only, and the write is
+#     gated behind typing APPLY into the input. The default is a dry run.
+#  2. **It builds the dataset from the same commit the image was built from.**
+#     The dataset identity is content-addressed, so the load must be derived from
+#     the deployed commit - not from a developer's working tree. Pass the deploy
+#     SHA in `commit` and the build is pinned to it.
+#
+# Required configuration (owner action, once):
+#   * Secret `PRODUCTION_DATABASE_URL` — the Neon connection string, with
+#     `?sslmode=require`. Server-side only; never a NEXT_PUBLIC_* EXPO_PUBLIC_* value.
+#   * Optional: a `production-database` GitHub Environment with required
+#     reviewers, so an approval is needed before the job starts.
+name: Release database (canonical sync)
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit the deployed image was built from (blank = the default branch HEAD)"
+        required: false
+        default: ""
+      apply:
+        description: "Type APPLY to load the canonical dataset. Anything else runs the plan only."
+        required: true
+        default: "DRY RUN"
+      confirm_target:
+        description: "Confirm the target database by typing its host (e.g. ep-xxx-pooler.eu-central-1.aws.neon.tech)"
+        required: true
+
+concurrency:
+  # A release step and a concurrent loader would race on the same tables.
+  group: release-database
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Migrate, compare, load if changed, verify
+    runs-on: ubuntu-latest
+    environment: production-database
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit != '' && inputs.commit || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r services/api/requirements.txt
+
+      - name: Report the release identity
+        run: |
+          echo "checked-out commit: $(git rev-parse HEAD)"
+          echo "typed target:       ${{ inputs.confirm_target }}"
+          echo "mode:               ${{ inputs.apply == 'APPLY' && 'APPLY (writes)' || 'DRY RUN (no writes)' }}"
+
+      - name: Build the processed dataset from this commit
+        # data/processed is gitignored, so the release artefact must be built here.
+        # Building it from the pinned commit is what makes the content-addressed
+        # version match the image the database will be compared against; building
+        # it from a warm working tree does not (see scripts/data/check_idempotent_build.py).
+        run: python scripts/data/run_all.py
+
+      - name: "Plan — read-only: pending migrations, expected vs loaded version"
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python scripts/data/canonical_bootstrap.py --dry-run
+
+      - name: Apply the canonical load
+        if: inputs.apply == 'APPLY'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python scripts/data/canonical_bootstrap.py
+
+      - name: Verify the deployed API serves the expected dataset
+        # The release is not done when the load returns: it is done when the
+        # running service answers from the dataset this commit built.
+        run: python scripts/verify_production.py

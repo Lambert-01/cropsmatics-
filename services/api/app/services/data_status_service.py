@@ -34,12 +34,51 @@ LIMITATIONS_CSV = [
 ]
 
 
+def canonical_sync() -> dict:
+    """Whether the loaded dataset is the one the build expects. Never raises.
+
+    Attached to every `/data/*` envelope because "which build is loaded" is not
+    the same question as "is the loaded build the right one". The production
+    incident was exactly that gap: `/data/version` honestly reported the loaded
+    version while the release expected a different one, and only readiness said
+    so. Reporting both here means a client can tell a current dataset from a
+    stale one without cross-referencing endpoints.
+    """
+    try:
+        from app.repositories import dataset_repository
+
+        state = dataset_repository.canonical_sync_state()
+    except Exception:  # noqa: BLE001 - a status helper reports, it does not raise
+        return {"in_sync": None, "expected_version": None, "loaded_version": None, "reason": "probe failed"}
+    # Only the comparison travels: no credentials, no connection string, no
+    # filesystem path is added by this projection.
+    return {
+        "in_sync": state.get("in_sync"),
+        "expected_version": state.get("expected_version"),
+        "loaded_version": state.get("loaded_version"),
+        "reason": state.get("reason"),
+    }
+
+
 def _envelope(data: dict, source: str) -> dict:
+    sync = canonical_sync()
+    limitations = list(LIMITATIONS_DB if source == "postgres" else LIMITATIONS_CSV)
+    if sync["in_sync"] is False:
+        # Stated in words as well as in fields: a reader (or an operator reading a
+        # log) must not have to compare two version strings to learn that the
+        # figures behind this envelope are not the ones this build published.
+        limitations.insert(
+            0,
+            "The database is serving a different dataset than this build "
+            f"(expected {sync['expected_version']}, loaded {sync['loaded_version']}); "
+            "analytical reads are refused until it is synchronised.",
+        )
     return {
         "data": data,
         "source": source,
         "generated_at": canonical.generated_at(),
-        "limitations": LIMITATIONS_DB if source == "postgres" else LIMITATIONS_CSV,
+        "canonical_sync": sync,
+        "limitations": limitations,
     }
 
 

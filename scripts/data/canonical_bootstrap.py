@@ -75,6 +75,29 @@ def _alembic_upgrade(url: str) -> None:
     command.upgrade(config, "head")
 
 
+def _migration_state(url: str) -> tuple[str | None, str | None]:
+    """``(current, head)`` revisions, read without writing anything.
+
+    A release plan needs to say whether migrations are pending. Reading the
+    alembic bookkeeping is a SELECT against ``alembic_version``, so it belongs to
+    the dry run - unlike ``upgrade``, which writes.
+    """
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import create_engine, inspect, text
+
+    config = Config(str(API_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(API_DIR / "alembic"))
+    head = ScriptDirectory.from_config(config).get_current_head()
+
+    engine = create_engine(url, pool_pre_ping=True, future=True)
+    with engine.connect() as connection:
+        if "alembic_version" not in set(inspect(connection).get_table_names()):
+            return None, head
+        current = connection.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    return (str(current) if current else None), head
+
+
 def _current_version(url: str) -> str | None:
     """The version recorded in the target database, or None when there is none."""
     from sqlalchemy import create_engine, inspect
@@ -188,7 +211,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="run the canonical load even when the version already matches",
     )
-    parser.add_argument("--dry-run", action="store_true", help="report the plan without writing")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report the plan without writing anything (migrations included)",
+    )
     return parser
 
 
@@ -214,7 +241,21 @@ def main(argv: list[str] | None = None) -> int:
     url = args.url or get_settings().database_url
     log(f"expected dataset version: {expected}")
 
-    if not args.skip_migrations:
+    if args.dry_run:
+        # A dry run must write nothing - including migrations. Applying them here
+        # would make `--dry-run` a schema change dressed as a plan, which is
+        # exactly the surprise a production approval gate exists to prevent.
+        try:
+            current, head = _migration_state(url)
+            pending = current != head
+            log(
+                "dry run: migrations NOT applied "
+                f"(current {current or '(none)'}, head {head or '(unknown)'})"
+                + (" - an upgrade is pending" if pending else " - already at head")
+            )
+        except Exception as error:  # noqa: BLE001 - a plan reports, it does not raise
+            log(f"dry run: could not read the migration state ({type(error).__name__})")
+    elif not args.skip_migrations:
         try:
             _alembic_upgrade(url)
             log("migrations applied (at head)")

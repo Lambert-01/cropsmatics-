@@ -106,12 +106,90 @@ export class ApiError extends Error {
     | "server"
     | "unknown";
   readonly status: number | null;
+  /** The API's machine-readable code, when the server sent one. */
+  readonly code: string | null;
+  /** Whether the API itself said a retry can help. */
+  readonly retryable: boolean | null;
 
-  constructor(kind: ApiError["kind"], message: string, status: number | null = null) {
+  constructor(
+    kind: ApiError["kind"],
+    message: string,
+    status: number | null = null,
+    code: string | null = null,
+    retryable: boolean | null = null,
+  ) {
     super(message);
     this.name = "ApiError";
     this.kind = kind;
     this.status = status;
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
+/** The API's error envelope (see `docs/P0_DATABASE_AUTHORITY.md`). */
+export interface ApiFailureBody {
+  code?: string | null;
+  detail?: string | null;
+  message?: string | null;
+  retryable?: boolean | null;
+}
+
+/**
+ * One honest sentence for a server-side failure, and whether retrying helps.
+ *
+ * The analytics API answers a *typed* 503 when the canonical database cannot
+ * serve a read. Screens render the error's `message`, so a bare "Request failed
+ * (503)" read as an empty result - or worse, invited a reader to take the
+ * published figures as zero. Nothing here ever states a value.
+ */
+export function describeServerFailure(
+  status: number,
+  body: ApiFailureBody | null,
+): { message: string; retryable: boolean } {
+  const code = (body?.code ?? "").trim();
+
+  if (status === 503) {
+    if (code === "DATASET_OUT_OF_SYNC") {
+      return {
+        message:
+          "The service is bringing its published dataset back in step with this release. Figures are withheld rather than shown from a mismatched build - try again shortly.",
+        retryable: true,
+      };
+    }
+    if (code === "DATABASE_UNAVAILABLE") {
+      return {
+        message:
+          "The analytics database is temporarily unavailable, so these figures cannot be verified right now. Nothing is shown rather than an unverified value.",
+        retryable: true,
+      };
+    }
+    return {
+      message:
+        "The analytics service is temporarily unavailable. This is a service problem, not an empty result.",
+      retryable: true,
+    };
+  }
+
+  if (status >= 500) {
+    return {
+      message: `The analytics service failed to answer (HTTP ${status}). This is a service problem, not a verified empty result.`,
+      retryable: true,
+    };
+  }
+
+  return {
+    message: body?.detail || body?.message || `Request failed (${status})`,
+    retryable: body?.retryable ?? false,
+  };
+}
+
+async function readFailureBody(res: Response): Promise<ApiFailureBody | null> {
+  try {
+    const body = (await res.clone().json()) as ApiFailureBody;
+    return body && typeof body === "object" ? body : null;
+  } catch {
+    return null;
   }
 }
 
@@ -147,8 +225,13 @@ export class UnsupportedDataError extends ApiError {
 }
 
 export class ServerError extends ApiError {
-  constructor(message = "The server could not complete the request", status = 500) {
-    super("server", message, status);
+  constructor(
+    message = "The server could not complete the request",
+    status = 500,
+    code: string | null = null,
+    retryable: boolean | null = null,
+  ) {
+    super("server", message, status, code, retryable);
   }
 }
 
@@ -177,7 +260,13 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     if (res.status === 404) throw new NotFoundError();
     if (res.status === 422) throw new ValidationError();
-    if (res.status >= 500) throw new ServerError(undefined, res.status);
+    if (res.status >= 500) {
+      // The typed 503 is the reason the panel can say something true instead of
+      // "Request failed (503)" - read it rather than discarding the body.
+      const body = await readFailureBody(res);
+      const described = describeServerFailure(res.status, body);
+      throw new ServerError(described.message, res.status, body?.code ?? null, body?.retryable ?? described.retryable);
+    }
     throw new ApiError("unknown", `Request failed (${res.status})`, res.status);
   }
 

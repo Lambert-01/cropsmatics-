@@ -1,0 +1,159 @@
+{
+  "base_url": "https://cropsmatics-api.onrender.com/api/v1",
+  "results": [
+    {
+      "name": "liveness (root)",
+      "path": "https://cropsmatics-api.onrender.com/health",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "status=ok",
+      "notes": []
+    },
+    {
+      "name": "liveness (versioned)",
+      "path": "/health",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "status=ok",
+      "notes": []
+    },
+    {
+      "name": "readiness",
+      "path": "/health/readiness",
+      "required": true,
+      "status": 503,
+      "ok": false,
+      "summary": "status=not_ready",
+      "notes": []
+    },
+    {
+      "name": "dataset version",
+      "path": "/data/version",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "version=0.2.0-535efe5d2bd75b51",
+      "notes": []
+    },
+    {
+      "name": "dataset coverage",
+      "path": "/data/coverage",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "{\"data\":{\"periods\":[\"2024A\",\"2024B\",\"2024C\",\"2025A\",\"2025B\",\"2025C\",\"2026A\",\"202",
+      "notes": []
+    },
+    {
+      "name": "period catalogue",
+      "path": "/meta/periods",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "periods=14",
+      "notes": []
+    },
+    {
+      "name": "crops",
+      "path": "/crops",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "[{\"crop_code\":\"CROP-MAI\",\"crop_name\":\"Maize\",\"category\":\"Cereal\",\"kinyarwanda_na",
+      "notes": []
+    },
+    {
+      "name": "dashboard overview",
+      "path": "/dashboard/overview?benchmark_strategy=national_crop_median",
+      "required": true,
+      "status": 503,
+      "ok": false,
+      "summary": "DATASET_OUT_OF_SYNC: the canonical database is serving a different dataset than the processed build, so 'crop_p",
+      "notes": []
+    },
+    {
+      "name": "input adoption",
+      "path": "/analytics/input-adoption",
+      "required": true,
+      "status": 503,
+      "ok": false,
+      "summary": "DATASET_OUT_OF_SYNC: the canonical database is serving a different dataset than the processed build, so 'nation",
+      "notes": []
+    },
+    {
+      "name": "canonical trend",
+      "path": "/analytics/canonical-trend?crop=Maize",
+      "required": true,
+      "status": 503,
+      "ok": false,
+      "summary": "DATASET_OUT_OF_SYNC: the canonical database is serving a different dataset than the processed build, so 'crop_p",
+      "notes": []
+    },
+    {
+      "name": "practice indicators",
+      "path": "/analytics/practice-indicators?district=Bugesera",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "periods=8",
+      "notes": []
+    },
+    {
+      "name": "post-harvest history",
+      "path": "/analytics/postharvest-history?limit=50",
+      "required": true,
+      "status": 200,
+      "ok": true,
+      "summary": "periods=8",
+      "notes": []
+    },
+    {
+      "name": "legacy trends",
+      "path": "/analytics/trends",
+      "required": false,
+      "status": 200,
+      "ok": true,
+      "summary": "points=4",
+      "notes": []
+    },
+    {
+      "name": "productivity",
+      "path": "/productivity",
+      "required": false,
+      "status": 503,
+      "ok": false,
+      "summary": "DATASET_OUT_OF_SYNC: the canonical database is serving a different dataset than the processed build, so 'crop_p",
+      "notes": []
+    },
+    {
+      "name": "map metrics",
+      "path": "/maps/district-metrics?metric=yield",
+      "required": false,
+      "status": 200,
+      "ok": true,
+      "summary": "districts=0",
+      "notes": []
+    },
+    {
+      "name": "model registry",
+      "path": "/meta/models",
+      "required": false,
+      "status": 200,
+      "ok": true,
+      "summary": "{\"models\":[{\"name\":\"yield_baseline\",\"version\":null,\"target\":null,\"mae\":null,\"rms",
+      "notes": []
+    },
+    {
+      "name": "forecast status",
+      "path": "/analytics/forecast-status",
+      "required": false,
+      "status": 200,
+      "ok": true,
+      "summary": "{\"report_available\":false,\"serves_forecast\":false,\"generated\":null,\"policy\":{},\"",
+      "notes": []
+    }
+  ],
+  "exit_code": 1
+}

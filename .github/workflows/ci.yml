@@ -155,3 +155,11 @@ jobs:
           test -f data/interim/area_consistency_report.csv
       - name: Pytest (data pipeline)
         run: pytest scripts/tests --no-header -ra
+      - name: Pipeline rebuild is idempotent
+        # The canonical load verifies the dataset identity before it writes, so a
+        # build whose identity depends on leftover working-tree state can never be
+        # reconciled with a deploy. It did: the crop alias map was read from an
+        # interim artefact a *later* step writes, so a pristine build and a second
+        # build in the same tree produced different datasets from one commit. This
+        # rebuilds the pipeline and fails if the content-addressed version moved.
+        run: python scripts/data/check_idempotent_build.py

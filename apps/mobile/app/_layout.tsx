@@ -11,6 +11,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { hydrateOfflineCache, startPersisting } from "../src/cache/offline";
 import { clearPersistedCache, writeCacheMeta } from "../src/cache/persister";
 import { AnimatedSplash } from "../src/components/AnimatedSplash";
+import { MOBILE_QUERY_DEFAULTS } from "../src/services/queryPolicy";
 import { useAppStore } from "../src/store/useAppStore";
 import { ThemeProvider, useTheme } from "../src/theme/theme-context";
 import { resolveOnboardingRoute } from "../src/utils/onboarding";
@@ -181,19 +182,11 @@ function AppShell({ client }: { client: QueryClient }) {
 }
 
 export default function RootLayout() {
-  const [client] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 5 * 60 * 1000,
-            gcTime: 24 * 60 * 60 * 1000,
-            retry: 2,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
-  );
+  // The retry policy lives in `src/services/queryPolicy.ts` so it is unit-tested:
+  // a bounded retry that never hammers a degraded API and never retries a
+  // deterministic refusal (see the typed 503 contract in
+  // `src/services/api/client.ts`).
+  const [client] = useState(() => new QueryClient({ defaultOptions: MOBILE_QUERY_DEFAULTS }));
 
   return (
     <SafeAreaProvider>

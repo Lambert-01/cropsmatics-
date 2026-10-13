@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { coverageMode, coverageNotice } from "@/lib/coverage";
 
+const showDeveloperHints = process.env.NODE_ENV !== "production";
+
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
@@ -142,14 +144,20 @@ export function ErrorState({
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
         <div>
-          <p className="font-medium text-danger">Could not load data</p>
+          <p className="font-medium text-danger">These figures are unavailable</p>
           <p className="mt-0.5 text-slate-600">
             {message ?? "The analytics API did not respond. Check that the API is running."}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Developer hint: start the API with <code>make api</code> and build tables with{" "}
-            <code>make data</code>.
-          </p>
+          {/* The local-development hint is a developer aid, not something a
+              reader of the deployed site can act on. Showing it in production
+              told a visitor to run `make api` on a server they do not have, and
+              it read as if the missing data were their fault. */}
+          {showDeveloperHints ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Developer hint: start the API with <code>make api</code> and build tables with{" "}
+              <code>make data</code>.
+            </p>
+          ) : null}
         </div>
       </div>
       {onRetry ? (

@@ -328,4 +328,29 @@ Command. `render.yaml` declares
 uvicorn-only Start Command and `healthCheckPath: /api/v1/health/readiness`. A
 blueprint does not update a service that already exists, so the dashboard
 checklist in `docs/17_DEPLOYMENT.md` §5 remains the source of truth for the live
-service.
+service. Render documents that the pre-deploy command is available for **paid**
+web services only, so a Free-plan service needs the approval-gated alternative in
+`.github/workflows/release-database.yml`.
+
+### The build must be reproducible, or the identity check is a trap
+
+The canonical load is skipped when the database already holds the expected
+version, and a mismatch is refused. That contract only holds if the same commit
+always builds the same dataset, so the build is now checked for it:
+
+* `scripts/data/ingest_sas_tables.py` derived its post-harvest crop names by
+  reading `data/interim/crop_alias_map.csv`, an artefact `normalize_crops` writes
+  **later** in the same pipeline. A pristine build therefore kept the raw
+  published labels while a second build in the same tree resolved them to
+  canonical ones — two datasets, two versions, one commit. The alias map is now
+  derived (`normalize_crops.alias_map()`) from the committed inputs, so no build
+  order can change what the dataset contains.
+* `scripts/data/check_idempotent_build.py` rebuilds the pipeline and fails when
+  the content-addressed version moves. CI runs it in the `data-pipeline` job.
+* `canonical_bootstrap.py --dry-run` writes nothing at all — migrations
+  included — and reports the pending migration state instead, so the production
+  plan step can be run against the live database without side effects.
+* `/data/version` and `/data/coverage` carry `canonical_sync`
+  (`in_sync`, `expected_version`, `loaded_version`) and state the mismatch in
+  words, so a stale loaded dataset can no longer be read as the current one from
+  a status endpoint.

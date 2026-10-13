@@ -1,3 +1,4 @@
+import { ApiFailure, describeApiFailure, readErrorBody } from "@/lib/apiError";
 import { filtersToApiQuery, type DashboardFilters } from "@/lib/filters";
 import type {
   AllocationRequest,
@@ -47,11 +48,32 @@ import type {
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
+/**
+ * Turn a failed response into an error a panel can explain.
+ *
+ * The API's typed 503s (`DATASET_OUT_OF_SYNC`, `DATABASE_UNAVAILABLE`) carry the
+ * real reason, so the message is built from the body rather than from the status
+ * line. The original status and code stay on the object for the retry policy and
+ * for the console, and the request path is kept only for that developer-facing
+ * line - never for the text a reader sees.
+ */
+async function failure(path: string, res: Response): Promise<ApiFailure> {
+  const body = await readErrorBody(res);
+  const described = describeApiFailure(res.status, body, res.statusText);
+  return new ApiFailure({
+    path,
+    status: res.status,
+    code: body?.code ?? null,
+    message: described.message,
+    retryable: body?.retryable ?? described.retryable,
+  });
+}
+
 async function get<T>(path: string, qs = ""): Promise<T> {
   const url = `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status} ${res.statusText}`);
+    throw await failure(path, res);
   }
   return (await res.json()) as T;
 }
@@ -64,7 +86,7 @@ async function post<T>(path: string, body: unknown, qs = ""): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status} ${res.statusText}`);
+    throw await failure(path, res);
   }
   return (await res.json()) as T;
 }
