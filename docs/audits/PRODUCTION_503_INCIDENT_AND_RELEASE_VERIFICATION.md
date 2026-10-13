@@ -215,12 +215,14 @@ approval-gated release workflow, and the runbook.
 ## 9. Exact commits
 
 * Repository `main` at audit time: `9e2e5aa225c6e5ebfb66ae9d9524372763485038`
-  (identical to `origin/main`); the audit's changes are **15 modified + 12 new**
-  paths, **+643/-44** in tracked files.
+  (identical to `origin/main`). The audit's changes are **15 modified + 12 new**
+  paths; the shortstat for modifications to tracked files alone was `+643/-44`,
+  while the committed change set (§9, third bullet) is `+2,321/-44` because it
+  counts the newly added files as well.
 * Deployed image: built `2026-10-12T22:31:19Z`; commit content equals
   `eea7e3f..9e2e5aa` (web/docs-only difference), i.e. the current pipeline.
 * This audit's changes are committed **locally** on `main` as
-  **`cb35fba`** — 27 paths, +2,320/-44 — and **not pushed**, because the mandate
+  **`2a0f4a8`** — 27 paths, +2,321/-44 — and **not pushed**, because the mandate
   forbids pushing or deploying without authorisation and the owner asked for a
   local commit only. **CI VERIFIED is therefore PENDING** (it needs the push).
 
@@ -239,7 +241,8 @@ approval-gated release workflow, and the runbook.
 | Production smoke | `python scripts/verify_production.py` | **8/12 required endpoints** — release gate **FAILED** (the incident) |
 
 New regression coverage: readiness 503 + `canonical_dataset_out_of_sync` blocking
-with expected/loaded versions, liveness staying up while readiness fails, recovery
+with expected/loaded versions, **pending migrations named as
+`migrations_not_applied`**, liveness staying up while readiness fails, recovery
 to `ready` when the version matches, `/data/*` mismatch reporting, pipeline
 determinism (derived alias map, leftover-state independence, canonical artefact
 labels), `--dry-run` writing nothing (migrations included), the real-run
@@ -249,7 +252,7 @@ migrate→load order, web 503 message/retry policy, mobile 503 message/retry pol
 
 * Last green run on GitHub: `9e2e5aa` (per the mandate; not re-verified from this
   environment).
-* **This audit's changes (`cb35fba`): NOT RUN IN CI** — committed locally but
+* **This audit's changes (`2a0f4a8`): NOT RUN IN CI** — committed locally but
   not pushed, so no workflow has seen them. Status **PENDING**, expected to pass:
   the same commands CI runs were executed locally and passed (§10).
 
