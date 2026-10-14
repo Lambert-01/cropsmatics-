@@ -130,9 +130,10 @@ No test coverage was removed.
 
 ## 14–16. Commit, push, CI
 
-- **Local commit:** see `git log -1` after this session (recorded below at push time).
-- **Push:** normal push to `origin/main`; no force-push.
-- **GitHub Actions:** `ci.yml` re-runs web/mobile/api/ml/data-pipeline on push. `release-database.yml` remains manual-only.
+- **Local commit:** `2cff010580ddc944f3440ff09dc55910db6ca474` — `fix(release): verify the confirmed production target and harden the canonical release path` (8 files, +1018/−11). Pre-commit hooks (trailing whitespace, YAML/JSON checks, `detect-private-key`, ruff, gitleaks) all passed.
+- **Push:** normal push, `ae29d28..2cff010` to `origin/main`. No force-push. Remote had no new commits to reconcile.
+- **GitHub Actions:** `ci.yml` re-runs web/mobile/api/ml/data-pipeline on this push. Status must be read in the GitHub UI (the repository is private and no `gh` CLI/token was available in this environment to query the API). Expected: all five jobs green, matching the local results in §13.
+- **`release-database.yml`:** unchanged trigger posture — manual `workflow_dispatch` only; the push does **not** run it and does **not** write to the database.
 
 ## 17. Render deployment SHA
 
