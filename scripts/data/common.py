@@ -54,6 +54,7 @@ def release_folder_key(release: str) -> str:
     """
     return SAS_RELEASES[release].parent.relative_to(RAW_SAS_DIR).as_posix().replace("/", "_")
 
+
 # Market provider raw directories (files land here via download/manual export).
 RAW_MARKET_DIRS: dict[str, Path] = {
     "nisr_sas": RAW_MARKETS_DIR / "nisr_sas",
@@ -109,9 +110,8 @@ def is_material_yield_discrepancy(
     if harvested_area_ha <= 0:
         return False
     implied = production_mt * 1000.0 / harvested_area_ha
-    return abs(implied - published_yield_kg_ha) > yield_discrepancy_tolerance(
-        published_yield_kg_ha
-    )
+    return abs(implied - published_yield_kg_ha) > yield_discrepancy_tolerance(published_yield_kg_ha)
+
 
 # --- canonical period dimension --------------------------------------------
 # Exactly the periods NISR has published as of October 2026: the 2022, 2023,
@@ -121,11 +121,20 @@ def is_material_yield_discrepancy(
 # owner supplied the corresponding annual workbooks (verified: all three
 # seasons of district-level productivity tables are present in each).
 VALID_PERIODS: tuple[str, ...] = (
-    "2022A", "2022B", "2022C",
-    "2023A", "2023B", "2023C",
-    "2024A", "2024B", "2024C",
-    "2025A", "2025B", "2025C",
-    "2026A", "2026B",
+    "2022A",
+    "2022B",
+    "2022C",
+    "2023A",
+    "2023B",
+    "2023C",
+    "2024A",
+    "2024B",
+    "2024C",
+    "2025A",
+    "2025B",
+    "2025C",
+    "2026A",
+    "2026B",
 )
 
 
@@ -253,6 +262,22 @@ def processed_path(name: str) -> Path:
 
 def log(msg: str) -> None:
     print(f"[data] {msg}")
+
+
+def normalize_database_url(url: str) -> str:
+    """Coerce a dashboard-pasted ``postgresql://`` URL to the psycopg 3 driver.
+
+    Neon/Render dashboards copy connection strings with the bare
+    ``postgresql://`` scheme, which SQLAlchemy maps to psycopg2 - a driver the
+    project does not ship. Engines built from such a URL fail with
+    ``ModuleNotFoundError: psycopg2``. Rewriting the scheme keeps operator input
+    working. Already-driver-qualified URLs pass through unchanged.
+    """
+    cleaned = (url or "").strip()
+    for prefix in ("postgres://", "postgresql://", "postgresql+psycopg2://"):
+        if cleaned.startswith(prefix):
+            return "postgresql+psycopg://" + cleaned[len(prefix) :]
+    return cleaned
 
 
 def add_provenance(df, source_key: str, script: str):

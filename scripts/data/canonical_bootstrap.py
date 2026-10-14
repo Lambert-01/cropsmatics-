@@ -41,15 +41,19 @@ API_DIR = ROOT / "services" / "api"
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from scripts.data.common import PROCESSED_DIR, log  # noqa: E402
+from scripts.data.common import PROCESSED_DIR, log, normalize_database_url  # noqa: E402
 
 # The periods the repaired deployment must be able to serve. A non-empty table
 # that holds only the most recent releases is exactly the stale state this
 # verification exists to catch, so the historical seasons are named here rather
 # than inferred from "some rows exist".
 REQUIRED_BOOTSTRAP_PERIODS: tuple[str, ...] = (
-    "2022A", "2022B", "2022C",
-    "2023A", "2023B", "2023C",
+    "2022A",
+    "2022B",
+    "2022C",
+    "2023A",
+    "2023B",
+    "2023C",
 )
 
 
@@ -93,17 +97,9 @@ def _loaded_summary(url: str) -> dict | None:
                 connection.execute(text("SELECT count(*) FROM crop_productivity")).scalar() or 0
             )
             periods: set[str] = set()
-            if "period" in names:
-                periods = {
-                    str(row[0])
-                    for row in connection.execute(
-                        text(
-                            "SELECT DISTINCT p.period_code FROM crop_productivity cp "
-                            "JOIN period p ON p.period_id = cp.period_id"
-                        )
-                    )
-                }
-            else:
+            if "crop_productivity" in names:
+                # `crop_productivity.period_id` holds the period code ("2026B"),
+                # so no join is needed to recover the loaded period set.
                 periods = {
                     str(row[0])
                     for row in connection.execute(
@@ -240,7 +236,8 @@ def _verify(url: str, expected: dict) -> bool:
         log(f"ERROR verify: periods not in the processed build: {', '.join(unexpected)}")
         ok = False
     required_absent = [
-        code for code in REQUIRED_BOOTSTRAP_PERIODS
+        code
+        for code in REQUIRED_BOOTSTRAP_PERIODS
         if code in expected["periods"] and code not in periods
     ]
     if required_absent:
@@ -295,9 +292,11 @@ def main(argv: list[str] | None = None) -> int:
     expected = content_version(manifest)
     expected_panel = _expected_panel(panel_path, manifest)
 
-    url = args.url or get_settings().database_url
+    url = normalize_database_url(args.url or get_settings().database_url)
     log(f"expected dataset version: {expected}")
-    log(f"expected panel: {expected_panel['rows']} rows across {len(expected_panel['periods'])} periods")
+    log(
+        f"expected panel: {expected_panel['rows']} rows across {len(expected_panel['periods'])} periods"
+    )
     log(f"target: {_target_identity(url)}")
 
     if args.dry_run:

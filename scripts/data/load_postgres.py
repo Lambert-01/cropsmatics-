@@ -73,6 +73,7 @@ from scripts.data.common import (  # noqa: E402
     YIELD_CONSISTENCY_REL_TOLERANCE,
     is_material_yield_discrepancy,
     log,
+    normalize_database_url,
     normalize_period,
 )
 
@@ -784,7 +785,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from app.core.config import get_settings
 
-    url = args.url or get_settings().database_url
+    url = normalize_database_url(args.url or get_settings().database_url)
     engine = create_engine(url, pool_pre_ping=True, future=True)
 
     try:

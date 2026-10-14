@@ -29,8 +29,10 @@
 #     SHA in `commit` and the build is pinned to it.
 #  3. **The confirmed target is verified, not just typed.** `confirm_target` is
 #     compared against the hostname parsed from `PRODUCTION_DATABASE_URL`; a
-#     mismatch aborts before anything is planned or written. The CI test
-#     database is refused outright.
+#     mismatch aborts before anything is planned or written. (The production
+#     database is itself named `cropmatics_ci_canonical_test` - confirmed from
+#     the Render dashboard - so identity is gated on the exact host, not a
+#     guessed database name.)
 #  4. **Only commits on `main` can be released.** The checked-out commit must be
 #     an ancestor of `origin/main` (or `main` itself), so a write-access user
 #     cannot run unreviewed branch code against production.
@@ -119,6 +121,12 @@ jobs:
         # production connection string. The input reaches the script through the
         # environment, never interpolated into the shell, so a crafted input
         # cannot execute commands in a job that holds the secret.
+        #
+        # The database name is reported for the record but is NOT hard-gated
+        # against a fixed string: the production database is itself named
+        # `cropmatics_ci_canonical_test` (verified from the Render dashboard's
+        # DATABASE_URL), so a name-based refusal would block the real release.
+        # The exact-host comparison below is the identity gate.
         env:
           TYPED_TARGET: ${{ inputs.confirm_target }}
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
@@ -141,9 +149,6 @@ jobs:
               sys.exit(1)
           if typed != host:
               print(f"ERROR: confirm_target {typed!r} does not match the production host {host!r}.")
-              sys.exit(1)
-          if database == "cropmatics_ci_canonical_test":
-              print("ERROR: the connection string points at the CI test database, not production.")
               sys.exit(1)
           print(f"confirmed production target: host={host} database={database}")
           EOF

@@ -8,10 +8,22 @@ without needing a live database.
 from __future__ import annotations
 
 from scripts.data.canonical_bootstrap import _target_identity
+from scripts.data.common import normalize_database_url
 from scripts.data.production_diagnostics import resolve_url, target_identity
 from scripts.data.rehearse_release import refuse_production_target
 
 # --- credential hygiene ------------------------------------------------------
+
+def test_a_dashboard_postgresql_url_is_coerced_to_the_psycopg3_driver():
+    """Dashboards paste `postgresql://`; engines built from it must not crash."""
+    pasted = "postgresql://neondb_owner:pw@ep-example.aws.neon.tech/neondb?sslmode=require"
+    fixed = normalize_database_url(pasted)
+    assert fixed.startswith("postgresql+psycopg://")
+    assert "ep-example.aws.neon.tech/neondb" in fixed
+    # Already-qualified URLs are left alone.
+    qualified = "postgresql+psycopg://u:p@h/db"
+    assert normalize_database_url(qualified) == qualified
+
 
 def test_target_identity_never_contains_the_password():
     """The plan and diagnostics may name the host, never the secret."""

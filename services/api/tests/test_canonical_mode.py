@@ -61,6 +61,21 @@ def test_unknown_mode_is_rejected(mode):
         mode(CANONICAL_DATA_MODE="yolo")
 
 
+def test_a_dashboard_pasted_postgresql_url_is_coerced_to_psycopg3(mode):
+    """Neon/Render copy `postgresql://...`; SQLAlchemy would demand psycopg2.
+
+    The service ships psycopg 3 only, so an unnormalised dashboard URL crashed
+    the API at import with ModuleNotFoundError. The scheme must be rewritten.
+    """
+    pasted = "postgresql://user:pass@ep-example.aws.neon.tech/neondb?sslmode=require"
+    settings = mode(DATABASE_URL=pasted, ENVIRONMENT="PRODUCTION")
+    assert settings.database_url.startswith("postgresql+psycopg://")
+    assert "ep-example.aws.neon.tech/neondb" in settings.database_url
+    # An already-qualified URL passes through unchanged.
+    qualified = "postgresql+psycopg://user:pass@ep-example.aws.neon.tech/neondb"
+    assert mode(DATABASE_URL=qualified).database_url == qualified
+
+
 def test_file_mode_serves_the_processed_panel(mode):
     from app.repositories import dataset_repository as repo
 

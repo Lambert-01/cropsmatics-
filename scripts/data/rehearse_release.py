@@ -37,7 +37,7 @@ API_DIR = ROOT / "services" / "api"
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from scripts.data.common import PROCESSED_DIR, log  # noqa: E402
+from scripts.data.common import PROCESSED_DIR, log, normalize_database_url  # noqa: E402
 
 
 def _identity(url: str) -> tuple[str | None, str | None]:
@@ -88,8 +88,8 @@ def _integrity_problems(url: str) -> list[str]:
             orphan_sources = connection.execute(
                 text(
                     "SELECT count(*) FROM crop_productivity cp "
-                    "LEFT JOIN source_table s ON s.source_id = cp.source_id "
-                    "WHERE cp.source_id IS NOT NULL AND s.source_id IS NULL"
+                    "LEFT JOIN data_source ds ON ds.source_id = cp.source_id "
+                    "WHERE cp.source_id IS NOT NULL AND ds.source_id IS NULL"
                 )
             ).scalar()
             if orphan_sources:
@@ -126,8 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    rehearsal_url = normalize_database_url(args.url)
 
-    if refuse_production_target(args.url):
+    if refuse_production_target(rehearsal_url):
         return 2
     if (
         not (PROCESSED_DIR / "manifest.json").exists()
@@ -140,25 +141,25 @@ def main(argv: list[str] | None = None) -> int:
     from scripts.data.production_diagnostics import _expected_state, run_diagnostics
 
     log("rehearsal run 1/3: full bootstrap (migrate -> load -> verify)")
-    code = canonical_bootstrap.main(["--url", args.url])
+    code = canonical_bootstrap.main(["--url", rehearsal_url])
     if code != 0:
         log("ERROR the rehearsal bootstrap failed on the first run")
         return 1
 
     log("rehearsal run 2/3: repeat bootstrap (idempotency proof)")
-    code = canonical_bootstrap.main(["--url", args.url])
+    code = canonical_bootstrap.main(["--url", rehearsal_url])
     if code != 0:
         log("ERROR the repeat bootstrap failed - the load is not idempotent")
         return 1
 
     log("rehearsal run 3/3: referential integrity + final diagnostics")
-    problems = _integrity_problems(args.url)
+    problems = _integrity_problems(rehearsal_url)
     for problem in problems:
         log(f"ERROR integrity: {problem}")
     expected = _expected_state(
         PROCESSED_DIR / "manifest.json", PROCESSED_DIR / "crop_productivity.csv"
     )
-    diag_code, lines = run_diagnostics(args.url, expected)
+    diag_code, lines = run_diagnostics(rehearsal_url, expected)
     for line in lines:
         log(line)
 

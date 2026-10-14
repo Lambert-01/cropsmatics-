@@ -49,7 +49,7 @@ API_DIR = ROOT / "services" / "api"
 if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
-from scripts.data.common import PROCESSED_DIR, log  # noqa: E402
+from scripts.data.common import PROCESSED_DIR, log, normalize_database_url  # noqa: E402
 
 # Tables the canonical schema must expose before any comparison means anything.
 REQUIRED_TABLES: tuple[str, ...] = (
@@ -70,7 +70,7 @@ def resolve_url(explicit: str | None) -> str | None:
         os.environ.get("DATABASE_URL"),
     ):
         if candidate and candidate.strip():
-            return candidate.strip()
+            return normalize_database_url(candidate)
     return None
 
 
@@ -169,14 +169,13 @@ def _loaded_state(url: str) -> dict:
                 counts[table] = None
 
             periods: set[str] = set()
-            if "crop_productivity" in names and "period" in names:
+            if "crop_productivity" in names:
+                # `crop_productivity.period_id` holds the period code ("2026B");
+                # the period dimension has no `period_code` column to join to.
                 periods = {
                     str(row[0])
                     for row in connection.execute(
-                        text(
-                            "SELECT DISTINCT p.period_code FROM crop_productivity cp "
-                            "JOIN period p ON p.period_id = cp.period_id"
-                        )
+                        text("SELECT DISTINCT period_id FROM crop_productivity")
                     )
                 }
             synthetic = None

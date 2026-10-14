@@ -77,6 +77,24 @@ class Settings(BaseSettings):
     # Optional override; when unset the mode is derived from `environment` below.
     canonical_data_mode: str | None = None
 
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        """Accept the bare ``postgresql://`` scheme that dashboards emit.
+
+        Neon and Render copy connection strings as ``postgresql://...``.
+        SQLAlchemy maps that bare scheme to the psycopg2 driver, which this
+        service does not ship (it uses psycopg 3), so the engine would fail at
+        import time with ``ModuleNotFoundError: psycopg2`` and the API could
+        not start at all. Rewriting the scheme keeps a dashboard-pasted URL
+        working without requiring operators to know the driver-specific form.
+        """
+        url = (value or "").strip()
+        for prefix in ("postgres://", "postgresql://", "postgresql+psycopg2://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        return url
+
     @field_validator("canonical_data_mode")
     @classmethod
     def _validate_canonical_data_mode(cls, value: str | None) -> str | None:
