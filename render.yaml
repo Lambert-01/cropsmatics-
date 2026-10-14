@@ -21,7 +21,13 @@ services:
     # Pin the production branch explicitly. Without it a blueprint can track the
     # repository default branch, which is not necessarily where releases land.
     branch: main
-    plan: starter
+    # The live production service runs on the Free plan. Render only executes
+    # preDeployCommand on paid instances, so on the current plan the canonical
+    # release runs through the manual, approval-gated GitHub workflow instead
+    # (.github/workflows/release-database.yml). Upgrading this service to a paid
+    # plan is what would activate the preDeployCommand below; keeping the two in
+    # sync is a dashboard action, not something this file can enforce.
+    plan: free
     region: frankfurt
     # Build context is the repository root: the image runs the data pipeline at
     # build time and needs the committed raw sources, dictionaries and scripts.
@@ -31,6 +37,7 @@ services:
     # content version differs, then verify the period set and row count. Runs to
     # completion before the new instance is put in front of traffic; a non-zero
     # exit aborts the deploy instead of starting uvicorn against a stale database.
+    # NOTE: inert on the Free plan (see the plan comment above).
     preDeployCommand: python /app/scripts/data/canonical_bootstrap.py
     # Start Command stays limited to uvicorn. Render runs it through a shell, so
     # $PORT (assigned by Render) is what the process must bind to.

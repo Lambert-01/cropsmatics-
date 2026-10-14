@@ -102,6 +102,14 @@ bootstrap: ## Deploy step: migrate, load only if the dataset version changed, ve
 bootstrap-dry: ## Show what the deploy bootstrap would do (writes nothing)
 	$(PYTHON) scripts/data/canonical_bootstrap.py --dry-run
 
+.PHONY: diagnose-db
+diagnose-db: ## Read-only production diagnostics (set PRODUCTION_DATABASE_URL first)
+	$(PYTHON) scripts/data/production_diagnostics.py
+
+.PHONY: rehearse-release
+rehearse-release: ## Rehearse migrate+load+verify on an isolated DB branch (pass REHEARSAL_URL=...)
+	$(PYTHON) scripts/data/rehearse_release.py --url "$(REHEARSAL_URL)"
+
 # ---------- quality ----------
 .PHONY: lint
 lint: ## Lint JS + Python (including the data pipeline)

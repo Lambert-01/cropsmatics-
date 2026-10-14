@@ -19,20 +19,30 @@
 # secure alternative: a human-triggered release step that keeps migrations and
 # the data load separate from request serving.
 #
-# Two properties make it safe:
-#
+# Safety properties
+# -----------------
 #  1. **It is never automatic.** `workflow_dispatch` only, and the write is
 #     gated behind typing APPLY into the input. The default is a dry run.
 #  2. **It builds the dataset from the same commit the image was built from.**
 #     The dataset identity is content-addressed, so the load must be derived from
 #     the deployed commit - not from a developer's working tree. Pass the deploy
 #     SHA in `commit` and the build is pinned to it.
+#  3. **The confirmed target is verified, not just typed.** `confirm_target` is
+#     compared against the hostname parsed from `PRODUCTION_DATABASE_URL`; a
+#     mismatch aborts before anything is planned or written. The CI test
+#     database is refused outright.
+#  4. **Only commits on `main` can be released.** The checked-out commit must be
+#     an ancestor of `origin/main` (or `main` itself), so a write-access user
+#     cannot run unreviewed branch code against production.
+#  5. **APPLY additionally requires an attestation** that a Neon restore point
+#     exists and the load was rehearsed on an isolated branch.
 #
 # Required configuration (owner action, once):
 #   * Secret `PRODUCTION_DATABASE_URL` — the Neon connection string, with
 #     `?sslmode=require`. Server-side only; never a NEXT_PUBLIC_* EXPO_PUBLIC_* value.
-#   * Optional: a `production-database` GitHub Environment with required
-#     reviewers, so an approval is needed before the job starts.
+#   * A `production-database` GitHub Environment with required reviewers, so an
+#     approval is needed before the job starts. Without reviewers the typing
+#     gates below are the only human check - configure them.
 name: Release database (canonical sync)
 
 on:
@@ -47,8 +57,12 @@ on:
         required: true
         default: "DRY RUN"
       confirm_target:
-        description: "Confirm the target database by typing its host (e.g. ep-xxx-pooler.eu-central-1.aws.neon.tech)"
+        description: "Confirm the target database by typing its host exactly (e.g. ep-xxx-pooler.eu-central-1.aws.neon.tech)"
         required: true
+      prerequisites_confirmed:
+        description: "For APPLY: type BACKUP-AND-REHEARSAL-DONE after creating a Neon restore point and rehearsing the load on an isolated branch"
+        required: false
+        default: ""
 
 concurrency:
   # A release step and a concurrent loader would race on the same tables.
@@ -62,11 +76,34 @@ jobs:
   bootstrap:
     name: Migrate, compare, load if changed, verify
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: production-database
     steps:
       - uses: actions/checkout@v4
         with:
+          # Full history so the ancestry check below can prove the release
+          # commit is on main rather than an arbitrary branch.
+          fetch-depth: 0
           ref: ${{ inputs.commit != '' && inputs.commit || github.sha }}
+
+      - name: Verify the release commit is on main
+        # A write-access user can dispatch this workflow; without this check
+        # they could point `commit` at any branch and run unreviewed code in a
+        # job that holds the production database secret.
+        run: |
+          git fetch origin main
+          SHA="$(git rev-parse HEAD)"
+          MAIN="$(git rev-parse origin/main)"
+          echo "checked-out commit: $SHA"
+          echo "origin/main:        $MAIN"
+          if [ "$SHA" = "$MAIN" ]; then
+            echo "release commit is main HEAD: ok"
+          elif git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "release commit is an ancestor of main: ok"
+          else
+            echo "ERROR: the release commit is not on main. Only main (or a commit already merged into main) may be released."
+            exit 1
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -76,11 +113,40 @@ jobs:
       - name: Install dependencies
         run: pip install -r services/api/requirements.txt
 
-      - name: Report the release identity
+      - name: Verify the confirmed target matches the production connection
+        # `confirm_target` used to be printed but never checked. It is now
+        # compared against the hostname and database name parsed from the
+        # production connection string. The input reaches the script through the
+        # environment, never interpolated into the shell, so a crafted input
+        # cannot execute commands in a job that holds the secret.
+        env:
+          TYPED_TARGET: ${{ inputs.confirm_target }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
-          echo "checked-out commit: $(git rev-parse HEAD)"
-          echo "typed target:       ${{ inputs.confirm_target }}"
-          echo "mode:               ${{ inputs.apply == 'APPLY' && 'APPLY (writes)' || 'DRY RUN (no writes)' }}"
+          python - <<'EOF'
+          import os
+          import sys
+          from urllib.parse import urlparse
+
+          typed = (os.environ.get("TYPED_TARGET") or "").strip().lower()
+          url = os.environ.get("DATABASE_URL") or ""
+          if not url.strip():
+              print("ERROR: the PRODUCTION_DATABASE_URL secret is not configured.")
+              sys.exit(1)
+          parsed = urlparse(url)
+          host = (parsed.hostname or "").lower()
+          database = (parsed.path or "/").lstrip("/")
+          if not host:
+              print("ERROR: could not parse a hostname from the production connection string.")
+              sys.exit(1)
+          if typed != host:
+              print(f"ERROR: confirm_target {typed!r} does not match the production host {host!r}.")
+              sys.exit(1)
+          if database == "cropmatics_ci_canonical_test":
+              print("ERROR: the connection string points at the CI test database, not production.")
+              sys.exit(1)
+          print(f"confirmed production target: host={host} database={database}")
+          EOF
 
       - name: Build the processed dataset from this commit
         # data/processed is gitignored, so the release artefact must be built here.
@@ -89,10 +155,43 @@ jobs:
         # it from a warm working tree does not (see scripts/data/check_idempotent_build.py).
         run: python scripts/data/run_all.py
 
+      - name: Report the release identity
+        # No secrets: only the commit, the mode, and the dataset identity that
+        # the build above produced.
+        env:
+          MODE: ${{ inputs.apply == 'APPLY' && 'APPLY (writes)' || 'DRY RUN (no writes)' }}
+        run: |
+          echo "checked-out commit: $(git rev-parse HEAD)"
+          echo "mode:               $MODE"
+          python - <<'EOF'
+          import json
+          import sys
+
+          sys.path.insert(0, "services/api")
+          from app.data.versioning import content_version
+
+          manifest = json.load(open("data/processed/manifest.json"))
+          print(f"expected version:   {content_version(manifest)}")
+          print(f"expected rows:      {(manifest.get('row_counts') or {}).get('crop_productivity')}")
+          EOF
+
       - name: "Plan — read-only: pending migrations, expected vs loaded version"
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: python scripts/data/canonical_bootstrap.py --dry-run
+
+      - name: Require a restore point and rehearsal before writing
+        # APPLY is refused unless the operator attests that a Neon restore
+        # point exists and the load was rehearsed on an isolated branch.
+        if: inputs.apply == 'APPLY'
+        env:
+          PREREQUISITES: ${{ inputs.prerequisites_confirmed }}
+        run: |
+          if [ "$PREREQUISITES" != "BACKUP-AND-REHEARSAL-DONE" ]; then
+            echo "ERROR: APPLY requires prerequisites_confirmed=BACKUP-AND-REHEARSAL-DONE."
+            echo "Create a Neon restore point, rehearse the load on an isolated branch, then re-run."
+            exit 1
+          fi
 
       - name: Apply the canonical load
         if: inputs.apply == 'APPLY'
@@ -102,5 +201,14 @@ jobs:
 
       - name: Verify the deployed API serves the expected dataset
         # The release is not done when the load returns: it is done when the
-        # running service answers from the dataset this commit built.
+        # running service answers from the dataset this commit built. After an
+        # APPLY this is the release gate. After a dry run the same probe runs
+        # for information but cannot fail the plan - an out-of-sync production
+        # is the state the plan exists to describe, not a plan malfunction.
+        if: inputs.apply == 'APPLY'
+        run: python scripts/verify_production.py
+
+      - name: Report current production state (informational after a plan)
+        if: inputs.apply != 'APPLY'
+        continue-on-error: true
         run: python scripts/verify_production.py

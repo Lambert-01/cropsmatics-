@@ -32,6 +32,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -58,6 +59,62 @@ def needs_load(loaded_version: str | None, expected_version: str) -> bool:
     A database that already holds the expected version is left untouched.
     """
     return loaded_version != expected_version
+
+
+def _target_identity(url: str) -> str:
+    """A credential-free description of the target for plan output.
+
+    Only the host, port and database name appear - never the password or the
+    full connection string - so a plan can be reviewed and archived safely.
+    """
+    parsed = urlparse(url)
+    host = parsed.hostname or "(unknown)"
+    port = f":{parsed.port}" if parsed.port else ""
+    database = (parsed.path or "/").lstrip("/") or "(unknown)"
+    return f"{host}{port}/{database}"
+
+
+def _loaded_summary(url: str) -> dict | None:
+    """Loaded row count and period set, read without writing anything.
+
+    Returns None when the target cannot be inspected (unreachable, tables
+    missing); a dry run reports the gap rather than failing on it, because the
+    plan's job is to describe what a load *would* change.
+    """
+    from sqlalchemy import create_engine, inspect, text
+
+    engine = create_engine(url, pool_pre_ping=True, future=True)
+    try:
+        with engine.connect() as connection:
+            names = set(inspect(connection).get_table_names())
+            if "crop_productivity" not in names:
+                return None
+            rows = int(
+                connection.execute(text("SELECT count(*) FROM crop_productivity")).scalar() or 0
+            )
+            periods: set[str] = set()
+            if "period" in names:
+                periods = {
+                    str(row[0])
+                    for row in connection.execute(
+                        text(
+                            "SELECT DISTINCT p.period_code FROM crop_productivity cp "
+                            "JOIN period p ON p.period_id = cp.period_id"
+                        )
+                    )
+                }
+            else:
+                periods = {
+                    str(row[0])
+                    for row in connection.execute(
+                        text("SELECT DISTINCT period_id FROM crop_productivity")
+                    )
+                }
+            return {"rows": rows, "periods": sorted(periods)}
+    except Exception:  # noqa: BLE001 - a plan reports the gap, it does not traceback
+        return None
+    finally:
+        engine.dispose()
 
 
 def _alembic_upgrade(url: str) -> None:
@@ -240,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
 
     url = args.url or get_settings().database_url
     log(f"expected dataset version: {expected}")
+    log(f"expected panel: {expected_panel['rows']} rows across {len(expected_panel['periods'])} periods")
+    log(f"target: {_target_identity(url)}")
 
     if args.dry_run:
         # A dry run must write nothing - including migrations. Applying them here
@@ -255,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         except Exception as error:  # noqa: BLE001 - a plan reports, it does not raise
             log(f"dry run: could not read the migration state ({type(error).__name__})")
+            pending = True
     elif not args.skip_migrations:
         try:
             _alembic_upgrade(url)
@@ -270,12 +330,37 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     log(f"loaded dataset version:   {loaded or '(none)'}")
+
+    if args.dry_run:
+        # Compare loaded vs expected content so the plan states exactly what a
+        # load would change - row counts, period coverage, and the migration
+        # state - without writing anything.
+        summary = _loaded_summary(url)
+        if summary is None:
+            log("dry run: loaded row/period detail unavailable (tables missing or unreachable)")
+        else:
+            missing_periods = sorted(set(expected_panel["periods"]) - set(summary["periods"]))
+            log(
+                f"dry run: loaded panel {summary['rows']} rows across "
+                f"{len(summary['periods'])} periods"
+            )
+            if missing_periods:
+                log(f"dry run: periods missing from the database: {', '.join(missing_periods)}")
+
     if not args.force_load and not needs_load(loaded, expected):
         log("database already serves the expected dataset; skipping the load")
         return 0 if _verify(url, expected_panel) else 1
 
     if args.dry_run:
+        actions: list[str] = []
+        if pending:
+            actions.append("apply alembic migrations")
+        actions.append(
+            f"upsert canonical data ({expected_panel['rows']} productivity rows, "
+            f"{len(expected_panel['periods'])} periods) to reach {expected}"
+        )
         log("dry run: a canonical load would run here; nothing was written")
+        log("dry run plan: " + " -> ".join(actions))
         return 0
 
     log("loading canonical data...")
