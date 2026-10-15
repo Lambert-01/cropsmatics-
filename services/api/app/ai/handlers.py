@@ -107,6 +107,13 @@ def _no_params(routed: RoutedRequest) -> dict:
     return {}
 
 
+def _forecast(routed: RoutedRequest) -> dict:
+    return {
+        "crop": routed.crop, "district": routed.district,
+        "period_code": routed.requested_period,
+    }
+
+
 HANDLERS: dict[str, callable] = {
     "get_productivity_observations": _period_crop_district,
     "get_yield_gap": _period_crop_district,
@@ -125,4 +132,5 @@ HANDLERS: dict[str, callable] = {
     "get_data_coverage": _no_params,
     "get_indicator_definitions": _optional_indicators,
     "search_knowledge_base": _knowledge,
+    "get_forecast_status": _forecast,
 }

@@ -1,5 +1,7 @@
 import { ApiFailure, describeApiFailure, readErrorBody } from "@/lib/apiError";
+import { ApiConfigError, apiUrl } from "@/lib/apiUrl";
 import { filtersToApiQuery, type DashboardFilters } from "@/lib/filters";
+import { forecastQuery } from "@/lib/forecast";
 import type {
   AllocationRequest,
   AllocationResponse,
@@ -45,8 +47,86 @@ import type {
   TrendResponse,
 } from "@/types";
 
-export const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+/**
+ * How long a single analytical request may take before it is abandoned.
+ *
+ * A Render free instance waking from idle answers in a few seconds; a request
+ * that has not answered in 30 s is not going to, and waiting on it holds a panel
+ * in a loading state with no way out. The bound is deliberately above the
+ * observed cold start (~3.8 s for the readiness probe) so a waking service is
+ * not cut off.
+ */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Turn an unresolvable base URL into the same typed failure a panel already
+ * knows how to render, so a configuration error is a recoverable state rather
+ * than a crash inside a fetch call or a blank screen.
+ *
+ * Emphatically *not* a silent fallback to localhost: substituting a host the
+ * user did not configure is how a configuration error becomes a phantom outage.
+ */
+function configFailure(path: string, error: unknown): ApiFailure {
+  const detail = error instanceof ApiConfigError ? error.message : String(error);
+  return new ApiFailure({
+    path,
+    status: null,
+    code: "API_BASE_URL_INVALID",
+    message: detail,
+    retryable: false,
+  });
+}
+
+/**
+ * Turn an aborted/timed-out request into a typed failure.
+ *
+ * `status: null` is the same signal as an unreachable service, which is accurate:
+ * nothing was served. It is retryable, because a cold start is.
+ */
+function timeoutFailure(path: string): ApiFailure {
+  return new ApiFailure({
+    path,
+    status: null,
+    code: "REQUEST_TIMEOUT",
+    message:
+      "The analytics service did not answer in time. Figures are unavailable rather " +
+      "than shown from a partial response.",
+    retryable: true,
+  });
+}
+
+/**
+ * One request, with a bounded timeout and typed failures for every way it can
+ * fail before the server answers.
+ *
+ * `signal` is accepted so a caller (or a cancelled panel) can abort in flight;
+ * the timeout is combined with it rather than replacing it, so neither the
+ * caller's cancellation nor the deadline is silently ignored.
+ */
+async function request(
+  path: string,
+  init: RequestInit,
+  qs = "",
+): Promise<Response> {
+  let url: string;
+  try {
+    url = apiUrl(path, qs);
+  } catch (error) {
+    throw configFailure(path, error);
+  }
+
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+
+  try {
+    return await fetch(url, { ...init, signal });
+  } catch (error) {
+    // A caller-initiated cancellation is not a service failure.
+    if (init.signal?.aborted) throw error;
+    if (timeout.aborted) throw timeoutFailure(path);
+    throw error;
+  }
+}
 
 /**
  * Turn a failed response into an error a panel can explain.
@@ -69,22 +149,25 @@ async function failure(path: string, res: Response): Promise<ApiFailure> {
   });
 }
 
-async function get<T>(path: string, qs = ""): Promise<T> {
-  const url = `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+async function get<T>(path: string, qs = "", signal?: AbortSignal): Promise<T> {
+  const res = await request(path, { headers: { Accept: "application/json" }, signal }, qs);
   if (!res.ok) {
     throw await failure(path, res);
   }
   return (await res.json()) as T;
 }
 
-async function post<T>(path: string, body: unknown, qs = ""): Promise<T> {
-  const url = `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-  });
+async function post<T>(path: string, body: unknown, qs = "", signal?: AbortSignal): Promise<T> {
+  const res = await request(
+    path,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    },
+    qs,
+  );
   if (!res.ok) {
     throw await failure(path, res);
   }
@@ -200,7 +283,8 @@ export const api = {
    * even when no forecast may be served — the evidence verdict *is* the
    * answer — so a client can explain the absence instead of hiding it.
    */
-  forecastStatus: () => get<ForecastStatusResponse>("/analytics/forecast-status"),
+  forecastStatus: (filters: DashboardFilters = {}) =>
+    get<ForecastStatusResponse>("/analytics/forecast-status", forecastQuery(filters)),
   priorities: (filters: DashboardFilters, limit = 50) =>
     get<PriorityResponse>(
       "/analytics/intervention-priorities",
@@ -382,6 +466,5 @@ export function reportUrl(
   const path = endpoint.startsWith("/reports") ? endpoint : `/reports${endpoint}`;
   const params = new URLSearchParams(filters ? filtersToApiQuery(filters) : "");
   if (format === "json") params.set("format", "json");
-  const qs = params.toString();
-  return `${BASE_URL}${path}${qs ? `?${qs}` : ""}`;
+  return apiUrl(path, params.toString());
 }

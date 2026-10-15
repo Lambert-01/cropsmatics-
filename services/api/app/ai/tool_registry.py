@@ -64,6 +64,13 @@ class SourceParams(_StrictParams):
     source_id: str | None = None
 
 
+class ForecastParams(_StrictParams):
+    crop: str | None = Field(None, max_length=80)
+    district: str | None = Field(None, max_length=80)
+    season: str | None = Field(None, pattern="^[ABCabc]$")
+    period_code: str | None = Field(None, pattern=r"^\d{4}[ABCabc]$")
+
+
 class RegistryQueryParams(_StrictParams):
     query: str | None = None
 
@@ -195,6 +202,16 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
             fn=metadata_tools.model_metadata,
         ),
         ToolSpec(
+            name="get_forecast_status",
+            description=(
+                "The forecast publication decision: whether a validated next-season forecast "
+                "exists, and for a published target its period, unit, estimate and interval. "
+                "Returns the backtest's verdict verbatim and never produces a forecast."
+            ),
+            params_model=ForecastParams,
+            fn=metadata_tools.forecast_status,
+        ),
+        ToolSpec(
             name="get_crop_comparison",
             description=(
                 "Published national totals for two to four crops in the same period, for a "
@@ -271,6 +288,10 @@ INTENT_TOOLS: dict[str, tuple[str, ...]] = {
         "get_model_metadata",
         "search_knowledge_base",
     ),
+    # A forecast question is answerable *only* through the publication gate. The
+    # model may explain a published forecast, or explain why none is published —
+    # it can never supply one, because no other tool returns a future value.
+    "forecast_status": ("get_forecast_status", "get_source_metadata"),
     "unsupported": (),
 }
 

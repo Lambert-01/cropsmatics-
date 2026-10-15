@@ -173,6 +173,9 @@ class MapDistrictMetric(BaseModel):
 class MapMetricsResponse(BaseModel):
     metric: str
     metric_label: str
+    purpose: str | None = None
+    methodology_version: str | None = None
+    shortfall_threshold_pct: float | None = None
     unit: str | None = None
     period: str | None = None
     period_code: str | None = None

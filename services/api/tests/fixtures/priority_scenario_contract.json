@@ -1,0 +1,248 @@
+{
+  "_comment": [
+    "The request contract for POST /scenarios/priority, shared by both sides so a",
+    "change on one side fails on the other.",
+    "",
+    "  * `apps/web/tests/priority-request.test.ts` feeds each `inputs` object to",
+    "    `buildPriorityScenarioRequest` and requires the exact `request` body.",
+    "  * `services/api/tests/test_priority_scenario.py` validates each `request`",
+    "    against `PriorityScenarioRequest` and requires every `rejected` case to",
+    "    be refused.",
+    "",
+    "Weights are the planner's five public field names. `wg`/`wv`/`wf`/`wr`/`wc`",
+    "are the engine's own keys: the API returns them and refuses them as input."
+  ],
+  "accepted": [
+    {
+      "name": "page scope with no crop or period (history scope)",
+      "inputs": {
+        "filters": { "benchmark": "national_crop_median" },
+        "baseline_weights": {
+          "gap": 0.3,
+          "vulnerability": 0.2,
+          "affected_scale": 0.2,
+          "readiness": 0.2,
+          "cost": 0.1
+        },
+        "scenario_weights": {
+          "gap": 0.5,
+          "vulnerability": 0.15,
+          "affected_scale": 0.15,
+          "readiness": 0.15,
+          "cost": 0.05
+        },
+        "scenario_period": "",
+        "top_n": 10
+      },
+      "request": {
+        "baseline": {
+          "weights": {
+            "gap": 0.3,
+            "vulnerability": 0.2,
+            "affected_scale": 0.2,
+            "readiness": 0.2,
+            "cost": 0.1
+          },
+          "period_code": null,
+          "benchmark_strategy": "national_crop_median",
+          "province": null,
+          "district": null,
+          "crop": null,
+          "top_n": 10
+        },
+        "scenario": {
+          "weights": {
+            "gap": 0.5,
+            "vulnerability": 0.15,
+            "affected_scale": 0.15,
+            "readiness": 0.15,
+            "cost": 0.05
+          },
+          "period_code": null,
+          "benchmark_strategy": "national_crop_median",
+          "province": null,
+          "district": null,
+          "crop": null,
+          "top_n": 10
+        }
+      }
+    },
+    {
+      "name": "crop and one published period",
+      "inputs": {
+        "filters": { "period": "2026B", "crop": "Maize", "benchmark": "national_crop_median" },
+        "baseline_weights": {
+          "gap": 0.3,
+          "vulnerability": 0.2,
+          "affected_scale": 0.2,
+          "readiness": 0.2,
+          "cost": 0.1
+        },
+        "scenario_weights": {
+          "gap": 0.5,
+          "vulnerability": 0.15,
+          "affected_scale": 0.15,
+          "readiness": 0.15,
+          "cost": 0.05
+        },
+        "scenario_period": "",
+        "top_n": 25
+      },
+      "request": {
+        "baseline": {
+          "weights": {
+            "gap": 0.3,
+            "vulnerability": 0.2,
+            "affected_scale": 0.2,
+            "readiness": 0.2,
+            "cost": 0.1
+          },
+          "period_code": "2026B",
+          "benchmark_strategy": "national_crop_median",
+          "province": null,
+          "district": null,
+          "crop": "Maize",
+          "top_n": 25
+        },
+        "scenario": {
+          "weights": {
+            "gap": 0.5,
+            "vulnerability": 0.15,
+            "affected_scale": 0.15,
+            "readiness": 0.15,
+            "cost": 0.05
+          },
+          "period_code": "2026B",
+          "benchmark_strategy": "national_crop_median",
+          "province": null,
+          "district": null,
+          "crop": "Maize",
+          "top_n": 25
+        }
+      }
+    },
+    {
+      "name": "district scope, with the scenario side moved to another period",
+      "inputs": {
+        "filters": {
+          "period": "2026B",
+          "crop": "Maize",
+          "district": "Nyagatare",
+          "province": "Eastern Province",
+          "benchmark": "top_quartile_comparable_districts"
+        },
+        "baseline_weights": {
+          "gap": 0.3,
+          "vulnerability": 0.2,
+          "affected_scale": 0.2,
+          "readiness": 0.2,
+          "cost": 0.1
+        },
+        "scenario_weights": {
+          "gap": 0.2,
+          "vulnerability": 0.2,
+          "affected_scale": 0.45,
+          "readiness": 0.1,
+          "cost": 0.05
+        },
+        "scenario_period": "2025B",
+        "top_n": 10
+      },
+      "request": {
+        "baseline": {
+          "weights": {
+            "gap": 0.3,
+            "vulnerability": 0.2,
+            "affected_scale": 0.2,
+            "readiness": 0.2,
+            "cost": 0.1
+          },
+          "period_code": "2026B",
+          "benchmark_strategy": "top_quartile_comparable_districts",
+          "province": "Eastern Province",
+          "district": "Nyagatare",
+          "crop": "Maize",
+          "top_n": 10
+        },
+        "scenario": {
+          "weights": {
+            "gap": 0.2,
+            "vulnerability": 0.2,
+            "affected_scale": 0.45,
+            "readiness": 0.1,
+            "cost": 0.05
+          },
+          "period_code": "2025B",
+          "benchmark_strategy": "top_quartile_comparable_districts",
+          "province": "Eastern Province",
+          "district": "Nyagatare",
+          "crop": "Maize",
+          "top_n": 10
+        }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "name": "engine-keyed weights posted back from a previous response",
+      "refusal": "engine_keys",
+      "expect": "the error names the planner field names, not only that the input was invalid",
+      "request": {
+        "baseline": {
+          "weights": { "wg": 0.5, "wv": 0.15, "wf": 0.15, "wr": 0.15, "wc": 0.05 }
+        },
+        "scenario": { "weights": { "gap": 0.5, "vulnerability": 0.15, "affected_scale": 0.15, "readiness": 0.15, "cost": 0.05 } }
+      }
+    },
+    {
+      "name": "weights that do not total 1.0",
+      "refusal": "sum",
+      "expect": "the error states the total and the tolerance",
+      "request": {
+        "baseline": {
+          "weights": { "gap": 0.35, "vulnerability": 0.2, "affected_scale": 0.2, "readiness": 0.2, "cost": 0.1 }
+        },
+        "scenario": { "weights": { "gap": 0.5, "vulnerability": 0.15, "affected_scale": 0.15, "readiness": 0.15, "cost": 0.05 } }
+      }
+    },
+    {
+      "name": "a weight above 1.0 (a 0..100 slider value sent unconverted)",
+      "refusal": "range",
+      "expect": "the field constraint is reported on the offending weight",
+      "request": {
+        "baseline": {
+          "weights": { "gap": 30, "vulnerability": 20, "affected_scale": 20, "readiness": 20, "cost": 10 }
+        },
+        "scenario": { "weights": { "gap": 0.5, "vulnerability": 0.15, "affected_scale": 0.15, "readiness": 0.15, "cost": 0.05 } }
+      }
+    },
+    {
+      "name": "an unpublished period",
+      "refusal": "period",
+      "expect": "a 422 naming the period, rather than an empty comparison",
+      "request": {
+        "baseline": { "period_code": "2019A" },
+        "scenario": { "period_code": "2019A" }
+      }
+    },
+    {
+      "name": "an unsupported benchmark strategy",
+      "refusal": "benchmark",
+      "expect": "a 422 naming the strategy, rather than silently substituting the default",
+      "request": {
+        "baseline": { "benchmark_strategy": "mean_of_everything" },
+        "scenario": { "benchmark_strategy": "mean_of_everything" }
+      }
+    },
+    {
+      "name": "an unknown top-level field",
+      "refusal": "extra",
+      "expect": "the unknown field is refused rather than ignored",
+      "request": {
+        "baseline": { "weights": { "gap": 0.3, "vulnerability": 0.2, "affected_scale": 0.2, "readiness": 0.2, "cost": 0.1 } },
+        "scenario": { "weights": { "gap": 0.3, "vulnerability": 0.2, "affected_scale": 0.2, "readiness": 0.2, "cost": 0.1 } },
+        "unexpected": true
+      }
+    }
+  ]
+}

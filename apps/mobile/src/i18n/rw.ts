@@ -902,6 +902,23 @@ export const rw: Strings = {
   shareCropMetric: "{metric}: {value}{unit} ({period})",
   shareCropSource: "Inkomoko: {source}",
   shareCropNote: "Ibyatanzwe gusa — nta kintu kirerekanywe kuri iyi kariti.",
+  // ---- Predictions ---------------------------------------------------------
+  // English pending native-speaker review: statistical and publication-policy
+  // copy, where a machine rendering would read as authoritative. See
+  // pending-review.ts.
+  predictionsTitle: "Forecasts",
+  predictionsSubtitle: "The next season, where evidence supports it",
+  predictionsAllLocations: "All locations",
+  predictionsPublished: "A validated forecast is published",
+  predictionsWithheld: "No forecast available for this selection",
+  predictionsMissing: "No backtest report in this deployment",
+  predictionsGateTitle: "Publication gate",
+  predictionsGateNote: "A forecast is published only when a chronological backtest validated it. When a target is withheld, the withholding is the result — not an outage.",
+  predictionsSeriesCleared: "{eligible}/{total} series cleared the history gate",
+  predictionsSkill: "Skill vs naive baseline: {skill}",
+  predictionsForecastFor: "Forecast for {period}",
+  predictionsInterval: "{level} interval {low}–{high}",
+  predictionsNotScenario: "A forecast is a modelled estimate. It is not a ranking, a scenario, or a promised yield gain.",
   // ---- Onboarding taglines -------------------------------------------------
   onboardingTagline: "Ubushakashatsi bw'ubuhinzi bw'u Rwanda mu bigo byawe",
   onboardingAskTagline: "Baza. Shakisha. Umene urumva.",

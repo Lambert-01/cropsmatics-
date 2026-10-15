@@ -8,6 +8,8 @@ schema says so in ``disclaimer`` and in every field name that reports it.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.schemas.analytics import ComponentAvailability, WeightsIn
@@ -22,6 +24,8 @@ class SensitivityRequest(BaseModel):
     isolates sensitivity to the weights and nothing else.
     """
 
+    purpose: Literal["productivity_support", "harvest_coordination"] = "productivity_support"
+    threshold_pct: float = Field(0.0, ge=0, le=100)
     weights: WeightsIn = Field(
         default_factory=WeightsIn,
         description="the baseline weighting the reported baseline ranks use",
@@ -91,6 +95,17 @@ class SensitivityResponse(BaseModel):
     #: never tests a weighting that would score a neutral constant.
     components_unavailable: list[str] = Field(default_factory=list)
     component_availability: list[ComponentAvailability] = Field(default_factory=list)
+    #: The planning purpose the sweep was run for. A robustness share only means
+    #: something relative to a stated purpose and a stated candidate set.
+    purpose: str | None = None
+    purpose_label: str | None = None
+    purpose_note: str | None = None
+    methodology_version: str | None = None
+    #: Eligible candidates tested, and candidates excluded because they are not a
+    #: shortfall for this purpose. The sweep never tests an ineligible candidate,
+    #: so a share cannot make one look "stable".
+    n_eligible: int = 0
+    n_ineligible: int = 0
     disclaimer: str = ""
     limitations: list[str] = Field(default_factory=list)
     provenance: Provenance

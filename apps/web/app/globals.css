@@ -362,6 +362,16 @@ html.dark .map-district {
   background-position: center 55%;
 }
 
+@media (max-width: 639px) {
+  .page-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgb(var(--c-surface) / 0.82);
+    pointer-events: none;
+  }
+}
+
 /* Same landscape image in dark mode, with a dark scrim so the copy stays
    readable. The background image is maintained, not removed. */
 html.dark .page-hero {

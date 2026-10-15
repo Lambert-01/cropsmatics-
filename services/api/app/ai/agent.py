@@ -75,6 +75,10 @@ def _item_payload(item: EvidenceItem) -> dict:
         "district": item.district,
         "crop": item.crop,
         "source_id": item.source_id,
+        "geography_level": item.geography_level,
+        "province": item.province,
+        "method": item.method,
+        "note": item.note,
     }
 
 
@@ -120,6 +124,7 @@ def build_messages(
 def _assistant_turn(response: ChatResponse) -> dict:
     """Replay the model's tool-call turn so the provider sees its own request."""
     return {
+        **({"_responses_output": response.provider_output} if response.provider_output is not None else {}),
         "role": "assistant",
         "content": response.content or "",
         "tool_calls": [

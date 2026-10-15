@@ -53,6 +53,9 @@ COPY services/api/alembic.ini /app/services/api/alembic.ini
 # artifact. Default false keeps the API image small; the model page then reports
 # `unavailable` honestly instead of showing metrics that do not exist.
 COPY ml /app/ml
+# The evidence gate is lightweight (pandas/numpy), independent of fitted-model
+# extras. Build it from this image's own processed panel, never a local report.
+RUN python -m ml.src.pipelines.run_forecast_backtest
 ARG INSTALL_ML=false
 RUN if [ "$INSTALL_ML" = "true" ]; then \
       pip install -r /app/services/api/requirements-ml.txt && \

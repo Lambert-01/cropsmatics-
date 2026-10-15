@@ -270,42 +270,23 @@ def proxy_notes_for(df: pd.DataFrame) -> list[str]:
     ]
 
 
-def adjusted_weights(weights: dict | None, unavailable: list[str]) -> dict:
+def adjusted_weights(
+    weights: dict | None, unavailable: list[str] | tuple[str, ...],
+    *, purpose: str = ip.DEFAULT_PURPOSE,
+) -> dict:
     """Redistribute excluded component weights proportionally to the rest.
 
-    When a component has no measured data its weight is not silently applied to
-    a neutral constant. Instead the weight is distributed proportionally across
-    the components that do have data, so the score remains a weighted sum of
-    verified inputs and the total still sums to 1.
+    Delegates to the engine so there is exactly one redistribution rule. When a
+    component has no measured data - or carries no discriminating information for
+    the population - its weight is not silently applied to a neutral constant.
+    Instead it is distributed proportionally across the components that do have
+    data, so the score remains a weighted sum of verified inputs and the total
+    still sums to 1.
 
-    The mapping from component names to engine weight keys is:
-        gap_index  -> wg   vulnerability -> wv   affected_scale -> wf
-        readiness  -> wr   cost_constraint -> wc
+    The component -> engine-key mapping lives in
+    ``app.analytics.intervention_priority``.
     """
-    base = {**ip.DEFAULT_WEIGHTS, **(weights or {})}
-    key_map = {
-        "readiness": "wr",
-        "cost_constraint": "wc",
-    }
-    excluded_keys = {key_map[c] for c in unavailable if c in key_map}
-    if not excluded_keys:
-        return base
-    excluded_total = sum(base[k] for k in excluded_keys)
-    remaining = {k: v for k, v in base.items() if k not in excluded_keys}
-    remaining_total = sum(remaining.values()) or 1.0
-    redistributed = {
-        k: round(v + v / remaining_total * excluded_total, 6)
-        for k, v in remaining.items()
-    }
-    # Zero out excluded keys so the engine receives a valid simplex.
-    for k in excluded_keys:
-        redistributed[k] = 0.0
-    # Rounding must not break the simplex: the largest remaining weight absorbs
-    # the residual, so the reported weighting still sums to exactly 1.
-    largest = max(remaining, key=lambda key: redistributed[key])
-    others = sum(v for k, v in redistributed.items() if k != largest)
-    redistributed[largest] = round(max(0.0, 1.0 - others), 6)
-    return redistributed
+    return ip.effective_weights(weights, tuple(unavailable), purpose=purpose)
 
 
 def records(df: pd.DataFrame, columns: list[str] | None = None) -> list[dict]:
@@ -487,59 +468,174 @@ def gapped(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
     return compute_gaps(valid_yield(df), strategy=strategy)
 
 
-def priority_frame(
-    df: pd.DataFrame, strategy: str = "national_crop_median", weights: dict | None = None
-) -> pd.DataFrame:
-    """Attach priority components and a normalized priority score/band per row.
+def _candidate_id(row: pd.Series) -> str:
+    """The stable district x crop identity the engine scores."""
+    district = row.get("district_code") or row.get("district")
+    return f"{district}::{row['canonical_crop_name']}"
 
-    When the 2025B factor columns (readiness, cost) are absent from the frame
-    the corresponding weights are redistributed to the components that do have
-    measured data. The score is never computed from a neutral constant that
-    would look like an observed value.
+
+def _component_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Attach the engine's raw component columns to a gapped frame.
+
+    A component with no measured value for this release is carried as a
+    placeholder and flagged through ``components_unavailable``; the caller zeroes
+    its weight, so the placeholder can never change a score. It is never returned
+    to a client as a component value.
     """
-    g = compute_gaps(valid_yield(df), strategy=strategy)
-    if g.empty:
-        return g
-    g = g.copy()
+    g = frame.copy()
     perish = g.get("perishability", pd.Series(index=g.index, dtype=object))
     g["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
     g["affected_scale"] = g.get("harvested_area_ha", pd.Series(0.0, index=g.index)).fillna(0.0)
 
-    # Readiness: use measured values when present; NaN otherwise (not a neutral constant).
+    # Readiness: measured values when present; 0.0 otherwise (excluded below).
     if has_readiness(g):
         g["readiness"] = g[_READINESS_COL].fillna(g[_READINESS_COL].median()) / 100.0
     else:
-        g["readiness"] = 0.0  # excluded via weight redistribution below
+        g["readiness"] = 0.0
 
-    # Cost constraint: use measured values when present; 0.0 otherwise (excluded).
+    # Cost constraint: measured values when present; 0.0 otherwise (excluded below).
     land = g.get(_COST_COL, pd.Series(dtype=float))
     if has_cost(g):
         g["cost_constraint"] = 1.0 - (land / land.max())
     else:
-        g["cost_constraint"] = 0.0  # excluded via weight redistribution below
+        g["cost_constraint"] = 0.0
+    return g
 
-    unavailable = components_unavailable(g)
-    effective_weights = adjusted_weights(weights, unavailable)
 
-    norm = {}
-    for metric in ["gap_index", "vulnerability", "affected_scale", "readiness", "cost_constraint"]:
-        norm[metric] = ip.normalize(
-            {i: float(v) for i, v in g[metric].fillna(0.0).items()}
+def candidate_dicts(frame: pd.DataFrame) -> list[dict]:
+    """The engine's candidate dicts, built from a component frame.
+
+    One builder, so the ranking endpoint, the map, the scenario comparison and
+    the sensitivity sweep score exactly the same inputs.
+    """
+    out: list[dict] = []
+    for _, row in frame.iterrows():
+        area = row.get("harvested_area_ha")
+        out.append(
+            {
+                "id": _candidate_id(row),
+                "district": row["district"],
+                "crop": row["canonical_crop_name"],
+                "harvested_area_ha": None if pd.isna(area) else float(area),
+                "gap": None if pd.isna(row.get("gap_index")) else float(row["gap_index"]),
+                "vulnerability": float(row["vulnerability"]),
+                "affected_scale": float(row["affected_scale"]),
+                "readiness": float(row["readiness"]),
+                "cost_constraint": float(row["cost_constraint"]),
+            }
         )
-    scores, bands = [], []
-    for idx, _row in g.iterrows():
-        r = ip.priority_score(
-            gap=norm["gap_index"].get(idx, 0.0),
-            vulnerability=norm["vulnerability"].get(idx, 0.0),
-            affected_scale=norm["affected_scale"].get(idx, 0.0),
-            readiness=norm["readiness"].get(idx, 0.0),
-            cost_constraint=norm["cost_constraint"].get(idx, 0.0),
-            weights=effective_weights,
+    return out
+
+
+def priority_population(
+    f: AnalyticsFilters | None = None,
+    *,
+    purpose: str = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = ip.DEFAULT_SHORTFALL_THRESHOLD_PCT,
+) -> tuple[ip.Population, pd.DataFrame, list[dict]]:
+    """The stated reference population for a selection, normalized once.
+
+    The population is the **reference scope**: the same crop, period, benchmark
+    and province, with every district in it. A district inspection narrows what
+    is *displayed*; it never narrows the population, so selecting a district
+    cannot redefine its own benchmark or move its score.
+    """
+    frame = candidate_frame(f)
+    if frame.empty:
+        return (
+            ip.Population(purpose=purpose, threshold_pct=threshold_pct),
+            frame,
+            [],
         )
-        scores.append(r.score)
-        bands.append(r.band)
+    candidates = candidate_dicts(frame)
+    unavailable = tuple(components_unavailable(frame))
+    population = ip.build_population(
+        candidates,
+        purpose=purpose,
+        threshold_pct=threshold_pct,
+        unavailable=unavailable,
+        reference_note=reference_population_note(f, purpose=purpose),
+    )
+    return population, frame, candidates
+
+
+def reference_population_note(f: AnalyticsFilters | None, *, purpose: str) -> str:
+    """Name the comparison group the scores are relative to."""
+    scope = " · ".join(
+        part for part in (getattr(f, "crop", None), getattr(f, "period_code", None)) if part
+    )
+    where = scope or "all published crops and periods"
+    base = (
+        f"Scores are relative to every eligible district x crop candidate at {where}"
+        if scope
+        else "Scores are relative to every eligible district x crop candidate in the scope"
+    )
+    if getattr(f, "province", None):
+        base += f" within {f.province}"
+    if purpose == ip.PURPOSE_PRODUCTIVITY_SUPPORT:
+        base += "; inspecting one district does not change that population or its score."
+    else:
+        base += "."
+    return base
+
+
+def priority_frame(
+    df: pd.DataFrame,
+    strategy: str = "national_crop_median",
+    weights: dict | None = None,
+    *,
+    purpose: str = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = ip.DEFAULT_SHORTFALL_THRESHOLD_PCT,
+) -> pd.DataFrame:
+    """Attach priority components and an eligibility-aware score/band per row.
+
+    Delegates to the shared engine population, so a map coloured by priority and
+    the ranking endpoint agree about who is a priority. A candidate that is not
+    eligible for the purpose has ``priority_score`` ``NaN`` and
+    ``priority_eligible`` False - it is not given a low score that would render as
+    a priority of some degree.
+    """
+    g = compute_gaps(valid_yield(df), strategy=strategy)
+    if g.empty:
+        return g
+    g = _component_columns(g)
+
+    candidates = candidate_dicts(g)
+    population = ip.build_population(
+        candidates,
+        purpose=purpose,
+        threshold_pct=threshold_pct,
+        unavailable=tuple(components_unavailable(g)),
+    )
+    effective_weights = ip.effective_weights(weights, population.unavailable, purpose=purpose)
+    by_id = {str(c["id"]): c for c in candidates}
+    eligible_ids = set(population.eligible_ids)
+
+    scores: list[float] = []
+    bands: list[str | None] = []
+    eligible_flags: list[bool] = []
+    reasons: list[str | None] = []
+    shortfalls: list[float | None] = []
+    for _, row in g.iterrows():
+        cid = _candidate_id(row)
+        shortfalls.append(ip.shortfall_pct(None if pd.isna(row.get("gap_index")) else float(row["gap_index"])))
+        if cid in eligible_ids:
+            scored = ip.score_candidate(by_id[cid], population, weights=effective_weights)
+            scores.append(scored.score)
+            bands.append(scored.band)
+            eligible_flags.append(True)
+            reasons.append(None)
+        else:
+            scores.append(float("nan"))
+            bands.append(None)
+            eligible_flags.append(False)
+            reasons.append(population.ineligible.get(cid, "ineligible for this purpose"))
+
     g["priority_score"] = scores
     g["priority_band"] = bands
+    g["priority_eligible"] = eligible_flags
+    g["priority_ineligible_reason"] = reasons
+    g["shortfall_pct"] = shortfalls
     return g
 
 
@@ -1184,139 +1280,204 @@ def normalise_weights(weights: dict | None) -> dict:
     return {**ip.DEFAULT_WEIGHTS, **(weights or {})}
 
 
+def reference_filters(f: AnalyticsFilters | None) -> AnalyticsFilters | None:
+    """The *reference* scope behind a selection.
+
+    Drops the district inspection and keeps everything that defines a comparison
+    group: crop, period, benchmark and province. This is what makes a score
+    stable - inspecting Nyagatare must not re-normalize the components over the
+    single candidate Nyagatare, which would replace every real component with a
+    neutral constant and can turn a district above its benchmark into a HIGH
+    priority.
+    """
+    if f is None:
+        return None
+    if not getattr(f, "district", None):
+        return f
+    return dc_replace(f, district=None)
+
+
 def candidate_frame(f: AnalyticsFilters | None) -> pd.DataFrame:
     """Rows carrying the **raw** priority components, before any weighting.
 
-    Kept as the single source for the candidate set. The sensitivity sweep needs
-    the un-normalized components, because it re-normalizes and re-weights the
-    same candidates many times; feeding it the already-normalized values the API
-    exposes would normalize twice and silently change every score.
+    Kept as the single source for the candidate set, and computed over the
+    *reference* scope (see :func:`reference_filters`), so the population a score
+    is normalized against does not change when the display is narrowed to one
+    district. Callers that need to display only the inspected district filter the
+    already-scored rows instead.
+
+    The sensitivity sweep needs the un-normalized components, because it
+    re-normalizes and re-weights the same candidates many times; feeding it the
+    already-normalized values the API exposes would normalize twice and silently
+    change every score.
 
     When the 2025B factor columns are absent the readiness and cost components
     are carried as 0.0 **as an engine placeholder only** and flagged via
-    ``components_unavailable``. The ranking and sweep callers then call
-    ``adjusted_weights``, which zeroes those weights, so the placeholder can never
-    change a score - and the API never reports it as a component value (it is
-    returned as ``None``).
+    ``components_unavailable``. The ranking and sweep callers then exclude those
+    weights, so the placeholder can never change a score - and the API never
+    reports it as a component value (it is returned as ``None``).
     """
-    df = apply_filters(productivity_frame(f), f) if f is not None else repo.training_dataset()
-    gapped_df = _threshold_gap(df, f.benchmark_strategy if f else "national_crop_median")
+    ref = reference_filters(f)
+    df = (
+        apply_filters(productivity_frame(ref), ref)
+        if ref is not None
+        else repo.training_dataset()
+    )
+    gapped_df = _threshold_gap(df, ref.benchmark_strategy if ref else "national_crop_median")
     gapped_df = gapped_df[gapped_df["yield_kg_ha"].fillna(0) > 0].copy()
     if gapped_df.empty:
         return gapped_df
-
-    perish = gapped_df.get("perishability", pd.Series(index=gapped_df.index, dtype=object))
-    gapped_df["vulnerability"] = perish.map(_PERISHABILITY).fillna(0.5)
-    gapped_df["affected_scale"] = gapped_df.get(
-        "harvested_area_ha", pd.Series(0, index=gapped_df.index)
-    ).fillna(0)
-
-    # Readiness: measured when the 2025B factor column is present; 0.0 otherwise.
-    if has_readiness(gapped_df):
-        gapped_df["readiness"] = (
-            gapped_df[_READINESS_COL].fillna(gapped_df[_READINESS_COL].median()) / 100.0
-        )
-    else:
-        gapped_df["readiness"] = 0.0
-
-    # Cost constraint: measured when the 2025B land column is present; 0.0 otherwise.
-    land = gapped_df.get(_COST_COL, pd.Series(dtype=float))
-    if has_cost(gapped_df):
-        gapped_df["cost_constraint"] = 1.0 - (land / land.max())
-    else:
-        gapped_df["cost_constraint"] = 0.0
-
-    return gapped_df
+    return _component_columns(gapped_df)
 
 
 def priority_candidates_with_source(
     f: AnalyticsFilters | None = None,
-) -> tuple[list[dict], str | None, list[str]]:
-    """The candidates, the source id, and the list of unavailable components.
+    *,
+    purpose: str = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = ip.DEFAULT_SHORTFALL_THRESHOLD_PCT,
+) -> tuple[list[dict], str | None, list[str], ip.Population]:
+    """The **eligible** candidates, the source id, the excluded components, and
+    the stated reference population they were normalized against.
+
+    Eligibility is applied here, once, so every consumer of this function - the
+    ranking endpoint, the scenario comparison and the sensitivity sweep - cannot
+    disagree about who is a candidate. An above-benchmark district is simply not
+    in the list; its reason travels in ``population.ineligible``.
 
     The source is read from the frame that actually produced the candidates, so a
     ranking's provenance can never name a different dataset than the one ranked.
-    The unavailable list names components whose weights must be redistributed
-    before scoring (see ``adjusted_weights``).
     """
-    gapped_df = candidate_frame(f)
-    if gapped_df.empty:
-        return [], None, []
+    population, gapped_df, candidates = priority_population(
+        f, purpose=purpose, threshold_pct=threshold_pct
+    )
+    if not candidates:
+        return [], None, list(population.unavailable), population
 
-    unavailable = components_unavailable(gapped_df)
-    candidates = []
-    for _, row in gapped_df.iterrows():
-        cid = f"{row.get('district_code', row['district'])}::{row['canonical_crop_name']}"
-        candidates.append({
-            "id": cid,
-            "district": row["district"],
-            "crop": row["canonical_crop_name"],
-            "yield_kg_ha": None if pd.isna(row["yield_kg_ha"]) else round(float(row["yield_kg_ha"]), 1),
-            "benchmark_yield_kg_ha": (
-                None if pd.isna(row["benchmark_yield_kg_ha"])
+    eligible_ids = set(population.eligible_ids)
+    by_id = {_candidate_id(row): row for _, row in gapped_df.iterrows()}
+    eligible: list[dict] = []
+    for candidate in candidates:
+        if str(candidate["id"]) not in eligible_ids:
+            continue
+        row = by_id.get(str(candidate["id"]))
+        if row is not None:
+            # The published values travel with the candidate so a client can show
+            # what the score is about without a second request.
+            candidate["yield_kg_ha"] = (
+                None if pd.isna(row["yield_kg_ha"]) else round(float(row["yield_kg_ha"]), 1)
+            )
+            candidate["benchmark_yield_kg_ha"] = (
+                None
+                if pd.isna(row["benchmark_yield_kg_ha"])
                 else round(float(row["benchmark_yield_kg_ha"]), 1)
-            ),
-            "harvested_area_ha": (
-                None if pd.isna(row.get("harvested_area_ha")) else round(float(row["harvested_area_ha"]), 1)
-            ),
-            "gap": float(row["gap_index"]) if pd.notna(row["gap_index"]) else 0.0,
-            "vulnerability": float(row["vulnerability"]),
-            "affected_scale": float(row["affected_scale"]),
-            "readiness": float(row["readiness"]),
-            "cost_constraint": float(row["cost_constraint"]),
-        })
-    return candidates, frame_source_id(gapped_df), unavailable
+            )
+            if candidate["harvested_area_ha"] is not None:
+                candidate["harvested_area_ha"] = round(candidate["harvested_area_ha"], 1)
+        eligible.append(candidate)
+    return eligible, frame_source_id(gapped_df), list(population.unavailable), population
 
 
-def priority_candidates(f: AnalyticsFilters | None = None) -> list[dict]:
-    """The district x crop candidates, with raw (un-normalized) components."""
-    return priority_candidates_with_source(f)[0]
+def priority_candidates(
+    f: AnalyticsFilters | None = None,
+    *,
+    purpose: str = ip.DEFAULT_PURPOSE,
+) -> list[dict]:
+    """The eligible district x crop candidates, with raw (un-normalized) components."""
+    return priority_candidates_with_source(f, purpose=purpose)[0]
 
 
-def priorities(limit: int = 50, weights: dict | None = None, f: AnalyticsFilters | None = None) -> dict:
-    candidates, source_id, unavailable = priority_candidates_with_source(f)
-    effective_weights = adjusted_weights(weights, unavailable)
+def priorities(
+    limit: int = 50,
+    weights: dict | None = None,
+    f: AnalyticsFilters | None = None,
+    *,
+    purpose: str = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = ip.DEFAULT_SHORTFALL_THRESHOLD_PCT,
+) -> dict:
+    """The ranked productivity-support (or harvest-coordination) shortlist.
+
+    Only eligible candidates can appear. A candidate at or above its benchmark is
+    reported through ``n_ineligible`` and ``ineligible`` with its reason, never as
+    a LOW priority - "not a shortfall" and "a small shortfall" are different
+    facts and must not be presented as one scale.
+    """
+    candidates, source_id, unavailable, population = priority_candidates_with_source(
+        f, purpose=purpose, threshold_pct=threshold_pct
+    )
+    effective_weights = ip.effective_weights(weights, tuple(unavailable), purpose=purpose)
     df_for_notes = candidate_frame(f)
     availability = component_availability(df_for_notes)
     unavailable_set = set(unavailable)
-    if not candidates:
-        return {
-            "weights": effective_weights,
-            "rows": [],
-            "proxy_notes": proxy_notes_for(df_for_notes),
-            "components_unavailable": unavailable,
-            "component_availability": availability,
-            "source_id": None,
-        }
 
-    ranked = ip.rank(candidates, weights=effective_weights)[:limit]
-    rows = [{
-        "id": r["id"], "district": r["district"], "crop": r["crop"],
-        "score": r["score"], "band": r["band"],
-        "yield_kg_ha": r.get("yield_kg_ha"),
-        "benchmark_yield_kg_ha": r.get("benchmark_yield_kg_ha"),
-        "harvested_area_ha": r.get("harvested_area_ha"),
-        # `gap` is a raw component while the others are normalized, because gap is
-        # reported to users in its own units. Callers that need a consistent set
-        # (the sensitivity sweep) use `priority_candidates` instead.
-        "gap": round(r["gap"], 4), "vulnerability": r["vulnerability_component"],
-        "affected_scale": r["affected_scale_component"],
-        # An unavailable component is reported as None - the engine placeholder
-        # (0.0, normalized to a constant) must never reach a client as a value.
-        "readiness": None if "readiness" in unavailable_set else r["readiness_component"],
-        "cost_constraint": (
-            None if "cost_constraint" in unavailable_set else r["cost_component"]
-        ),
-    } for r in ranked]
-
-    return {
+    base = {
         "weights": effective_weights,
-        "rows": rows,
+        "purpose": purpose,
+        "purpose_label": ip.PURPOSE_LABELS.get(purpose, purpose),
+        "purpose_note": ip.PURPOSE_NOTES.get(purpose),
+        "methodology_version": ip.METHODOLOGY_VERSION,
+        "shortfall_threshold_pct": threshold_pct,
+        "reference_population": population.as_dict(),
+        "reference_population_note": population.reference_note,
+        "n_eligible": population.n_reference,
+        "n_ineligible": len(population.ineligible),
+        "ineligible": [
+            {"id": cid, "reason": reason}
+            for cid, reason in sorted(population.ineligible.items())
+        ][:200],
         "proxy_notes": proxy_notes_for(df_for_notes),
         "components_unavailable": unavailable,
         "component_availability": availability,
         "source_id": source_id,
+        "period_code": frame_period_code(df_for_notes) or resolved_period(f),
+        "rows": [],
     }
+    if not candidates:
+        return base
+
+    # Scored against the reference population, then narrowed to the requested
+    # display scope. Narrowing cannot change a score.
+    ranked = ip.rank(
+        candidates,
+        weights=effective_weights,
+        purpose=purpose,
+        threshold_pct=threshold_pct,
+        unavailable=tuple(unavailable),
+    )
+    if f is not None and getattr(f, "district", None):
+        wanted = str(f.district).strip().lower()
+        ranked = [r for r in ranked if str(r["district"]).strip().lower() == wanted]
+    ranked = ranked[:limit]
+
+    rows = [
+        {
+            "id": r["id"],
+            "district": r["district"],
+            "crop": r["crop"],
+            "score": r["score"],
+            "band": r["band"],
+            "yield_kg_ha": r.get("yield_kg_ha"),
+            "benchmark_yield_kg_ha": r.get("benchmark_yield_kg_ha"),
+            "harvested_area_ha": r.get("harvested_area_ha"),
+            # `gap` is the signed published gap in its own units; the score's gap
+            # component is built from the non-negative shortfall, and both are
+            # reported so a reader can see the difference.
+            "gap": round(r["gap"], 4),
+            "shortfall_pct": r.get("shortfall_pct"),
+            "eligible": True,
+            "eligibility_reason": None,
+            "purpose": purpose,
+            "reference_n": r.get("reference_n"),
+            "vulnerability": r["vulnerability_component"],
+            "affected_scale": r["affected_scale_component"],
+            # An excluded component is reported as None - the engine placeholder
+            # (0.0, normalized to a constant) must never reach a client as a value.
+            "readiness": None if "readiness" in unavailable_set else r["readiness_component"],
+            "cost_constraint": (None if "cost_constraint" in unavailable_set else r["cost_component"]),
+        }
+        for r in ranked
+    ]
+
+    return {**base, "rows": rows, "source_id": source_id}
 
 
 def _threshold_gap(df: pd.DataFrame, strategy: str) -> pd.DataFrame:

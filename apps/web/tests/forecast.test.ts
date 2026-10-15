@@ -43,7 +43,7 @@ describe("forecastHeadline", () => {
   it("frames a suppressed forecast as an evidence verdict", () => {
     const headline = forecastHeadline(status());
     expect(headline.tone).toBe("suppressed");
-    expect(headline.title).toBe("No forecast is published for this dataset");
+    expect(headline.title).toBe("No forecast is published for this selection");
     expect(headline.detail).toContain("evidence verdict");
     // The eligible-series count comes from the report, never from the client.
     expect(headline.detail).toContain("0/30 series");

@@ -9,7 +9,7 @@ import { SourceNote } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/States";
 import { cn } from "@/lib/cn";
 import { fmtNumber } from "@/lib/format";
-import { headlinePriorities, investigationAreas } from "@/lib/priority";
+import { headlinePriorities, investigationAreas, normalizeWeights } from "@/lib/priority";
 import type { MapMetricId } from "@/lib/constants";
 import type { DashboardFilters } from "@/lib/filters";
 import {
@@ -22,6 +22,7 @@ import type { ComponentAvailability, PriorityRow } from "@/types";
 
 import { AIExplainPanel } from "../yield-intelligence/AIExplainPanel";
 import { ComponentAvailabilityNotice } from "./ComponentAvailabilityNotice";
+import { EligibilityNotice } from "./EligibilityNotice";
 import { DistrictRationale } from "./DistrictRationale";
 import { PriorityRanking } from "./PriorityRanking";
 import { ScenarioComparison } from "./ScenarioComparison";
@@ -84,10 +85,9 @@ export function PrioritiesWorkspace({ filters }: { filters: DashboardFilters }) 
   const startAreas = useMemo(() => investigationAreas(rows, 6), [rows]);
 
   const run = () => {
-    const total = Object.values(weights).reduce((a, b) => a + b, 0) || 1;
-    const normalised = Object.fromEntries(
-      Object.entries(weights).map(([k, v]) => [k, Number((v / total).toFixed(3))]),
-    ) as Record<string, number>;
+    // One normalizer, shared with the Scenario Lab and the request builder, so the
+    // weighting shown on the sliders is exactly the weighting submitted.
+    const normalised: Record<string, number> = { ...normalizeWeights(weights) };
     weighted.reset();
     weightedMap.reset();
     weighted.mutate(normalised);
@@ -108,6 +108,21 @@ export function PrioritiesWorkspace({ filters }: { filters: DashboardFilters }) 
     <div className="space-y-5">
       {baseline.error ? (
         <ErrorState message={(baseline.error as Error).message} onRetry={() => baseline.refetch()} />
+      ) : null}
+
+      {/* Which question this shortlist answers, and who it left out. Rendered
+          above the ranking so a planner cannot read an excluded district as a
+          missing one. */}
+      {rows.length || activeSource?.n_ineligible ? (
+        <EligibilityNotice
+          purposeLabel={activeSource?.purpose_label}
+          purposeNote={activeSource?.purpose_note}
+          thresholdPct={activeSource?.shortfall_threshold_pct}
+          nEligible={activeSource?.n_eligible ?? rows.length}
+          nIneligible={activeSource?.n_ineligible}
+          ineligible={activeSource?.ineligible}
+          referenceNote={activeSource?.reference_population_note}
+        />
       ) : null}
 
       {scenarioActive ? (

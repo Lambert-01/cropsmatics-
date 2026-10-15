@@ -41,6 +41,8 @@ class ChatResponse:
 
     content: str | None = None
     tool_calls: list[ToolCall] = field(default_factory=list)
+    # Native output stays within one request's agent history, never on the provider.
+    provider_output: list[dict] | None = None
 
 
 @runtime_checkable

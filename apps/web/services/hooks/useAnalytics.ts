@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
+import { forecastQuery } from "@/lib/forecast";
 import { SCOPE_HISTORY, scopeKey, type DashboardFilters } from "@/lib/filters";
 import type {
   AssistantContext,
@@ -63,14 +64,13 @@ export function useNationalBoard(filters: DashboardFilters, enabled = true) {
 }
 
 /**
- * The forecast publication gate. Keyed on nothing mutable: the backtest report
- * changes only when the ML pipeline is rerun, so an hour of staleness costs
- * nothing and a background refetch can never blink the verdict on screen.
+ * Forecast decisions are cached by the exact supported request scope.
+ * A changed crop, season or district must not reuse another selection's verdict.
  */
-export function useForecastStatus() {
+export function useForecastStatus(filters: DashboardFilters = {}) {
   return useQuery({
-    queryKey: ["forecast-status"],
-    queryFn: api.forecastStatus,
+    queryKey: ["forecast-status", forecastQuery(filters)],
+    queryFn: () => api.forecastStatus(filters),
     staleTime: ONE_HOUR,
   });
 }

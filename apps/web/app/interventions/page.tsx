@@ -13,6 +13,7 @@ import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { DistrictExplorer } from "@/features/interventions/DistrictExplorer";
 import { PrioritiesWorkspace } from "@/features/interventions/PrioritiesWorkspace";
 import { PriorityScenarioLab } from "@/features/interventions/PriorityScenarioLab";
+import { PredictionsWorkspace } from "@/features/interventions/PredictionsWorkspace";
 import { SensitivityLab } from "@/features/interventions/SensitivityLab";
 import type { DashboardFilters } from "@/lib/filters";
 import { useInputAdoption, useOverview, useTrends } from "@/services/hooks/useAnalytics";
@@ -25,14 +26,19 @@ import type { OverviewResponse } from "@/types";
  * ``priorities`` ranks the published candidates under the planner's weights;
  * ``explorer`` reads the same candidates district-first; ``scenario`` compares two
  * reviewable weightings; ``sensitivity`` tests how robust that ranking is to the
- * weighting choice. Each is a re-computation of published observations — none of
- * them predicts an outcome, and the page never offers a tab it cannot deliver.
+ * weighting choice. Each is a re-computation of published observations.
+ *
+ * ``predictions`` is different in kind: it is the one place a *forecast* could
+ * appear, and it shows the publication gate's own verdict. A scenario is never
+ * relabelled a forecast — the tab exists precisely so the distinction is visible
+ * on the page a planner is already using.
  */
 const INTERVENTION_TABS = [
   { id: "priorities", label: "Priorities" },
   { id: "explorer", label: "District explorer" },
   { id: "scenario", label: "Scenario lab" },
   { id: "sensitivity", label: "Sensitivity" },
+  { id: "predictions", label: "Predictions" },
 ];
 
 export default function InterventionsPage() {
@@ -45,7 +51,7 @@ export default function InterventionsPage() {
     <div className="space-y-5">
       <PageHero
         title="Intervention Intelligence"
-        subtitle="Rank districts and crops, see why they rank where they do, compare reviewable weightings, and test how much the ranking depends on them."
+        subtitle="Choose where to investigate, compare plans and review the evidence."
       />
 
       <AnalyticsFilterBar
@@ -69,21 +75,22 @@ export default function InterventionsPage() {
         <NationalOverview overview={overview.data} filters={filters} />
       ) : null}
 
-      {districtMode ? (
+      {(
         <>
           <Tabs
-            items={INTERVENTION_TABS}
-            active={tab}
+            items={districtMode ? INTERVENTION_TABS : INTERVENTION_TABS.filter((item) => item.id === "predictions")}
+            active={districtMode ? tab : "predictions"}
             onChange={setTab}
             ariaLabel="Intervention Intelligence workspaces"
           />
 
-          {tab === "priorities" ? <PrioritiesWorkspace filters={filters} /> : null}
-          {tab === "explorer" ? <DistrictExplorer filters={filters} /> : null}
-          {tab === "scenario" ? <PriorityScenarioLab filters={filters} /> : null}
-          {tab === "sensitivity" ? <SensitivityLab filters={filters} /> : null}
+          {districtMode && tab === "priorities" ? <PrioritiesWorkspace filters={filters} /> : null}
+          {districtMode && tab === "explorer" ? <DistrictExplorer filters={filters} /> : null}
+          {districtMode && tab === "scenario" ? <PriorityScenarioLab filters={filters} /> : null}
+          {districtMode && tab === "sensitivity" ? <SensitivityLab filters={filters} /> : null}
+          {!districtMode || tab === "predictions" ? <PredictionsWorkspace filters={filters} /> : null}
         </>
-      ) : null}
+      )}
     </div>
   );
 }

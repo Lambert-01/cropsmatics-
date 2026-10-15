@@ -85,19 +85,31 @@ See [05_DATASET_CATALOG](docs/05_DATASET_CATALOG.md) and
 |---|---|
 | Data layer + pipeline | Functional; 14 productivity periods, with narrower coverage for other indicators and unmapped source sheets |
 | Reference dictionaries | 30 districts, 17 crop categories |
-| Backend analytics and optimization | Implemented; production canonical dataset is currently out of sync |
+| Backend analytics and optimization | Implemented; verify current production readiness before a demo |
 | ML modules | Gap, priority, risk and optimizer implemented; forecast output is withheld without sufficient validation |
+| Priority engine | Methodology **2.0.1**: two named planning purposes; a candidate above its benchmark is *ineligible* for productivity support rather than LOW-scoring; the reference population is stated and stable under a district inspection |
 | Web app | Deployed dashboard, crop, map and analysis routes; check the live build and API readiness before a demo |
 | Mobile app | Expo app with offline registration and sync; APK/network verification remains device-specific |
 | Database migrations | Implemented; production readiness must still be checked |
 | Auth/RBAC, notifications, reports export | ⚠️ Partial / scaffolded |
 | Deployment | Web on Vercel and API on Render; see live readiness before a demo |
 
-As checked on 2026-10-12, the production API reported `database: connected` but
-`status: not_ready`: its loaded PostgreSQL dataset did not match the processed
-manifest. A reachable database alone does not prove the analytical data are
-current. See `GET /api/v1/health/readiness`; run the documented canonical
-bootstrap in the deployment environment before claiming production readiness.
+As checked on 2026-10-15, `GET /api/v1/health/readiness` reports `status: ready`
+with dataset `0.2.0-646a72d53cd349df` and 14 published periods, and
+`python scripts/verify_production.py` passes 12/12 required endpoints. The same
+run resolves the API host from the system resolver and from two public resolvers,
+those probes did not reproduce the reported browser DNS failure. They do not
+establish the cause on the affected user's network. The script names the failing layer
+(`dns_failure` / `tls_failure` / `timeout` / `connection_closed` / `http_error`).
+
+Note that the checks above describe the **deployed** service. The intervention
+priority engine in this working tree is methodology **2.0.1** (productivity-support
+eligibility; see [11_INTERVENTION_ENGINE](docs/11_INTERVENTION_ENGINE.md)) and is
+not live until the API is redeployed.
+
+Latest local repairs: [FORECAST_INTEGRATION_REPAIR_REPORT](docs/FORECAST_INTEGRATION_REPAIR_REPORT.md).
+Forecast filters, mobile failure states and Responses tool continuation are implemented locally;
+this does not imply a new validated forecast, a production deployment or a device-tested APK.
 
 Full details: [REPOSITORY_REFINEMENT_REPORT](docs/REPOSITORY_REFINEMENT_REPORT.md).
 Dashboard work (this pass): [DASHBOARD_REFINEMENT_REPORT](docs/DASHBOARD_REFINEMENT_REPORT.md),

@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.analytics.intervention_priority import UnscorableWeights
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -38,6 +39,14 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+
+@app.exception_handler(UnscorableWeights)
+async def _unscorable_weights(_: Request, exc: UnscorableWeights) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"code": "PRIORITY_UNSCORABLE", "detail": str(exc), "retryable": False},
+    )
 
 
 @app.get("/health", tags=["system"])

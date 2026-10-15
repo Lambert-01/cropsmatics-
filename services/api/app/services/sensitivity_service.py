@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import replace as dc_replace
 
+from app.analytics import intervention_priority as ip
 from app.analytics import sensitivity
 from app.schemas.common import Provenance
 from app.schemas.filters import AnalyticsFilters
@@ -61,6 +62,8 @@ def analyse(
     seed: int = sensitivity.DEFAULT_SEED,
     top_n: int = 10,
     include_presets: bool = True,
+    purpose: str = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = 0.0,
 ) -> dict:
     """Run the sweep over the selected candidate set and return the raw result.
 
@@ -70,8 +73,14 @@ def analyse(
     never tests a weighting that would score a neutral constant as if it were
     measured data, and it never tests a weighting the planner could not apply.
     """
-    candidates, _source, unavailable = analytics_service.priority_candidates_with_source(f)
-    effective_weights = analytics_service.adjusted_weights(weights, unavailable)
+    # The same eligibility rule as the ranking endpoint, from the same function:
+    # a sweep can only test weightings over candidates that are actually eligible
+    # for the purpose, so a robustness share never counts an above-benchmark
+    # district as "stable in the shortlist".
+    candidates, _source, unavailable, population = analytics_service.priority_candidates_with_source(
+        f, purpose=purpose, threshold_pct=threshold_pct
+    )
+    effective_weights = analytics_service.adjusted_weights(weights, unavailable, purpose=purpose)
     baseline = analytics_service.normalise_weights(effective_weights)
 
     sweep = sensitivity.weight_draws(
@@ -81,14 +90,14 @@ def analyse(
         sweep = dc_replace(
             sweep,
             draws=[
-                analytics_service.adjusted_weights(draw, unavailable)
+                analytics_service.adjusted_weights(draw, unavailable, purpose=purpose)
                 for draw in sweep.draws
             ],
         )
     # The reported presets are the ones that were actually tested, so a client
     # cannot offer a starting point the engine would silently change.
     presets = {
-        key: analytics_service.adjusted_weights(preset, unavailable)
+        key: analytics_service.adjusted_weights(preset, unavailable, purpose=purpose)
         for key, preset in sensitivity.PRESETS.items()
     }
 
@@ -116,12 +125,30 @@ def analyse(
             "limitations": LIMITATIONS,
         }
 
-    result = sensitivity.analyse(candidates, weights=effective_weights, sweep=sweep, top_n=top_n)
+    result = sensitivity.analyse(
+        candidates,
+        weights=effective_weights,
+        sweep=sweep,
+        top_n=top_n,
+        purpose=purpose,
+    )
+    if f is not None and f.district:
+        result["rows"] = [
+            row for row in result["rows"] if row["district"].casefold() == f.district.casefold()
+        ]
+        result["districts_analysed"] = len(result["rows"])
+        result["robust_count"] = sum(row["robust"] for row in result["rows"])
     result["presets"] = presets
     result["proxy_notes"] = proxy_notes
     result["components_unavailable"] = unavailable
     result["component_availability"] = availability
     result["limitations"] = LIMITATIONS
+    result["purpose"] = purpose
+    result["purpose_label"] = ip.PURPOSE_LABELS.get(purpose, purpose)
+    result["purpose_note"] = ip.PURPOSE_NOTES.get(purpose)
+    result["methodology_version"] = ip.METHODOLOGY_VERSION
+    result["n_eligible"] = population.n_reference
+    result["n_ineligible"] = len(population.ineligible)
     return result
 
 
@@ -130,11 +157,13 @@ def run(payload: SensitivityRequest) -> SensitivityResponse:
     f = _filters(payload)
     result = analyse(
         f,
-        weights=payload.weights.to_engine(),
+        weights=payload.weights.to_engine() if "weights" in payload.model_fields_set else None,
         n_random=payload.n_random,
         seed=payload.seed,
         top_n=payload.top_n,
         include_presets=payload.include_presets,
+        purpose=payload.purpose,
+        threshold_pct=payload.threshold_pct,
     )
 
     limitations = list(result["limitations"])

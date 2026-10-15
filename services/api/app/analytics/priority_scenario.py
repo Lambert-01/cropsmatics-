@@ -185,6 +185,7 @@ def summarise_changes(baseline: dict, scenario: dict) -> list[dict]:
         ("crop", "Crop"),
         ("benchmark_strategy", "Benchmark strategy"),
         ("top_n", "Top-N threshold"),
+        ("shortfall_threshold_pct", "Minimum shortfall (%)"),
     ):
         before, after = baseline.get(key), scenario.get(key)
         if before == after:

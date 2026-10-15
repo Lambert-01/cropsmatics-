@@ -4,7 +4,11 @@ import { ApiFailure, describeApiFailure } from "@/lib/apiError";
 import {
   QUERY_DEFAULTS,
   QUERY_RETRY_LIMIT,
+  RETRY_JITTER_RATIO,
+  RETRY_MAX_DELAY_MS,
   retryDelay,
+  retryDelayWithJitter,
+  retryJitter,
   shouldRetryRequest,
 } from "@/lib/queryClient";
 
@@ -101,12 +105,59 @@ describe("query retry policy", () => {
 
   it("backs off between attempts instead of firing immediately", () => {
     expect(retryDelay(0)).toBeGreaterThan(0);
-    expect(retryDelay(1)).toBeGreaterThan(retryDelay(0));
-    expect(retryDelay(10)).toBeLessThanOrEqual(4_000);
+    // The exponential bound is asserted without jitter: two jittered delays of
+    // different attempts are not guaranteed to be ordered, because a 40% offset
+    // on a doubling base is larger than one step.
+    expect(retryDelayWithJitter(1, 0)).toBeGreaterThan(retryDelayWithJitter(0, 0));
+    expect(retryDelayWithJitter(10, 0)).toBe(RETRY_MAX_DELAY_MS);
+  });
+
+  it("jitters every delay within a bounded band, so panels do not retry in lockstep", () => {
+    for (const attempt of [0, 1, 2, 5]) {
+      const jitter = retryJitter(attempt);
+      expect(Math.abs(jitter)).toBeLessThanOrEqual(RETRY_JITTER_RATIO);
+      // Never negative, and never more than the cap plus the jitter band.
+      expect(retryDelay(attempt)).toBeGreaterThan(0);
+      expect(retryDelay(attempt)).toBeLessThanOrEqual(
+        Math.round(RETRY_MAX_DELAY_MS * (1 + RETRY_JITTER_RATIO)),
+      );
+    }
+  });
+
+  it("gives two panels that fail in the same tick different delays", () => {
+    const a = retryDelayWithJitter(1, retryJitter(1, 1_000));
+    const b = retryDelayWithJitter(1, retryJitter(1, 1_500));
+    expect(a).not.toBe(b);
   });
 
   it("keeps the bounded retry policy on the shared query defaults", () => {
     expect(QUERY_DEFAULTS.queries.retry).toBe(shouldRetryRequest);
+    expect(QUERY_DEFAULTS.queries.retryDelay).toBe(retryDelay);
     expect(QUERY_DEFAULTS.queries.refetchOnWindowFocus).toBe(false);
+  });
+
+  it("never retries a configuration refusal", () => {
+    // An invalid NEXT_PUBLIC_API_BASE_URL is deterministic: the panel must show
+    // the actionable message immediately, not spend a retry rediscovering it.
+    const configError = new ApiFailure({
+      path: "/analytics/canonical-trend",
+      status: null,
+      code: "API_BASE_URL_INVALID",
+      message: "NEXT_PUBLIC_API_BASE_URL is not set for this production build.",
+      retryable: false,
+    });
+    expect(shouldRetryRequest(0, configError)).toBe(false);
+  });
+
+  it("never retries a request timeout past the first attempt", () => {
+    const timeout = new ApiFailure({
+      path: "/dashboard/overview",
+      status: null,
+      code: "REQUEST_TIMEOUT",
+      message: "The analytics service did not answer in time.",
+      retryable: true,
+    });
+    expect(shouldRetryRequest(0, timeout)).toBe(true);
+    expect(shouldRetryRequest(QUERY_RETRY_LIMIT, timeout)).toBe(false);
   });
 });

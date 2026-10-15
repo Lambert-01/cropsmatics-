@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { TimeSeriesChart } from "../../src/components/charts";
 import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
+import { ForecastWorkspace } from "../../src/components/analytics/ForecastWorkspace";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import {
   Card,
@@ -139,14 +140,6 @@ export default function AnalyzeScreen() {
     return map;
   }, [board.data]);
 
-  if (board.isError) {
-    return (
-      <ScreenLayout active="analyze">
-        <ErrorState message={t.errorGeneric} onRetry={() => void board.refetch()} />
-      </ScreenLayout>
-    );
-  }
-
   const loading = board.isLoading;
   const noPublishedPeriods = !loading && periods.length === 0;
 
@@ -158,7 +151,9 @@ export default function AnalyzeScreen() {
     <ScreenLayout active="analyze">
       <SectionHeader title={t.analyze} subtitle={t.cropBoardSubtitle} />
 
-      {loading ? (
+      {board.isError ? (
+        <ErrorState message={t.errorGeneric} onRetry={() => void board.refetch()} />
+      ) : loading ? (
         <>
           <LoadingSkeleton height={92} />
           <LoadingSkeleton height={220} />
@@ -265,6 +260,11 @@ export default function AnalyzeScreen() {
           />
         </>
       )}
+
+      {/* Predictions. Mounted regardless of the board state: the publication
+          gate is a separate report and must still be answerable when the panel
+          is empty — "no forecast, here is why" is a complete result. */}
+      <ForecastWorkspace />
 
       {/* The ways to go deeper. Same routes as before, nothing removed. */}
       {ACTIONS.map((action) => (

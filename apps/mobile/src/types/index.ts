@@ -687,6 +687,77 @@ export interface AppSettings {
   notificationsEnabled: boolean;
 }
 
+// ---- Predictions ----------------------------------------------------------
+
+export interface ForecastScope {
+  crop?: string;
+  district?: string;
+  season?: string;
+}
+
+/**
+ * One candidate forecast target and the chronological backtest's verdict on it.
+ *
+ * Served verbatim from `GET /analytics/forecast-status`. A target is either
+ * published (``status: "ok"``) or withheld with the gate that failed — there is
+ * no third state, and a withheld target never carries a point estimate.
+ */
+export interface ForecastTargetDecision {
+  crop?: string | null;
+  season?: string | null;
+  metric?: string | null;
+  geography_level?: string | null;
+  district?: string | null;
+  model?: string | null;
+  label?: string | null;
+  interval_level?: number | null;
+  target_id: string | null;
+  status: string;
+  unit?: string | null;
+  horizon?: string | null;
+  n_series?: number;
+  n_series_eligible?: number;
+  skill_vs_naive?: number | null;
+  point_estimate?: number | null;
+  interval?: number[] | null;
+  interval_coverage?: number | null;
+  next_period?: string | null;
+  decision_note?: string | null;
+  reasons: string[];
+}
+
+/**
+ * The forecast publication decision.
+ *
+ * ``serves_forecast`` is the only field a client should branch on. When it is
+ * false there is no forecast to draw — only the evidence verdict, which is a
+ * complete answer in its own right.
+ */
+export interface ForecastStatusResponse {
+  selection?: Record<string, string | null>;
+  scope_note?: string | null;
+  report_available: boolean;
+  generated: string | null;
+  serves_forecast: boolean;
+  note: string | null;
+  method_note?: string | null;
+  targets: ForecastTargetDecision[];
+  policy?: {
+    min_history?: number;
+    min_folds?: number;
+    min_series_coverage?: number;
+    interval_level?: number;
+    [key: string]: number | undefined;
+  } | null;
+  policy_is_default?: boolean;
+  provenance: {
+    source_id?: string | null;
+    source_period?: string | null;
+    limitations?: string[];
+    [key: string]: unknown;
+  };
+}
+
 // ---- Sources --------------------------------------------------------------
 
 export interface DataSource {

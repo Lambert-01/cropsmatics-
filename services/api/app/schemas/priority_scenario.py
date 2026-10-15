@@ -13,7 +13,7 @@ Intervention Planner already exposes.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.analytics import ComponentAvailability, WeightsIn
 from app.schemas.common import Provenance
@@ -27,11 +27,32 @@ class PriorityScenarioParams(BaseModel):
     means "no restriction" for *that* side, and nothing is inherited from the
     other side. The response echoes both resolved sides, so a reader can always
     see exactly what was compared.
+
+    Unknown fields are refused rather than ignored. A misspelled
+    ``benchmark`` (for ``benchmark_strategy``) would otherwise be dropped and the
+    side silently ranked against the default benchmark - a wrong comparison that
+    looks like a successful one.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     weights: WeightsIn = Field(
         default_factory=WeightsIn,
         description="planner weights; must be non-negative and sum to ~1.0",
+    )
+    purpose: str | None = Field(
+        None,
+        description=(
+            "productivity_support (default: candidates must have a positive yield "
+            "shortfall) | harvest_coordination (operational scale and perishability; "
+            "not a shortfall ranking)"
+        ),
+    )
+    shortfall_threshold_pct: float = Field(
+        0.0,
+        ge=0,
+        le=100,
+        description="how far below the benchmark counts as a shortfall",
     )
     period_code: str | None = Field(
         None, description="published period, e.g. 2026B; see /api/v1/meta/periods"
@@ -57,12 +78,19 @@ class PriorityScenarioParams(BaseModel):
 class PriorityScenarioRequest(BaseModel):
     """Two independently specified rankings over the same candidate universe."""
 
+    model_config = ConfigDict(extra="forbid")
+
     baseline: PriorityScenarioParams = Field(default_factory=PriorityScenarioParams)
     scenario: PriorityScenarioParams = Field(default_factory=PriorityScenarioParams)
 
 
 class PriorityCandidateRow(BaseModel):
-    """One district x crop candidate as the ranking engine placed it."""
+    """One district x crop candidate as the ranking engine placed it.
+
+    Every row is **eligible** for the purpose the side was ranked under. An
+    above-benchmark candidate is reported through ``PriorityView.ineligible``
+    with its reason, not here as a LOW-scoring priority.
+    """
 
     id: str
     district: str
@@ -74,6 +102,18 @@ class PriorityCandidateRow(BaseModel):
     in_priority_group: bool = False
     #: Inside this side's top-N shortlist.
     in_top_n: bool = False
+    shortfall_pct: float | None = None
+    eligible: bool = True
+    eligibility_reason: str | None = None
+    purpose: str | None = None
+    reference_n: int | None = None
+
+
+class PriorityIneligibleRow(BaseModel):
+    """A candidate this side excluded, and the fact that excluded it."""
+
+    id: str
+    reason: str
 
 
 class PriorityViewStats(BaseModel):
@@ -88,6 +128,10 @@ class PriorityView(BaseModel):
     """One side of the comparison: a ranked candidate list plus its statistics."""
 
     label: str | None = None
+    #: Which planning question this side answers (``productivity_support`` or
+    #: ``harvest_coordination``). Both sides of one comparison use the same one.
+    purpose: str | None = None
+    shortfall_threshold_pct: float = 0.0
     #: Engine-keyed weights actually used (wg/wv/wf/wr/wc).
     weights: dict[str, float] = Field(default_factory=dict)
     top_n: int = 10
@@ -107,6 +151,13 @@ class PriorityView(BaseModel):
     #: weights were redistributed before ranking.
     components_unavailable: list[str] = Field(default_factory=list)
     component_availability: list[ComponentAvailability] = Field(default_factory=list)
+    #: Eligible candidates this side ranked, and the candidates it excluded for
+    #: being at or above their benchmark. A side with candidates but none eligible
+    #: is ``missing`` with a reason, not an empty ranking.
+    n_eligible: int = 0
+    n_ineligible: int = 0
+    ineligible: list[PriorityIneligibleRow] = Field(default_factory=list)
+    reference_population: dict = Field(default_factory=dict)
     rows: list[PriorityCandidateRow] = Field(default_factory=list)
     stats: PriorityViewStats = Field(default_factory=PriorityViewStats)
 
@@ -167,6 +218,13 @@ class PriorityScenarioResponse(BaseModel):
 
     scenario_type: str = "analytical"
     scenario_label: str = "Analytical scenario"
+    #: The shared planning purpose both sides were ranked under.
+    purpose: str | None = None
+    purpose_label: str | None = None
+    purpose_note: str | None = None
+    methodology_version: str | None = None
+    #: How far below the benchmark a candidate must be to appear at all.
+    shortfall_threshold_pct: float = 0.0
     baseline: PriorityView
     scenario: PriorityView
     changes: list[ScenarioChange] = Field(default_factory=list)

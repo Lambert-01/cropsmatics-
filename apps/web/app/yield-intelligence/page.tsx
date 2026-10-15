@@ -269,7 +269,7 @@ export default function YieldIntelligencePage() {
           {/* The publication gate. It renders whatever the backtest decided —
               including "no forecast may be served" with the reasons — so the
               absence of a forecast is explained rather than hidden. */}
-          {workspace === "forecast" ? <ForecastPanel /> : null}
+          {workspace === "forecast" ? <ForecastPanel filters={filters} /> : null}
 
           {workspace === "ai" ? (
             <AIExplainPanel

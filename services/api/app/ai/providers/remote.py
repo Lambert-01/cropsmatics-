@@ -47,7 +47,11 @@ Hard rules you cannot break:
   never add districts together to produce a national total.
 - Never describe a correlation as a cause, and never infer a cause from an
   association.
-- Never predict a future value or a price.
+- Never predict a future value or a price. You may only *explain* a forecast that
+  the EVIDENCE contains (a published, modelled estimate with its period, unit and
+  interval) — and when you do, say it is a modelled estimate with an interval, not
+  an observation or a guarantee. Never produce a forecast the evidence does not
+  contain, and never extend one to a crop, district or period it does not cover.
 - When the question names no period, prefer the most recent period the evidence
   contains and say which period you used.
 - If the evidence does not answer the question, say so plainly - do not answer a
@@ -122,15 +126,90 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
     return RemoteConfig(
         enabled=flag("AI_ENABLED", False),
         provider=str(env.get("AI_PROVIDER") or "openai_compatible"),
-        model=str(env.get("AI_MODEL") or ""),
-        base_url=(str(env.get("AI_BASE_URL")).rstrip("/") or None) if env.get("AI_BASE_URL") else None,
-        api_key=str(env.get("AI_API_KEY")) if env.get("AI_API_KEY") else None,
+        model=_first(env, "AI_MODEL", "OPENAI_MODEL") or "",
+        base_url=_rstrip(_first(env, "AI_BASE_URL", "OPENAI_BASE_URL")) or None,
+        api_key=_first(env, "AI_API_KEY", "OPENAI_API_KEY") or None,
         timeout_seconds=number("AI_TIMEOUT_SECONDS", 20.0),
         max_output_tokens=integer("AI_MAX_OUTPUT_TOKENS", 700),
         max_tool_calls=integer("AI_MAX_TOOL_CALLS", 6),
         agent_enabled=flag("AI_AGENT_ENABLED", True),
         max_agent_steps=integer("AI_MAX_AGENT_STEPS", 8),
     )
+
+
+def _first(env: dict[str, str], *names: str) -> str:
+    """The first non-empty value among ``names``.
+
+    Precedence, highest first: the platform's own ``AI_*`` names, then the
+    ``OPENAI_*`` aliases. That order is deliberate and documented in
+    ``.env.example``: a deployment that sets both must have a predictable winner,
+    and the platform-specific name wins because it is the one the platform writes
+    and reads back. An alias alone is still enough to configure a provider.
+    """
+    for name in names:
+        value = str(env.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _rstrip(value: str) -> str:
+    return value.rstrip("/") if value else ""
+
+
+def _to_responses_tool(tool: dict) -> dict:
+    """Translate one chat-completions tool definition to the Responses shape.
+
+    The registry publishes OpenAI *function* tools in the chat-completions form
+    (``{"type": "function", "function": {name, description, parameters}}``).
+    The Responses API takes the same function flat, at the top level. Only the
+    envelope moves: the name, description and JSON schema pass through
+    byte-for-byte, so the allowlist and its typed parameters are exactly the ones
+    the registry declared and nothing is reinterpreted in transit.
+    """
+    if tool.get("type") != "function":
+        # A non-function tool is not something this platform declares. Dropping
+        # it is safer than guessing a translation the allowlist never approved.
+        return tool
+    function = tool.get("function")
+    if not isinstance(function, dict):
+        return tool
+    translated: dict = {
+        "type": "function",
+        "name": function.get("name"),
+        "strict": bool(function.get("strict", False)),
+    }
+    if function.get("description"):
+        translated["description"] = function["description"]
+    if function.get("parameters"):
+        translated["parameters"] = function["parameters"]
+    return translated
+
+
+def _responses_input(messages: list[dict]) -> list[dict]:
+    """Translate the request-local agent history without losing native output."""
+    items: list[dict] = []
+    for message in messages:
+        native = message.get("_responses_output")
+        if isinstance(native, list):
+            items.extend(native)
+        elif message.get("role") == "tool":
+            items.append({
+                "type": "function_call_output",
+                "call_id": message["tool_call_id"],
+                "output": message["content"],
+            })
+        else:
+            if message.get("content"):
+                items.append({"role": message["role"], "content": message["content"]})
+            for call in message.get("tool_calls") or []:
+                items.append({
+                    "type": "function_call",
+                    "call_id": call["id"],
+                    "name": call["function"]["name"],
+                    "arguments": call["function"]["arguments"],
+                })
+    return items
 
 
 class RemoteProvider:
@@ -173,6 +252,10 @@ class RemoteProvider:
                     "district": item.district,
                     "crop": item.crop,
                     "source_id": item.source_id,
+                    "geography_level": item.geography_level,
+                    "province": item.province,
+                    "method": item.method,
+                    "note": item.note,
                 }
                 for item in bundle.items[:400]
             ],
@@ -244,6 +327,9 @@ class RemoteProvider:
 
         import httpx
 
+        if self.config.provider == "openai_responses":
+            return await self._chat_responses(messages, tools=tools, max_tokens=max_tokens)
+
         payload: dict = {
             "model": self.config.model,
             "messages": messages,
@@ -290,6 +376,77 @@ class RemoteProvider:
             content=content if isinstance(content, str) else None,
             tool_calls=calls,
         )
+
+    async def _chat_responses(
+        self,
+        messages: list[dict],
+        *,
+        tools: list[dict] | None = None,
+        max_tokens: int | None = None,
+    ) -> ChatResponse:
+        """One turn against the official OpenAI **Responses** API.
+
+        Selected by ``AI_PROVIDER=openai_responses``. The Responses API is a
+        different wire format from chat completions — ``input`` rather than
+        ``messages``, and an ``output`` *array of typed items* rather than one
+        ``choices[0].message`` — so it is parsed on its own terms rather than
+        coerced into the chat shape. The tool catalogue is translated from the
+        chat-completions function schema the registry already publishes, so the
+        allowlist and its typed parameters are unchanged and the model still
+        cannot name a tool that does not exist.
+
+        As with the chat path, this only *parses* the model's reply. No tool is
+        executed here, so a hostile or malformed response cannot reach a service.
+        """
+        import httpx
+
+        payload: dict = {
+            "model": self.config.model,
+            "input": _responses_input(messages),
+            "max_output_tokens": max_tokens or self.config.max_output_tokens,
+            "store": False,
+            "include": ["reasoning.encrypted_content"],
+        }
+        if tools:
+            payload["tools"] = [_to_responses_tool(tool) for tool in tools]
+            payload["tool_choice"] = "auto"
+
+        headers = {
+            "Authorization": f"Bearer {self.config.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
+            response = await client.post(
+                f"{self.config.base_url}/responses", json=payload, headers=headers
+            )
+            response.raise_for_status()
+            body = response.json()
+
+        text_parts: list[str] = []
+        calls: list[ToolCall] = []
+        for index, item in enumerate(body.get("output") or []):
+            kind = item.get("type")
+            if kind == "message":
+                for part in item.get("content") or []:
+                    if part.get("type") in ("output_text", "text"):
+                        value = part.get("text")
+                        if isinstance(value, str) and value.strip():
+                            text_parts.append(value)
+            elif kind == "function_call":
+                name = str(item.get("name") or "").strip()
+                if not name:
+                    continue
+                calls.append(
+                    ToolCall(
+                        id=str(item.get("call_id") or item.get("id") or f"call_{index}"),
+                        name=name,
+                        arguments=str(item.get("arguments") or "{}"),
+                    )
+                )
+
+        content = "\n".join(text_parts).strip() or None
+        return ChatResponse(content=content, tool_calls=calls, provider_output=body.get("output") or [])
 
     async def _complete(
         self, request: AIRequest, routed: RoutedRequest, bundle: EvidenceBundle

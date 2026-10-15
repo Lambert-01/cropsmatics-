@@ -1,6 +1,6 @@
 # Forecast Validation Report
 
-**Generated:** 2026-10-12
+**Generated:** 2026-10-15
 **Policy:** minimum history 3 observations · minimum folds 3 · series coverage 90% · interval level 80% · minimum interval coverage 60%
 **Default policy:** yes
 

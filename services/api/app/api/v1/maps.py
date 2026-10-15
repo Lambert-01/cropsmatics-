@@ -6,6 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
+from app.analytics import intervention_priority as ip
 from app.schemas.analytics import WeightsIn
 from app.schemas.common import Provenance
 from app.schemas.dashboard import MapMetricsResponse
@@ -35,6 +36,8 @@ def district_metrics(
             "input_adoption | irrigation | erosion"
         ),
     ),
+    purpose: Literal["productivity_support", "harvest_coordination"] = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = Query(0.0, ge=0, le=100),
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> MapMetricsResponse:
     """District choropleth values for one metric.
@@ -46,7 +49,9 @@ def district_metrics(
     aggregate. ``gap`` stays valid district-wide because it is relative to each
     crop's own benchmark.
     """
-    result = map_service.district_metrics(f, metric=metric)
+    result = map_service.district_metrics(
+        f, metric=metric, purpose=purpose, threshold_pct=threshold_pct
+    )
     limitations = [
         "district yield requires a crop selection; a gap is relative to each crop's own benchmark",
         "observational association, not causal effect",
@@ -95,9 +100,14 @@ def district_metrics(
 @router.post("/district-metrics", response_model=MapMetricsResponse)
 def weighted_priority_map(
     weights: WeightsIn,
+    purpose: Literal["productivity_support", "harvest_coordination"] = ip.DEFAULT_PURPOSE,
+    threshold_pct: float = Query(0.0, ge=0, le=100),
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> MapMetricsResponse:
-    result = map_service.district_metrics(f, metric="priority", weights=weights.to_engine())
+    result = map_service.district_metrics(
+        f, metric="priority", weights=weights.to_engine(),
+        purpose=purpose, threshold_pct=threshold_pct,
+    )
     return MapMetricsResponse(
         **result,
         provenance=Provenance(

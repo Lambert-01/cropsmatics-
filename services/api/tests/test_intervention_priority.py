@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from app.analytics.intervention_priority import DEFAULT_WEIGHTS, band_for, priority_score, rank
+from app.analytics.intervention_priority import (
+    DEFAULT_WEIGHTS,
+    PURPOSE_PRODUCTIVITY_SUPPORT,
+    band_for,
+    priority_score,
+    rank,
+)
 
 
 def test_priority_score_bounds():
@@ -20,15 +26,19 @@ def test_cost_constraint_reduces_score():
 
 
 def test_rank_orders_by_score():
+    # Both candidates carry a published shortfall: `rank` orders the *eligible*
+    # candidates, so a fixture with an ineligible one would not exercise ordering.
     candidates = [
-        {"id": "a", "gap": 10, "vulnerability": 1, "affected_scale": 1, "readiness": 0,
-         "cost_constraint": 0},
-        {"id": "b", "gap": 0, "vulnerability": 0, "affected_scale": 0, "readiness": 1,
-         "cost_constraint": 1},
+        {"id": "a", "gap": 40, "vulnerability": 1, "affected_scale": 1, "readiness": 0,
+         "cost_constraint": 0, "harvested_area_ha": 100},
+        {"id": "b", "gap": 10, "vulnerability": 0, "affected_scale": 0, "readiness": 1,
+         "cost_constraint": 1, "harvested_area_ha": 10},
     ]
     ranked = rank(candidates)
-    assert ranked[0]["id"] == "a"
+    assert [row["id"] for row in ranked] == ["a", "b"]
     assert ranked[0]["score"] >= ranked[1]["score"]
+    assert all(row["eligible"] for row in ranked)
+    assert all(row["priority_purpose"] == PURPOSE_PRODUCTIVITY_SUPPORT for row in ranked)
 
 
 def test_band_thresholds():

@@ -58,6 +58,8 @@ class ResolvedSide:
     crop: str | None
     top_n: int
     min_score: float
+    purpose: str = ip.DEFAULT_PURPOSE
+    threshold_pct: float = ip.DEFAULT_SHORTFALL_THRESHOLD_PCT
 
     def as_dict(self) -> dict:
         return {
@@ -68,6 +70,7 @@ class ResolvedSide:
             "crop": self.crop,
             "top_n": self.top_n,
             "min_score": self.min_score,
+            "shortfall_threshold_pct": self.threshold_pct,
         }
 
     def filters(self) -> AnalyticsFilters:
@@ -114,12 +117,21 @@ def resolve_side(params: PriorityScenarioParams) -> ResolvedSide:
         raise UnknownSelectionError(str(exc)) from exc
 
     district = _clean_text(params.district)
-    # A district already implies its own province: combining them would silently
-    # empty the candidate set whenever the district sits outside the province.
-    province = None if district else _clean_text(params.province)
+    # Keep the same reference scope as the ranking and map. District inspection
+    # must not silently discard an explicitly selected province.
+    province = _clean_text(params.province)
+
+    purpose = _clean_text(getattr(params, "purpose", None)) or ip.DEFAULT_PURPOSE
+    if purpose not in ip.PURPOSES:
+        raise UnknownSelectionError(
+            f"unknown planning purpose {purpose!r}; expected one of {ip.PURPOSES}"
+        )
 
     return ResolvedSide(
-        weights=params.weights.to_engine(),
+        weights=(
+            params.weights.to_engine() if "weights" in params.model_fields_set
+            else dict(ip.PURPOSE_WEIGHTS[purpose])
+        ),
         period_code=period_code,
         benchmark_strategy=strategy,
         province=province,
@@ -127,10 +139,12 @@ def resolve_side(params: PriorityScenarioParams) -> ResolvedSide:
         crop=_clean_text(params.crop),
         top_n=params.top_n,
         min_score=params.min_score,
+        purpose=purpose,
+        threshold_pct=float(getattr(params, "shortfall_threshold_pct", 0.0) or 0.0),
     )
 
 
-def _missing_reason(side: ResolvedSide, label: str) -> str:
+def _missing_reason(side: ResolvedSide, label: str, population: ip.Population) -> str:
     scope = " · ".join(
         part
         for part in (
@@ -140,6 +154,15 @@ def _missing_reason(side: ResolvedSide, label: str) -> str:
         )
         if part
     )
+    if side.district or population.ineligible:
+        # The candidate exists but is not a target for this purpose. Saying so is
+        # the difference between "no data" and "no shortfall here".
+        return (
+            f"no candidate for {scope} ({label}) is eligible for "
+            f"{ip.PURPOSE_LABELS.get(population.purpose, population.purpose)} under the "
+            "selected eligibility threshold. Reported as no "
+            "eligible candidate rather than as zero-priority districts."
+        )
     return (
         f"no district x crop candidates for {scope} ({label}): the selection has no "
         "published productivity rows with a positive yield, so there is nothing to "
@@ -147,21 +170,55 @@ def _missing_reason(side: ResolvedSide, label: str) -> str:
     )
 
 
-def build_side(side: ResolvedSide, label: str) -> PriorityView:
+def _eligibility_fields(population: ip.Population) -> dict:
+    """The eligibility counts and reasons one side reports about itself."""
+    return {
+        "n_eligible": population.n_reference,
+        "n_ineligible": len(population.ineligible),
+        "ineligible": [
+            {"id": cid, "reason": reason}
+            for cid, reason in sorted(population.ineligible.items())
+        ][:200],
+        "reference_population": population.as_dict(),
+    }
+
+
+def build_side(
+    side: ResolvedSide,
+    label: str,
+) -> PriorityView:
     """Build one ranked view from the selected candidates.
 
-    When readiness or cost components are unavailable for the selected period
-    their weights are redistributed before ranking, so the score is never
-    computed from a neutral constant that would look like measured data.
+    Eligibility is applied once, from the shared engine population, so the two
+    sides and the planner's own shortlist cannot disagree about who is a
+    candidate. When a component is unavailable for the selected period - or
+    carries no discriminating value across the population - its weight is
+    redistributed before ranking, so the score is never computed from a neutral
+    constant that would look like measured data.
     """
-    candidates, source_id, unavailable = analytics_service.priority_candidates_with_source(side.filters())
-    effective_weights = analytics_service.adjusted_weights(side.weights, unavailable)
+    # The same eligibility rule, from the same function, that the ranking
+    # endpoint and the map use: a scenario cannot rank a candidate the planner's
+    # own shortlist considers ineligible.
+    purpose, threshold_pct = side.purpose, side.threshold_pct
+    candidates, source_id, unavailable, population = analytics_service.priority_candidates_with_source(
+        side.filters(), purpose=purpose, threshold_pct=threshold_pct
+    )
+    effective_weights = ip.effective_weights(side.weights, tuple(unavailable), purpose=purpose)
     availability = analytics_service.component_availability(
         analytics_service.candidate_frame(side.filters())
     )
+    eligibility = {
+        **_eligibility_fields(population),
+        "shortfall_threshold_pct": threshold_pct,
+    }
+    ranked = ip.rank(
+        candidates, weights=effective_weights, purpose=purpose,
+        threshold_pct=threshold_pct, unavailable=tuple(unavailable),
+    )
+    if side.district:
+        ranked = [row for row in ranked if row["district"].casefold() == side.district.casefold()]
 
-
-    if not candidates:
+    if not ranked:
         return PriorityView(
             label=label,
             weights=effective_weights,
@@ -173,13 +230,14 @@ def build_side(side: ResolvedSide, label: str) -> PriorityView:
             district=side.district,
             benchmark_strategy=side.benchmark_strategy,
             missing=True,
-            reason=_missing_reason(side, label),
+            reason=_missing_reason(side, label, population),
             source_id=None,
+            purpose=purpose,
             components_unavailable=unavailable,
             component_availability=availability,
+            **eligibility,
         )
 
-    ranked = ip.rank(candidates, weights=effective_weights)
     view = ps.build_view(
         ranked,
         weights=effective_weights,
@@ -201,10 +259,12 @@ def build_side(side: ResolvedSide, label: str) -> PriorityView:
         missing=False,
         source_id=source_id,
         n_observations=view["stats"]["n_candidates"],
+        purpose=purpose,
         components_unavailable=unavailable,
         component_availability=availability,
         rows=[PriorityCandidateRow(**row) for row in view["rows"]],
         stats=PriorityViewStats(**view["stats"]),
+        **eligibility,
     )
 
 
@@ -212,6 +272,14 @@ def run(payload: PriorityScenarioRequest) -> PriorityScenarioResponse:
     """Execute an analytical priority scenario and return both sides plus movement."""
     baseline_side = resolve_side(payload.baseline)
     scenario_side = resolve_side(payload.scenario)
+
+    if baseline_side.purpose != scenario_side.purpose:
+        raise UnknownSelectionError(
+            "baseline.purpose and scenario.purpose must match; compare weights or "
+            "thresholds within one planning purpose."
+        )
+    purpose = scenario_side.purpose
+    threshold_pct = scenario_side.threshold_pct
 
     baseline_view = build_side(baseline_side, "Baseline")
     scenario_view = build_side(scenario_side, "Scenario")
@@ -265,7 +333,20 @@ def run(payload: PriorityScenarioRequest) -> PriorityScenarioResponse:
         {*baseline_view.components_unavailable, *scenario_view.components_unavailable}
     )
 
+    if baseline_side.threshold_pct != scenario_side.threshold_pct:
+        limitations.insert(
+            0,
+            "The shortfall threshold differs between the two sides. Eligibility and "
+            "the normalization population may change; shortlist movement is not "
+            "solely a change in weighting.",
+        )
+
     return PriorityScenarioResponse(
+        purpose=purpose,
+        purpose_label=ip.PURPOSE_LABELS.get(purpose, purpose),
+        purpose_note=ip.PURPOSE_NOTES.get(purpose),
+        methodology_version=ip.METHODOLOGY_VERSION,
+        shortfall_threshold_pct=threshold_pct,
         baseline=baseline_view,
         scenario=scenario_view,
         changes=changes,

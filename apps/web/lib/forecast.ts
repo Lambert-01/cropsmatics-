@@ -11,6 +11,18 @@
  */
 
 import type { ForecastStatusResponse } from "@/types";
+import { splitPeriod, type DashboardFilters } from "./filters";
+
+/** Only send dimensions that the forecast status endpoint actually supports. */
+export function forecastQuery(filters: DashboardFilters = {}): string {
+  const query = new URLSearchParams();
+  const season = filters.view === "history" ? undefined : splitPeriod(filters.period).season ?? filters.season;
+  if (season) query.set("season", season);
+  if (filters.crop) query.set("crop", filters.crop);
+  if (filters.district) query.set("district", filters.district);
+  if (filters.province) query.set("province", filters.province);
+  return query.toString();
+}
 
 export type ForecastTone = "published" | "suppressed" | "missing";
 
@@ -51,7 +63,7 @@ export function forecastHeadline(status: ForecastStatusResponse | undefined): Fo
   if (status.targets.length === 0) {
     return {
       tone: "suppressed",
-      title: "No forecast is published for this dataset",
+      title: "No forecast target covers this selection",
       detail: status.note ?? "",
     };
   }
@@ -59,7 +71,7 @@ export function forecastHeadline(status: ForecastStatusResponse | undefined): Fo
   const total = Math.max(0, ...status.targets.map((target) => target.n_series));
   return {
     tone: "suppressed",
-    title: "No forecast is published for this dataset",
+    title: "No forecast is published for this selection",
     detail: `${status.note ?? ""} (${eligible}/${total} series cleared the history gate.)`,
   };
 }

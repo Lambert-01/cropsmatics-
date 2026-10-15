@@ -27,10 +27,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
+import ssl
+import subprocess
 import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from urllib.parse import urlparse
 
 DEFAULT_BASE_URL = "https://cropsmatics-api.onrender.com/api/v1"
 TIMEOUT_SECONDS = 90
@@ -102,7 +107,180 @@ def fetch(base_url: str, path: str) -> tuple[int | None, object, str]:
         except json.JSONDecodeError:
             return error.code, None, raw
     except Exception as error:  # noqa: BLE001 - a smoke test reports, it does not raise
-        return None, {"error": type(error).__name__}, str(error)
+        # The kind, not just the class name: "connection_closed" (a restart or
+        # idle-timeout) and "dns_failure" (no request was ever sent) look alike
+        # in a log line and mean entirely different things.
+        return None, {"error": classify_error(error), "detail": str(error)[:160]}, str(error)
+
+
+# --- connectivity diagnosis -------------------------------------------------
+#
+# A browser reports several very different failures with messages that look
+# alike. `net::ERR_NAME_NOT_RESOLVED` happens *before* any HTTP request exists,
+# so it can never be caused by the API, its CORS policy or its database - yet it
+# is routinely read as "the backend is broken". This section separates the
+# layers so the verdict names one of: DNS resolution, TCP connection, TLS
+# handshake, a request that timed out, or an actual HTTP response.
+
+#: Public resolvers used only to *compare* against the system resolver. A
+#: hostname that resolves independently but not locally is a local DNS, VPN,
+#: proxy or DNS-filtering problem, not a DNS record that does not exist.
+PUBLIC_RESOLVERS: tuple[str, ...] = ("1.1.1.1", "8.8.8.8")
+
+
+def system_resolve(host: str) -> dict:
+    """Resolve via the OS resolver - the same path a browser takes."""
+    try:
+        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
+    except socket.gaierror as error:
+        return {
+            "resolver": "system",
+            "ok": False,
+            "kind": "dns_failure",
+            "detail": f"{error.__class__.__name__}: {error}",
+            "addresses": [],
+        }
+    except Exception as error:  # noqa: BLE001
+        return {
+            "resolver": "system",
+            "ok": False,
+            "kind": "dns_failure",
+            "detail": f"{error.__class__.__name__}: {error}",
+            "addresses": [],
+        }
+    addresses = sorted({info[4][0] for info in infos})
+    return {"resolver": "system", "ok": True, "kind": None, "detail": None, "addresses": addresses}
+
+
+def independent_resolve(host: str, resolver: str) -> dict:
+    """Resolve through an independent public resolver, when a tool is available.
+
+    Best-effort by design: a container without `dig`/`nslookup` still gets the
+    system answer, and the report says which check could not run rather than
+    implying it passed.
+    """
+    for tool, args in (("dig", ["+short", host, f"@{resolver}"]), ("nslookup", [host, resolver])):
+        try:
+            completed = subprocess.run(
+                [tool, *args], capture_output=True, text=True, timeout=15, check=False
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+        except Exception as error:  # noqa: BLE001
+            return {
+                "resolver": resolver,
+                "ok": False,
+                "kind": "probe_error",
+                "detail": f"{tool}: {error.__class__.__name__}",
+                "addresses": [],
+            }
+        addresses = [
+            line.strip()
+            for line in completed.stdout.splitlines()
+            if line.strip() and not line.strip().startswith((";", "Server", "Address"))
+        ]
+        # `nslookup` prints "Name:"/"Address:" labels; keep only address rows.
+        addresses = [value.split()[-1] for value in addresses if value.split()]
+        addresses = sorted({value for value in addresses if value and value[0].isdigit()})
+        return {
+            "resolver": resolver,
+            "ok": bool(addresses),
+            "kind": None if addresses else "dns_failure",
+            "detail": None if addresses else f"{tool} returned no address",
+            "addresses": addresses,
+        }
+    return {
+        "resolver": resolver,
+        "ok": False,
+        "kind": "probe_unavailable",
+        "detail": "no dig or nslookup on PATH",
+        "addresses": [],
+    }
+
+
+def classify_error(error: BaseException) -> str:
+    """Name the layer that failed, in the vocabulary a browser error maps onto."""
+    if isinstance(error, urllib.error.HTTPError):
+        return "http_error"
+    if isinstance(error, socket.gaierror):
+        return "dns_failure"
+    if isinstance(error, ssl.SSLError):
+        return "tls_failure"
+    if isinstance(error, TimeoutError | socket.timeout):
+        return "timeout"
+    if isinstance(error, ConnectionResetError):
+        return "connection_closed"
+    if isinstance(error, ConnectionRefusedError):
+        return "connection_refused"
+    if isinstance(error, urllib.error.URLError):
+        return classify_error(error.reason) if isinstance(error.reason, BaseException) else "network_failure"
+    if isinstance(error, OSError):
+        return "network_failure"
+    return "unknown"
+
+
+def diagnose_connectivity(base_url: str) -> dict:
+    """Report which layer of the connection actually works, and which does not.
+
+    Reads nothing from the API beyond the readiness probe; never prints a
+    credential. The per-check results are far more useful once it is known
+    whether DNS even resolved.
+    """
+
+    host = urlparse(base_url if "://" in base_url else f"https://{base_url}").hostname
+    report: dict = {
+        "checked_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "base_url": base_url,
+        "host": host,
+    }
+    if not host:
+        report.update({"verdict": "invalid_base_url"})
+        return report
+
+    local = system_resolve(host)
+    report["system_resolver"] = local
+    report["independent_resolvers"] = [independent_resolve(host, r) for r in PUBLIC_RESOLVERS]
+    resolved_elsewhere = [r for r in report["independent_resolvers"] if r["ok"]]
+
+    # The shallow liveness probe: it answers whether or not the canonical
+    # dataset is ready, so a failure here is a *connection* fact, never a data
+    # problem, and the verdict stays about the network layer.
+    request = urllib.request.Request(f"{base_url.rstrip('/')}/health", headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            report.update({"reachable": True, "http_status": response.status, "failure_kind": None})
+    except urllib.error.HTTPError as error:
+        # An HTTP status, including 5xx, means DNS, TCP and TLS all worked. The
+        # service answered; that is a different problem from not being reachable.
+        report.update({"reachable": True, "http_status": error.code, "failure_kind": "http_error"})
+    except Exception as error:  # noqa: BLE001 - a diagnosis reports, it does not raise
+        report.update(
+            {
+                "reachable": False,
+                "http_status": None,
+                "failure_kind": classify_error(error),
+                "failure_detail": f"{error.__class__.__name__}: {str(error)[:160]}",
+            }
+        )
+
+    if report.get("reachable"):
+        report["verdict"] = "reachable"
+    elif not local["ok"] and resolved_elsewhere:
+        report["verdict"] = "local_dns_or_network"
+        report["hint"] = (
+            f"{host} resolves from an independent resolver but not from this machine's "
+            "resolver. That is a local DNS, VPN, proxy or DNS-filtering problem: the "
+            "published address itself is fine, and no API or client change can fix it."
+        )
+    elif not local["ok"]:
+        report["verdict"] = "dns_failure"
+        report["hint"] = (
+            f"{host} did not resolve from this machine or from a public resolver. Check "
+            "the hostname against the deployment's configuration rather than the client."
+        )
+    else:
+        report["verdict"] = report.get("failure_kind") or "unreachable"
+    return report
 
 
 def _summarise(status: int | None, body: object, raw: str) -> str:
@@ -185,6 +363,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     print(f"smoke testing {args.base_url}\n")
+
+    # Diagnose the connection before interpreting any status code. Without this,
+    # a DNS failure and a real HTTP 503 are reported identically as "fail".
+    diagnosis = diagnose_connectivity(args.base_url)
+    print("connectivity")
+    print(f"  host: {diagnosis.get('host')}")
+    local = diagnosis.get("system_resolver") or {}
+    print(
+        "  system resolver: "
+        + (
+            ", ".join(local.get("addresses") or [])
+            if local.get("ok")
+            else f"FAILED ({local.get('detail')})"
+        )
+    )
+    for resolver in diagnosis.get("independent_resolvers") or []:
+        state = ", ".join(resolver.get("addresses") or []) if resolver.get("ok") else (
+            resolver.get("kind") or "failed"
+        )
+        print(f"  resolver {resolver.get('resolver')}: {state}")
+    print(f"  verdict: {diagnosis.get('verdict')}")
+    if diagnosis.get("hint"):
+        print(f"  hint: {diagnosis['hint']}")
+    print()
+
     results, code = run_checks(args.base_url)
 
     width = max(len(r["name"]) for r in results)
@@ -211,7 +414,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as handle:
-            json.dump({"base_url": args.base_url, "results": results, "exit_code": code}, handle, indent=2)
+            json.dump(
+                {
+                    "base_url": args.base_url,
+                    "connectivity": diagnosis,
+                    "results": results,
+                    "exit_code": code,
+                },
+                handle,
+                indent=2,
+            )
         print(f"wrote {args.json}")
 
     return code

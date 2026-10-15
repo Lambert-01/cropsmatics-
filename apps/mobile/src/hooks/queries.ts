@@ -9,6 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { analyticsApi, cropsApi, districtsApi, metaApi } from "../services/api";
+import type { ForecastScope } from "../types";
 
 /**
  * A published-period scope for the national board.
@@ -94,6 +95,22 @@ export function useAllDistricts() {
 /** The published period dimension. Period selectors are built from this. */
 export function usePeriods() {
   return useQuery({ queryKey: ["meta-periods"], queryFn: metaApi.periods });
+}
+
+/**
+ * The forecast publication decision.
+ *
+ * Served verbatim from the chronological backtest report, so the device shows
+ * the same verdict the web and the API do. `staleTime` is a full day: the
+ * decision only changes when the backtest is re-run, not when new observations
+ * arrive, so refetching it on every screen would be pure churn.
+ */
+export function useForecastStatus(scope: ForecastScope = {}) {
+  return useQuery({
+    queryKey: ["forecast-status", scope],
+    queryFn: () => analyticsApi.forecastStatus(scope),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
 }
 
 /**

@@ -942,7 +942,25 @@ export interface PriorityRow {
   yield_kg_ha?: number | null;
   benchmark_yield_kg_ha?: number | null;
   harvested_area_ha?: number | null;
+  /**
+   * The signed published gap (`100 * (1 - yield / benchmark)`); negative means
+   * above the benchmark. The score's gap component uses `shortfall_pct`, never
+   * this value.
+   */
   gap: number;
+  /** `max(gap, 0)` — the part of the gap that is a shortfall. */
+  shortfall_pct?: number | null;
+  /**
+   * Always `true` on a served row: an ineligible candidate is excluded from the
+   * ranking rather than returned as a LOW priority, and is reported through
+   * `PriorityResponse.ineligible` instead.
+   */
+  eligible?: boolean;
+  /** Present exactly when `eligible` is false. */
+  eligibility_reason?: string | null;
+  purpose?: string | null;
+  /** Size of the reference population the components were normalized over. */
+  reference_n?: number | null;
   vulnerability: number;
   affected_scale: number;
   /**
@@ -952,6 +970,12 @@ export interface PriorityRow {
    */
   readiness: number | null;
   cost_constraint: number | null;
+}
+
+/** A candidate the ranking excluded, and the fact that excluded it. */
+export interface PriorityIneligibleRow {
+  id: string;
+  reason: string;
 }
 
 /** Whether a priority component is measured, a proxy, unavailable or unknown. */
@@ -965,9 +989,35 @@ export interface ComponentAvailability {
   note?: string | null;
 }
 
+export interface PriorityReferencePopulation {
+  purpose?: string;
+  n_reference?: number;
+  n_ineligible?: number;
+  components_unavailable?: string[];
+  /** Components excluded because they are constant across the population. */
+  components_constant?: string[];
+  reference_note?: string;
+}
+
 export interface PriorityResponse {
   weights: Record<string, number>;
   rows: PriorityRow[];
+  /**
+   * Which planning question this ranking answers. `productivity_support`
+   * requires a positive shortfall; `harvest_coordination` is an operational-scale
+   * ranking and is never presented as a shortfall list.
+   */
+  purpose?: string;
+  purpose_label?: string | null;
+  purpose_note?: string | null;
+  methodology_version?: string | null;
+  /** How far below the benchmark a candidate must be to appear at all. */
+  shortfall_threshold_pct?: number;
+  reference_population?: PriorityReferencePopulation;
+  reference_population_note?: string | null;
+  n_eligible?: number;
+  n_ineligible?: number;
+  ineligible?: PriorityIneligibleRow[];
   proxy_notes: string[];
   /** Components excluded for this period, with their weight redistributed. */
   components_unavailable: string[];
@@ -1307,6 +1357,14 @@ export interface NationalBoardResponse {
 
 /** One candidate forecast target and the backtest's verdict on it. */
 export interface ForecastTargetDecision {
+  crop?: string | null;
+  season?: string | null;
+  metric?: string | null;
+  geography_level?: string | null;
+  district?: string | null;
+  model?: string | null;
+  label?: string | null;
+  interval_level?: number | null;
   target_id?: string | null;
   /** `ok` (published) | `insufficient_evidence` (suppressed, with reasons). */
   status?: string | null;
@@ -1329,6 +1387,8 @@ export interface ForecastTargetDecision {
  * complete answer.
  */
 export interface ForecastStatusResponse {
+  selection?: Record<string, string | null>;
+  scope_note?: string | null;
   report_available: boolean;
   serves_forecast: boolean;
   generated?: string | null;

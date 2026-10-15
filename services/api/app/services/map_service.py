@@ -46,6 +46,7 @@ from dataclasses import replace as dc_replace
 import numpy as np
 import pandas as pd
 
+from app.analytics import intervention_priority as ip
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import period_service
@@ -59,6 +60,7 @@ from app.services.analytics_service import (
     period_of,
     priority_frame,
     productivity_frame,
+    reference_filters,
     resolved_period,
 )
 
@@ -226,7 +228,8 @@ def _empty(
 
 
 def district_metrics(
-    f: AnalyticsFilters, metric: str = DEFAULT_METRIC, weights: dict | None = None
+    f: AnalyticsFilters, metric: str = DEFAULT_METRIC, weights: dict | None = None,
+    *, purpose: str = ip.DEFAULT_PURPOSE, threshold_pct: float = 0.0,
 ) -> dict:
     if metric not in METRICS:
         raise ValueError(f"unknown metric {metric!r}; expected one of {list(METRICS)}")
@@ -249,7 +252,8 @@ def district_metrics(
     # Each layer is read from the release that actually carries it, so the map
     # never colours one period's districts under another period's label.
     effective = effective_period_filters(f, metric)
-    frame = apply_filters(productivity_frame(effective), effective)
+    reference_scope = reference_filters(effective)
+    frame = apply_filters(productivity_frame(reference_scope), reference_scope)
 
     unavailable: list[str] = []
     availability: list[dict] = []
@@ -269,7 +273,19 @@ def district_metrics(
         )
 
     # Priority score needs the full component frame (normalized across districts).
-    prio = priority_frame(frame, effective.benchmark_strategy, weights=weights)
+    try:
+        prio = priority_frame(
+            frame, effective.benchmark_strategy, weights=weights,
+            purpose=purpose, threshold_pct=threshold_pct,
+        )
+    except ip.UnscorableWeights:
+        if metric == "priority":
+            raise
+        prio = pd.DataFrame()
+    # Narrow the display only after benchmarks and scores use the full reference scope.
+    g = apply_filters(g, effective)
+    if not prio.empty:
+        prio = apply_filters(prio, effective)
     prio_by_district = (
         prio.groupby("district")["priority_score"].mean().to_dict() if not prio.empty else {}
     )
@@ -342,7 +358,7 @@ def district_metrics(
             "district_code": _first(grp, "district_code"),
             "province": _first(grp, "province"),
             "agro_ecological_zone": _first(grp, "agro_ecological_zone"),
-            "value": None if value is None or (isinstance(value, float) and np.isnan(value)) else round(float(value), 3),
+            "value": None if value is None or (isinstance(value, float) and np.isnan(value)) else round(float(value), 4 if metric == "priority" else 3),
             "n_observations": int(grp["yield_kg_ha"].notna().sum()),
             "details": {
                 "yield_kg_ha": _round(yield_med),
@@ -352,7 +368,7 @@ def district_metrics(
                 "harvested_area_ha": _round(harvested_area),
                 "input_adoption_pct": _round(adoption),
                 "priority_band": band_by_district.get(district),
-                "priority_score": _round(priority),
+                "priority_score": None if priority is None or pd.isna(priority) else round(priority, 4),
                 "period": period,
                 "period_code": period_code,
                 "reference_period": None,
@@ -367,6 +383,9 @@ def district_metrics(
     return {
         "metric": metric,
         "metric_label": label,
+        "purpose": purpose if metric == "priority" else None,
+        "methodology_version": ip.METHODOLOGY_VERSION if metric == "priority" else None,
+        "shortfall_threshold_pct": threshold_pct if metric == "priority" else None,
         "unit": unit,
         "period": period,
         "period_code": period_code,

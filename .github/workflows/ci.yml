@@ -27,7 +27,14 @@ jobs:
       - run: pnpm --filter cropmatics-web lint
       - run: pnpm --filter cropmatics-web typecheck
       - run: pnpm --filter cropmatics-web test
+      # Build with the *deployed* API base, so CI exercises the configuration a
+      # real deployment uses rather than an unset variable. `next.config.mjs`
+      # fails this build if the value is missing, insecure or local in a
+      # public production build, which is the point: a broken API
+      # address should stop the build, not the first user request.
       - run: pnpm --filter cropmatics-web build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://cropsmatics-api.onrender.com/api/v1
 
   mobile:
     name: Mobile (lint, typecheck, test, expo config)
@@ -98,6 +105,8 @@ jobs:
       # Without this the tests that need them either fail or skip vacuously.
       - name: Build analytical tables
         run: python scripts/data/run_all.py
+      - name: Build forecast publication report
+        run: python -m ml.src.pipelines.run_forecast_backtest
       - name: Ruff
         run: ruff check services/api/app services/api/tests
       - name: Pytest (unit + canonical integration)

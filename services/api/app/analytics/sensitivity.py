@@ -173,11 +173,17 @@ def analyse(
     weights: dict | None = None,
     sweep: Sweep | None = None,
     top_n: int = 10,
+    purpose: str = ip.DEFAULT_PURPOSE,
 ) -> dict:
     """Re-rank the candidates under every weighting in the sweep.
 
     Returns per-district robustness shares plus the method used, so a reader can
     see exactly what was varied and what was held fixed.
+
+    ``purpose`` selects the eligibility rule the ranking uses. The candidates
+    handed in are already the eligible ones, so the sweep tests weightings over
+    the same set the planner's own shortlist ranks - never over an above-benchmark
+    candidate that could then be reported as "stable".
     """
     if not candidates:
         return {
@@ -192,7 +198,7 @@ def analyse(
     baseline_weights = normalize_weights(weights)
     sweep = sweep or weight_draws()
 
-    baseline = ip.rank(candidates, weights=baseline_weights)
+    baseline = ip.rank(candidates, weights=baseline_weights, purpose=purpose)
     baseline_rank = {row["id"]: index + 1 for index, row in enumerate(baseline)}
     baseline_band = {row["id"]: row["band"] for row in baseline}
     baseline_score = {row["id"]: row["score"] for row in baseline}
@@ -203,7 +209,7 @@ def analyse(
     top_n_hits: dict[str, int] = {row["id"]: 0 for row in baseline}
 
     for draw in sweep.draws:
-        ranked = ip.rank(candidates, weights=draw)
+        ranked = ip.rank(candidates, weights=draw, purpose=purpose)
         for index, row in enumerate(ranked):
             identifier = row["id"]
             if identifier not in rank_history:

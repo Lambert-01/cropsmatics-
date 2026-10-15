@@ -44,6 +44,17 @@ Start with the audit and overview, then follow the architecture and policy docs.
 - [DATA_TO_UI_MATRIX.md](docs/DATA_TO_UI_MATRIX.md)
 - [FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md)
 
+## Current pass (2026-10-15)
+- [FORECAST_INTEGRATION_REPAIR_REPORT.md](docs/FORECAST_INTEGRATION_REPAIR_REPORT.md) - latest repairs and verification
+- [REMAINING_BUILD_PROMPT.md](docs/REMAINING_BUILD_PROMPT.md) - completion brief; preserve already implemented modules
+- [REMAINING_IMPLEMENTATION_PLAN.md](docs/REMAINING_IMPLEMENTATION_PLAN.md) — the
+  file-level plan, written before the code changes
+- [REMAINING_IMPLEMENTATION_REPORT.md](docs/REMAINING_IMPLEMENTATION_REPORT.md) —
+  what was implemented, what was measured, and what remains blocked
+
+Earlier audits under `docs/audits/` are dated records of the state at the time;
+read the latest repair report before treating an earlier finding as still open.
+
 ## Reference (supporting material)
 - [reference/ALGORITHM_DESIGN.md](docs/reference/ALGORITHM_DESIGN.md)
 - [reference/BACKEND_FASTAPI.md](docs/reference/BACKEND_FASTAPI.md)

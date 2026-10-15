@@ -92,7 +92,13 @@ def main(argv: list[str] | None = None) -> int:
             "target's own earlier same-season observations. Baselines: naive_last, "
             "seasonal_mean, seasonal_median. Candidate: drift (regularized trend)."
         ),
-        "targets": [result.as_dict() for result in results],
+        "targets": [
+            {
+                **result.as_dict(), "crop": target.crop, "metric": target.metric,
+                "season": target.season, "geography_level": target.geography_level,
+            }
+            for result, target in zip(results, CANDIDATE_TARGETS, strict=True)
+        ],
     }
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(json.dumps(report, indent=2, default=str))

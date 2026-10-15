@@ -1,5 +1,7 @@
 import type {
   FactorsResponse,
+  ForecastStatusResponse,
+  ForecastScope,
   IndexedYieldResponse,
   NationalBoardResponse,
   PeriodProductivityResponse,
@@ -156,4 +158,15 @@ export const analyticsApi = {
     request<FactorsResponse>(
       `/analytics/factors${qs({ crop: params.crop, district: params.district })}`,
     ),
+  /**
+   * The forecast publication decision, served verbatim from the chronological
+   * backtest.
+   *
+   * `serves_forecast` is the only field to branch on. When it is false there is
+   * no forecast to draw — the response carries the evidence verdict and the
+   * gates that failed, which is a complete answer rather than an outage. The
+   * device never generates, estimates or extrapolates a forecast locally.
+   */
+  forecastStatus: (scope: ForecastScope = {}) =>
+    request<ForecastStatusResponse>(`/analytics/forecast-status${qs({ ...scope })}`),
 };

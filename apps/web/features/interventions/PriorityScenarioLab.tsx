@@ -8,11 +8,13 @@ import { EmptyState, ErrorState } from "@/components/ui/States";
 import type { DashboardFilters } from "@/lib/filters";
 import { benchmarkLabel, fmtNumber, periodLabel } from "@/lib/format";
 import {
+  buildPriorityScenarioRequest,
   ENGINE_WEIGHT_KEYS,
   FALLBACK_PRESETS,
   GAP_FOCUSED_WEIGHTS,
   presetFallbackLabel,
   presetToWeights,
+  weightsIssue,
 } from "@/lib/priority";
 import { formatScenarioValue } from "@/lib/scenario";
 import { usePriorityScenario } from "@/services/hooks/useAnalytics";
@@ -124,33 +126,27 @@ export function PriorityScenarioLab({ filters }: { filters: DashboardFilters }) 
   const [topN, setTopN] = useState(DEFAULT_TOP_N);
   const [dirty, setDirty] = useState(false);
 
+  // One builder, so the request sent is exactly the request the contract
+  // describes: five planner-named weights per side, never the engine-keyed
+  // dictionary a response hands back.
   const body = useMemo(
-    () => ({
-      baseline: {
-        weights: baselineWeights,
-        period_code: filters.period,
-        benchmark_strategy: filters.benchmark,
-        province: filters.province,
-        district: filters.district,
-        crop: filters.crop,
-        top_n: topN,
-      },
-      scenario: {
-        weights: scenarioWeights,
-        // Empty means "same period as the page selection", which keeps the
-        // default comparison a pure re-weighting over an identical candidate set.
-        period_code: period || filters.period,
-        benchmark_strategy: filters.benchmark,
-        province: filters.province,
-        district: filters.district,
-        crop: filters.crop,
-        top_n: topN,
-      },
-    }),
+    () =>
+      buildPriorityScenarioRequest({
+        filters,
+        baselineWeights,
+        scenarioWeights,
+        scenarioPeriod: period,
+        topN,
+      }),
     [baselineWeights, scenarioWeights, filters, period, topN],
   );
 
+  // Checked before submitting, so an invalid weighting is explained in place
+  // rather than sent and returned as a field error.
+  const localIssue = weightsIssue(baselineWeights) ?? weightsIssue(scenarioWeights);
+
   const run = () => {
+    if (localIssue) return;
     scenario.mutate(body);
     setDirty(false);
   };
@@ -292,19 +288,29 @@ export function PriorityScenarioLab({ filters }: { filters: DashboardFilters }) 
           </div>
 
           <div className="px-4 pb-4">
-            <button
-              type="button"
-              className="btn btn-primary w-full sm:w-auto"
-              onClick={run}
-              disabled={scenario.isPending}
-            >
-              {scenario.isPending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <Play className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              Run scenario
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                className="btn btn-primary w-full sm:w-auto"
+                onClick={run}
+                disabled={scenario.isPending || Boolean(localIssue)}
+                title={localIssue ?? undefined}
+              >
+                {scenario.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                Run scenario
+              </button>
+              {/* The message is beside the control it belongs to, and names the
+                  total and the tolerance rather than only refusing. */}
+              {localIssue ? (
+                <p role="alert" className="text-[11px] text-danger">
+                  {localIssue}
+                </p>
+              ) : null}
+            </div>
           </div>
         </Card>
       </div>

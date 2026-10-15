@@ -490,93 +490,120 @@ def models() -> list[dict]:
     return out
 
 
-def forecast_status() -> dict:
-    """The forecast publication decision from the chronological backtest.
+def forecast_status(
+    *, crop: str | None = None, season: str | None = None,
+    district: str | None = None, province: str | None = None,
+    period_code: str | None = None,
+) -> dict:
+    """Read the publication decision and scope it without making new predictions.
 
-    Reads ``ml/reports/forecast/backtest.json`` — written by
-    ``python -m ml.src.pipelines.run_forecast_backtest`` — and reports it
-    verbatim: the gate result, the policy it was judged under, and the blocking
-    reasons per candidate target. Nothing here is computed, and no forecast is
-    produced by this function: if the backtest says the published record cannot
-    validate a next-season forecast, the API says exactly that.
-
-    Never raises: a missing or corrupt report is an honest
-    ``report_available: false`` with a reason, because "we have no validated
-    forecast" must be answerable even in a deployment where the ML reports were
-    not built.
+    A historical period selects its season, not a historical forecast origin.
+    District estimates come only from the report's per-series outputs.
     """
+    import re
+
+    if period_code and re.fullmatch(r"\d{4}[ABCabc]", period_code):
+        season = period_code[-1].upper()
+    season = season.upper() if season else None
+    selection = {"crop": crop, "season": season, "district": district, "province": province}
+    scope_note = (
+        "Forecasts concern the next same-season period after the training record, "
+        "not a prediction made at the selected historical date. Validation counts "
+        "describe the whole target."
+    )
     base = {
-        "report_available": False,
-        "serves_forecast": False,
-        "generated": None,
-        "policy": {},
-        "policy_is_default": None,
-        "method_note": None,
-        "targets": [],
-        "note": (
-            "No backtest report is present in this deployment, so no forecast "
-            "is served. Forecasting is published only from a default-policy "
-            "chronological backtest."
-        ),
+        "report_available": False, "serves_forecast": False, "generated": None,
+        "policy": {}, "policy_is_default": None, "method_note": None, "targets": [],
+        "selection": selection, "scope_note": scope_note,
+        "note": "No backtest report is present, so no forecast is served.",
     }
-    if not FORECAST_REPORT.exists():
-        return base
     try:
         report = json.loads(FORECAST_REPORT.read_text())
     except (json.JSONDecodeError, OSError):
-        return {**base, "note": "The backtest report exists but could not be read; no forecast is served."}
+        return base
+    if not isinstance(report, dict) or not isinstance(report.get("targets"), list):
+        return {**base, "note": "The backtest report is invalid; no forecast is served."}
 
+    policy = report.get("policy") if isinstance(report.get("policy"), dict) else {}
+    publication_allowed = bool(report.get("serves_forecast")) and report.get("policy_is_default") is True
     targets = []
-    for target in report.get("targets") or []:
-        if not isinstance(target, dict):
+    province_matches = True
+    if province and district:
+        geography = repo.districts()
+        province_matches = bool((
+            geography["district"].str.casefold().eq(district.casefold())
+            & geography["province"].str.casefold().eq(province.casefold())
+        ).any())
+    for raw in report["targets"]:
+        if not isinstance(raw, dict):
             continue
-        metrics = target.get("metrics") or {}
-        chosen = target.get("candidate") or target.get("best_naive") or None
-        chosen_metrics = metrics.get(chosen, {}) if isinstance(chosen, str) else {}
-        targets.append(
-            {
-                "target_id": target.get("target_id"),
-                "status": target.get("status"),
-                "reasons": [str(r) for r in (target.get("reasons") or [])],
-                "n_series": int(target.get("n_series") or 0),
-                "n_series_eligible": int(target.get("n_series_eligible") or 0),
-                "decision_note": target.get("decision_note"),
-                "skill_vs_naive": target.get("skill_vs_naive"),
-                "next_period": target.get("next_period"),
-                "point_estimate": target.get("point_estimate"),
-                "unit": target.get("unit"),
-                "interval": target.get("interval"),
-                "interval_coverage": (
-                    chosen_metrics.get("interval_coverage")
-                    if isinstance(chosen_metrics, dict)
-                    else None
-                ),
-            }
+        identifier = str(raw.get("target_id") or "")
+        # Compatibility for reports predating explicit target metadata. New reports
+        # carry these fields; clients never parse target names or infer geography.
+        legacy = re.fullmatch(
+            r"(district|national)_(maize|beans)_(yield|production|area)_next_season_([abc])",
+            identifier,
         )
+        target_crop = raw.get("crop") or (legacy[2].title() if legacy else None)
+        target_season = raw.get("season") or (legacy[4].upper() if legacy else None)
+        geography = raw.get("geography_level") or (legacy[1].upper() if legacy else None)
+        metric = raw.get("metric") or (legacy[3] if legacy else None)
+        if crop and str(target_crop).casefold() != crop.casefold():
+            continue
+        if season and str(target_season).upper() != season:
+            continue
+        if district and geography != "DISTRICT":
+            continue
+        if province and (not district or not province_matches):
+            continue  # There are no province-level targets; never aggregate districts.
 
-    serves = bool(report.get("serves_forecast"))
-    if targets:
-        note = (
-            "A next-season forecast is published for every target the backtest "
-            "marked ok."
-            if serves
-            else (
-                "No forecast is served: the chronological backtest judged every "
-                "candidate target insufficient against its publication policy. "
-                "This is an evidence verdict about the published record, not a "
-                "service outage."
-            )
-        )
-    else:
-        note = base["note"]
-
+        chosen = raw.get("candidate") or raw.get("best_naive")
+        metrics = raw.get("metrics") or {}
+        chosen_metrics = metrics.get(chosen, {}) if isinstance(metrics, dict) else {}
+        published = publication_allowed and raw.get("status") == "ok"
+        point, bounds = raw.get("point_estimate"), raw.get("interval")
+        reasons = [str(reason) for reason in raw.get("reasons") or []]
+        if district and published:
+            series = raw.get("series_forecasts") or {}
+            entry = next(
+                (value for name, value in series.items() if name.casefold() == district.casefold()),
+                None,
+            ) if isinstance(series, dict) else None
+            if not isinstance(entry, dict) or entry.get("point_estimate") is None:
+                published = False
+                reasons.append("No published per-district forecast exists for this district.")
+            else:
+                point, bounds = entry.get("point_estimate"), entry.get("interval")
+        if raw.get("status") == "ok" and not publication_allowed:
+            reasons.append("This report is not approved for forecast publication.")
+        if not published:
+            point, bounds = None, None
+        targets.append({
+            "target_id": identifier, "crop": target_crop, "season": target_season,
+            "metric": metric, "geography_level": geography, "district": district,
+            "model": chosen, "horizon": raw.get("horizon"),
+            "label": " / ".join(str(v) for v in (
+                target_crop, metric, district or geography, f"Season {target_season}" if target_season else None,
+            ) if v),
+            "status": "ok" if published else "insufficient_evidence",
+            "reasons": reasons, "n_series": int(raw.get("n_series") or 0),
+            "n_series_eligible": int(raw.get("n_series_eligible") or 0),
+            "decision_note": raw.get("decision_note"),
+            "skill_vs_naive": raw.get("skill_vs_naive"),
+            "next_period": raw.get("next_period"), "point_estimate": point,
+            "unit": raw.get("unit"), "interval": bounds,
+            "interval_level": policy.get("interval_level"),
+            "interval_coverage": chosen_metrics.get("interval_coverage") if isinstance(chosen_metrics, dict) else None,
+        })
+    serves = any(t["status"] == "ok" and t["point_estimate"] is not None for t in targets)
+    note = (
+        "A validated forecast is published for this selection." if serves
+        else "No forecast target covers this selection." if not targets
+        else "No forecast is served: the publication evidence is insufficient for this selection."
+    )
     return {
-        "report_available": True,
-        "serves_forecast": serves,
-        "generated": report.get("generated"),
-        "policy": report.get("policy") or {},
+        **base, "report_available": True, "serves_forecast": serves,
+        "generated": report.get("generated"), "policy": policy,
         "policy_is_default": report.get("policy_is_default"),
-        "method_note": report.get("method_note"),
-        "targets": targets,
-        "note": note,
+        "method_note": report.get("method_note"), "targets": targets, "note": note,
     }

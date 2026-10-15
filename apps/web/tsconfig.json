@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": false,
+    // Enabled so `tests/api-url.test.ts` can import the plain-JS build guard in
+    // `next.config.mjs` and assert it agrees with the runtime resolver. Only
+    // files reached by an import enter the program: `include` still lists just
+    // the TypeScript sources, so no other JavaScript is typechecked.
+    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,

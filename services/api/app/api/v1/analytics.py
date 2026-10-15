@@ -10,6 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.analytics import intervention_priority as ip
 from app.analytics.productivity_gap import STRATEGIES
 from app.schemas.analytics import (
     ForecastStatusResponse,
@@ -571,7 +572,13 @@ def postharvest_history(f: AnalyticsFilters = Depends(analytics_filters)) -> dic
 
 
 @router.get("/forecast-status", response_model=ForecastStatusResponse)
-def forecast_status() -> ForecastStatusResponse:
+def forecast_status(
+    crop: str | None = Query(None, max_length=80),
+    season: str | None = Query(None, pattern="^[ABCabc]$"),
+    district: str | None = Query(None, max_length=80),
+    province: str | None = Query(None, max_length=80),
+    period_code: str | None = Query(None, pattern=r"^\d{4}[ABCabc]$"),
+) -> ForecastStatusResponse:
     """Whether a validated forecast may be served, and why not when it may not.
 
     The answer is read from the chronological backtest report
@@ -582,7 +589,9 @@ def forecast_status() -> ForecastStatusResponse:
     error — and every blocking reason travels with it so a client can explain
     the absence honestly instead of hiding the workspace.
     """
-    status = meta_service.forecast_status()
+    status = meta_service.forecast_status(
+        crop=crop, season=season, district=district, province=province, period_code=period_code,
+    )
     return ForecastStatusResponse(
         **status,
         provenance=Provenance(
@@ -623,24 +632,74 @@ def _priority_limitations(result: dict) -> list[str]:
     return limitations
 
 
+#: The planning purposes the ranking endpoint answers. A value outside this set is
+#: a 422 rather than a silent fallback to the default, because the two purposes
+#: produce lists that mean different things.
+PRIORITY_PURPOSES = ip.PURPOSES
+
+
+def _priority_payload(result: dict, f: AnalyticsFilters, method: str) -> dict:
+    """Everything a client needs to read a ranking honestly, from one place.
+
+    Built once for both the read and the weighted-recompute route, so the two
+    cannot describe the same ranking differently.
+    """
+    return {
+        "weights": result["weights"],
+        "rows": result["rows"],
+        "purpose": result["purpose"],
+        "purpose_label": result["purpose_label"],
+        "purpose_note": result["purpose_note"],
+        "methodology_version": result["methodology_version"],
+        "shortfall_threshold_pct": result["shortfall_threshold_pct"],
+        "reference_population": result["reference_population"],
+        "reference_population_note": result["reference_population_note"],
+        "n_eligible": result["n_eligible"],
+        "n_ineligible": result["n_ineligible"],
+        "ineligible": result["ineligible"],
+        "proxy_notes": result["proxy_notes"],
+        "components_unavailable": result["components_unavailable"],
+        "component_availability": result["component_availability"],
+        "provenance": Provenance(
+            source_id=_resolved_source_id(result, f),
+            source_period=result.get("period_code"),
+            method=method,
+            limitations=_priority_limitations(result),
+        ),
+    }
+
+
 @router.get("/intervention-priorities", response_model=PriorityResponse)
 def intervention_priorities(
     limit: int = Query(50, ge=1, le=500),
+    purpose: str = Query(
+        ip.DEFAULT_PURPOSE,
+        description=(
+            "productivity_support (candidates must have a positive published yield "
+            "shortfall) | harvest_coordination (operational scale and perishability; "
+            "not a shortfall ranking)"
+        ),
+    ),
+    threshold_pct: float = Query(
+        0.0, ge=0, le=100, description="how far below the benchmark counts as a shortfall"
+    ),
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> PriorityResponse:
-    result = analytics_service.priorities(limit=limit, f=f)
+    if purpose not in PRIORITY_PURPOSES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"unknown planning purpose {purpose!r}; expected one of "
+                f"{', '.join(PRIORITY_PURPOSES)}"
+            ),
+        )
+    result = analytics_service.priorities(
+        limit=limit, f=f, purpose=purpose, threshold_pct=threshold_pct
+    )
     return PriorityResponse(
-        weights=result["weights"],
-        rows=result["rows"],
-        proxy_notes=result["proxy_notes"],
-        components_unavailable=result["components_unavailable"],
-        component_availability=result["component_availability"],
-        provenance=Provenance(
-            source_id=_resolved_source_id(result, f),
-            source_period=f.period_code or "2025-B",
-            method="weighted transparent score over normalized components",
-            limitations=_priority_limitations(result),
-        ),
+        **_priority_payload(
+            result, f, "weighted transparent score over the reference population"
+        )
     )
 
 
@@ -650,18 +709,14 @@ def intervention_priorities_weighted(
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> PriorityResponse:
     result = analytics_service.priorities(
-        limit=payload.limit, weights=payload.weights.to_engine(), f=f
+        limit=payload.limit,
+        weights=payload.weights.to_engine() if "weights" in payload.model_fields_set else None,
+        f=f,
+        purpose=payload.purpose,
+        threshold_pct=payload.threshold_pct,
     )
     return PriorityResponse(
-        weights=result["weights"],
-        rows=result["rows"],
-        proxy_notes=result["proxy_notes"],
-        components_unavailable=result["components_unavailable"],
-        component_availability=result["component_availability"],
-        provenance=Provenance(
-            source_id=_resolved_source_id(result, f),
-            source_period=f.period_code or "2025-B",
-            method="user-adjusted weights over transparent normalized components",
-            limitations=_priority_limitations(result),
-        ),
+        **_priority_payload(
+            result, f, "user-adjusted weights over the reference population"
+        )
     )

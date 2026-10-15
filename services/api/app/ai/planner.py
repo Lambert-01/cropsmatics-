@@ -66,6 +66,7 @@ INTENTS: tuple[str, ...] = (
     "data_coverage",
     "source_provenance",
     "methodology",
+    "forecast_status",
     "unsupported",
 )
 
@@ -80,6 +81,33 @@ _AUDIENCE_WORDS: dict[str, tuple[str, ...]] = {
 }
 
 _ABSOLUTE_PERIOD = re.compile(r"\b(20\d{2})\s*(?:season\s*)?([ABCabc])?\b")
+
+#: Wording that asks about the *published* forecast — its existence, its
+#: interval, why none was issued — rather than asking the model to predict one.
+#: Matching tolerates up to two interposed words, because a real question reads
+#: "a published maize forecast", not "a published forecast": a phrase matcher
+#: would miss every question that names its crop. A question mentioning
+#: "forecast" that matches none of these is refused: only the publication gate
+#: may be explained, never a value produced.
+_FORECAST_EXPLANATION_RE = re.compile(
+    r"\b(?:published|validated|official)\s+(?:\w+\s+){0,2}forecast\b"
+    r"|\bforecast\s+(?:status|interval|gate|published|publication)\b"
+    r"|\bprediction\s+interval\b"
+    r"|\bis\s+there\s+(?:a|an|any)\s+(?:\w+\s+){0,2}forecast\b"
+    r"|\bwhy\s+(?:is\s+)?(?:there\s+)?no\s+forecast\b"
+    r"|\bwhy\s+no\s+forecast\b"
+    r"|\bpublication\s+gate\b"
+    r"|\bbacktest\b"
+    r"|\bexplain\s+(?:the\s+)?forecast\b"
+    r"|\bwhat\s+does\s+(?:the\s+)?forecast\b"
+    r"|\bforecast\s+mean\b",
+    re.IGNORECASE,
+)
+
+
+def _asks_about_published_forecast(text: str) -> bool:
+    """Whether the question is about the publication gate, not a prediction."""
+    return bool(_FORECAST_EXPLANATION_RE.search(text or ""))
 
 #: Words that signal a follow-up: a pronoun pointing at the previous turn, a
 #: switch of entity, or an explicit comparison of what came before.
@@ -234,6 +262,12 @@ def primary_intent(plan: QueryPlan) -> str:
     def has(op: str) -> bool:
         return op in plan.operations
 
+    # The publication gate is a statement about the platform. It is checked
+    # before any crop/district reading so "is there a published maize forecast?"
+    # answers the gate question rather than a nearby productivity one.
+    if has("forecast_status"):
+        return "forecast_status"
+
     # A comparison of two or more named crops is the most specific reading and the
     # old router would have wrongly returned a single-crop context.
     if has("crop_comparison") and len(plan.crops) >= 2:
@@ -318,7 +352,29 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
     # An out-of-scope topic is refused before entities are resolved, so a price
     # or weather question is never answered with a neighbouring production figure.
     unsupported = mentions(lowered, UNSUPPORTED_HINTS)
-    if unsupported:
+    if unsupported == "forecast":
+        # "Forecast" is refused by default, with one narrow exception: a question
+        # about the *published* forecast — whether one exists, what the interval
+        # means, why none was issued. That is a question about the platform's own
+        # publication gate, answered verbatim from the backtest report by the
+        # ``forecast_status`` tool, which produces no forecast of its own.
+        #
+        # A request to *predict* ("what will maize yield be next season?", "give
+        # me a forecast for Gisagara") matches none of these markers and is still
+        # refused: the model may explain a forecast the backtest published, never
+        # supply one.
+        if _asks_about_published_forecast(lowered):
+            unsupported = None
+        else:
+            return QueryPlan(
+                language=detected,
+                operations=["unsupported"],
+                unsupported_topic="forecast",
+                depth=depth,
+                audience=audience,
+                page=context.page if context else None,
+            )
+    elif unsupported:
         return QueryPlan(
             language=detected,
             operations=["unsupported"],
@@ -338,6 +394,13 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
 
     operations = ontology.detect_operations(question)
     indicators = matched_indicators(lowered)
+
+    # The one forecast question the platform answers: a query about the
+    # *published* forecast. It is an operation, not an intent shortcut, so the
+    # normal grounding path still runs and the tool still returns the gate's own
+    # verdict rather than a model-supplied number.
+    if _asks_about_published_forecast(lowered):
+        operations.append("forecast_status")
 
     # Conversation inheritance. Applied only to a follow-up that names no entities
     # of its own, so an explicit question is never rewritten from history.

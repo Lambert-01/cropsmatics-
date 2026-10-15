@@ -2,6 +2,7 @@
 # ML/analytics extras live in requirements-ml.txt.
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+httpx==0.27.2
 pydantic==2.9.2
 pydantic-settings==2.5.2
 email-validator==2.3.0

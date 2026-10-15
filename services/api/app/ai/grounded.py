@@ -957,6 +957,108 @@ def data_coverage() -> GroundedAnswer:
     )
 
 
+def forecast_status(
+    *, crop: str | None = None, district: str | None = None,
+    period_code: str | None = None,
+) -> GroundedAnswer:
+    """The forecast publication decision, read verbatim from the backtest.
+
+    This is the only way an answer may speak about a forecast: it reports the
+    gate's verdict and, for a target that passed, the period, unit, estimate and
+    interval the backtest recorded. It never produces a forecast. When the gate
+    withheld every target, the withholding and its reasons *are* the answer — an
+    honest "no forecast is published, and here is why" is a complete result.
+    """
+    try:
+        status = meta_service.forecast_status(crop=crop, district=district, period_code=period_code)
+    except Exception:
+        return _unsupported("forecast_status")
+
+    if not status.get("report_available"):
+        return GroundedAnswer(
+            answer=(
+                "No backtest report is present in this deployment, so no forecast is "
+                "served. A forecast is published only from a chronological backtest that "
+                "validated it — never generated on the fly."
+            ),
+            grounded=True,
+            intent="forecast_status",
+            evidence={"report_available": False},
+            source="forecast backtest report",
+            limitations=_limitations(
+                "the backtest report was not built in this deployment",
+                "no forecast is served and none is implied",
+            ),
+        )
+
+    targets = status.get("targets") or []
+    published = [t for t in targets if isinstance(t, dict) and t.get("status") == "ok"]
+
+    if not status.get("serves_forecast"):
+        # The blocking reasons are the content, not a footnote.
+        reasons: list[str] = []
+        for target in targets:
+            if not isinstance(target, dict):
+                continue
+            for reason in target.get("reasons") or []:
+                text = str(reason)
+                if text not in reasons:
+                    reasons.append(text)
+        detail = " ".join(reasons[:2]) if reasons else str(status.get("note") or "")
+        answer = (
+            "No forecast is published for this selection. " + detail
+        ).strip()
+        return GroundedAnswer(
+            answer=answer,
+            grounded=True,
+            intent="forecast_status",
+            evidence={
+                "serves_forecast": False,
+                "targets": [t.get("target_id") for t in targets if isinstance(t, dict)],
+                "generated": status.get("generated"),
+            },
+            source="forecast backtest report",
+            limitations=_limitations(
+                "this is an evidence verdict about the published record, not an outage",
+                "no forecast value exists and none may be estimated",
+            ),
+        )
+
+    parts = [
+        (
+            f"{t.get('label') or t.get('target_id')}: {t.get('point_estimate')} {t.get('unit') or ''} "
+            f"for {t.get('next_period')}"
+            + (
+                f"; interval {t['interval'][0]} to {t['interval'][1]} {t.get('unit') or ''}"
+                if isinstance(t.get("interval"), list) and len(t["interval"]) == 2
+                else "; interval unavailable"
+            )
+        ).strip()
+        for t in published
+    ]
+    answer = (
+        "A validated forecast is published (modelled estimates, not observations): "
+        + _list_phrase(parts[:4])
+        + "."
+    )
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="forecast_status",
+        evidence={
+            "serves_forecast": True,
+            "targets": [t.get("target_id") for t in published],
+            "generated": status.get("generated"),
+        },
+        source="forecast backtest report",
+        period=str(published[0].get("next_period")) if published else None,
+        limitations=_limitations(
+            "a forecast is a modelled estimate with an interval, not an observation",
+            "an interval describes past model error, not a guarantee",
+        ),
+    )
+
+
 def source_provenance(source_id: str | None = None) -> GroundedAnswer:
     """Where Cropmatics' figures come from."""
     try:
@@ -1152,6 +1254,10 @@ def answer(routed: RoutedRequest) -> GroundedAnswer:
         return source_provenance()
     if routed.intent == "methodology":
         return methodology(routed.indicator_ids)
+    if routed.intent == "forecast_status":
+        return forecast_status(
+            crop=routed.crop, district=routed.district, period_code=routed.requested_period,
+        )
     return _unsupported(
         "unsupported",
         **({"unsupported_topic": routed.unsupported_topic} if routed.unsupported_topic else {}),

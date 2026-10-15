@@ -7,8 +7,13 @@
  * can keep thinking in *its own* weight names while the API stays engine-keyed.
  */
 
+import type { DashboardFilters } from "@/lib/filters";
 import { fmtNumber } from "@/lib/format";
-import type { PlannerWeights, PriorityRow } from "@/types";
+import type {
+  PlannerWeights,
+  PriorityRow,
+  PriorityScenarioRequest,
+} from "@/types";
 
 /** The engine's internal weight keys, in the order the planner presents them. */
 export const ENGINE_WEIGHT_KEYS = ["wg", "wv", "wf", "wr", "wc"] as const;
@@ -150,6 +155,182 @@ export function investigationAreas(rows: PriorityRow[], limit: number): Priority
     if (out.length >= wanted) break;
   }
   return out;
+}
+
+/**
+ * The tolerance the server allows on the weight total.
+ *
+ * Mirrors `WEIGHTS_SUM_TOLERANCE` in `app/schemas/analytics.py`. The client uses
+ * it to explain a refusal *before* submitting, never to weaken it: the server
+ * still validates every request.
+ */
+export const WEIGHTS_SUM_TOLERANCE = 0.02;
+
+/** How many decimals a weight is displayed and submitted with. */
+export const WEIGHT_DECIMALS = 4;
+
+function round(value: number, decimals = WEIGHT_DECIMALS): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+/** The total of a weighting, as it will be submitted. */
+export function weightsTotal(weights: PlannerWeights): number {
+  return round(WEIGHT_ORDER.reduce((sum, key) => sum + weights[key], 0));
+}
+
+/**
+ * Why this weighting cannot be submitted, or `null` when it can.
+ *
+ * Returns a sentence that names the total and the tolerance, so the message a
+ * planner reads matches the message the server would have sent - and the values
+ * shown next to the sliders are the values being judged.
+ */
+export function weightsIssue(weights: PlannerWeights): string | null {
+  const negative = WEIGHT_ORDER.filter((key) => !(weights[key] >= 0));
+  if (negative.length) {
+    return `${negative.map(weightLabel).join(", ")} must not be negative.`;
+  }
+  const total = weightsTotal(weights);
+  if (total <= 0) {
+    return "All weights are zero, so there is nothing to rank by. Set at least one weight above zero.";
+  }
+  if (Math.abs(total - 1) > WEIGHTS_SUM_TOLERANCE) {
+    return `Weights total ${total.toFixed(2)}. They must total 1.00 (within ${WEIGHTS_SUM_TOLERANCE}).`;
+  }
+  return null;
+}
+
+/** The planner-facing name for one weight key. */
+export function weightLabel(key: keyof PlannerWeights): string {
+  return WEIGHT_LABELS[key] ?? key;
+}
+
+/** The planner-facing names, in presentation order. */
+export const WEIGHT_LABELS: Record<keyof PlannerWeights, string> = {
+  gap: "Productivity gap",
+  vulnerability: "Vulnerability",
+  affected_scale: "Affected scale",
+  readiness: "Readiness",
+  cost: "Cost constraint",
+};
+
+/**
+ * Move one weight and keep the weighting valid.
+ *
+ * A slider that only changes one of five values cannot keep a five-way total at
+ * 1.00, so the remaining weight is redistributed over the *other* keys in
+ * proportion to what they already were. That makes the rebalance a deterministic
+ * function of the previous position - the same drag always produces the same
+ * weighting - and it means the total is never invalid after a slider move, so
+ * the "weights must total 1.00" refusal is unreachable from this control.
+ *
+ * Proportional rather than equal redistribution is the point: a planner who has
+ * deliberately put 45% on readiness keeps it the largest of the remainder when
+ * they move the gap slider.
+ *
+ * The residual from rounding is assigned to the largest remaining key, so the
+ * submitted total is exactly 1 (to `WEIGHT_DECIMALS`) rather than drifting a
+ * little further with every drag of the slider.
+ */
+export function rebalanceWeights(
+  weights: PlannerWeights,
+  key: keyof PlannerWeights,
+  value: number,
+): PlannerWeights {
+  const target = Math.min(1, Math.max(0, value));
+  const others = WEIGHT_ORDER.filter((other) => other !== key);
+  const remaining = 1 - target;
+
+  const previousTotal = others.reduce((sum, other) => sum + Math.max(0, weights[other]), 0);
+  const shares = others.map((other) => {
+    if (previousTotal > 0) return Math.max(0, weights[other]) / previousTotal;
+    // Every other weight is zero: fall back to an equal split, which is the
+    // neutral choice and still deterministic.
+    return 1 / others.length;
+  });
+
+  const next = { ...weights, [key]: round(target) } as PlannerWeights;
+  others.forEach((other, index) => {
+    next[other] = round(remaining * shares[index]);
+  });
+
+  // Assign the rounding residual to the largest remaining key so the total is
+  // exactly 1 rather than "close enough that the server might disagree".
+  const residual = round(remaining - others.reduce((sum, other) => sum + next[other], 0));
+  if (residual !== 0) {
+    const largest = others.reduce((a, b) => (next[a] >= next[b] ? a : b));
+    next[largest] = round(next[largest] + residual);
+  }
+  return next;
+}
+
+/**
+ * Scale a weighting onto the simplex without changing its shape.
+ *
+ * Used only when a stored or preset weighting arrives that is not a valid
+ * request (it does not total 1): the ratios the planner chose are preserved, so
+ * the submitted request matches what the sliders display.
+ */
+export function normalizeWeights(weights: PlannerWeights): PlannerWeights {
+  const total = WEIGHT_ORDER.reduce((sum, key) => sum + Math.max(0, weights[key]), 0);
+  if (total <= 0) return { ...DEFAULT_PLANNER_WEIGHTS };
+  const scaled = {} as PlannerWeights;
+  WEIGHT_ORDER.forEach((key) => {
+    scaled[key] = round(Math.max(0, weights[key]) / total);
+  });
+  const residual = round(1 - WEIGHT_ORDER.reduce((sum, key) => sum + scaled[key], 0));
+  if (residual !== 0) {
+    const largest = WEIGHT_ORDER.reduce((a, b) => (scaled[a] >= scaled[b] ? a : b));
+    scaled[largest] = round(scaled[largest] + residual);
+  }
+  return scaled;
+}
+
+/**
+ * The one builder for `POST /scenarios/priority`.
+ *
+ * Every field is named explicitly and the weights are normalized through
+ * `normalizeWeights`, so the request carries exactly the five public field names
+ * the API documents and never the engine-keyed dictionary a response returns.
+ * Both sides are built from the same function, so a scenario side cannot
+ * accidentally inherit the other side's assumptions.
+ */
+export function buildPriorityScenarioRequest(input: {
+  filters: DashboardFilters;
+  baselineWeights: PlannerWeights;
+  scenarioWeights: PlannerWeights;
+  /** Overrides the page's period for the scenario side; empty means "same". */
+  scenarioPeriod?: string;
+  topN?: number;
+  minScore?: number;
+}): PriorityScenarioRequest {
+  const { filters, baselineWeights, scenarioWeights, scenarioPeriod, topN, minScore } = input;
+  const scope = {
+    benchmark_strategy: filters.benchmark ?? null,
+    province: filters.province ?? null,
+    district: filters.district ?? null,
+    crop: filters.crop ?? null,
+  };
+
+  return {
+    baseline: {
+      weights: normalizeWeights(baselineWeights),
+      period_code: filters.period ?? null,
+      ...scope,
+      ...(topN === undefined ? {} : { top_n: topN }),
+      ...(minScore === undefined ? {} : { min_score: minScore }),
+    },
+    scenario: {
+      weights: normalizeWeights(scenarioWeights),
+      // Falling back to the page's period keeps the default comparison a pure
+      // re-weighting over an identical candidate set.
+      period_code: scenarioPeriod || filters.period || null,
+      ...scope,
+      ...(topN === undefined ? {} : { top_n: topN }),
+      ...(minScore === undefined ? {} : { min_score: minScore }),
+    },
+  };
 }
 
 /** Human sentence for a component status, used in tooltips and notices. */
