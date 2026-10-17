@@ -106,7 +106,7 @@ describe("flushOutbox: farm profiles", () => {
     resolveUpload({ id: "server-farm-1", client_uuid: "farm-1" });
     const summary = await flush;
 
-    expect(mocks.database.markSynced).toHaveBeenCalledWith("farm-1", "server-farm-1");
+    expect(mocks.database.markSynced).toHaveBeenCalledWith("farm-1", "server-farm-1", "local_farm");
     expect(mocks.database.markSynced.mock.invocationCallOrder[0]).toBeGreaterThan(
       mocks.api.createFarm.mock.invocationCallOrder[0],
     );
@@ -120,7 +120,7 @@ describe("flushOutbox: farm profiles", () => {
     const summary = await flushOutbox();
 
     expect(mocks.database.markSynced).not.toHaveBeenCalled();
-    expect(mocks.database.markFailed).toHaveBeenCalledWith("farm-1");
+    expect(mocks.database.markFailed).toHaveBeenCalledWith("farm-1", "local_farm");
     expect(summary).toEqual({ attempted: 1, synced: 0, failed: 1, conflicts: 0 });
   });
 
@@ -131,7 +131,7 @@ describe("flushOutbox: farm profiles", () => {
     const summary = await flushOutbox();
 
     expect(mocks.database.markSynced).not.toHaveBeenCalled();
-    expect(mocks.database.markConflict).toHaveBeenCalledWith("farm-1");
+    expect(mocks.database.markConflict).toHaveBeenCalledWith("farm-1", "local_farm");
     expect(summary).toEqual({ attempted: 1, synced: 0, failed: 0, conflicts: 1 });
   });
 });
@@ -154,7 +154,11 @@ describe("flushOutbox: harvest registrations", () => {
         needs_storage_assistance: true,
       }),
     );
-    expect(mocks.database.markSynced).toHaveBeenCalledWith("harvest-1", "server-harvest-1");
+    expect(mocks.database.markSynced).toHaveBeenCalledWith(
+      "harvest-1",
+      "server-harvest-1",
+      "harvest_registration",
+    );
     expect(summary).toEqual({ attempted: 1, synced: 1, failed: 0, conflicts: 0 });
   });
 });
@@ -167,5 +171,26 @@ describe("flushOutbox: connectivity", () => {
 
     expect(summary).toEqual({ attempted: 0, synced: 0, failed: 0, conflicts: 0 });
     expect(mocks.database.listPendingOutbox).not.toHaveBeenCalled();
+  });
+
+  it("shares one in-flight flush between concurrent callers", async () => {
+    const pending = outboxItem("local_farm", FARM);
+    mocks.database.listPendingOutbox.mockReturnValue([pending]);
+    let resolveUpload: (value: { id: string; client_uuid: string | null }) => void = () => {};
+    mocks.api.createFarm.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpload = resolve;
+      }),
+    );
+
+    const first = flushOutbox();
+    const second = flushOutbox();
+    expect(second).toBe(first);
+    await vi.waitFor(() => expect(mocks.api.createFarm).toHaveBeenCalledTimes(1));
+    resolveUpload({ id: "server-farm-1", client_uuid: "farm-1" });
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { attempted: 1, synced: 1, failed: 0, conflicts: 0 },
+      { attempted: 1, synced: 1, failed: 0, conflicts: 0 },
+    ]);
   });
 });

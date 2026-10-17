@@ -93,7 +93,11 @@ _CLAUSE_BREAK = re.compile(r"[,;]|\band\b|\bwhile\b|\bbut\b|\balso\b", re.IGNORE
 #: commas do not break it, because "In Bugesera, the yield was 952.2" must keep
 #: "Bugesera" attached to the figure. Entities and figures separated by a
 #: semicolon, "and", "while", "but" or "also" are different pairings.
-_PAIR_BREAK = re.compile(r"[;]|\band\b|\bwhile\b|\bbut\b|\balso\b", re.IGNORECASE)
+_PAIR_BREAK = re.compile(
+    r"[;]|\band\b|\bwhile\b|\bbut\b|\balso\b|"
+    r"\bcompared\s+(?:with|to)\b|\bversus\b|\bvs\.?\b|\bfrom\b",
+    re.IGNORECASE,
+)
 
 #: A period written either as a code (``2026B``) or as prose (``2026 Season B``).
 _PERIOD_MENTION = re.compile(r"\b(20\d{2})\s*(?:season\s*)?([abc])?\b", re.IGNORECASE)
@@ -352,6 +356,23 @@ def _canonical_geographies() -> tuple[set[str], set[str]]:
         return set(), set()
 
 
+def _canonical_crops() -> set[str]:
+    """Every canonical crop name, including crops absent from this evidence bundle.
+
+    Scope validation must distinguish a wrong crop from an unknown word. The
+    evidence bundle is intentionally narrow, so using only its crop vocabulary
+    would let "Rice" pass when the retrieved value was for Maize.
+    """
+    try:
+        from app.repositories import dataset_repository as repo
+
+        frame = repo.crops()
+        column = "crop_name" if "crop_name" in frame.columns else "crop"
+        return {str(value).strip() for value in frame[column].dropna() if str(value).strip()}
+    except Exception:  # pragma: no cover - only when the dictionary is absent
+        return set()
+
+
 def _pair_segment(sentence: str, position: int) -> tuple[int, int]:
     """The span around ``position`` that shares its entity pairing.
 
@@ -399,6 +420,47 @@ def _attached_districts(sentence: str, position: int, vocabulary: set[str]) -> l
     if preceding:
         return [preceding[-1]]
     return [located[0][1]]
+
+
+def _attached_terms(
+    sentence: str,
+    position: int,
+    vocabulary: set[str],
+    *,
+    period_terms: bool = False,
+) -> list[str | tuple[str, str]]:
+    """Return the nearest entity/period in the claim's pairing segment.
+
+    A sentence-wide membership check is insufficient for clauses such as
+    ``2025B: 1,555; 2026B: 952``. The number must be checked against the period
+    immediately attached to it, just as districts already are.
+    """
+    seg_start, seg_end = _pair_segment(sentence, position)
+    segment = sentence[seg_start:seg_end]
+    offset = position - seg_start
+    located: list[tuple[int, str | tuple[str, str]]] = []
+    if period_terms:
+        for match in _PERIOD_MENTION.finditer(segment):
+            located.append(
+                (
+                    match.start(),
+                    (match.group(1), (match.group(2) or "").upper()),
+                )
+            )
+    else:
+        lowered = segment.lower()
+        for term in vocabulary:
+            if not term:
+                continue
+            for match in re.finditer(
+                rf"(?<![a-z]){re.escape(term.lower())}(?![a-z])", lowered
+            ):
+                located.append((match.start(), term))
+    if not located:
+        return []
+    located.sort(key=lambda entry: entry[0])
+    preceding = [term for at, term in located if at < offset]
+    return [preceding[-1] if preceding else located[0][1]]
 
 
 def _values_by_scope(
@@ -509,7 +571,11 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
         | canonical_provinces
         | {bundle.requested.get("province") or ""}
     )
-    crops = {i.crop for i in items if i.crop} | {bundle.requested.get("crop") or ""}
+    crops = (
+        {i.crop for i in items if i.crop}
+        | _canonical_crops()
+        | {bundle.requested.get("crop") or ""}
+    )
     districts = {d for d in districts if d}
     provinces = {p for p in provinces if p}
     crops = {c for c in crops if c}
@@ -748,13 +814,22 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
             scoped_periods = [item.period_code for item in matched if item.period_code]
 
             scope_mismatch: str | None = None
+            attached_crops = _attached_terms(sentence, claim.start(), crops)
+            crop_scope = attached_crops or sentence_crops
             if (
-                sentence_crops
+                crop_scope
                 and scoped_crops
-                and not any(crop in sentence_crops for crop in scoped_crops)
+                and (
+                    not any(
+                        str(crop).lower() == str(scope).lower()
+                        for scope in crop_scope
+                        for crop in scoped_crops
+                    )
+                )
             ):
                 scope_mismatch = (
-                    f"the sentence names {', '.join(sentence_crops)} but {raw_number} {unit} "
+                    f"the claim names {', '.join(str(c) for c in crop_scope)} "
+                    f"but {raw_number} {unit} "
                     f"is published for {', '.join(sorted(set(scoped_crops)))} only"
                 )
             elif scoped_districts:
@@ -792,18 +867,22 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
                     f"the sentence names {', '.join(sentence_provinces)} but {raw_number} "
                     f"{unit} is published for {', '.join(sorted(set(scoped_provinces)))} only"
                 )
-            if scope_mismatch is None and (
-                sentence_periods
-                and scoped_periods
-                and not any(
+            attached_periods = _attached_terms(
+                sentence, claim.start(), set(), period_terms=True
+            )
+            period_scope = attached_periods or sentence_periods
+            if scope_mismatch is None and period_scope and scoped_periods and (
+                not any(
                     _period_covers(mention, code)
-                    for mention in sentence_periods
+                    for mention in period_scope
                     for code in scoped_periods
                 )
             ):
                 scope_mismatch = (
                     f"the sentence places {raw_number} {unit} in "
-                    + ", ".join(f"{year}{season}" for year, season in sentence_periods)
+                    + ", ".join(
+                        f"{year}{season}" for year, season in period_scope
+                    )
                     + " but the matching evidence describes "
                     + ", ".join(sorted(set(scoped_periods)))
                 )

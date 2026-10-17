@@ -1,5 +1,8 @@
 # Data Card — Cropmatics Rwanda
 
+**Reviewed:** 2026-10-18. This card describes the current local evidence and
+does not certify that the same dataset version is deployed.
+
 A reviewer-facing summary of what data the product uses, what it computes, and
 what it must **not** be used for. Detailed evidence is linked, not reproduced.
 
@@ -107,7 +110,8 @@ duplicates; resolving precedence is an explicit source-management decision
 not every worksheet becomes an app feature, and the honest disposition of the
 unmapped instances in `docs/data/SAS_COVERAGE_AUDIT.md` is outstanding (§5).
 Using the relevant, justified data is the acceptance criterion — not consuming
-every sheet.
+every sheet. This revision keeps the precedence decision open and does not add
+either unreviewed standalone workbook to the serving panel.
 
 ## Reproducibility
 

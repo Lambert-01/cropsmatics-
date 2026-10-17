@@ -68,8 +68,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Restoring NOT NULL fails if any offline profile was uploaded without an
-    # account; delete or reassign those rows first on a real downgrade.
+    # A downgrade must never silently orphan or delete operational records. A
+    # real rollback is blocked until an operator has reassigned every anonymous
+    # profile; the check runs before any destructive DDL.
+    bind = op.get_bind()
+    anonymous = bind.execute(
+        sa.text("SELECT COUNT(*) FROM farm WHERE farmer_id IS NULL")
+    ).scalar_one()
+    if anonymous:
+        raise RuntimeError(
+            "cannot downgrade mobile sync fields while farm rows have no farmer_id; "
+            "reassign or quarantine those rows first"
+        )
     op.alter_column(FARM, "farmer_id", existing_type=sa.Uuid(), nullable=False)
     op.drop_index(op.f("ix_farm_district_name"), table_name=FARM)
     op.drop_index(op.f("ix_farm_client_uuid"), table_name=FARM)

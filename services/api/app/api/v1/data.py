@@ -36,6 +36,7 @@ def get_dataset(
     crop: str | None = Query(None),
     province: str | None = Query(None),
     district: str | None = Query(None),
+    district_code: str | None = Query(None),
     indicator_code: str | None = Query(
         None,
         description=(
@@ -47,6 +48,12 @@ def get_dataset(
         None,
         description="observation domain; supported where the dataset carries one",
     ),
+    canonical_crop_name: str | None = Query(None),
+    crop_code: str | None = Query(None),
+    geography_level: str | None = Query(None),
+    farmer_scale: str | None = Query(None),
+    row_scope: str | None = Query(None),
+    source_id: str | None = Query(None),
     sort_by: str | None = Query(None, description="any column of the dataset"),
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> DatasetResponse:
@@ -68,6 +75,15 @@ def get_dataset(
         district=district,
         indicator_code=indicator_code,
         domain=domain,
+        extra={
+            "district_code": district_code,
+            "canonical_crop_name": canonical_crop_name,
+            "crop_code": crop_code,
+            "geography_level": geography_level,
+            "farmer_scale": farmer_scale,
+            "row_scope": row_scope,
+            "source_id": source_id,
+        },
     )
     try:
         return DatasetResponse(

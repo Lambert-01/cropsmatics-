@@ -1,6 +1,6 @@
 # Feature And Data Coverage
 
-Reviewed 2026-10-17 from the local processed tables. Runtime coverage is derived
+Reviewed 2026-10-18 from the local processed tables. Runtime coverage is derived
 from the serving data and exposed through `/api/v1/meta/data-coverage`; this
 document does not override a deployment's actual availability.
 
@@ -42,10 +42,12 @@ rebuild the full pipeline or resolve outstanding source conflicts.
 ## Operational Data
 
 Farm profiles and harvest registrations are voluntary mobile records, separate
-from NISR statistics. The latest server code persists additional field inputs
-and links farms and harvests by client UUID, but authenticated ownership and
-complete local farm status handling are still outstanding. Do not infer a
-verified multi-user sync workflow from an upload returning 201.
+from NISR statistics. The latest server code persists additional field inputs,
+requires authenticated ownership for farm/harvest routes, scopes idempotency and
+farm linking to the signed-in profile, and updates local farm/harvest/outbox
+sync states together. This is covered by unit/API tests; physical-device
+restart/reconnect behavior and a disposable PostGIS migration rehearsal remain
+outstanding.
 
 Rule-based post-harvest risk is an expert-set indicator, not a locally calibrated
 probability. Storage optimization uses explicitly entered scenario supply and

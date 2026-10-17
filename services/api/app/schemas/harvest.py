@@ -10,6 +10,10 @@ from app.schemas.common import Provenance
 
 
 class HarvestCreate(BaseModel):
+    # Unknown fields are rejected, never silently discarded (same rule as
+    # FarmCreate): the client must be told its payload was not stored.
+    model_config = ConfigDict(extra="forbid")
+
     district: str
     crop: str
     expected_harvest_date: date | None = None

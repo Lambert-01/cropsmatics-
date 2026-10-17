@@ -1,10 +1,10 @@
 # AI Evaluation
 
-Review update, 2026-10-17: the earlier unlisted-district and two-district swaps
-now fall back correctly. However, the current validator still accepts a maize
-yield described as rice yield and values swapped between 2025B and 2026B in one
-sentence. The passing corpus below is not complete safety evidence. Crop/period
-bindings must be repaired and these cases added as regression tests.
+Review update, 2026-10-18: the validator now binds crop and period mentions to
+the value-bearing comparison segment. Wrong-crop and swapped-period cases are
+rejected, while the grounded positive corpus remains accepted. This is
+deterministic claim-validation evidence, not a credentialed provider-quality
+claim or a substitute for production monitoring.
 See [Current Status](../CURRENT_STATUS.md).
 
 What the assistant's answers are checked against, which of those checks are

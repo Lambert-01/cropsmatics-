@@ -20,6 +20,7 @@ export type AskFailureKind =
   | "validation"
   | "unsupported"
   | "not_found"
+  | "auth"
   | "unknown";
 
 export interface AskFailure {
@@ -37,6 +38,7 @@ const API_KIND_TO_FAILURE: Record<ApiError["kind"], AskFailureKind> = {
   validation: "validation",
   unsupported: "unsupported",
   not_found: "not_found",
+  auth: "auth",
   unknown: "unknown",
 };
 
@@ -72,6 +74,7 @@ const RETRYABLE: Record<AskFailureKind, boolean> = {
   validation: false,
   unsupported: false,
   not_found: false,
+  auth: false,
 };
 
 export function describeAskFailure(error: unknown, t: Strings): AskFailure {
@@ -85,6 +88,7 @@ export function describeAskFailure(error: unknown, t: Strings): AskFailure {
     validation: { title: t.askErrorValidationTitle, message: t.askErrorValidationMessage },
     unsupported: { title: t.askErrorUnsupportedTitle, message: t.askErrorUnsupportedMessage },
     not_found: { title: t.askErrorNotFoundTitle, message: t.askErrorNotFoundMessage },
+    auth: { title: t.authRequiredTitle, message: t.authRequiredMessage },
     unknown: { title: t.askErrorUnknownTitle, message: t.askErrorUnknownMessage },
   };
 

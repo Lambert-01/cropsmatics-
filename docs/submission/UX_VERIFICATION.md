@@ -37,9 +37,9 @@ requests redirected to the local file-mode API, not production verification,
 the full route/state/language matrix or owner-approved screenshots. Temporary
 evidence is outside the repository; no approved screenshot bundle is claimed.
 
-Fresh mobile `npm ci` in an isolated directory passed typecheck, lint, all 341
-tests and Expo configuration in the earlier pass. Latest mobile has 346 passing
-tests and a passing typecheck after fresh npm ci. Neither is a native-device check.
+Fresh mobile `npm ci` in an isolated directory passed typecheck, lint and Expo
+configuration in the earlier pass. Latest mobile has 347 passing tests and a
+passing typecheck after the sync/auth changes. Neither is a native-device check.
 
 ## Earlier implementation-session checks
 

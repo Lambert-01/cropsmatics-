@@ -297,6 +297,29 @@ def test_the_benchmark_kpi_is_stable_across_district_selections(client):
         assert _kpi(scoped, "benchmark_yield")["value"] == pytest.approx(base, abs=0.05)
 
 
+def test_peer_benchmark_headline_matches_the_displayed_row(client):
+    """A peer-group headline must describe the row the user is inspecting.
+
+    The peer benchmark is computed over the full comparison population, but a
+    district-scoped response displays that district's attached benchmark. The
+    KPI and row therefore need to agree even when peer groups have different
+    medians.
+    """
+    _require_data(client)
+    body = _productivity(
+        client,
+        crop="Maize",
+        period_code="2026B",
+        district="Bugesera",
+        benchmark_strategy="agro_ecological_peer_group",
+    )
+    assert len(body["rows"]) == 1
+    row = body["rows"][0]
+    headline = _kpi(body, "benchmark_yield")["value"]
+    assert headline == pytest.approx(row["benchmark_yield_kg_ha"], abs=0.05)
+    assert "agro_ecological_peer_group" in _kpi(body, "benchmark_yield")["note"]
+
+
 def test_the_reference_block_names_the_benchmark_population(client):
     _require_data(client)
     body = _productivity(

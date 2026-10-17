@@ -28,6 +28,8 @@ export interface FlushSummary {
   conflicts: number;
 }
 
+let activeFlush: Promise<FlushSummary> | null = null;
+
 export async function isOnline(): Promise<boolean> {
   const state = await Network.getNetworkStateAsync();
   return Boolean(state.isConnected && state.isInternetReachable !== false);
@@ -102,7 +104,7 @@ function farmBody(payload: LocalFarm): FarmPayload {
   };
 }
 
-export async function flushOutbox(): Promise<FlushSummary> {
+async function flushOutboxOnce(): Promise<FlushSummary> {
   const summary: FlushSummary = { attempted: 0, synced: 0, failed: 0, conflicts: 0 };
   if (!(await isOnline())) {
     return summary;
@@ -116,14 +118,14 @@ export async function flushOutbox(): Promise<FlushSummary> {
         // Upload first: markSynced runs only once the server has acknowledged
         // the record, so a dropped connection leaves the entry queued.
         const response = await api.createHarvest(harvestBody(payload));
-        markSynced(item.clientUuid, response.id);
+        markSynced(item.clientUuid, response.id, item.entity);
       } else if (item.entity === "local_farm") {
         // The farm profile syncs through the same idempotent-on-client_uuid
         // upload as a harvest; the server links any harvest registrations that
         // referenced this farm before it existed there.
         const payload = JSON.parse(item.payload) as LocalFarm;
         const response = await api.createFarm(farmBody(payload));
-        markSynced(item.clientUuid, response.id);
+        markSynced(item.clientUuid, response.id, item.entity);
       } else {
         // Other entities sync when implemented; leave queued.
         continue;
@@ -134,13 +136,26 @@ export async function flushOutbox(): Promise<FlushSummary> {
       // decide. Everything else is retried on the next flush.
       const message = error instanceof Error ? error.message : "";
       if (message.includes("409")) {
-        markConflict(item.clientUuid);
+        markConflict(item.clientUuid, item.entity);
         summary.conflicts += 1;
       } else {
-        markFailed(item.clientUuid);
+        markFailed(item.clientUuid, item.entity);
         summary.failed += 1;
       }
     }
   }
   return summary;
+}
+
+/** Prevent a manual refresh and a reconnect listener from flushing the same
+ * rows concurrently. Both callers receive the same completion summary. */
+export function flushOutbox(): Promise<FlushSummary> {
+  if (activeFlush) return activeFlush;
+  const run = flushOutboxOnce();
+  let tracked: Promise<FlushSummary>;
+  tracked = run.finally(() => {
+    if (activeFlush === tracked) activeFlush = null;
+  });
+  activeFlush = tracked;
+  return tracked;
 }

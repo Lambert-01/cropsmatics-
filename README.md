@@ -22,14 +22,15 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Explore reported production use and verified storage-program context | Post-Harvest, Storage |
 | Inspect sources, coverage and analytical datasets | Data Explorer, Data & Models |
 | Ask questions grounded in retrieved analytical evidence | AI Assistant |
-| Register harvests offline | Expo mobile app; server synchronization still needs repair |
+| Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
-**Status:** an actively developed MVP, not a completed production certification.
-The latest changes repair national benchmark filtering, comparison queries and
-projection edge cases. Remaining findings include operational ownership, AI crop
-and period attribution, peer-benchmark headlines and local farm sync status. See
-[current limitations and verification](docs/CURRENT_STATUS.md). A passing test
-suite does not mean those issues are fixed or that the latest commit is deployed.
+**Status:** release-candidate code, not a completed production certification.
+The latest changes repair authenticated operational ownership, AI crop/period
+claim binding, peer benchmark headlines, transactional mobile sync state and
+the dataset explorer's JSON/CSV filter contract. Remaining limitations are
+documented in [current limitations and verification](docs/CURRENT_STATUS.md).
+A passing test suite does not mean this working tree is deployed or that a
+physical device and isolated PostGIS migration have been verified.
 
 ## Data And Interpretation
 

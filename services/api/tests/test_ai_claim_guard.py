@@ -527,6 +527,42 @@ def test_a_correctly_paired_two_district_sentence_is_accepted():
     ).ok is True
 
 
+def test_a_crop_from_the_canonical_dictionary_is_bound_to_the_figure(monkeypatch):
+    """A crop absent from the narrow bundle must still be recognised as wrong."""
+    monkeypatch.setattr(claim_guard, "_canonical_crops", lambda: {"Maize", "Rice"})
+    subject = bundle(item("yield_kg_ha", 952.2, "kg/ha", district="Bugesera"))
+    result = claim_guard.check("Rice yield in Bugesera was 952.2 kg/ha in 2026B.", subject)
+    assert result.ok is False
+    assert result.violations[0].kind == "scope_mismatch"
+    assert "Rice" in result.violations[0].detail
+    assert "Maize" in result.violations[0].detail
+
+
+def test_a_swapped_period_pair_is_rejected_clause_by_clause():
+    """Period membership is not enough when the two values are exchanged."""
+    subject = bundle(
+        item("yield_kg_ha", 952.2, "kg/ha", district="Bugesera", period_code="2025B"),
+        item("yield_kg_ha", 1555.4, "kg/ha", district="Bugesera", period_code="2026B"),
+    )
+    result = claim_guard.check(
+        "In 2025 Season B Bugesera maize yield was 1,555.4 kg/ha and in 2026 Season B it was 952.2 kg/ha.",
+        subject,
+    )
+    assert result.ok is False
+    assert result.violations[0].kind == "scope_mismatch"
+
+
+def test_a_correct_period_pair_is_accepted():
+    subject = bundle(
+        item("yield_kg_ha", 952.2, "kg/ha", district="Bugesera", period_code="2025B"),
+        item("yield_kg_ha", 1555.4, "kg/ha", district="Bugesera", period_code="2026B"),
+    )
+    assert claim_guard.check(
+        "In 2025 Season B Bugesera maize yield was 952.2 kg/ha and in 2026 Season B it was 1,555.4 kg/ha.",
+        subject,
+    ).ok is True
+
+
 def test_a_national_figure_with_several_districts_named_is_still_accepted():
     """Canonical geography must not turn a scoped-empty figure into a violation."""
     subject = EvidenceBundle(

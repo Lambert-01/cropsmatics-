@@ -411,28 +411,65 @@ export function countPendingOutbox(): number {
   return row?.n ?? 0;
 }
 
-export function markSynced(clientUuid: string, serverId: string | null): void {
+export function markSynced(
+  clientUuid: string,
+  serverId: string | null,
+  entity?: OutboxItem["entity"],
+): void {
   const database = getDb();
-  database.runSync("UPDATE outbox SET status = 'SYNCED' WHERE client_uuid = ?", clientUuid);
-  database.runSync(
-    "UPDATE harvest_registration SET sync_status = 'SYNCED', server_id = ? WHERE client_uuid = ?",
-    serverId,
-    clientUuid,
-  );
+  database.withTransactionSync(() => {
+    database.runSync("UPDATE outbox SET status = 'SYNCED' WHERE client_uuid = ?", clientUuid);
+    if (entity === "local_farm") {
+      database.runSync(
+        "UPDATE local_farm SET sync_status = 'SYNCED' WHERE client_uuid = ?",
+        clientUuid,
+      );
+    } else if (entity === "harvest_registration") {
+      database.runSync(
+        "UPDATE harvest_registration SET sync_status = 'SYNCED', server_id = ? WHERE client_uuid = ?",
+        serverId,
+        clientUuid,
+      );
+    } else {
+      // Backwards-compatible recovery for an older queued item whose entity is
+      // not present in its persisted outbox row.
+      database.runSync(
+        "UPDATE local_farm SET sync_status = 'SYNCED' WHERE client_uuid = ?",
+        clientUuid,
+      );
+      database.runSync(
+        "UPDATE harvest_registration SET sync_status = 'SYNCED', server_id = ? WHERE client_uuid = ?",
+        serverId,
+        clientUuid,
+      );
+    }
+  });
 }
 
-export function markFailed(clientUuid: string): void {
-  getDb().runSync(
-    "UPDATE outbox SET status = 'FAILED', attempts = attempts + 1 WHERE client_uuid = ?",
-    clientUuid,
-  );
+export function markFailed(clientUuid: string, entity?: OutboxItem["entity"]): void {
+  const database = getDb();
+  database.withTransactionSync(() => {
+    database.runSync(
+      "UPDATE outbox SET status = 'FAILED', attempts = attempts + 1 WHERE client_uuid = ?",
+      clientUuid,
+    );
+    if (entity === "local_farm") {
+      database.runSync("UPDATE local_farm SET sync_status = 'FAILED' WHERE client_uuid = ?", clientUuid);
+    } else if (entity === "harvest_registration") {
+      database.runSync("UPDATE harvest_registration SET sync_status = 'FAILED' WHERE client_uuid = ?", clientUuid);
+    }
+  });
 }
 
 /** Conflict is recorded rather than resolved silently (see docs/17_DEPLOYMENT.md). */
-export function markConflict(clientUuid: string): void {
-  getDb().runSync("UPDATE outbox SET status = 'CONFLICT' WHERE client_uuid = ?", clientUuid);
-  getDb().runSync(
-    "UPDATE harvest_registration SET sync_status = 'CONFLICT' WHERE client_uuid = ?",
-    clientUuid,
-  );
+export function markConflict(clientUuid: string, entity?: OutboxItem["entity"]): void {
+  const database = getDb();
+  database.withTransactionSync(() => {
+    database.runSync("UPDATE outbox SET status = 'CONFLICT' WHERE client_uuid = ?", clientUuid);
+    if (entity === "local_farm") {
+      database.runSync("UPDATE local_farm SET sync_status = 'CONFLICT' WHERE client_uuid = ?", clientUuid);
+    } else if (entity === "harvest_registration") {
+      database.runSync("UPDATE harvest_registration SET sync_status = 'CONFLICT' WHERE client_uuid = ?", clientUuid);
+    }
+  });
 }

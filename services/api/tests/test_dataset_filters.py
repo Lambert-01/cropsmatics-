@@ -149,6 +149,30 @@ def test_dataset_catalog_declares_its_supported_filters(client):
     assert by_key["cold_chain_network_summary"]["filters"] == []
 
 
+def test_every_catalog_filter_is_accepted_by_json_and_csv(client):
+    """The catalog is an executable HTTP contract, not documentation only.
+
+    A value that matches no row is intentional here: it still exercises the
+    route declaration, parser and dataset whitelist without depending on which
+    release happens to contain the probe value. A stale advertised dimension
+    would return 400 in either representation and fail this test.
+    """
+    listing = client.get("/api/v1/meta/dataset").json()["datasets"]
+    probe_values = {
+        "period_code": "2025B",
+        "year": "2025",
+        "season": "B",
+    }
+    for dataset in listing:
+        key = dataset["key"]
+        for filter_name in dataset["filters"]:
+            params = {filter_name: probe_values.get(filter_name, "__contract_probe__")}
+            json_response = client.get(f"/api/v1/meta/dataset/{key}", params=params)
+            assert json_response.status_code in {200, 503}, (key, filter_name)
+            csv_response = client.get(f"/api/v1/reports/dataset/{key}.csv", params=params)
+            assert csv_response.status_code in {200, 503}, (key, filter_name)
+
+
 def test_csv_export_matches_the_json_scope(client):
     """The explorer's download link passes search/filters/sort through, so the
     CSV holds exactly the rows the table shows — not the whole table."""

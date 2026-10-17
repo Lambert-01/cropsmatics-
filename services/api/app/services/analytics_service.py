@@ -738,8 +738,12 @@ def productivity(f: AnalyticsFilters) -> dict:
 
     valid = g[g["gap_index"].notna()]
     valid_ref = g_ref[g_ref["gap_index"].notna()]
+    # The KPI is displayed beside the selected district rows. Summarize the
+    # benchmark attached to those rows, while keeping the benchmark itself
+    # computed from the full reference cohort above. Using ``valid_ref`` here
+    # made a peer-group headline disagree with the row the user was inspecting.
     benchmark_median = (
-        float(valid_ref["benchmark_yield_kg_ha"].median()) if not valid_ref.empty else None
+        float(valid["benchmark_yield_kg_ha"].median()) if not valid.empty else None
     )
     summary = gap_summary(valid["gap_index"] if not valid.empty else pd.Series(dtype=float))
     # The period and source describe the rows actually displayed; when the

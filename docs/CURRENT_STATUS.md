@@ -1,11 +1,13 @@
 # Current Status
 
-Reviewed: **2026-10-17**, latest working-tree changes after `48e55d6`.
+Reviewed: **2026-10-18**, latest working-tree changes after `48e55d6`.
+Working branch: `review/latest-improvements-2026-10-17`.
 
-**Verdict: substantial repairs are implemented and tests pass, but this is not
-yet a fully verified production release.** In particular, operational ownership
-and AI claim binding remain release risks. This review did not change analytical
-algorithms or operational data. The remaining task is specified in
+**Verdict: the previously identified code defects are repaired locally, but this
+is not yet a fully verified production release.** The remaining work is now
+deployment/data-evidence/UX verification rather than the earlier ownership,
+claim-binding, benchmark-KPI, sync-state or dataset-contract defects. The
+remaining task is specified in
 [REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).
 
 ## Confirmed Improvements
@@ -24,67 +26,23 @@ algorithms or operational data. The remaining task is specified in
 | Maps | Negative interior values interpolate distinctly and diverging legend stops align with zero's position. Tests cover mixed, one-sided and asymmetric domains. |
 | Sources | Cards permit shrinking and source text wraps. All four Dashboard source disclosures were expanded after requests settled at 1440, 1920, 768 and 390 px; document width matched each viewport. The old overflow reproduction is repaired. |
 | Scenario explanations | `shortfall_pct`, `purpose`, `reference_n` and eligibility survive scenario row projection. API/ML parity tests include explanation fields. |
-| Operational persistence | New farm upload route and migration persist farm identity and additional harvest fields. Queue entries wait for a server response; uploads arriving in either order can link. Access control remains incomplete. |
+| Operational persistence | New farm upload route and migration persist farm identity and additional harvest fields. Queue entries wait for a server response; uploads arriving in either order can link. Authenticated ownership and entity-aware sync status are now implemented locally. |
 
-## Open Findings
+## Latest repair pass
 
-### P1: Operational APIs Lack Authentication And Ownership
+| Finding from the prior audit | Current result and evidence |
+|---|---|
+| Operational ownership | **Implemented locally.** Farm and harvest create/read/risk routes require an access token, scope records to the signed-in `FarmerProfile`, reject foreign idempotency keys and conflicting replays, and protect cross-account farm linking. `FarmerProfile.user_id` now has a unique database constraint; first-profile creation uses a savepoint for concurrent requests. |
+| AI crop and period binding | **Implemented locally.** The claim guard uses the canonical crop dictionary and attaches crop/period mentions to each value-bearing comparison segment. Wrong-crop and swapped-period regressions are covered; the grounded-answer suite passes. |
+| Peer benchmark headline | **Implemented locally.** The benchmark is still computed over the full reference cohort, while the KPI summarizes the benchmark values on the rows being displayed. A peer-group district-selection regression now pins KPI/row agreement. |
+| Mobile local sync status | **Implemented locally.** Farm, harvest and outbox status transitions are entity-aware and transactional; queue flush is single-flight and only acknowledges a row after a complete server response. |
+| Dataset catalog contract | **Implemented locally.** Every catalog-advertised filter is forwarded through both JSON and CSV routes and exercised by a contract test. Unsupported dataset-specific filters still return an explicit 400. |
+| Ownership schema safety | **Implemented locally.** The new `9e8a2b4c7d1f_farmer_profile_ownership` migration adds the one-to-one profile constraint. The mobile-sync downgrade checks for anonymous farms before destructive DDL and fails closed. |
 
-`services/api/app/api/v1/farms.py:39` accepts a profile without a current-user
-dependency, stores `farmer_id=None`, and looks up replays by a global client UUID.
-`_link_pending_harvests` links any matching UUID without checking its owner.
-Harvest create/read/risk routes likewise have no owner enforcement. Mobile's
-legacy request helper sends no bearer token.
+## Remaining Work
 
-Tests demonstrate anonymous uploads succeed; hiding coordinates in responses is
-not access control. Do not treat this as a safe multi-user collection service.
-Require authenticated ownership (or a deliberately reviewed device identity
-protocol), scoped idempotency and cross-account denial tests before collecting
-real personal field records. Migrations must be rehearsed against disposable
-PostGIS, never production test data.
-
-### P1: AI Crop And Period Attribution Still Bypass Validation
-
-The guard now recognizes all canonical district names, but crop vocabulary at
-`services/api/app/ai/claim_guard.py:512` still comes only from evidence/request
-scope. With evidence for Bugesera maize yield 952.2 kg/ha, this answer is accepted
-as `mode=llm`, `used_fallback=false`: "Rice yield in Bugesera was 952.2 kg/ha in
-2026B."
-
-Period checks at `claim_guard.py:796` are still sentence-wide. Evidence for
-2025B=952.2 and 2026B=1555.4 accepts: "In Bugesera maize yield was 1555.4 kg/ha
-in 2025B and 952.2 kg/ha in 2026B." The correctly paired control also passes.
-These are deterministic validator reproductions, not credentialed provider
-tests or claims about observed production answers.
-
-### P2: Peer Benchmark Headline Disagrees With Its District Row
-
-`analytics_service.py:741` computes the benchmark headline median across the
-whole reference frame. Under `agro_ecological_peer_group`, Maize/Bugesera/2026B
-returns a headline benchmark of 1150.4 kg/ha, but that district's row uses
-1185.630989 kg/ha and gap 19.6924%. Keep the reference cohort stable, but summarize
-the benchmark values attached to displayed rows and expose each peer cohort.
-The national median regression fix is real; it does not repair this strategy.
-
-### P2: Farm Record Status Is Not Updated Locally
-
-`apps/mobile/src/database/index.ts:414` marks the outbox and
-`harvest_registration` synced, but never updates `local_farm.sync_status`.
-The new queue calls this helper for a farm, leaving the stored farm PENDING after
-a successful upload. The queue tests mock the helper and therefore do not test
-the resulting SQLite row. Make completion/failure/conflict entity-aware and
-transactional, and test the database changes after restart.
-
-### P2: Dataset Catalog Advertises Unsupported HTTP Filters
-
-The catalog advertises `geography_level`, `farmer_scale`, district/crop codes and
-source identifiers, but the JSON/CSV routers do not declare all of them.
-`GET /meta/dataset/crop_productivity?geography_level=DISTRICT` returns 400 while
-the same catalog lists `geography_level` as accepted. Either support advertised
-dimensions end to end or expose the actual HTTP contract only. Ordinary
-indicator/domain filtering is repaired.
-
-### Further Workflow Gaps
+The earlier P1/P2 code findings are closed in the working tree. Remaining gaps
+are verification or product-evidence work:
 
 - Share-plan helpers preserve partial cases, but the form restores them into
   fixed lower/main/higher controls. Browser coverage is needed to prove the
@@ -93,11 +51,10 @@ indicator/domain filtering is repaired.
 - Python export recomputes the request against current data. It does not bind to
   an expected calculation/dataset version, so a data refresh between Calculate
   and Export can change the downloaded result. Add snapshot parity checks.
-- Sequential replay tests do not establish concurrent idempotency. The new farm
-  route performs select-then-insert without handling a concurrent unique-key
-  race, and queue flushing has no single-flight guard.
-- The migration downgrade cannot restore a non-null farmer ID when newly created
-  anonymous farms remain. Document/rehearse rollback and ownership backfill.
+- Ownership and migration tests still need a disposable PostGIS rehearsal before
+  deployment. The local SQLite fixture cannot prove PostgreSQL/PostGIS DDL.
+- Physical Android restart/reconnect/idempotency testing is still required for
+  the Expo app; unit tests cannot replace a device run.
 
 ## Data And Product Work Still Pending
 
@@ -127,7 +84,7 @@ Fresh checks against this increment:
 |---|---|
 | API + scripts + ML pytest | 988 passed, 28 skipped; exit 0 |
 | Web Vitest | 444 passed in 31 files; exit 0 |
-| Mobile Vitest | 346 passed in 26 files; exit 0 |
+| Mobile Vitest | 347 passed in 26 files; exit 0 |
 | Ruff | Passed; exit 0 |
 | Web lint and production build | Passed; exit 0; 19 static pages generated |
 | Mobile lint | Passed; exit 0 |
@@ -136,7 +93,18 @@ Fresh checks against this increment:
 | Desktop plan workflow | Python CSV downloaded with normal metadata header; outdated-result notice and a full plan-link restoration passed |
 | Expanded Dashboard sources | All four disclosures opened at all four viewports; no document overflow |
 | Old reproduction suite | Projection empty-history/season/cutoff/case and district-attribution cases now behave correctly |
-| New adversarial checks | Wrong crop and swapped periods still accepted; peer KPI and advertised-filter inconsistencies reproduced |
+| New adversarial checks | Wrong crop and swapped periods rejected; peer KPI matches displayed row; every catalog filter accepted by JSON and CSV |
+
+Focused checks in this pass:
+
+| Check | Result |
+|---|---|
+| `pytest tests/test_ai_claim_guard.py` | 43 passed |
+| `pytest tests/test_farm_sync.py` | 25 passed |
+| `pytest tests/test_dataset_filters.py` | 17 passed |
+| `pytest tests/test_yield_intelligence.py` | passed, including peer-headline regression |
+| `npm test -- --run` in `apps/mobile` | 347 passed in 26 files |
+| `npm run typecheck` in `apps/mobile` | passed |
 
 An initial mobile typecheck used a stale installation and picked up React 18 DOM
 types from the parent tree. `npm ci` restored the declared React 19 type package
@@ -153,9 +121,9 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-Pending an owner decision about promoting the unsecured operational routes,
-this increment is prepared on `review/latest-improvements-2026-10-17` rather
-than automatically changing the production branch.
+This increment is prepared on `review/latest-improvements-2026-10-17`. After
+promotion, production must be verified against the exact deployed commit; a
+green local suite does not prove Render, Vercel, or a physical APK is using it.
 
 ## Repository Hygiene
 

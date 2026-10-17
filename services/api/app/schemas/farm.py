@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FarmCreate(BaseModel):
+    # Unknown fields are rejected, never silently dropped: a client that sends a
+    # field the server ignores would believe data was stored that was not.
+    model_config = ConfigDict(extra="forbid")
+
     district: str
     name: str | None = Field(default=None, max_length=160)
     sector: str | None = Field(default=None, max_length=64)

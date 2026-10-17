@@ -721,8 +721,15 @@ def dataset_csv(
     crop: str | None = None,
     province: str | None = None,
     district: str | None = None,
+    district_code: str | None = None,
     indicator_code: str | None = None,
     domain: str | None = None,
+    canonical_crop_name: str | None = None,
+    crop_code: str | None = None,
+    geography_level: str | None = None,
+    farmer_scale: str | None = None,
+    row_scope: str | None = None,
+    source_id: str | None = None,
     sort_by: str | None = None,
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> StreamingResponse:
@@ -747,6 +754,15 @@ def dataset_csv(
         district=district,
         indicator_code=indicator_code,
         domain=domain,
+        extra={
+            "district_code": district_code,
+            "canonical_crop_name": canonical_crop_name,
+            "crop_code": crop_code,
+            "geography_level": geography_level,
+            "farmer_scale": farmer_scale,
+            "row_scope": row_scope,
+            "source_id": source_id,
+        },
     )
     try:
         df = dataset_service.records_for_export(

@@ -1,6 +1,6 @@
 # SAS Coverage Audit — 2022 through 2026 Season B
 
-**Generated:** 2026-10-12
+**Generated:** 2026-10-18
 **Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `services/api/.venv/bin/python -m scripts.data.inventory_sas_workbooks` after `make install-api`)
 **Scope:** current local source archive and regenerated sheet inventory
 
@@ -193,3 +193,11 @@ forecast trainer exclude a row.
    include them only in a documented sensitivity run.
 5. Review the remaining 304 `not_yet_mapped` sheets, starting with both distinct
    2025B originals once their publication precedence is settled.
+
+## Current review note
+
+The 2025B precedence decision remains intentionally open in this revision. The
+two standalone workbooks have different hashes and neither is silently promoted
+over the other. The serving panel continues to use the mapped annual releases;
+this audit update changes the review date only and does not claim that an
+unreviewed 2025B worksheet is part of the analytical panel.

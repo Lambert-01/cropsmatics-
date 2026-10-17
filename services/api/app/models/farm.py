@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, Float, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -23,6 +23,7 @@ class Cooperative(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
 
 class FarmerProfile(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "farmer_profile"
+    __table_args__ = (UniqueConstraint("user_id", name="uq_farmer_profile_user_id"),)
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("app_user.id"), index=True)
     cooperative_id: Mapped[uuid.UUID | None] = mapped_column(

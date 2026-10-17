@@ -6,6 +6,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { listFarms, listHarvests, listPendingOutbox } from "../../src/database";
+import { clearSession, getSession } from "../../src/services/auth/session";
 import { SUPPORTED_LANGUAGES, strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { radius, spacing } from "../../src/theme";
@@ -17,7 +18,6 @@ export default function ProfileScreen() {
   const { colors, typography } = useTheme();
   const panel = useThemedStyles(makePanel);
   const secondaryButton = useThemedStyles(makeSecondaryButton);
-  const disabledButton = { ...secondaryButton, opacity: 0.6 };
   const router = useRouter();
   const { language, setLanguage } = useAppStore();
   const t = strings(language);
@@ -25,6 +25,7 @@ export default function ProfileScreen() {
   const [farms, setFarms] = useState<LocalFarm[]>([]);
   const [harvestCount, setHarvestCount] = useState(0);
   const [pending, setPending] = useState(0);
+  const [signedIn, setSignedIn] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
         setFarms(listFarms());
         setHarvestCount(listHarvests().length);
         setPending(listPendingOutbox().length);
+        void getSession().then((session) => setSignedIn(Boolean(session)));
       } catch {
         setFarms([]);
       }
@@ -132,13 +134,30 @@ export default function ProfileScreen() {
         <Row label={t.appVersion} value={version} />
       </View>
 
-      {/* Sign-out is shown only as a clearly-disabled capability until auth exists. */}
+      {/* Private operational records require an account; public intelligence does not. */}
       <View style={panel}>
-        <Pressable accessibilityRole="button" disabled style={disabledButton}>
-          <Ionicons name="log-out-outline" size={16} color={colors.muted} />
-          <Text style={{ color: colors.muted, fontSize: 13 }}>{t.signOut}</Text>
-        </Pressable>
-        <Text style={typography.caption}>{t.authNotEnabled}</Text>
+        <Text style={typography.caption}>{signedIn ? t.authSignedIn : t.authSignedOut}</Text>
+        {signedIn ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void clearSession().then(() => setSignedIn(false));
+            }}
+            style={secondaryButton}
+          >
+            <Ionicons name="log-out-outline" size={16} color={colors.forest} />
+            <Text style={{ color: colors.forest, fontSize: 13 }}>{t.signOut}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/auth")}
+            style={secondaryButton}
+          >
+            <Ionicons name="lock-closed-outline" size={16} color={colors.forest} />
+            <Text style={{ color: colors.forest, fontSize: 13 }}>{t.authSignIn}</Text>
+          </Pressable>
+        )}
       </View>
     </ScreenLayout>
   );

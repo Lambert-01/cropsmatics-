@@ -64,6 +64,7 @@ const FAILURE_ICONS: Record<AskFailureKind, keyof typeof Ionicons.glyphMap> = {
   validation: "create-outline",
   unsupported: "help-circle-outline",
   not_found: "search-outline",
+  auth: "lock-closed-outline",
   unknown: "alert-circle-outline",
 };
 
@@ -76,6 +77,7 @@ const FAILURE_IS_FAULT: Record<AskFailureKind, boolean> = {
   validation: false,
   unsupported: false,
   not_found: false,
+  auth: true,
 };
 
 export default function AskScreen() {

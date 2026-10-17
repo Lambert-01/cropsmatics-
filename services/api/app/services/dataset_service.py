@@ -160,8 +160,15 @@ DATASET_JSON_PARAMS: frozenset[str] = frozenset(
         "crop",
         "province",
         "district",
+        "district_code",
         "indicator_code",
         "domain",
+        "canonical_crop_name",
+        "crop_code",
+        "geography_level",
+        "farmer_scale",
+        "row_scope",
+        "source_id",
         "sort_by",
         "sort_dir",
     }
@@ -381,6 +388,7 @@ def parse_filters(
     district: str | None = None,
     indicator_code: str | None = None,
     domain: str | None = None,
+    extra: dict[str, str | int | None] | None = None,
 ) -> dict[str, str]:
     """Canonicalize explorer query params into a validated filter dict.
 
@@ -407,6 +415,9 @@ def parse_filters(
     ):
         if value:
             requested[name] = value
+    for name, value in (extra or {}).items():
+        if value is not None and str(value) != "":
+            requested[name] = str(value)
     return requested
 
 

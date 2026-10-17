@@ -1,5 +1,7 @@
 import Constants from "expo-constants";
 
+import { clearSession, getSession, saveSession } from "../auth/session";
+
 /** The deployed API. Release builds use this when nothing overrides it. */
 export const PRODUCTION_API_BASE_URL = "https://cropsmatics-api.onrender.com/api/v1";
 
@@ -104,7 +106,8 @@ export class ApiError extends Error {
     | "validation"
     | "unsupported"
     | "server"
-    | "unknown";
+    | "unknown"
+    | "auth";
   readonly status: number | null;
   /** The API's machine-readable code, when the server sent one. */
   readonly code: string | null;
@@ -235,18 +238,28 @@ export class ServerError extends ApiError {
   }
 }
 
+export class AuthRequiredError extends ApiError {
+  constructor(message = "Sign in to sync field records") {
+    super("auth", message, 401, "AUTH_REQUIRED", false);
+  }
+}
+
 const DEFAULT_TIMEOUT_MS = 12000;
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function send(path: string, init: RequestInit | undefined, accessToken?: string): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
   let res: Response;
   try {
+    const headers = new Headers(init?.headers);
+    headers.set("Content-Type", "application/json");
+    headers.set("Accept", "application/json");
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
     res = await fetch(`${BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      signal: controller.signal,
       ...init,
+      headers,
+      signal: controller.signal,
     });
   } catch (error) {
     if ((error as Error)?.name === "AbortError") {
@@ -256,8 +269,38 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } finally {
     clearTimeout(timeout);
   }
+  return res;
+}
+
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const session = await getSession();
+  let res = await send(path, init, session?.access_token);
+
+  // Refresh exactly once. Public analytical requests have no session and are
+  // unchanged; operational requests recover from an expired access token
+  // without exposing the refresh token outside SecureStore.
+  if (res.status === 401 && session?.refresh_token && !path.endsWith("/auth/refresh")) {
+    try {
+      const refreshed = await send("/auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+      if (!refreshed.ok) throw new Error("refresh failed");
+      const next = (await refreshed.json()) as {
+        access_token: string;
+        refresh_token: string;
+        token_type: string;
+      };
+      await saveSession(next);
+      res = await send(path, init, next.access_token);
+    } catch {
+      await clearSession();
+      throw new AuthRequiredError();
+    }
+  }
 
   if (!res.ok) {
+    if (res.status === 401) throw new AuthRequiredError();
     if (res.status === 404) throw new NotFoundError();
     if (res.status === 422) throw new ValidationError();
     if (res.status >= 500) {
