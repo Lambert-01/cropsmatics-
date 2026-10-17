@@ -9,6 +9,8 @@ and sorting is restricted to existing columns with a safe direction flag.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 import numpy as np
 import pandas as pd
 from fastapi import HTTPException, status
@@ -143,6 +145,29 @@ FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
 # Common aliases accepted from the generic analytics filter vocabulary.
 _COLUMN_ALIASES = {"crop": "canonical_crop_name"}
 
+# Query params the explorer endpoints declare. FastAPI silently ignores
+# undeclared query parameters, which would let a typo or a dimension the
+# endpoint never asked for pass as "applied"; the explorer promises the
+# opposite — see ``assert_known_query_params``.
+DATASET_JSON_PARAMS: frozenset[str] = frozenset(
+    {
+        "limit",
+        "offset",
+        "search",
+        "period_code",
+        "year",
+        "season",
+        "crop",
+        "province",
+        "district",
+        "indicator_code",
+        "domain",
+        "sort_by",
+        "sort_dir",
+    }
+)
+DATASET_CSV_PARAMS: frozenset[str] = DATASET_JSON_PARAMS - {"limit", "offset"}
+
 # Which group a dataset belongs to. The explorer leads with the current
 # multi-period tables and keeps the legacy single-release 2025 Season B extracts
 # grouped as an archive rather than deleting them: models and tests still read
@@ -191,6 +216,39 @@ def _resolve_column(df: pd.DataFrame, requested: str) -> str | None:
     return None
 
 
+def assert_known_query_params(seen: Iterable[str], allowed: frozenset[str]) -> None:
+    """Refuse query params the endpoint does not declare.
+
+    Undeclared query params are dropped by FastAPI without a trace, so a typo
+    (``?indicatr_code=…``) or a dimension this endpoint never asked for would
+    look like it had been applied. The explorer's contract is explicit: an
+    unknown parameter is a 400 naming it, never a silent no-op.
+    """
+    unknown = sorted({name for name in seen if name not in allowed})
+    if unknown:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "unknown query parameter(s): "
+            + ", ".join(unknown)
+            + f"; accepted: {', '.join(sorted(allowed))}",
+        )
+
+
+def _accepted_filter_names(key: str) -> list[str]:
+    """Query param names a client may actually send for this dataset.
+
+    The declared whitelist plus its generic aliases (``crop`` for
+    ``canonical_crop_name``), because the API accepts both and a client should
+    not have to guess which spelling works.
+    """
+    allowed = FILTERABLE_COLUMNS.get(key, ())
+    names = list(allowed)
+    for alias, target in _COLUMN_ALIASES.items():
+        if target in allowed and alias not in names:
+            names.append(alias)
+    return names
+
+
 def list_datasets() -> list[dict]:
     """Every whitelisted dataset, current first.
 
@@ -209,6 +267,10 @@ def list_datasets() -> list[dict]:
             "group_label": GROUP_LABELS.get(
                 DATASET_GROUPS.get(key, GROUP_CURRENT), GROUP_LABELS[GROUP_CURRENT]
             ),
+            # The exact-match columns this dataset accepts, so the explorer UI
+            # can render dataset-appropriate controls instead of offering
+            # filters the API would only reject with a 400.
+            "filters": _accepted_filter_names(key),
         }
         for key, (label, _, source_id) in DATASETS.items()
     ]
@@ -244,15 +306,20 @@ def _resolved_meta(key: str, label: str, source_id: str, df: pd.DataFrame) -> tu
     return label, source_id
 
 
-def fetch(
+def _selected(
     key: str,
-    limit: int = 100,
-    offset: int = 0,
     search: str | None = None,
     filters: dict[str, str] | None = None,
     sort_by: str | None = None,
     sort_dir: str = "asc",
-) -> dict:
+) -> tuple[str, str, pd.DataFrame]:
+    """Resolve a whitelisted dataset to a filtered, searched, sorted frame.
+
+    One implementation shared by the paginated JSON endpoint and the CSV
+    export, so a download cannot silently disagree with what is on screen.
+    Raises ``KeyError`` for an unknown key and ``HTTPException(400)`` for a
+    filter or sort the dataset does not support.
+    """
     if key not in DATASETS:
         raise KeyError(key)
     label, loader_name, source_id = DATASETS[key]
@@ -281,9 +348,12 @@ def fetch(
     # --- free-text search over all columns -----------------------------------
     if search:
         needle = search.lower()
+        # regex=False: this is a literal substring search over user input, and
+        # dataset cells freely contain regex punctuation ("[", "(", "*"). With
+        # regex on, searching for "[ " raised re.error -> an unhandled 500.
         mask = (
             df.astype(str)
-            .apply(lambda col: col.str.lower().str.contains(needle, na=False))
+            .apply(lambda col: col.str.lower().str.contains(needle, na=False, regex=False))
             .any(axis=1)
         )
         df = df[mask]
@@ -297,6 +367,59 @@ def fetch(
             )
         ascending = sort_dir != "desc"
         df = df.sort_values(by=sort_by, ascending=ascending, na_position="last")
+
+    return label, source_id, df
+
+
+def parse_filters(
+    *,
+    period_code: str | None = None,
+    year: int | None = None,
+    season: str | None = None,
+    crop: str | None = None,
+    province: str | None = None,
+    district: str | None = None,
+    indicator_code: str | None = None,
+    domain: str | None = None,
+) -> dict[str, str]:
+    """Canonicalize explorer query params into a validated filter dict.
+
+    Shared by the JSON endpoint and the CSV export so both apply identical
+    scope. The period is canonicalized (unknown period -> 422, same contract as
+    the JSON endpoint) and empty values are dropped, so an absent param and an
+    empty string behave identically.
+    """
+    requested: dict[str, str] = {}
+    if period_code:
+        try:
+            requested["period_code"] = period_service.require(period_code)
+        except period_service.UnknownPeriodError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    if year is not None:
+        requested["year"] = str(year)
+    for name, value in (
+        ("season", season),
+        ("crop", crop),
+        ("province", province),
+        ("district", district),
+        ("indicator_code", indicator_code),
+        ("domain", domain),
+    ):
+        if value:
+            requested[name] = value
+    return requested
+
+
+def fetch(
+    key: str,
+    limit: int = 100,
+    offset: int = 0,
+    search: str | None = None,
+    filters: dict[str, str] | None = None,
+    sort_by: str | None = None,
+    sort_dir: str = "asc",
+) -> dict:
+    label, source_id, df = _selected(key, search, filters, sort_by, sort_dir)
 
     total = int(len(df))
     window = df.iloc[offset : offset + limit].replace({np.nan: None})
@@ -314,8 +437,14 @@ def fetch(
     }
 
 
-def records_for_export(key: str) -> pd.DataFrame:
-    if key not in DATASETS:
-        raise KeyError(key)
-    _, loader_name, _ = DATASETS[key]
-    return getattr(repo, loader_name)()
+def records_for_export(
+    key: str,
+    search: str | None = None,
+    filters: dict[str, str] | None = None,
+    sort_by: str | None = None,
+    sort_dir: str = "asc",
+) -> pd.DataFrame:
+    """Full (unpaginated) frame for CSV export, honouring the same scope as
+    ``fetch`` so the download matches what the explorer is showing."""
+    _, _, df = _selected(key, search, filters, sort_by, sort_dir)
+    return df

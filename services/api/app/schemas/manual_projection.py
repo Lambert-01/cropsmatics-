@@ -159,6 +159,9 @@ class ResolvedSelection(BaseModel):
     metric_unit: str
     origin_period: str
     origin_label: str
+    #: ``observed`` when the origin is a published observation; ``assumed``
+    #: when it is only a planning period (no published same-season data).
+    origin_kind: Literal["observed", "assumed"] = "observed"
     horizon_steps: int
     target_periods: list[str] = Field(default_factory=list)
 
@@ -193,6 +196,39 @@ class ProjectionExportRow(BaseModel):
     unit: str
     case: str | None = None
     source_id: str | None = None
+    note: str | None = None
+
+
+class ProjectionOriginOption(BaseModel):
+    """One selectable planning origin, offered from the scope's actual coverage.
+
+    ``observed`` options carry the published value they would start from;
+    ``assumed`` options are period-axis planning periods (a personal plan with
+    no published history) and carry no value — the two kinds are never mixed
+    into one indistinguishable list.
+    """
+
+    period_code: str
+    period_label: str
+    kind: Literal["observed", "assumed"]
+    value: float | None = None
+    unit: str | None = None
+    source_id: str | None = None
+
+
+class ProjectionOriginsResponse(BaseModel):
+    """Selectable origins for one crop/geography/season scope.
+
+    Derived from the panel rather than a static list: a period with no
+    published same-season observation for this scope is simply not offered,
+    because selecting it would only ever produce ``origin_not_observed``.
+    """
+
+    season: str
+    metric: str
+    origins: list[ProjectionOriginOption] = Field(default_factory=list)
+    #: Plain-language reason when the list is short or empty (no same-season
+    #: history, axis without that season); None when the list is full coverage.
     note: str | None = None
 
 

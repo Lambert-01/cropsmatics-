@@ -9,6 +9,8 @@ import type {
   AssistantContext,
   ManualProjectionRequest,
   PriorityScenarioRequest,
+  ProjectionMethod,
+  ProjectionMetric,
   ScenarioRequest,
   SensitivityRequest,
 } from "@/types";
@@ -175,6 +177,32 @@ export function useSensitivity() {
 export function useManualProjection() {
   return useMutation({
     mutationFn: (body: ManualProjectionRequest) => api.manualProjection(body),
+  });
+}
+
+/**
+ * Origin options for the manual projection's origin selector: periods with a
+ * published same-season observation for this scope and season, chronological
+ * with the latest last (the default the calculation starts from when no origin
+ * is chosen). A query, not part of the calculate mutation — it is scope
+ * metadata, cached per scope, and an empty list with a note is an honest
+ * answer rather than a loading state.
+ */
+export function useProjectionOrigins(
+  params: {
+    crop: string;
+    district?: string | null;
+    season: "A" | "B" | "C";
+    metric: ProjectionMetric;
+    method: ProjectionMethod;
+  },
+  enabled = Boolean(params.crop && params.season),
+) {
+  return useQuery({
+    queryKey: ["projection-origins", params],
+    queryFn: () => api.projectionOrigins(params),
+    staleTime: FIVE_MIN,
+    enabled,
   });
 }
 

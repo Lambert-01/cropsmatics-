@@ -52,7 +52,13 @@ export function SourceDisclosure({
   return (
     <div
       className={cn(
-        "mt-3 border-t border-forest/5 pt-2 text-[11px] leading-relaxed text-slate-500",
+        // Source ids are long, comma-joined and unbreakable ("NISR_SAS_2025B_…"
+        // repeated six times). `break-words` lets each token wrap inside its
+        // own track instead of widening the document, and `min-w-0` lets the
+        // block shrink inside flex/grid parents that would otherwise size to
+        // their content. The full identifier stays readable; nothing is
+        // clipped away by a global `overflow-x-hidden`.
+        "mt-3 min-w-0 border-t border-forest/5 pt-2 text-[11px] leading-relaxed text-slate-500 break-words",
         className,
       )}
     >

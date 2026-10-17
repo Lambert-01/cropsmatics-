@@ -44,7 +44,16 @@ def candidate_label(district: str, crop: str) -> str:
 
 
 def _rank_rows(ranked: list[dict], *, top_n: int, min_score: float) -> list[dict]:
-    """Ranked candidates reduced to the fields a comparison needs."""
+    """Ranked candidates reduced to the fields a comparison needs.
+
+    The projection is deliberately shallow: identity, position, score, band —
+    and the engine's **explanation** fields. ``shortfall_pct``, ``purpose``
+    and ``reference_n`` say what the score is about and which population it is
+    relative to; dropping them would leave a scenario row that only reports
+    where it landed, not why. Eligibility travels too, so a projected row can
+    never claim eligibility it did not have (every row here is eligible, but
+    the fields are carried rather than assumed).
+    """
     rows: list[dict] = []
     for index, row in enumerate(ranked):
         score = float(row.get("score", 0.0))
@@ -62,6 +71,15 @@ def _rank_rows(ranked: list[dict], *, top_n: int, min_score: float) -> list[dict
                 "band": band,
                 "in_priority_group": band in PRIORITY_BANDS,
                 "in_top_n": (index + 1) <= top_n,
+                # Explanation fields from the ranking engine (see
+                # ``intervention_priority.rank``): the published shortfall, the
+                # purpose the row was ranked under, and the reference
+                # population the score was normalized against.
+                "shortfall_pct": row.get("shortfall_pct"),
+                "purpose": row.get("priority_purpose") or row.get("purpose"),
+                "reference_n": row.get("reference_n"),
+                "eligible": bool(row.get("eligible", True)),
+                "eligibility_reason": row.get("eligibility_reason"),
             }
         )
     return rows

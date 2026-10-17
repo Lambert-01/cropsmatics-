@@ -38,6 +38,9 @@ import type {
   PriorityScenarioRequest,
   PriorityScenarioResponse,
   ProductivityResponse,
+  ProjectionMetric,
+  ProjectionMethod,
+  ProjectionOriginsResponse,
   ReadinessResponse,
   ReportCatalogEntry,
   ScenarioRequest,
@@ -174,6 +177,36 @@ async function post<T>(path: string, body: unknown, qs = "", signal?: AbortSigna
     throw await failure(path, res);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * POST a body and save the response as a file, under the name the server
+ * declared in `Content-Disposition` (a calculation id, not a browser guess).
+ * Failures surface as a normal `ApiFailure`, so the caller can show the real
+ * refusal instead of a download that silently produced nothing.
+ */
+async function download(path: string, body: unknown, fallbackName: string): Promise<void> {
+  const res = await request(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/csv" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw await failure(path, res);
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const href = URL.createObjectURL(await res.blob());
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = match?.[1] ?? fallbackName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    URL.revokeObjectURL(href);
+  }
 }
 
 export const api = {
@@ -417,6 +450,38 @@ export const api = {
    */
   manualProjection: (body: ManualProjectionRequest) =>
     post<ManualProjectionResponse>("/scenarios/manual-projection", body),
+
+  /**
+   * Origin options for the projection's origin selector: the periods with a
+   * published same-season observation for this exact scope (or planning
+   * periods for a personal plan without history), chronological, latest last —
+   * the same list the calculation would accept, derived from the same panel.
+   */
+  projectionOrigins: (params: {
+    crop: string;
+    district?: string | null;
+    season: "A" | "B" | "C";
+    metric: ProjectionMetric;
+    method: ProjectionMethod;
+  }) => {
+    const qs = new URLSearchParams({
+      crop: params.crop,
+      season: params.season,
+      metric: params.metric,
+      method: params.method,
+    });
+    if (params.district) qs.set("district", params.district);
+    return get<ProjectionOriginsResponse>("/scenarios/manual-projection/origins", qs.toString());
+  },
+
+  /**
+   * The Python-generated CSV of a manual projection: POST the same plan the
+   * Calculate button sends, receive the identical calculation as a file whose
+   * every row carries the plan's full context. The browser computes no
+   * projection arithmetic at all.
+   */
+  manualProjectionCsv: (body: ManualProjectionRequest) =>
+    download("/reports/manual-projection.csv", body, "manual-projection.csv"),
 
   /**
    * Market Intelligence. With no verified price feed loaded these answer

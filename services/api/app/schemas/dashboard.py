@@ -154,6 +154,10 @@ class ProductivityResponse(BaseModel):
     # that as "no gap anywhere".
     gap_summary: dict | None = None
     rows: list[dict] = Field(default_factory=list)
+    #: The comparable population each benchmark was computed over (scope,
+    #: sample size, strategy). Present so a client can state that inspecting
+    #: one district did not change its benchmark.
+    reference: dict | None = None
     provenance: Provenance
 
 

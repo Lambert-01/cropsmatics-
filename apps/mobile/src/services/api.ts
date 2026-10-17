@@ -62,6 +62,21 @@ export interface HarvestResponse {
   sync_status: string;
 }
 
+export interface FarmPayload {
+  client_uuid: string;
+  name: string;
+  district: string;
+  sector?: string | null;
+  farm_size_ha?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface FarmResponse {
+  id: string;
+  client_uuid: string | null;
+}
+
 export interface RiskPayload {
   crop: string;
   expected_quantity_kg?: number | null;
@@ -75,6 +90,8 @@ export const api = {
   baseUrl: BASE,
   createHarvest: (payload: HarvestPayload) =>
     request<HarvestResponse>("/harvests", { method: "POST", body: JSON.stringify(payload) }),
+  createFarm: (payload: FarmPayload) =>
+    request<FarmResponse>("/farms", { method: "POST", body: JSON.stringify(payload) }),
   scoreRisk: (harvestId: string) =>
     request<RiskResult & { harvest_id: string }>(`/harvests/${harvestId}/risk`, { method: "POST" }),
   scorePostHarvestRisk: (payload: RiskPayload) =>

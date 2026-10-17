@@ -23,6 +23,7 @@ from app.services.analytics_service import (
     gapped,
     period_of,
     productivity_frame,
+    reference_filters,
     split_kpis,
 )
 
@@ -254,8 +255,16 @@ def overview(f: AnalyticsFilters) -> dict:
         # A national overview has no district snapshot to name.
         return _national_overview(f, coverage, level, scope=scope)
 
+    # Benchmarks are computed over the reference population (the district
+    # inspection dropped) and the display is narrowed afterwards, so inspecting
+    # one district never redefines its own benchmark - the same invariant as
+    # analytics_service.productivity and map_service.district_metrics.
+    ref_filters = reference_filters(frame_filters)
+    ref_df = apply_filters(productivity_frame(ref_filters), ref_filters)
+    g_ref = gapped(ref_df, f.benchmark_strategy)
+    g = g_ref if ref_filters is frame_filters else apply_filters(g_ref, frame_filters)
+    # The display-scoped pre-gap frame, used only as a period/source fallback.
     df = apply_filters(productivity_frame(frame_filters), frame_filters)
-    g = gapped(df, f.benchmark_strategy)
     valid = g[g["yield_kg_ha"].fillna(0) > 0]
     period = period_of(g if not g.empty else df)
 

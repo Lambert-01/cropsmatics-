@@ -89,6 +89,12 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
 #: sentence-wide keyword scan would read "loss" as the label for all of them.
 _CLAUSE_BREAK = re.compile(r"[,;]|\band\b|\bwhile\b|\bbut\b|\balso\b", re.IGNORECASE)
 
+#: The *pairing* segment for entity binding: coarser than a clause - plain
+#: commas do not break it, because "In Bugesera, the yield was 952.2" must keep
+#: "Bugesera" attached to the figure. Entities and figures separated by a
+#: semicolon, "and", "while", "but" or "also" are different pairings.
+_PAIR_BREAK = re.compile(r"[;]|\band\b|\bwhile\b|\bbut\b|\balso\b", re.IGNORECASE)
+
 #: A period written either as a code (``2026B``) or as prose (``2026 Season B``).
 _PERIOD_MENTION = re.compile(r"\b(20\d{2})\s*(?:season\s*)?([abc])?\b", re.IGNORECASE)
 
@@ -323,6 +329,78 @@ def _mentions(text: str, vocabulary: set[str]) -> list[str]:
     return [term for _, term in sorted(found)]
 
 
+def _canonical_geographies() -> tuple[set[str], set[str]]:
+    """Every published district and province, from the canonical dictionary.
+
+    A district the evidence does not carry is still a real Rwandan district:
+    recognising it is what lets the guard say "the evidence says nothing about
+    Nyagatare" instead of silently skipping the pairing. A repository failure
+    degrades to the evidence-only vocabulary rather than breaking the guard.
+    """
+    try:
+        from app.repositories import dataset_repository as repo
+
+        frame = repo.districts()
+        districts = {str(v).strip() for v in frame["district"].dropna()}
+        districts = {v for v in districts if v}
+        provinces: set[str] = set()
+        if "province" in frame.columns:
+            provinces = {str(v).strip() for v in frame["province"].dropna()}
+            provinces = {v for v in provinces if v}
+        return districts, provinces
+    except Exception:  # pragma: no cover - only when the dictionary is absent
+        return set(), set()
+
+
+def _pair_segment(sentence: str, position: int) -> tuple[int, int]:
+    """The span around ``position`` that shares its entity pairing.
+
+    Broken on ``;``, ``and``, ``while``, ``but`` and ``also`` only - a plain
+    comma must not separate "In Bugesera, the yield was 952.2".
+    """
+    start = 0
+    end = len(sentence)
+    for match in _PAIR_BREAK.finditer(sentence):
+        if match.end() <= position:
+            start = match.end()
+        elif match.start() >= position:
+            end = match.start()
+            break
+    return start, end
+
+
+def _attached_districts(sentence: str, position: int, vocabulary: set[str]) -> list[str]:
+    """The district(s) a figure at ``position`` is written next to.
+
+    Within the pairing segment: a single mention is the attribution; several
+    mentions resolve to the nearest preceding one (the figure follows its
+    entity in "Bugesera (gap index 26.1), Gisagara (gap index 20.0)") or, when
+    none precedes, the nearest following one. An empty result means the segment
+    names no district and the caller falls back to sentence-wide membership.
+    """
+    seg_start, seg_end = _pair_segment(sentence, position)
+    segment = sentence[seg_start:seg_end]
+    if not segment:
+        return []
+    offset = position - seg_start
+    lowered = segment.lower()
+    located: list[tuple[int, str]] = []
+    for term in vocabulary:
+        if not term:
+            continue
+        for match in re.finditer(rf"(?<![a-z]){re.escape(term.lower())}(?![a-z])", lowered):
+            located.append((match.start(), term))
+    if not located:
+        return []
+    located.sort(key=lambda entry: entry[0])
+    if len(located) == 1:
+        return [located[0][1]]
+    preceding = [term for at, term in located if at < offset]
+    if preceding:
+        return [preceding[-1]]
+    return [located[0][1]]
+
+
 def _values_by_scope(
     items: list[EvidenceItem], entity: str
 ) -> dict[tuple[str, str, str | None], float]:
@@ -420,12 +498,17 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
     items = list(bundle.items or [])
     result = ClaimResult(ok=True)
 
-    districts = {i.district for i in items if i.district} | {
-        bundle.requested.get("district") or ""
-    }
-    provinces = {i.province for i in items if i.province} | {
-        bundle.requested.get("province") or ""
-    }
+    canonical_districts, canonical_provinces = _canonical_geographies()
+    districts = (
+        {i.district for i in items if i.district}
+        | canonical_districts
+        | {bundle.requested.get("district") or ""}
+    )
+    provinces = (
+        {i.province for i in items if i.province}
+        | canonical_provinces
+        | {bundle.requested.get("province") or ""}
+    )
     crops = {i.crop for i in items if i.crop} | {bundle.requested.get("crop") or ""}
     districts = {d for d in districts if d}
     provinces = {p for p in provinces if p}
@@ -674,16 +757,32 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
                     f"the sentence names {', '.join(sentence_crops)} but {raw_number} {unit} "
                     f"is published for {', '.join(sorted(set(scoped_crops)))} only"
                 )
-            elif (
-                sentence_districts
-                and scoped_districts
-                and not any(district in sentence_districts for district in scoped_districts)
-            ):
-                scope_mismatch = (
-                    f"the sentence names {', '.join(sentence_districts)} but {raw_number} "
-                    f"{unit} is published for {', '.join(sorted(set(scoped_districts)))} only"
-                )
-            elif (
+            elif scoped_districts:
+                # The district this figure is *written next to* decides the
+                # pairing. Sentence-wide membership would accept a swapped
+                # sentence ("952.2 in Bugesera and 1,555 in Nyagatare") because
+                # both districts appear somewhere; the segment the figure sits
+                # in does not. No district in the segment falls back to the
+                # sentence-wide check.
+                attached = _attached_districts(sentence, claim.start(), districts)
+                if attached and not any(
+                    district in attached for district in scoped_districts
+                ):
+                    scope_mismatch = (
+                        f"{raw_number} {unit} is written next to "
+                        f"{', '.join(attached)} but the matching evidence is published "
+                        f"for {', '.join(sorted(set(scoped_districts)))} only"
+                    )
+                elif (
+                    not attached
+                    and sentence_districts
+                    and not any(district in sentence_districts for district in scoped_districts)
+                ):
+                    scope_mismatch = (
+                        f"the sentence names {', '.join(sentence_districts)} but {raw_number} "
+                        f"{unit} is published for {', '.join(sorted(set(scoped_districts)))} only"
+                    )
+            if scope_mismatch is None and (
                 not sentence_districts
                 and sentence_provinces
                 and scoped_provinces
@@ -693,7 +792,7 @@ def check(answer: str, bundle: EvidenceBundle) -> ClaimResult:
                     f"the sentence names {', '.join(sentence_provinces)} but {raw_number} "
                     f"{unit} is published for {', '.join(sorted(set(scoped_provinces)))} only"
                 )
-            elif (
+            if scope_mismatch is None and (
                 sentence_periods
                 and scoped_periods
                 and not any(

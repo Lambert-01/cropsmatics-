@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.schemas.dataset import DatasetInfo, DatasetListResponse, DatasetResponse
-from app.services import dataset_service, period_service
+from app.services import dataset_service
 
 router = APIRouter(prefix="/meta/dataset", tags=["data"])
 
@@ -19,6 +19,7 @@ def list_datasets() -> DatasetListResponse:
 
 @router.get("/{key}", response_model=DatasetResponse)
 def get_dataset(
+    request: Request,
     key: str,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -35,6 +36,17 @@ def get_dataset(
     crop: str | None = Query(None),
     province: str | None = Query(None),
     district: str | None = Query(None),
+    indicator_code: str | None = Query(
+        None,
+        description=(
+            "exact indicator code; supported by the long-form practice and "
+            "post-harvest tables (see the filters list on this dataset)"
+        ),
+    ),
+    domain: str | None = Query(
+        None,
+        description="observation domain; supported where the dataset carries one",
+    ),
     sort_by: str | None = Query(None, description="any column of the dataset"),
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> DatasetResponse:
@@ -44,22 +56,19 @@ def get_dataset(
     rejects others with a 400), and sorting is limited to real columns with an
     asc/desc direction — no arbitrary expressions ever reach Pandas.
     """
-    canonical_period: str | None = None
-    if period_code:
-        try:
-            canonical_period = period_service.require(period_code)
-        except period_service.UnknownPeriodError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    requested_filters = {
-        "period_code": canonical_period or "",
-        "year": str(year) if year is not None else "",
-        "season": season or "",
-        "crop": crop or "",
-        "province": province or "",
-        "district": district or "",
-    }
-    requested_filters = {k: v for k, v in requested_filters.items() if v}
+    dataset_service.assert_known_query_params(
+        request.query_params, dataset_service.DATASET_JSON_PARAMS
+    )
+    requested_filters = dataset_service.parse_filters(
+        period_code=period_code,
+        year=year,
+        season=season,
+        crop=crop,
+        province=province,
+        district=district,
+        indicator_code=indicator_code,
+        domain=domain,
+    )
     try:
         return DatasetResponse(
             **dataset_service.fetch(

@@ -16,7 +16,7 @@ import {
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, TableSkeleton } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
-import { makeScale } from "@/features/maps/colors";
+import { legendGradient, makeScale } from "@/features/maps/colors";
 import { fmtNumber, periodLabel } from "@/lib/format";
 import {
   exclusionCounts,
@@ -151,7 +151,7 @@ export function GapRankedBars({
             <span>{fmtNumber(scale.min, 0)}%</span>
             <span
               className="h-2.5 w-40 rounded-full"
-              style={{ background: `linear-gradient(to right, ${scale.stops.join(", ")})` }}
+              style={{ background: legendGradient(scale) }}
               aria-hidden="true"
             />
             <span>{fmtNumber(scale.max, 0)}%</span>

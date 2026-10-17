@@ -449,7 +449,10 @@ describe("version 3 migration (compact provenance by default)", () => {
     expect(out.reducedMotion).toBe(true);
     expect(out.theme).toBe("dark");
     expect(out.mapLabels).toBe(false);
-    // A deliberate "expand sources" choice is preserved, not silently reversed.
+    // A stored `true` — whether a deliberate expansion or the inherited v2
+    // default the user never touched (indistinguishable on disk) — is
+    // preserved, not silently reversed: showing provenance is the safe
+    // direction. See the PREFERENCES_VERSION note in preferences.ts.
     expect(out.showSources).toBe(true);
   });
 

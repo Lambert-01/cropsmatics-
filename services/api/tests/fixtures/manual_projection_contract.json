@@ -88,6 +88,108 @@
         "origin_period": "2026B",
         "target_periods": ["2027B"]
       }
+    },
+    {
+      "name": "personal plan with an assumed origin where no same-season history exists",
+      "inputs": {
+        "crop": "Wheat",
+        "district": "Bugesera",
+        "season": "C",
+        "method": "personal",
+        "baseline": "latest_observed",
+        "horizon": 1,
+        "metric": "production_mt",
+        "assumedYield": 1000,
+        "assumedArea": 2,
+        "originPeriod": "2025C"
+      },
+      "request": {
+        "crop": "Wheat",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "C",
+        "horizon_steps": 1,
+        "metric": "production_mt",
+        "method": "personal",
+        "baseline": "latest_observed",
+        "origin_period": "2025C",
+        "assumed_yield_kg_ha": 1000,
+        "assumed_harvested_area_ha": 2
+      },
+      "expect": {
+        "origin_period": "2025C",
+        "target_periods": ["2026C"]
+      }
+    },
+    {
+      "name": "personal season C plan without an origin stays inside season C",
+      "inputs": {
+        "crop": "Wheat",
+        "district": "Bugesera",
+        "season": "C",
+        "method": "personal",
+        "baseline": "latest_observed",
+        "horizon": 1,
+        "metric": "production_mt",
+        "assumedYield": 1000,
+        "assumedArea": 2
+      },
+      "request": {
+        "crop": "Wheat",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "C",
+        "horizon_steps": 1,
+        "metric": "production_mt",
+        "method": "personal",
+        "baseline": "latest_observed",
+        "assumed_yield_kg_ha": 1000,
+        "assumed_harvested_area_ha": 2
+      },
+      "expect": {
+        "origin_period": "2025C",
+        "target_periods": ["2026C"]
+      }
+    },
+    {
+      "name": "ordered assumption cases with a negative lower case",
+      "inputs": {
+        "crop": "Maize",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "percent_change",
+        "baseline": "latest_observed",
+        "horizon": 1,
+        "metric": "yield_kg_ha",
+        "changePct": -5,
+        "compounding": "once",
+        "cases": [
+          { "label": "lower", "change_pct": -10 },
+          { "label": "main", "change_pct": 0 },
+          { "label": "higher", "change_pct": 10 }
+        ]
+      },
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "horizon_steps": 1,
+        "metric": "yield_kg_ha",
+        "method": "percent_change",
+        "baseline": "latest_observed",
+        "change_pct": -5,
+        "compounding": "once",
+        "cases": [
+          { "label": "lower", "change_pct": -10 },
+          { "label": "main", "change_pct": 0 },
+          { "label": "higher", "change_pct": 10 }
+        ]
+      },
+      "expect": {
+        "origin_period": "2026B",
+        "target_periods": ["2027B"]
+      }
     }
   ],
   "rejected": [
@@ -151,6 +253,38 @@
         "method": "carry_forward"
       },
       "refusal": "no_published_rows"
+    },
+    {
+      "name": "an origin from another season is refused",
+      "request": {
+        "crop": "Wheat",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "C",
+        "method": "personal",
+        "metric": "production_mt",
+        "origin_period": "2025B",
+        "assumed_yield_kg_ha": 1000,
+        "assumed_harvested_area_ha": 2
+      },
+      "refusal": "origin_season_mismatch"
+    },
+    {
+      "name": "partial assumption cases must still be ordered",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "percent_change",
+        "metric": "yield_kg_ha",
+        "compounding": "once",
+        "cases": [
+          { "label": "lower", "change_pct": 20 },
+          { "label": "higher", "change_pct": 10 }
+        ]
+      },
+      "refusal": "cases_out_of_order"
     }
   ]
 }

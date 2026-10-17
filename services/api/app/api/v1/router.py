@@ -13,6 +13,7 @@ from app.api.v1 import (
     dashboard,
     data,
     facilities,
+    farms,
     geography,
     harvests,
     health,
@@ -45,6 +46,7 @@ api_router.include_router(productivity.router)
 api_router.include_router(maps.router)
 api_router.include_router(markets.router)
 api_router.include_router(harvests.router)
+api_router.include_router(farms.router)
 api_router.include_router(facilities.router)
 api_router.include_router(optimization.router)
 api_router.include_router(risk.router)

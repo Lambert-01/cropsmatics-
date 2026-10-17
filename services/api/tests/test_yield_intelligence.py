@@ -210,6 +210,206 @@ def test_same_season_change_honours_the_district_filter(client):
     assert scoped["yoy"]["current_yield_kg_ha"] != national["yoy"]["current_yield_kg_ha"]
 
 
+def test_frontend_year_and_season_query_keeps_the_previous_year_comparison(client):
+    """The web client always sends period_code together with year+season.
+
+    The previous-period probe must pin a single authoritative period selector;
+    keeping the stale year=2026 alongside a 2025B probe used to intersect the
+    two and drop every valid previous-year observation.
+    """
+    _require_data(client)
+    plain = _productivity(client, crop="Maize", period_code="2026B")
+    triple = _productivity(
+        client, crop="Maize", period_code="2026B", year=2026, season="B"
+    )
+    assert plain["yoy"]["available"] is True
+    assert triple["yoy"]["available"] is True
+    assert triple["yoy"]["previous_period_code"] == "2025B"
+    assert triple["yoy"]["previous_yield_kg_ha"] == plain["yoy"]["previous_yield_kg_ha"]
+    assert triple["yoy"]["change_pct"] == plain["yoy"]["change_pct"]
+
+
+def test_frontend_style_query_with_a_district_still_finds_last_year(client):
+    _require_data(client)
+    plain = _productivity(
+        client, crop="Maize", period_code="2026B", district="Bugesera"
+    )
+    triple = _productivity(
+        client,
+        crop="Maize",
+        period_code="2026B",
+        year=2026,
+        season="B",
+        district="Bugesera",
+    )
+    assert triple["yoy"]["available"] is plain["yoy"]["available"]
+    if plain["yoy"]["available"]:
+        assert triple["yoy"]["previous_yield_kg_ha"] == plain["yoy"]["previous_yield_kg_ha"]
+
+
+# --- district inspection must not redefine the benchmark ----------------------
+
+
+def test_inspecting_one_district_does_not_change_its_benchmark_or_gap(client):
+    """The confirmed maize/2026B defect: selecting Bugesera used to replace the
+    national benchmark with Bugesera's own yield and zero its gap."""
+    _require_data(client)
+    all_rows = _productivity(client, crop="Maize", period_code="2026B")["rows"]
+    bugesera = next(r for r in all_rows if r["district"] == "Bugesera")
+    assert bugesera["gap_index"] and bugesera["gap_index"] > 0, (
+        "Bugesera should sit below the maize benchmark in this fixture"
+    )
+
+    scoped = _productivity(
+        client, crop="Maize", period_code="2026B", district="Bugesera"
+    )
+    assert [r["district"] for r in scoped["rows"]] == ["Bugesera"]
+    row = scoped["rows"][0]
+    # Benchmark and gap must be the reference-population values, not zeros.
+    assert row["benchmark_yield_kg_ha"] == pytest.approx(
+        bugesera["benchmark_yield_kg_ha"], abs=1e-6
+    )
+    assert row["gap_index"] == pytest.approx(bugesera["gap_index"], abs=1e-6)
+    assert row["gap_index"] != pytest.approx(0.0, abs=1e-9)
+
+    observed = _kpi(scoped, "mean_yield")["value"]
+    benchmark = _kpi(scoped, "benchmark_yield")["value"]
+    assert observed == pytest.approx(round(bugesera["yield_kg_ha"], 1), abs=0.05)
+    assert benchmark == pytest.approx(
+        round(bugesera["benchmark_yield_kg_ha"], 1), abs=0.05
+    )
+    assert benchmark != pytest.approx(observed, abs=0.05)
+    # The typical gap must be this district's real gap, not "nothing is below".
+    shortfall = _kpi(scoped, "gap_shortfall")["value"]
+    assert shortfall == pytest.approx(round(bugesera["gap_index"], 1), abs=0.05)
+
+
+def test_the_benchmark_kpi_is_stable_across_district_selections(client):
+    _require_data(client)
+    base = _kpi(
+        _productivity(client, crop="Maize", period_code="2026B"), "benchmark_yield"
+    )["value"]
+    assert base is not None
+    for district in ("Bugesera", "Nyagatare"):
+        scoped = _productivity(
+            client, crop="Maize", period_code="2026B", district=district
+        )
+        assert _kpi(scoped, "benchmark_yield")["value"] == pytest.approx(base, abs=0.05)
+
+
+def test_the_reference_block_names_the_benchmark_population(client):
+    _require_data(client)
+    body = _productivity(
+        client, crop="Maize", period_code="2026B", district="Bugesera"
+    )
+    reference = body["reference"]
+    assert reference is not None
+    assert reference["scope"] == "national"
+    assert reference["benchmark_strategy"] == "national_crop_median"
+    assert reference["n_districts"] > 1
+    assert reference["n_observations"] >= reference["n_districts"]
+    assert "benchmark" in reference["note"]
+    # The benchmark KPI must state the reference sample size.
+    assert "comparable districts" in _kpi(body, "benchmark_yield")["note"]
+
+
+def test_map_and_productivity_agree_on_the_same_districts_benchmark(client):
+    _require_data(client)
+    scoped = _productivity(
+        client, crop="Maize", period_code="2026B", district="Bugesera"
+    )
+    row = scoped["rows"][0]
+    metrics = client.get(
+        "/api/v1/maps/district-metrics",
+        params={
+            "metric": "gap",
+            "crop": "Maize",
+            "period_code": "2026B",
+            "district": "Bugesera",
+        },
+    )
+    assert metrics.status_code == 200, metrics.text
+    tile = next(
+        d for d in metrics.json()["districts"] if d["district"] == "Bugesera"
+    )
+    assert tile["details"]["benchmark_yield_kg_ha"] == pytest.approx(
+        row["benchmark_yield_kg_ha"], abs=0.05
+    )
+    assert tile["details"]["gap_index"] == pytest.approx(row["gap_index"], abs=0.05)
+    assert tile["value"] == pytest.approx(row["gap_index"], abs=0.05)
+
+
+def test_heatmap_gap_values_do_not_change_when_a_district_is_selected(client):
+    _require_data(client)
+    full = client.get(
+        "/api/v1/analytics/heatmap",
+        params={"crop": "Maize", "period_code": "2026B", "metric": "gap"},
+    )
+    assert full.status_code == 200, full.text
+    cell = next(
+        c for c in full.json()["cells"] if c["district"] == "Bugesera"
+    )
+    scoped = client.get(
+        "/api/v1/analytics/heatmap",
+        params={
+            "crop": "Maize",
+            "period_code": "2026B",
+            "metric": "gap",
+            "district": "Bugesera",
+        },
+    )
+    assert scoped.status_code == 200, scoped.text
+    scoped_cell = next(
+        c for c in scoped.json()["cells"] if c["district"] == "Bugesera"
+    )
+    assert scoped_cell["value"] == pytest.approx(cell["value"], abs=1e-6)
+    assert scoped_cell["value"] != 0
+
+
+def test_dashboard_district_inspection_keeps_the_reference_benchmark(client):
+    _require_data(client)
+    prod = _productivity(client, crop="Maize", period_code="2026B")
+    row = next(r for r in prod["rows"] if r["district"] == "Bugesera")
+    assert row["gap_index"] and row["gap_index"] > 0
+    overview = client.get(
+        "/api/v1/dashboard/overview",
+        params={"crop": "Maize", "period_code": "2026B", "district": "Bugesera"},
+    )
+    assert overview.status_code == 200, overview.text
+    median_gap = next(
+        k for k in overview.json()["kpis"] if k["id"] == "median_gap"
+    )
+    assert median_gap["value"] == pytest.approx(row["gap_index"], abs=0.15)
+    assert median_gap["value"] != pytest.approx(0.0, abs=1e-6)
+
+
+def test_scorecard_export_keeps_the_reference_benchmark_for_one_district(client):
+    _require_data(client)
+    full = client.get(
+        "/api/v1/reports/district-scorecard.csv", params={"crop": "Maize", "period_code": "2026B"}
+    )
+    assert full.status_code == 200, full.text
+    import csv
+    import io
+
+    rows = list(csv.DictReader(io.StringIO(full.text)))
+    bugesera = next(r for r in rows if r["district"] == "Bugesera")
+    scoped = client.get(
+        "/api/v1/reports/district-scorecard.csv",
+        params={"crop": "Maize", "period_code": "2026B", "district": "Bugesera"},
+    )
+    assert scoped.status_code == 200, scoped.text
+    scoped_rows = list(csv.DictReader(io.StringIO(scoped.text)))
+    assert [r["district"] for r in scoped_rows] == ["Bugesera"]
+    assert float(scoped_rows[0]["gap_index"]) == pytest.approx(
+        float(bugesera["gap_index"]), abs=1e-6
+    )
+    assert float(scoped_rows[0]["benchmark_yield_kg_ha"]) == pytest.approx(
+        float(bugesera["benchmark_yield_kg_ha"]), abs=1e-6
+    )
+    assert float(scoped_rows[0]["gap_index"]) != 0
+
+
 def test_consecutive_seasons_are_not_presented_as_a_series(client):
     _require_data(client)
     body = _productivity(client, crop="Maize", period_code="2026B")

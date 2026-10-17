@@ -39,19 +39,37 @@ class FarmerProfile(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
 class Farm(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "farm"
 
-    farmer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("farmer_profile.id"), index=True)
+    # Nullable because a farm profile is captured in the field first and only
+    # linked to an account (or a cooperative) once one exists.
+    farmer_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("farmer_profile.id"), nullable=True, index=True
+    )
     district_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("district.id"), nullable=True, index=True
     )
     sector_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("sector.id"), nullable=True, index=True
     )
+    # Denormalized names from the offline profile, same pattern as
+    # harvest_registration: sync must not depend on reference rows existing.
+    district_name: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    sector_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     name: Mapped[str | None] = mapped_column(String(160), nullable=True)
     area_ha: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Optional and coarse by design (never expose exact individual locations).
     location: Mapped[str | None] = mapped_column(
         Geometry(geometry_type="POINT", srid=4326), nullable=True
     )
+    # Field-captured coordinates kept out of every API response; they are
+    # stored for the farmer's own record only.
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     gps_consent: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    farmer: Mapped[FarmerProfile] = relationship()
+    # Offline-first mobile sync: the client generates the UUID so a retried
+    # upload returns the stored row instead of creating a duplicate.
+    client_uuid: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
+
+    farmer: Mapped[FarmerProfile | None] = relationship()

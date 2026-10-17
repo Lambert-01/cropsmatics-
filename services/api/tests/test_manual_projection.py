@@ -280,6 +280,37 @@ def test_carry_forward_rejects_a_change(client):
     assert response.json()["detail"]["code"] == "unexpected_assumption"
 
 
+def test_carry_forward_with_assumption_cases_is_refused_not_silently_trimmed(
+    client,
+):
+    """A carried-forward baseline has no change to vary.
+
+    Accepting the cases and computing only the main one would hand back a
+    result that is not what the request asked for — the same refusal rule the
+    personal method already applies.
+    """
+    crop, district = "Maize", "Bugesera"
+    response = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json={
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "carry_forward",
+            "cases": [
+                {"label": "lower", "change_pct": 5},
+                {"label": "main", "change_pct": 10},
+                {"label": "higher", "change_pct": 15},
+            ],
+        },
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "cases_not_supported"
+    assert detail["message"]
+
+
 def test_response_is_deterministic(client):
     district, crop = _pick_selection()
     payload = {
@@ -316,3 +347,228 @@ def test_unordered_cases_are_refused(client):
     )
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "cases_out_of_order"
+
+
+# --- edge cases: empty history, season agreement, cutoff, partial cases -------
+
+
+def _personal_payload(**overrides) -> dict:
+    payload = {
+        "crop": "Wheat",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "C",
+        "method": "personal",
+        "metric": "production_mt",
+        "horizon_steps": 1,
+        "assumed_yield_kg_ha": 1000,
+        "assumed_harvested_area_ha": 2,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_personal_plan_with_empty_history_and_a_stated_origin_is_not_a_500(client):
+    """Wheat/Bugesera/Season C has no positive C-season observations.
+
+    An explicitly assumed origin must be permitted as a planning period; the
+    service used to index ``observations[-1]`` on the empty history and crash.
+    """
+    response = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json=_personal_payload(origin_period="2025C"),
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["resolved"]["origin_period"] == "2025C"
+    assert body["resolved"]["origin_kind"] == "assumed"
+    assert body["resolved"]["target_periods"] == ["2026C"]
+    assert body["evidence"] == []
+    assert body["baseline_observations"] == []
+    # 1000 kg/ha * 2 ha / 1000 = 2 metric tonnes.
+    assert body["baseline_value"] == pytest.approx(2.0)
+    assert body["baseline_is_assumption"] is True
+    assert any("planning period rather than a published observation" in w for w in body["warnings"])
+
+
+def test_personal_season_c_plan_without_origin_never_anchors_on_another_season(client):
+    """Without an origin the plan used to take the globally latest 2026B and
+    project 2027B while echoing season C."""
+    response = client.post(
+        "/api/v1/scenarios/manual-projection", json=_personal_payload()
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    origin = body["resolved"]["origin_period"]
+    assert origin.endswith("C"), origin
+    assert body["resolved"]["origin_kind"] == "assumed"
+    assert body["resolved"]["target_periods"]
+    assert all(code.endswith("C") for code in body["resolved"]["target_periods"])
+    # No observation is implied to exist.
+    assert body["baseline_observations"] == []
+
+
+def test_an_origin_from_another_season_is_refused_structured(client):
+    response = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json=_personal_payload(origin_period="2025B"),
+    )
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "origin_season_mismatch"
+    assert "C-season" in detail["message"]
+
+
+def test_historical_origin_restricts_evidence_baseline_and_export_to_the_cutoff(client):
+    """A plan anchored in 2023B must not carry 2024B/2025B/2026B evidence."""
+    payload = _personal_payload(
+        crop="Maize", season="B", origin_period="2023B"
+    )
+    response = client.post("/api/v1/scenarios/manual-projection", json=payload)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    evidence_periods = [e["period_code"] for e in body["evidence"]]
+    baseline_periods = [o["period_code"] for o in body["baseline_observations"]]
+    export_observed = [
+        row["period_code"]
+        for row in body["export_rows"]
+        if row["row_kind"] == "observed_baseline"
+    ]
+    for periods in (evidence_periods, baseline_periods, export_observed):
+        assert periods, "the fixture should publish Season B maize observations"
+        assert all(p <= "2023B" for p in periods), periods
+        assert "2026B" not in periods
+    assert any("restricted to observations at or before it" in w for w in body["warnings"])
+
+
+def test_partial_assumption_cases_validate_every_present_ordered_pair(client):
+    district, crop = _pick_selection()
+    inverted = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json={
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "percent_change",
+            # No "main": only lower and higher are present, and they are inverted.
+            "cases": [
+                {"label": "lower", "change_pct": 20},
+                {"label": "higher", "change_pct": 10},
+            ],
+        },
+    )
+    assert inverted.status_code == 422
+    assert inverted.json()["detail"]["code"] == "cases_out_of_order"
+
+    main_vs_higher = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json={
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "percent_change",
+            "cases": [
+                {"label": "main", "change_pct": 30},
+                {"label": "higher", "change_pct": 10},
+            ],
+        },
+    )
+    assert main_vs_higher.status_code == 422
+    assert main_vs_higher.json()["detail"]["code"] == "cases_out_of_order"
+
+    ordered = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json={
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "percent_change",
+            "cases": [
+                {"label": "lower", "change_pct": -10},
+                {"label": "higher", "change_pct": 5},
+            ],
+        },
+    )
+    assert ordered.status_code == 200, ordered.text
+    labels = [case["label"] for case in ordered.json()["cases"]]
+    assert labels == ["lower", "higher"]
+
+
+def test_negative_assumption_cases_compute_ordered_results(client):
+    district, crop = _pick_selection()
+    response = client.post(
+        "/api/v1/scenarios/manual-projection",
+        json={
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "percent_change",
+            "compounding": "once",
+            "horizon_steps": 1,
+            "cases": [
+                {"label": "lower", "change_pct": -20},
+                {"label": "main", "change_pct": 0},
+                {"label": "higher", "change_pct": 15},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    cases = response.json()["cases"]
+    assert [c["label"] for c in cases] == ["lower", "main", "higher"]
+    values = [c["points"][0]["value"] for c in cases]
+    assert values == sorted(values), "results must be ordered by assumption"
+    assert values[0] < values[1] < values[2]
+
+
+def test_zero_baselines_and_impossible_results_are_structured_refusals():
+    """Pure arithmetic: a zero baseline can never produce a valid projection."""
+    values = mp.percent_change(0.0, 10.0, 1, mp.COMPOUND_ONCE)
+    assert values == [0.0]
+    with pytest.raises(mp.ProjectionError) as exc:
+        mp.ensure_positive_rate_result(0.0, 0.0, mp.METRIC_PRODUCTION)
+    assert exc.value.code == "impossible_quantity"
+
+
+def test_every_supported_input_returns_structured_outcomes_not_500(client):
+    """No supported input may produce an unhandled server error."""
+    district, crop = _pick_selection()
+    payloads = [
+        _personal_payload(),  # empty history, no origin
+        _personal_payload(origin_period="2025C"),  # empty history, assumed origin
+        _personal_payload(origin_period="2099C"),  # unpublished same-season period
+        _personal_payload(origin_period="not-a-period"),
+        _personal_payload(crop=crop, district=district, season="B"),  # history exists
+        _personal_payload(crop=crop, district=district, season="B", origin_period="2023B"),
+        {
+            "crop": crop,
+            "geography": "district",
+            "district": district,
+            "season": "B",
+            "method": "percent_change",
+            "baseline": "median_window",
+            "baseline_window": 8,  # larger than the history
+            "change_pct": -95,
+        },
+        {
+            "crop": "Wheat",
+            "geography": "district",
+            "district": "Bugesera",
+            "season": "C",
+            "method": "carry_forward",  # no observed baseline for season C
+        },
+    ]
+    for payload in payloads:
+        response = client.post("/api/v1/scenarios/manual-projection", json=payload)
+        assert response.status_code in (200, 422), (payload, response.status_code, response.text)
+        if response.status_code == 422:
+            detail = response.json()["detail"]
+            # Either the schema's own validation list or the engine's
+            # structured {code, message} refusal - never an unhandled error.
+            if isinstance(detail, list):
+                assert detail, detail
+            else:
+                assert isinstance(detail, dict) and detail.get("code"), detail

@@ -25,15 +25,21 @@ A passing component test is **not** a browser pass, and a mobile-web screenshot 
 
 ## Latest local audit, 2026-10-17
 
-The current audit observed the ordinary Planning calculation and CSV download
-at 1440x900, 1920x1080, 768x1024 and 390x844. Those samples passed without
-horizontal overflow. Expanded source notes on Dashboard failed: document width
-was 1624 at a 1440 px viewport. These are sampled browser checks, not a complete
-route/state/language matrix or owner-approved screenshots. Temporary evidence
-is outside the repository; no approved screenshot bundle is claimed.
+The latest follow-up observed the ordinary Planning calculation at 1440x900,
+1920x1080, 768x1024 and 390x844 without horizontal overflow or uncaught page
+errors. Desktop Python CSV download, outdated-result warning and a full
+three-step plan-link restoration passed. All four Dashboard source disclosures
+were expanded after requests settled at each size; document width matched the
+viewport. This repairs the earlier 1624 px overflow at a 1440 px viewport.
+
+These are sampled local browser checks against the production web build with
+requests redirected to the local file-mode API, not production verification,
+the full route/state/language matrix or owner-approved screenshots. Temporary
+evidence is outside the repository; no approved screenshot bundle is claimed.
 
 Fresh mobile `npm ci` in an isolated directory passed typecheck, lint, all 341
-tests and Expo configuration. It is not a native-device check.
+tests and Expo configuration in the earlier pass. Latest mobile has 346 passing
+tests and a passing typecheck after fresh npm ci. Neither is a native-device check.
 
 ## Earlier implementation-session checks
 
@@ -56,7 +62,7 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 | Route | Viewport | Language | State | Task | Expected | Observed | Status |
 |---|---|---|---|---|---|---|---|
 | `/dashboard` | 1440×900 | EN | normal | read headline + map | latest district snapshot named; history separate | — | NOT RUN |
-| `/dashboard` | 1440×900 | EN | sources expanded | confirm no horizontal overflow | document fits viewport | document width 1624 px | FAIL |
+| `/dashboard` | all four required sizes | EN | all four sources expanded | confirm no horizontal overflow | document fits viewport | widths 1440/1920/768/390 match viewport | PASS (sample) |
 | `/interventions` | 1440×900 | EN | Nyagatare maize 2026B | inspect eligibility | "no yield shortfall" for productivity support | — | NOT RUN |
 | `/yield-intelligence` | 1440×900 | EN | forecast withheld | build a projection | projection calculated and labelled "Your assumptions" | ordinary carry-forward calculation and CSV download | PASS (sample) |
 | `/yield-intelligence` | 390×844 | EN | narrow | planning form usable | controls reachable, no overlap | ordinary carry-forward calculated; no document overflow | PASS (sample) |

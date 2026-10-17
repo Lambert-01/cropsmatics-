@@ -23,12 +23,16 @@ string. They write nothing and mutate nothing.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.analytics.manual_projection import ProjectionError
 from app.analytics.scenario import ScenarioError
 from app.analytics.sensitivity import SensitivityError
-from app.schemas.manual_projection import ManualProjectionRequest, ManualProjectionResponse
+from app.schemas.manual_projection import (
+    ManualProjectionRequest,
+    ManualProjectionResponse,
+    ProjectionOriginsResponse,
+)
 from app.schemas.priority_scenario import PriorityScenarioRequest, PriorityScenarioResponse
 from app.schemas.scenario import ScenarioRequest, ScenarioResponse
 from app.schemas.sensitivity import SensitivityRequest, SensitivityResponse
@@ -89,6 +93,48 @@ def manual_projection(payload: ManualProjectionRequest) -> ManualProjectionRespo
     """
     try:
         return manual_projection_service.run(payload)
+    except ProjectionUnavailable as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+    except ProjectionError as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.get("/manual-projection/origins", response_model=ProjectionOriginsResponse)
+def manual_projection_origins(
+    crop: str = Query(..., min_length=1, max_length=120),
+    season: str = Query(..., pattern="^(A|B|C)$", description="the season letter the plan targets"),
+    district: str | None = Query(None, max_length=120),
+    metric: str = Query("yield_kg_ha", pattern="^(yield_kg_ha|production_mt)$"),
+    method: str = Query(
+        "carry_forward",
+        pattern="^(carry_forward|percent_change|personal)$",
+        description="only a personal plan may start without a published observation",
+    ),
+) -> ProjectionOriginsResponse:
+    """Which origins the origin selector may offer for this scope.
+
+    Derived from the same panel the projection reads: every option is a period
+    with a published same-season observation for this crop, geography and
+    season (or — for a personal plan with no history — a same-season planning
+    period, marked ``assumed``). A scope without coverage returns an empty list
+    with the reason, not a list of periods that would only fail on calculate.
+    """
+    district = (district or "").strip() or None
+    try:
+        return manual_projection_service.available_origins(
+            ManualProjectionRequest(
+                crop=crop,
+                geography="district" if district else "national",
+                district=district,
+                season=season,
+                metric=metric,
+                method=method,
+            )
+        )
     except ProjectionUnavailable as exc:
         raise HTTPException(
             status_code=422, detail={"code": exc.code, "message": str(exc)}

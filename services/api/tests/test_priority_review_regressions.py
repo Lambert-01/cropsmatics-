@@ -143,6 +143,15 @@ def test_api_and_offline_engine_agree_for_both_purposes():
     for purpose in ip.PURPOSES:
         served = ip.rank(candidates, purpose=purpose)
         mirrored = offline.rank(candidates, purpose=purpose)
-        assert [(r["id"], r["score"], r["band"], r["weights"]) for r in served] == [
-            (r["id"], r["score"], r["band"], r["weights"]) for r in mirrored
+        # The explanation fields are part of the aligned behaviour: shortfall,
+        # purpose and reference population must not drift between the API and
+        # the standalone ML package while scores still agree.
+        assert [
+            (r["id"], r["score"], r["band"], r["weights"], r["shortfall_pct"],
+             r["priority_purpose"], r["reference_n"])
+            for r in served
+        ] == [
+            (r["id"], r["score"], r["band"], r["weights"], r["shortfall_pct"],
+             r["priority_purpose"], r["reference_n"])
+            for r in mirrored
         ]

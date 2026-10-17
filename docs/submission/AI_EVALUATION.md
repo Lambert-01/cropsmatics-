@@ -1,9 +1,10 @@
 # AI Evaluation
 
-Review update, 2026-10-17: the passing corpus below is not complete safety
-evidence. The current audit accepts both an evidence value assigned to an
-unlisted district and two district values swapped within one sentence. Claim
-entity bindings must be repaired and these cases added as regression tests.
+Review update, 2026-10-17: the earlier unlisted-district and two-district swaps
+now fall back correctly. However, the current validator still accepts a maize
+yield described as rice yield and values swapped between 2025B and 2026B in one
+sentence. The passing corpus below is not complete safety evidence. Crop/period
+bindings must be repaired and these cases added as regression tests.
 See [Current Status](../CURRENT_STATUS.md).
 
 What the assistant's answers are checked against, which of those checks are

@@ -12,7 +12,10 @@ export function Card({
   className?: string;
   as?: "section" | "div" | "article";
 }) {
-  return <Tag className={cn("card", className)}>{children}</Tag>;
+  // `min-w-0`: a card inside a grid/flex row must be allowed to shrink below
+  // its content width, so a long unbreakable source id wraps inside the card
+  // instead of pushing the whole page wider.
+  return <Tag className={cn("card min-w-0", className)}>{children}</Tag>;
 }
 
 export function CardHeader({

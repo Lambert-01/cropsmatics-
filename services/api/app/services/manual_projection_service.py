@@ -37,6 +37,8 @@ from app.schemas.manual_projection import (
     ProjectedPoint,
     ProjectionCaseResult,
     ProjectionExportRow,
+    ProjectionOriginOption,
+    ProjectionOriginsResponse,
     ResolvedSelection,
 )
 from app.services import period_service
@@ -155,6 +157,26 @@ def _same_season_observations(frame: pd.DataFrame, season: str, metric: str) -> 
     return rows
 
 
+def _require_origin_season(canonical: str, season: str) -> None:
+    """An origin must belong to the season the plan targets.
+
+    A planning period and a published observation period are different things,
+    but both carry a season letter. Allowing an origin from another season would
+    project 2027C while echoing "Season B" - never an acceptable answer.
+    """
+    try:
+        _, letter = mp.parse_period(canonical)
+    except mp.ProjectionError as exc:
+        raise ProjectionUnavailable(str(exc), code="unknown_origin") from exc
+    if letter != season:
+        raise ProjectionUnavailable(
+            f"{canonical} is a {letter}-season period but this plan targets "
+            f"{season}-season; the origin and every projected period must belong "
+            f"to the requested {season}-season",
+            code="origin_season_mismatch",
+        )
+
+
 def _resolve_origin(observations: list[dict], requested: str | None, crop: str, season: str):
     """The origin observation, plus the (possibly restricted) evidence window."""
     if not observations:
@@ -169,6 +191,7 @@ def _resolve_origin(observations: list[dict], requested: str | None, crop: str, 
             canonical = period_service.require(requested)
         except period_service.UnknownPeriodError as exc:
             raise ProjectionUnavailable(str(exc), code="unknown_origin") from exc
+        _require_origin_season(canonical, season)
         matching = [o for o in observations if o["period_code"] == canonical]
         if not matching:
             seasons = ", ".join(o["period_code"] for o in observations)
@@ -190,22 +213,46 @@ def _personal_origin(
 
     A personal plan does not need a published baseline, so it must not fail just
     because the panel has no same-season history for the crop. When history does
-    exist it is returned as context (the chart can draw the observed series);
-    when it does not, the origin is the requested or latest published period.
+    exist it is used as context *restricted to the declared origin cutoff* (the
+    chart can draw the observed series without later releases masquerading as
+    contemporaneous evidence); when it does not, the origin must belong to the
+    requested season and is clearly an assumed planning period, not an
+    observation - an absent history never silently inherits the globally latest
+    release of another season.
     """
     if observations:
-        origin, _ = _resolve_origin(observations, payload.origin_period, crop, payload.season)
-        return origin, observations
-    code = payload.origin_period or period_service.latest()
-    if not code:
-        raise ProjectionUnavailable(
-            "no published period data was found to anchor the projection",
-            code="no_period_axis",
+        origin, window = _resolve_origin(
+            observations, payload.origin_period, crop, payload.season
         )
-    try:
-        canonical = period_service.require(code)
-    except period_service.UnknownPeriodError as exc:
-        raise ProjectionUnavailable(str(exc), code="unknown_origin") from exc
+        return origin, window
+    if payload.origin_period:
+        try:
+            canonical = period_service.require(payload.origin_period)
+        except period_service.UnknownPeriodError as exc:
+            raise ProjectionUnavailable(str(exc), code="unknown_origin") from exc
+        _require_origin_season(canonical, payload.season)
+        # The stated origin is permitted as a clearly assumed planning period:
+        # value stays None and the response reports no observations.
+        return {"period_code": canonical, "value": None}, []
+    # No history and no stated origin: fall back to the latest published period
+    # *of the requested season* so the planning axis can never drift to another
+    # season (e.g. anchoring a Season C plan on 2026B).
+    same_season = []
+    for code in period_service.period_codes():
+        try:
+            _, letter = mp.parse_period(code)
+        except mp.ProjectionError:
+            continue
+        if letter == payload.season:
+            same_season.append(code)
+    if not same_season:
+        raise ProjectionUnavailable(
+            f"the period axis carries no {payload.season}-season period and the panel "
+            f"has no {payload.season}-season history for {crop!r}. State an origin "
+            "period for your plan (for example 2025C).",
+            code="origin_required",
+        )
+    canonical = max(same_season, key=mp.period_sort_key)
     return {"period_code": canonical, "value": None}, []
 
 
@@ -293,6 +340,16 @@ def _validate(payload: ManualProjectionRequest) -> str:
             code="unexpected_assumption",
         )
 
+    if payload.method == mp.METHOD_CARRY_FORWARD and payload.cases:
+        # A carried-forward baseline has no change to vary: accepting the
+        # cases and silently computing only the main one would hand back a
+        # result that is not what the request asked for.
+        raise ProjectionUnavailable(
+            "assumption bands belong to the 'percent_change' method; a "
+            "carried-forward baseline has no change to vary",
+            code="cases_not_supported",
+        )
+
     if (
         payload.method == mp.METHOD_PERCENT_CHANGE
         and payload.change_pct is None
@@ -314,19 +371,31 @@ def _validate(payload: ManualProjectionRequest) -> str:
 
 
 def _cases(payload: ManualProjectionRequest) -> list[dict]:
-    """The assumption cases to compute, ordered lower -> higher."""
+    """The assumption cases to compute, ordered lower -> higher.
+
+    Every *present* ordered pair is validated, so a partial set (lower without
+    main, or lower without higher) can never smuggle an inverted ordering past
+    the check: the labels promise an ordering and the values must honour it.
+    """
     if payload.method == mp.METHOD_PERSONAL:
         return [{"label": "main", "change_pct": None}]
     if payload.method == mp.METHOD_CARRY_FORWARD:
         return [{"label": "main", "change_pct": 0.0}]
     if payload.cases:
         by_label = {case.label: case.change_pct for case in payload.cases}
-        if {"lower", "main", "higher"} <= set(by_label):
-            if not (by_label["lower"] <= by_label["main"] <= by_label["higher"]):
-                raise ProjectionUnavailable(
-                    "assumption cases must satisfy lower <= main <= higher",
-                    code="cases_out_of_order",
-                )
+        for low_label, high_label in (
+            ("lower", "main"),
+            ("main", "higher"),
+            ("lower", "higher"),
+        ):
+            if low_label in by_label and high_label in by_label:
+                if not (by_label[low_label] <= by_label[high_label]):
+                    raise ProjectionUnavailable(
+                        f"assumption cases must satisfy {low_label} <= {high_label} "
+                        f"({low_label}={by_label[low_label]}%, "
+                        f"{high_label}={by_label[high_label]}%)",
+                        code="cases_out_of_order",
+                    )
         return [
             {"label": case.label, "change_pct": case.change_pct}
             for case in sorted(payload.cases, key=lambda c: c.change_pct)
@@ -342,6 +411,94 @@ def _calculation_id(spec: dict, dataset_version: str | None) -> str:
         default=str,
     )
     return "mp_" + hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def available_origins(payload: ManualProjectionRequest) -> ProjectionOriginsResponse:
+    """Selectable origins for one scope, from the panel's actual coverage.
+
+    The selector must never offer a period the panel does not tabulate for
+    this crop, geography and season: choosing one would only produce the
+    ``origin_not_observed`` rejection at calculate time, so a form with such
+    an option could only fail. When the scope has no same-season history and
+    the method is personal (the only method that may start without an
+    observation), the period axis's same-season periods are offered as clearly
+    ``assumed`` planning periods instead — never dressed up as observations.
+    """
+    metric = payload.metric
+    if payload.method == mp.METHOD_PERSONAL and metric != mp.METRIC_PRODUCTION:
+        raise ProjectionUnavailable(
+            "a personal plan estimates production from an assumed yield and area; "
+            "set metric to 'production_mt'",
+            code="personal_metric_mismatch",
+        )
+
+    frame = _scope_frame(_panel(), payload)
+    observations = _same_season_observations(frame, payload.season, metric)
+    if observations:
+        return ProjectionOriginsResponse(
+            season=payload.season,
+            metric=metric,
+            origins=[
+                ProjectionOriginOption(
+                    period_code=item["period_code"],
+                    period_label=item["observation"]["period_label"],
+                    kind="observed",
+                    value=item["observation"]["value"],
+                    unit=item["observation"]["unit"],
+                    source_id=item["observation"]["source_id"],
+                )
+                for item in observations
+            ],
+            note=None,
+        )
+
+    if payload.method != mp.METHOD_PERSONAL:
+        return ProjectionOriginsResponse(
+            season=payload.season,
+            metric=metric,
+            origins=[],
+            note=(
+                f"the panel publishes no positive {payload.season}-season observation "
+                "for this scope, so there is no observed origin to start from. Only a "
+                "personal plan can proceed without one."
+            ),
+        )
+
+    same_season: list[str] = []
+    for code in period_service.period_codes():
+        try:
+            _, letter = mp.parse_period(code)
+        except mp.ProjectionError:
+            continue
+        if letter == payload.season:
+            same_season.append(code)
+    if not same_season:
+        return ProjectionOriginsResponse(
+            season=payload.season,
+            metric=metric,
+            origins=[],
+            note=(
+                f"the period axis carries no {payload.season}-season period; state an "
+                "origin period for your plan (for example 2025C)."
+            ),
+        )
+    same_season.sort(key=mp.period_sort_key)
+    return ProjectionOriginsResponse(
+        season=payload.season,
+        metric=metric,
+        origins=[
+            ProjectionOriginOption(
+                period_code=code,
+                period_label=period_service.label(code),
+                kind="assumed",
+            )
+            for code in same_season
+        ],
+        note=(
+            "this scope has no published same-season history; these are planning "
+            "periods for your own assumption, not published observations"
+        ),
+    )
 
 
 def run(payload: ManualProjectionRequest) -> ManualProjectionResponse:
@@ -452,13 +609,17 @@ def run(payload: ManualProjectionRequest) -> ManualProjectionResponse:
     if not observations:
         warnings.append(
             "no published same-season observation was found; this projection rests "
-            "entirely on your stated assumption"
+            "entirely on your stated assumption, and the origin is a planning "
+            "period rather than a published observation"
         )
-    if payload.origin_period and origin["period_code"] != observations[-1]["period_code"]:
+    elif (
+        payload.origin_period
+        and origin["period_code"] != observations[-1]["period_code"]
+    ):
         warnings.append(
-            f"a historical origin ({origin['period_code']}) was used: the baseline is "
-            "restricted to observations at or before it, so later published releases "
-            "were not used"
+            f"a historical origin ({origin['period_code']}) was used: the baseline, "
+            "evidence and export are restricted to observations at or before it, so "
+            "later published releases were not used"
         )
     if payload.geography == "national":
         warnings.append(
@@ -573,6 +734,9 @@ def run(payload: ManualProjectionRequest) -> ManualProjectionResponse:
             metric_unit=unit,
             origin_period=origin["period_code"],
             origin_label=period_service.label(origin["period_code"]),
+            origin_kind=(
+                "observed" if origin.get("value") is not None else "assumed"
+            ),
             horizon_steps=payload.horizon_steps,
             target_periods=target_periods,
         ),

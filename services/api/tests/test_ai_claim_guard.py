@@ -461,3 +461,82 @@ def test_a_published_figure_is_recognised_with_or_without_its_sign():
     )
     assert numeric_guard.check("skill of 146.4%", subject).ok is True
     assert claim_guard.check("a skill of 146.4% against the baseline.", subject).ok is True
+
+
+# --- attribution: the district the figure is written next to -----------------
+
+
+def _two_district_yields() -> EvidenceBundle:
+    return bundle(
+        item("yield_kg_ha", 952.2, "kg/ha", district="Bugesera"),
+        item("yield_kg_ha", 1555.4, "kg/ha", district="Nyagatare"),
+    )
+
+
+def test_a_district_the_evidence_never_carried_is_still_recognised():
+    """Nyagatare is not in the bundle, but it is a real Rwandan district.
+
+    The vocabulary used to come from the evidence alone, so a figure published
+    for Bugesera passed wherever the sentence put it, as long as the sentence
+    only named districts the bundle happened to carry elsewhere - or none.
+    """
+    subject = bundle(item("yield_kg_ha", 952.2, "kg/ha", district="Bugesera"))
+    result = claim_guard.check("Maize yield in Nyagatare was 952.2 kg/ha.", subject)
+    assert result.ok is False
+    assert result.violations[0].kind == "scope_mismatch"
+    assert "Bugesera" in result.violations[0].detail
+    assert "Nyagatare" in result.violations[0].detail
+
+
+def test_a_swapped_district_pair_is_rejected_clause_by_clause():
+    """Both districts appear in the sentence; neither figure is next to its own.
+
+    Sentence-wide membership would accept this: every scoped district is named
+    somewhere. The pairing segment does not.
+    """
+    subject = _two_district_yields()
+    swapped = (
+        "In Bugesera the maize yield was 1,555.4 kg/ha and in Nyagatare 952.2 kg/ha."
+    )
+    result = claim_guard.check(swapped, subject)
+    assert result.ok is False
+    assert result.violations[0].kind == "scope_mismatch"
+
+
+def test_a_swapped_pair_separated_by_commas_and_semicolons_is_rejected():
+    """The plain-comma phrasing of the same swap must not slip through either."""
+    subject = _two_district_yields()
+    swapped = (
+        "In Bugesera, the maize yield was 1,555.4 kg/ha; in Nyagatare, 952.2 kg/ha."
+    )
+    result = claim_guard.check(swapped, subject)
+    assert result.ok is False
+    assert result.violations[0].kind == "scope_mismatch"
+
+
+def test_a_correctly_paired_two_district_sentence_is_accepted():
+    """The accepted counterpart of both swaps: pairing must not over-reject."""
+    subject = _two_district_yields()
+    assert claim_guard.check(
+        "In Bugesera the maize yield was 952.2 kg/ha and in Nyagatare 1,555.4 kg/ha.",
+        subject,
+    ).ok is True
+    assert claim_guard.check(
+        "In Bugesera, the maize yield was 952.2 kg/ha; in Nyagatare, 1,555.4 kg/ha.",
+        subject,
+    ).ok is True
+
+
+def test_a_national_figure_with_several_districts_named_is_still_accepted():
+    """Canonical geography must not turn a scoped-empty figure into a violation."""
+    subject = EvidenceBundle(
+        query_id="t",
+        intent="district_ranking",
+        requested={"crop": MAIZE},
+        items=[item("gap_index", 26.1, "%", district=None, crop=MAIZE)],
+    )
+    result = claim_guard.check(
+        "The maize gap index of 26.10% covers Bugesera, Gisagara and Nyagatare.",
+        subject,
+    )
+    assert result.ok is True

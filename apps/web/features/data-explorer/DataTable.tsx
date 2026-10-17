@@ -7,7 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import { ResponsiveTable, type Column } from "@/components/table/ResponsiveTable";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
-import { api, reportUrl } from "@/lib/api";
+import { api } from "@/lib/api";
+import { apiUrl } from "@/lib/apiUrl";
 import { fmtNumber } from "@/lib/format";
 
 const PROVENANCE_COLUMNS = new Set([
@@ -16,6 +17,51 @@ const PROVENANCE_COLUMNS = new Set([
   "pipeline_version",
   "retrieved_at",
 ]);
+
+/**
+ * Filters the explorer offers, in reading order. Which of these actually
+ * render is decided per dataset from the catalog's `filters` list, so a table
+ * without an indicator dimension never shows an indicator box it could only
+ * reject with a 400. Anything outside this curated list (district_code,
+ * geography_level, …) stays reachable through the API and the search box.
+ */
+const FILTER_ORDER = [
+  "period_code",
+  "year",
+  "season",
+  "crop",
+  "province",
+  "district",
+  "domain",
+  "indicator_code",
+] as const;
+
+/** What the catalog still loading would have offered before indicator/domain. */
+const FALLBACK_FILTERS: readonly string[] = ["year", "season", "crop", "province", "district"];
+
+/**
+ * URL for the CSV download of exactly the scope on screen: the applied search,
+ * the active filters and the current sort travel with the link, so the export
+ * matches the table instead of silently dumping the whole dataset.
+ */
+export function datasetCsvHref(
+  key: string,
+  search: string,
+  filters: Record<string, string>,
+  sortBy: string | null,
+  sortDir: "asc" | "desc",
+): string {
+  const params = new URLSearchParams();
+  if (search) params.set("search", search);
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v) params.set(k, v);
+  });
+  if (sortBy) {
+    params.set("sort_by", sortBy);
+    params.set("sort_dir", sortDir);
+  }
+  return apiUrl(`/reports/dataset/${key}.csv`, params.toString());
+}
 
 /**
  * Data Explorer table (section M): exact-match filters the backend genuinely
@@ -51,6 +97,13 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
       api.dataset(datasetKey, pageSize, offset, applied, filters, sortBy, sortDir),
   });
 
+  // Shared with the page's catalog query (same key), so this is cache, not a
+  // second request: it says which exact-match filters this dataset accepts.
+  const catalog = useQuery({ queryKey: ["datasets"], queryFn: api.datasets });
+  const supportedFilters =
+    catalog.data?.datasets.find((d) => d.key === datasetKey)?.filters ?? FALLBACK_FILTERS;
+  const shownFilters = FILTER_ORDER.filter((f) => supportedFilters.includes(f));
+
   const total = query.data?.count ?? 0;
   const allColumns = query.data?.columns ?? [];
   const rows = query.data?.rows ?? [];
@@ -69,6 +122,9 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + pageSize, total);
   const hasFilters = applied || Object.values(filters).some(Boolean) || sortBy;
+
+  // One URL for the download, built from exactly the scope the table shows.
+  const csvHref = datasetCsvHref(datasetKey, applied, filters, sortBy, sortDir);
 
   const setFilter = (key: string, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -110,17 +166,17 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
           />
         </div>
 
-        {(["year", "season", "crop", "province", "district"] as const).map((f) => (
+        {shownFilters.map((f) => (
           <label key={f} className="block">
             <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              {f}
+              {f.replace(/_/g, " ")}
             </span>
             <input
               className="input w-28"
-              placeholder={f}
+              placeholder={f === "period_code" ? "2025B" : f.replace(/_/g, " ")}
               value={filters[f] ?? ""}
               onChange={(e) => setFilter(f, e.target.value)}
-              aria-label={`Filter by ${f}`}
+              aria-label={`Filter by ${f.replace(/_/g, " ")}`}
             />
           </label>
         ))}
@@ -178,7 +234,10 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
           </div>
         </details>
 
-        <a className="btn" href={reportUrl(`/dataset/${datasetKey}.csv`)} download>
+        {/* The CSV download carries the scope on screen: search, filters and
+            sort travel with the link, so the export matches the table instead
+            of silently dumping the whole dataset. */}
+        <a className="btn" href={csvHref} download>
           <Download className="h-3.5 w-3.5" /> CSV
         </a>
       </div>

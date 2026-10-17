@@ -187,17 +187,24 @@ export function makeScale(
       return ramp(stops, (value - safeMin) / (safeMax - safeMin));
     }
     // Diverging: zero must sit at the neutral stop, not at the arithmetic middle
-    // of the range. A gap of +5% and a gap of -5% are equally far from the
-    // benchmark, so each side is interpolated against its own span - which is also
-    // what makes a one-sided domain (every district below benchmark) read honestly
-    // as "all on the below side" instead of a half-used palette.
+    // of the range, and each side is interpolated against its own published span.
+    // The span for the negative side is [min, min(max, 0)] — for a mixed domain
+    // that is [min, 0], so -40 and -10 under [-50, 20] land at 0.2 and 0.8 of the
+    // low ramp instead of collapsing onto the same stop. A one-sided negative
+    // domain (every district below zero) spans the whole low ramp, and a value
+    // on a side with no published extent (a negative under an all-positive
+    // domain) reads as neutral rather than pretending it was measured.
     if (value === 0) return DIVERGING_LOW[DIVERGING_LOW.length - 1];
     if (value < 0) {
-      const span = safeMin >= 0 ? value : -safeMin;
-      return ramp(DIVERGING_LOW, span ? Math.max(0, Math.min(1, value / span)) : 0);
+      const right = Math.min(safeMax, 0);
+      const span = right - safeMin;
+      const t = span > 0 ? (value - safeMin) / span : 1;
+      return ramp(DIVERGING_LOW, Math.max(0, Math.min(1, t)));
     }
-    const span = safeMax <= 0 ? value : safeMax;
-    return ramp(DIVERGING_HIGH, span ? Math.max(0, Math.min(1, value / span)) : 0);
+    const left = Math.max(safeMin, 0);
+    const span = safeMax - left;
+    const t = span > 0 ? (value - left) / span : 1;
+    return ramp(DIVERGING_HIGH, Math.max(0, Math.min(1, t)));
   };
 
   return {
@@ -221,4 +228,48 @@ export function scaleDirectionText(scale: ColorScale, direction?: string | null)
   if (scale.kind === "sequential_reversed") return "darker = higher value";
   if (scale.kind === "bands") return "shaded band = planning score band, not a probability";
   return "darker = larger value";
+}
+
+/**
+ * The legend bar as a CSS gradient whose stop positions match the fill.
+ *
+ * A gradient drawn with evenly spaced stops lies about a diverging scale: under
+ * the published domain [-50, 20] zero sits at 50/70 of the bar, not at the
+ * middle, and the swatch under a pointer would disagree with the district fill.
+ * Sequential stops are evenly spaced (the fill normalizes linearly over
+ * [min, max]); diverging stops are placed at the value they actually belong to,
+ * so the neutral stop lands exactly where `color` puts zero.
+ */
+export function legendGradient(scale: ColorScale): string {
+  const pct = (fraction: number) => `${Math.round(fraction * 10000) / 100}%`;
+  const stops = scale.stops;
+  if (stops.length < 2) return stops.length ? `linear-gradient(to right, ${stops[0]})` : "";
+
+  const even = (palette: string[]) =>
+    `linear-gradient(to right, ${palette
+      .map((c, i) => `${c} ${pct(i / (palette.length - 1))}`)
+      .join(", ")})`;
+
+  if (scale.kind !== "diverging" || !scale.published) return even(stops);
+
+  const span = scale.max - scale.min;
+  if (span <= 0) return even(stops);
+  const at = (value: number) => (value - scale.min) / span;
+
+  if (scale.min >= 0) return even(DIVERGING_HIGH);
+  if (scale.max <= 0) return even(DIVERGING_LOW);
+
+  // Mixed domain: the low ramp covers [min, 0] and the high ramp (0, max], so
+  // the neutral stop is placed at zero's true position on the bar.
+  const parts: string[] = [];
+  DIVERGING_LOW.forEach((color, index) => {
+    const value = scale.min + (index / (DIVERGING_LOW.length - 1)) * (0 - scale.min);
+    parts.push(`${color} ${pct(at(value))}`);
+  });
+  DIVERGING_HIGH.forEach((color, index) => {
+    if (index === 0) return; // the neutral stop is already the low ramp's end
+    const value = (index / (DIVERGING_HIGH.length - 1)) * scale.max;
+    parts.push(`${color} ${pct(at(value))}`);
+  });
+  return `linear-gradient(to right, ${parts.join(", ")})`;
 }

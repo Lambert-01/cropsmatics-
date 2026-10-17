@@ -692,7 +692,15 @@ def unavailable_productivity(f: AnalyticsFilters, exc: Exception) -> dict:
 
 
 def productivity(f: AnalyticsFilters) -> dict:
-    """KPI + district ranking for the Productivity Intelligence page."""
+    """KPI + district ranking for the Productivity Intelligence page.
+
+    The benchmark is computed over the *reference* population (everything that
+    defines the comparison group: crop, period, province) and only then is the
+    display narrowed to the inspected district. Inspecting one district must
+    never redefine its own benchmark - the same invariant the priority engine
+    documents in :func:`priority_population` and the map service applies in
+    :func:`map_service.district_metrics`.
+    """
     try:
         frame = productivity_frame(f)
     except repo.PeriodNotServable as exc:
@@ -700,9 +708,16 @@ def productivity(f: AnalyticsFilters) -> dict:
         # reported as unavailable, never answered from another release.
         return unavailable_productivity(f, exc)
 
-    df = apply_filters(frame, f)
-    g = gapped(df, f.benchmark_strategy)
-    if g.empty:
+    # The reference scope behind the selection: the district inspection is
+    # dropped for benchmarking and restored only for display.
+    ref = reference_filters(f)
+    ref_df = apply_filters(frame, ref)
+    g_ref = gapped(ref_df, f.benchmark_strategy)
+    # Narrow the already-benchmarked rows for display. ``apply_filters`` on the
+    # gap frame is safe: benchmark_yield_kg_ha and gap_index are columns, so the
+    # district filter cannot re-enter the benchmark computation.
+    g = g_ref if ref is f else apply_filters(g_ref, f)
+    if g_ref.empty:
         # The crop was not tabulated for this period. Report no KPIs at all
         # rather than manufactured zeros, but still explain the missing
         # same-season comparison so a client can say why.
@@ -718,13 +733,21 @@ def productivity(f: AnalyticsFilters) -> dict:
             "rows": [],
             "n_observations": 0,
             "available": True,
+            "reference": _reference_scope(f, g_ref, period_code=f.period_code),
         }
 
     valid = g[g["gap_index"].notna()]
-    benchmark_median = float(valid["benchmark_yield_kg_ha"].median()) if not valid.empty else None
+    valid_ref = g_ref[g_ref["gap_index"].notna()]
+    benchmark_median = (
+        float(valid_ref["benchmark_yield_kg_ha"].median()) if not valid_ref.empty else None
+    )
     summary = gap_summary(valid["gap_index"] if not valid.empty else pd.Series(dtype=float))
-    period_code = frame_period_code(g)
-    source_id = frame_source_id(g)
+    # The period and source describe the rows actually displayed; when the
+    # display selection is empty the reference frame still names the release
+    # the benchmark was computed from.
+    period_code = frame_period_code(g) or frame_period_code(g_ref)
+    source_id = frame_source_id(g) if not g.empty else frame_source_id(g_ref)
+    n_ref_districts = int(valid_ref["district"].nunique()) if not valid_ref.empty else 0
 
     rows = (
         valid.groupby("district", dropna=False)
@@ -769,7 +792,12 @@ def productivity(f: AnalyticsFilters) -> dict:
                 "id": "benchmark_yield", "label": f"Benchmark {f.crop} yield",
                 "value": None if benchmark_median is None else round(benchmark_median, 1),
                 "unit": "kg/ha", "period_code": period_code, "source_id": source_id,
-                "note": f"{f.crop} only · {f.benchmark_strategy} benchmark",
+                "note": (
+                    f"{f.crop} only · {f.benchmark_strategy} benchmark over "
+                    f"{n_ref_districts} comparable districts"
+                    if n_ref_districts
+                    else f"{f.crop} only · {f.benchmark_strategy} benchmark"
+                ),
             }
         )
     shortfall = summary["typical_shortfall"]
@@ -843,7 +871,7 @@ def productivity(f: AnalyticsFilters) -> dict:
     primary, secondary = split_kpis(kpis, primary_ids)
 
     return {
-        "period": period_of(g),
+        "period": period_of(g) or period_of(g_ref),
         "period_code": period_code,
         "source_id": source_id,
         "kpis": kpis,
@@ -855,6 +883,36 @@ def productivity(f: AnalyticsFilters) -> dict:
         "rows": records(rows),
         "n_observations": int(len(valid)),
         "available": True,
+        "reference": _reference_scope(f, valid_ref, period_code=period_code),
+    }
+
+
+def _reference_scope(
+    f: AnalyticsFilters, valid_ref: pd.DataFrame, *, period_code: str | None
+) -> dict:
+    """The comparable population each benchmark was computed over.
+
+    Returned with every productivity result so a client can state the scope
+    and sample size behind a benchmark instead of implying the inspected
+    district was compared with itself.
+    """
+    n_districts = int(valid_ref["district"].nunique()) if not valid_ref.empty else 0
+    n_observations = int(len(valid_ref))
+    scope = "province" if f.province else "national"
+    return {
+        "scope": scope,
+        "province": f.province,
+        "crop": f.crop,
+        "period_code": period_code,
+        "benchmark_strategy": f.benchmark_strategy,
+        "n_districts": n_districts,
+        "n_observations": n_observations,
+        "note": (
+            f"benchmarks compare each district with the {scope} {f.benchmark_strategy} "
+            f"of {n_districts} comparable districts"
+            if n_districts
+            else "no comparable observations form a benchmark for this selection"
+        ),
     }
 
 
@@ -934,8 +992,15 @@ def gap_distribution(rows: pd.DataFrame) -> list[dict]:
 
 
 def _mean_yield_for(f: AnalyticsFilters, period_code: str) -> float | None:
-    """Mean observed yield of the same selection in one period, or None."""
-    probe = dc_replace(f, period_code=period_code)
+    """Mean observed yield of the same selection in one period, or None.
+
+    The probe pins a single authoritative ``period_code`` and clears any
+    year/season pair the client sent alongside it: the web client always sends
+    ``period_code`` together with the derived ``year``/``season``, and keeping
+    the stale pair would intersect the probe period (e.g. 2025B) with the
+    original year (2026) and silently drop valid previous-year observations.
+    """
+    probe = dc_replace(f, period_code=period_code, year=None, season=None)
     frame = apply_filters(productivity_frame(probe), probe)
     if frame.empty or "yield_kg_ha" not in frame.columns:
         return None
@@ -1081,8 +1146,15 @@ def factor_associations(f: AnalyticsFilters) -> dict:
 
 
 def heatmap(f: AnalyticsFilters, metric: str = "gap") -> dict:
-    """district x crop matrix for a chosen metric."""
-    g = gapped(apply_filters(productivity_frame(f), f), f.benchmark_strategy)
+    """district x crop matrix for a chosen metric.
+
+    Benchmarks (and therefore gap values) are computed over the reference
+    population before the district display filter is applied, matching
+    :func:`productivity` and the map service.
+    """
+    ref = reference_filters(f)
+    g_ref = gapped(apply_filters(productivity_frame(ref), ref), f.benchmark_strategy)
+    g = g_ref if ref is f else apply_filters(g_ref, f)
     if g.empty:
         return {"metric": metric, "districts": [], "crops": [], "cells": [],
                 "max_value": None, "min_value": None, "unit": None}

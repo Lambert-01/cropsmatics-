@@ -14,6 +14,9 @@ class DatasetInfo(BaseModel):
     #: does not have to hand-maintain a tab per release.
     group: str = "current"
     group_label: str = "Current (multi-period)"
+    #: The exact-match query params this dataset accepts, so a client can offer
+    #: dataset-appropriate filters rather than params the API rejects.
+    filters: list[str] = Field(default_factory=list)
 
 
 class DatasetListResponse(BaseModel):

@@ -17,7 +17,7 @@ import {
   markSynced,
   upsertFarm,
 } from "../database";
-import { api, type HarvestPayload } from "../services/api";
+import { api, type FarmPayload, type HarvestPayload } from "../services/api";
 import type { HarvestRegistration, LocalFarm } from "../types";
 import { uuidv4 } from "../utils/uuid";
 
@@ -90,6 +90,18 @@ function harvestBody(payload: HarvestRegistration): HarvestPayload {
   };
 }
 
+function farmBody(payload: LocalFarm): FarmPayload {
+  return {
+    client_uuid: payload.clientUuid,
+    name: payload.name,
+    district: payload.district,
+    sector: payload.sector ?? null,
+    farm_size_ha: payload.farmSizeHa ?? null,
+    latitude: payload.latitude ?? null,
+    longitude: payload.longitude ?? null,
+  };
+}
+
 export async function flushOutbox(): Promise<FlushSummary> {
   const summary: FlushSummary = { attempted: 0, synced: 0, failed: 0, conflicts: 0 };
   if (!(await isOnline())) {
@@ -101,14 +113,17 @@ export async function flushOutbox(): Promise<FlushSummary> {
     try {
       if (item.entity === "harvest_registration") {
         const payload = JSON.parse(item.payload) as HarvestRegistration;
+        // Upload first: markSynced runs only once the server has acknowledged
+        // the record, so a dropped connection leaves the entry queued.
         const response = await api.createHarvest(harvestBody(payload));
         markSynced(item.clientUuid, response.id);
       } else if (item.entity === "local_farm") {
-        // Farm profiles sync with the harvest that references them; there is no
-        // separate server endpoint yet, so the queue entry is completed locally
-        // once the payload is valid.
-        void (JSON.parse(item.payload) as LocalFarm);
-        markSynced(item.clientUuid, null);
+        // The farm profile syncs through the same idempotent-on-client_uuid
+        // upload as a harvest; the server links any harvest registrations that
+        // referenced this farm before it existed there.
+        const payload = JSON.parse(item.payload) as LocalFarm;
+        const response = await api.createFarm(farmBody(payload));
+        markSynced(item.clientUuid, response.id);
       } else {
         // Other entities sync when implemented; leave queued.
         continue;

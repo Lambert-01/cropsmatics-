@@ -25,8 +25,9 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app; server synchronization still needs repair |
 
 **Status:** an actively developed MVP, not a completed production certification.
-The current audit identifies benchmark-filtering, projection edge-case, AI
-attribution and mobile synchronization defects. See
+The latest changes repair national benchmark filtering, comparison queries and
+projection edge cases. Remaining findings include operational ownership, AI crop
+and period attribution, peer-benchmark headlines and local farm sync status. See
 [current limitations and verification](docs/CURRENT_STATUS.md). A passing test
 suite does not mean those issues are fixed or that the latest commit is deployed.
 

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, TableSkeleton } from "@/components/ui/States";
-import { makeScale } from "@/features/maps/colors";
+import { legendGradient, makeScale } from "@/features/maps/colors";
 import { fmtNumber } from "@/lib/format";
 import type { HeatmapResponse } from "@/types";
 
@@ -77,7 +77,7 @@ export function GapHeatmap({
             <span>{fmtNumber(scale.min, 0)}%</span>
             <span
               className="h-2.5 w-40 rounded-full"
-              style={{ background: `linear-gradient(to right, ${scale.stops.join(", ")})` }}
+              style={{ background: legendGradient(scale) }}
               aria-hidden="true"
             />
             <span>{fmtNumber(scale.max, 0)}%</span>

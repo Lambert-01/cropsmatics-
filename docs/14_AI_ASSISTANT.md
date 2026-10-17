@@ -9,7 +9,7 @@ The current pipeline is route -> deterministic reference -> typed evidence -> op
 | Guard | What it proves |
 |---|---|
 | `numeric_guard` | Every figure in the answer appears somewhere in the retrieved evidence, at the precision it was written. |
-| `claim_guard` | Heuristic checks for units, metrics, scope, comparisons and causal wording. These are incomplete: the current audit reproduces wrong-district attribution and two-value swaps that pass. |
+| `claim_guard` | Heuristic checks for units, metrics, scope, comparisons and causal wording. The earlier district swaps are now rejected, but the current audit reproduces wrong-crop attribution and two-period value swaps that pass. |
 | `citation_guard` | Every cited evidence id was actually retrieved, so provenance cannot be fabricated into existence. |
 
 A failed guard returns the deterministic answer and records which guard failed and why in `validation`. This fallback also depends on correct analytical inputs. The guards are not proof of semantic accuracy: known attribution bypasses remain; vocabulary coverage is limited; and a credentialed provider has not been evaluated here. The evaluation set and limitations are documented in [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).

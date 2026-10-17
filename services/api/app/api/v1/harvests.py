@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.deps import DbSession
+from app.models.farm import Farm
 from app.models.harvest import HarvestRegistration, RiskScore
 from app.repositories import dataset_repository as repo
 from app.schemas.common import Provenance
@@ -53,8 +54,16 @@ def create_harvest(payload: HarvestCreate, db: DbSession) -> HarvestOut:
         district_name=payload.district,
         crop_name=payload.crop,
         expected_harvest_date=payload.expected_harvest_date,
+        harvest_start_date=payload.harvest_start_date,
+        harvest_end_date=payload.harvest_end_date,
         expected_quantity_kg=payload.expected_quantity_kg,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        notes=payload.notes,
+        needs_storage_assistance=payload.needs_storage_assistance,
         client_uuid=payload.client_uuid,
+        farm_client_uuid=payload.farm_client_uuid,
+        farm_id=_farm_id_for(db, payload.farm_client_uuid),
         is_offline_created=bool(payload.client_uuid),
         sync_status="SYNCED",
         source_id="MOBILE_OPERATIONAL",
@@ -64,6 +73,18 @@ def create_harvest(payload: HarvestCreate, db: DbSession) -> HarvestOut:
     db.commit()
     db.refresh(harvest)
     return _to_out(harvest)
+
+
+def _farm_id_for(db: DbSession, farm_client_uuid: str | None):
+    """The farm this registration belongs to, if it has already synced.
+
+    A farm that has not uploaded yet is not an error: the farm route links the
+    registration back when its own upload arrives.
+    """
+    if not farm_client_uuid:
+        return None
+    farm = db.query(Farm).filter(Farm.client_uuid == farm_client_uuid).one_or_none()
+    return farm.id if farm else None
 
 
 @router.get("/{harvest_id}", response_model=HarvestOut)

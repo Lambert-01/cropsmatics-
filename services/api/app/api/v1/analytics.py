@@ -129,6 +129,7 @@ def productivity(f: AnalyticsFilters = Depends(analytics_filters)) -> Productivi
         gap_bands=result.get("gap_bands", []),
         gap_summary=result.get("gap_summary"),
         rows=result["rows"],
+        reference=result.get("reference"),
         provenance=Provenance(
             # Never attach the 2025 Season B legacy source to an empty 2022/2023
             # result: an explicitly requested period names its own registered

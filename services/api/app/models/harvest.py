@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, String
+from sqlalchemy import Boolean, Date, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, ProvenanceMixin, TimestampMixin, UUIDPrimaryKeyMixin
@@ -32,11 +32,24 @@ class HarvestRegistration(UUIDPrimaryKeyMixin, TimestampMixin, ProvenanceMixin, 
     crop_name: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     expected_harvest_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    harvest_start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    harvest_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     expected_quantity_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
     actual_quantity_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
 
+    # Field capture. Coordinates are kept for the registration's own record and
+    # are never returned by the API (same rule as Farm.location).
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    needs_storage_assistance: Mapped[bool] = mapped_column(Boolean, default=False)
+
     # Offline-first mobile fields.
     client_uuid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    # The farm this registration belongs to, keyed by the farm's client UUID so
+    # the link survives uploads arriving in either order: set here when the farm
+    # is already on the server, back-filled by the farm upload otherwise.
+    farm_client_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     is_offline_created: Mapped[bool] = mapped_column(Boolean, default=False)
     sync_status: Mapped[str] = mapped_column(String(16), default="SYNCED")
 

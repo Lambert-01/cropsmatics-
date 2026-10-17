@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   CartesianGrid,
   ComposedChart,
@@ -15,21 +16,29 @@ import {
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState, ErrorState } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
+import { api } from "@/lib/api";
 import type { DashboardFilters } from "@/lib/filters";
 import { fmtNumber } from "@/lib/format";
-import { manualProjectionRequest } from "@/lib/manualProjection";
-import { useManualProjection } from "@/services/hooks/useAnalytics";
+import {
+  isStalePlan,
+  manualProjectionRequest,
+  nextSameSeasonCodes,
+  parsePlan,
+  serializePlan,
+  type ManualProjectionForm,
+} from "@/lib/manualProjection";
+import { useManualProjection, useProjectionOrigins } from "@/services/hooks/useAnalytics";
 import type {
   ManualProjectionRequest,
-  ManualProjectionResponse,
   ProjectionBaseline,
   ProjectionCompounding,
+  ProjectionCase,
   ProjectionMethod,
   ProjectionMetric,
 } from "@/types";
 
 /**
- * Build a projection — the *user-controlled* of the three future-looking
+ * Plan next season — the *user-controlled* of the three future-looking
  * activities.
  *
  * Not a published observation, and not a validated model forecast: it is the
@@ -37,6 +46,12 @@ import type {
  * The badge, the copy and the export rows say so, and the projected series is
  * drawn dashed and labelled "Your projection" so it can never be read as
  * measured data.
+ *
+ * The workspace also refuses three classes of silent drift: it only offers
+ * origins the calculation would accept (from the panel's real coverage),
+ * it marks a result outdated the moment an input changes, and it restores a
+ * shared plan only after validating it — an unknown plan version or an
+ * out-of-range assumption is reported, never coerced.
  */
 
 const METHODS: { id: ProjectionMethod; label: string }[] = [
@@ -50,70 +65,13 @@ const BASELINES: { id: ProjectionBaseline; label: string }[] = [
   { id: "median_window", label: "Median of a window" },
 ];
 
-function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  // Spreadsheet formula-injection guard. A legitimate negative number must stay
-  // numeric, so only non-numeric strings are prefixed.
-  const numeric = /^-?\d+(\.\d+)?$/.test(text);
-  const safe = !numeric && /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-  return `"${safe.replace(/"/g, '""')}"`;
-}
-
-function safeFilename(response: ManualProjectionResponse): string {
-  const parts = [
-    response.resolved.crop,
-    response.resolved.district || "national",
-    response.resolved.season,
-    "projection",
-  ];
-  return `${parts.join("-").replace(/[^a-z0-9-]+/gi, "-").toLowerCase()}.csv`;
-}
-
-function downloadCsv(response: ManualProjectionResponse) {
-  const header = [
-    "row_kind",
-    "label",
-    "period_code",
-    "metric",
-    "value",
-    "unit",
-    "case",
-    "source_id",
-    "note",
-  ];
-  const lines = [header.map(csvCell).join(",")];
-  for (const row of response.export_rows) {
-    lines.push(
-      [
-        row.row_kind,
-        row.label,
-        row.period_code,
-        row.metric,
-        row.value,
-        row.unit,
-        row.case,
-        row.source_id,
-        row.note,
-      ]
-        .map(csvCell)
-        .join(","),
-    );
-  }
-  // A leading comment line keeps the assumption/observation split visible even
-  // when the file is opened in a tool that hides the first column.
-  const body = `# ${response.value_kind_label} — ${response.assumption_badge}. Not an official statistic.\n${lines.join("\n")}\n`;
-  const blob = new Blob([body], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = safeFilename(response);
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
+type Notice = { kind: "restored" | "error" | "info"; message: string };
 
 export function ManualProjectionWorkspace({ filters = {} }: { filters?: DashboardFilters }) {
   const motion = useChartMotion();
   const projection = useManualProjection();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const crop = filters.crop ?? "";
   const district = filters.district ?? undefined;
@@ -128,67 +86,182 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   const [compounding, setCompounding] = useState<ProjectionCompounding>("once");
   const [assumedYield, setAssumedYield] = useState(1500);
   const [assumedArea, setAssumedArea] = useState(1);
+  const [originPeriod, setOriginPeriod] = useState("");
+  const [showCases, setShowCases] = useState(false);
+  const [caseLower, setCaseLower] = useState(5);
+  const [caseHigher, setCaseHigher] = useState(15);
 
   const submitted = projection.data;
+  /** The exact request that produced the displayed result — the export and the
+   *  outdated check both work from this, never from today's form. */
+  const [calculatedRequest, setCalculatedRequest] = useState<ManualProjectionRequest | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  const request = useMemo<ManualProjectionRequest>(
+  const planParam = searchParams.get("plan");
+  const appliedPlanRef = useRef<string | null>(null);
+
+  const origins = useProjectionOrigins({
+    crop,
+    district,
+    season,
+    metric: method === "personal" ? "production_mt" : metric,
+    method,
+  });
+
+  const bandsRequested = method === "percent_change" && showCases;
+  const bandsOrdered = caseLower <= changePct && changePct <= caseHigher;
+  const cases = useMemo<ProjectionCase[] | null>(
     () =>
-      manualProjectionRequest({
-        crop,
-        district,
-        season,
-        method,
-        baseline,
-        horizon,
-        metric,
-        windowSize,
-        changePct,
-        compounding,
-        assumedYield,
-        assumedArea,
-      }),
+      bandsRequested
+        ? [
+            { label: "lower", change_pct: caseLower },
+            { label: "main", change_pct: changePct },
+            { label: "higher", change_pct: caseHigher },
+          ]
+        : null,
+    [bandsRequested, caseLower, caseHigher, changePct],
+  );
+
+  const form = useMemo<ManualProjectionForm>(
+    () => ({
+      crop,
+      district,
+      season,
+      method,
+      baseline,
+      horizon,
+      metric,
+      windowSize,
+      changePct,
+      compounding,
+      assumedYield,
+      assumedArea,
+      originPeriod: originPeriod || null,
+      cases,
+    }),
     [
-      crop, district, season, horizon, metric, method, baseline, windowSize,
-      changePct, compounding, assumedYield, assumedArea,
+      crop, district, season, method, baseline, horizon, metric, windowSize,
+      changePct, compounding, assumedYield, assumedArea, originPeriod, cases,
     ],
   );
+  const request = useMemo(() => manualProjectionRequest(form), [form]);
 
   const valid =
     Boolean(crop) &&
     (method !== "personal" || (assumedYield > 0 && assumedArea > 0)) &&
-    (method !== "percent_change" || Number.isFinite(changePct));
+    (method !== "percent_change" || Number.isFinite(changePct)) &&
+    (!bandsRequested || bandsOrdered);
+
+  /** True the moment the form differs from what Python last computed. */
+  const outdated = isStalePlan(calculatedRequest, request);
+
+  const shareHref = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("plan", serializePlan(form));
+    return `${pathname}?${params.toString()}`;
+  }, [searchParams, pathname, form]);
+
+  const targetPeriods = useMemo(() => {
+    const start = originPeriod || origins.data?.origins.at(-1)?.period_code || "";
+    return nextSameSeasonCodes(start, horizon);
+  }, [originPeriod, origins.data, horizon]);
+
+  // Restore a shared plan exactly once per distinct `?plan=` value. A plan the
+  // build cannot read is reported and applied not at all.
+  useEffect(() => {
+    if (!planParam || appliedPlanRef.current === planParam) return;
+    appliedPlanRef.current = planParam;
+    const restored = parsePlan(planParam);
+    if (!restored.ok) {
+      setNotice({ kind: "error", message: restored.error });
+      return;
+    }
+    const f = restored.form;
+    setMethod(f.method);
+    setBaseline(f.baseline);
+    setHorizon(f.horizon);
+    setMetric(f.metric);
+    setWindowSize(f.windowSize ?? 3);
+    setChangePct(f.changePct ?? 10);
+    setCompounding(f.compounding ?? "once");
+    setAssumedYield(f.assumedYield ?? 1500);
+    setAssumedArea(f.assumedArea ?? 1);
+    setOriginPeriod(f.originPeriod ?? "");
+    const plannedCases = f.cases ?? [];
+    const lower = plannedCases.find((c) => c.label === "lower")?.change_pct;
+    const main = plannedCases.find((c) => c.label === "main")?.change_pct;
+    const higher = plannedCases.find((c) => c.label === "higher")?.change_pct;
+    setShowCases(plannedCases.length > 0);
+    if (lower !== undefined) setCaseLower(lower);
+    if (higher !== undefined) setCaseHigher(higher);
+    if (main !== undefined) setChangePct(main);
+    const mismatch =
+      f.crop !== crop || (f.district ?? null) !== (district ?? null) || f.season !== season;
+    const linkScope = `${f.crop}${f.district ? ` · ${f.district}` : ""} · ${f.season}-season`;
+    const pageScope = `${crop}${district ? ` · ${district}` : ""} · ${season}-season`;
+    setNotice({
+      kind: "restored",
+      message: mismatch
+        ? `Plan restored from the link — it was built for ${linkScope}, but the page selection is ${pageScope}. Match the selection in the filters above before calculating.`
+        : "Plan restored from the link. Review the assumptions, then press Calculate.",
+    });
+  }, [planParam, crop, district, season]);
+
+  // A chosen origin that the current selection no longer observes would only
+  // fail on calculate: drop back to the default and say so, once.
+  useEffect(() => {
+    const options = origins.data?.origins;
+    if (!originPeriod || !options) return;
+    if (options.some((option) => option.period_code === originPeriod)) return;
+    setOriginPeriod("");
+    setNotice({
+      kind: "info",
+      message: `The origin ${originPeriod} has no observation for the current selection, so the plan now starts from the latest observed season.`,
+    });
+  }, [origins.data, originPeriod]);
 
   const chartData = useMemo(() => {
     const result = submitted;
     if (!result) return [];
-    const byPeriod = new Map<
-      string,
-      { period: string; observed: number | null; projection: number | null }
-    >();
-    for (const obs of result.baseline_observations) {
-      byPeriod.set(obs.period_code, {
-        period: obs.period_label || obs.period_code,
-        observed: obs.value,
+    type Row = {
+      period: string;
+      observed: number | null;
+      projection: number | null;
+      lower: number | null;
+      higher: number | null;
+    };
+    const byPeriod = new Map<string, Row>();
+    const row = (code: string, label: string): Row => {
+      const existing = byPeriod.get(code);
+      if (existing) return existing;
+      const fresh: Row = {
+        period: label || code,
+        observed: null,
         projection: null,
-      });
+        lower: null,
+        higher: null,
+      };
+      byPeriod.set(code, fresh);
+      return fresh;
+    };
+    for (const obs of result.baseline_observations) {
+      row(obs.period_code, obs.period_label || obs.period_code).observed = obs.value;
     }
-    const main = result.cases[0];
-    if (main) {
+    const mainCase = result.cases.find((c) => c.label === "main") ?? result.cases[0];
+    if (mainCase) {
       const originCode = result.resolved.origin_period;
-      const anchor = byPeriod.get(originCode);
-      if (anchor) anchor.projection = result.baseline_value;
-      else
-        byPeriod.set(originCode, {
-          period: result.resolved.origin_label || originCode,
-          observed: null,
-          projection: result.baseline_value,
-        });
-      for (const point of main.points) {
-        byPeriod.set(point.period_code, {
-          period: point.period_label || point.period_code,
-          observed: null,
-          projection: point.value,
-        });
+      row(originCode, result.resolved.origin_label || originCode).projection = result.baseline_value;
+      for (const point of mainCase.points) {
+        row(point.period_code, point.period_label || point.period_code).projection = point.value;
+      }
+    }
+    for (const band of ["lower", "higher"] as const) {
+      const found = result.cases.find((c) => c.label === band);
+      for (const point of found?.points ?? []) {
+        row(point.period_code, point.period_label || point.period_code)[band] = point.value;
       }
     }
     return [...byPeriod.values()];
@@ -203,11 +276,15 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
     );
   }
 
+  const hasBands = submitted
+    ? submitted.cases.some((c) => c.label === "lower" || c.label === "higher")
+    : false;
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader
-          title="Build a projection"
+          title="Plan next season"
           subtitle="Planning only. Based on your assumptions — not an official statistic and not a validated forecast."
         />
         <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -235,6 +312,32 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
               </select>
             </Field>
           ) : null}
+          <Field label="Origin (start season)">
+            <select className={INPUT} value={originPeriod} onChange={(e) => setOriginPeriod(e.target.value)}>
+              <option value="">Latest observed (default)</option>
+              {(origins.data?.origins ?? []).map((option) => (
+                <option key={option.period_code} value={option.period_code}>
+                  {option.period_label || option.period_code}
+                  {option.kind === "assumed"
+                    ? " (assumed)"
+                    : option.value != null
+                      ? ` — ${fmtNumber(option.value, 1)}${option.unit ? ` ${option.unit}` : ""}`
+                      : ""}
+                </option>
+              ))}
+            </select>
+            {origins.isPending ? (
+              <span className="block text-xs text-slate-500">Loading available origins…</span>
+            ) : null}
+            {origins.error ? (
+              <span className="block text-xs text-red-600">
+                The origin list could not be loaded; Calculate will validate the origin instead.
+              </span>
+            ) : null}
+            {origins.data && origins.data.origins.length === 0 && origins.data.note ? (
+              <span className="block text-xs text-slate-500">{origins.data.note}</span>
+            ) : null}
+          </Field>
           <Field label="Horizon (same-season steps)">
             <select className={INPUT} value={horizon} onChange={(e) => setHorizon(Number(e.target.value))}>
               {[1, 2, 3].map((n) => (
@@ -242,6 +345,15 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
               ))}
             </select>
           </Field>
+          <div className="block min-w-0 space-y-1">
+            <span className="block text-xs font-medium text-slate-600">Planning target</span>
+            <div
+              className="rounded-md border border-forest/15 bg-slate-50 px-2 py-1.5 text-sm text-slate-700"
+              title="Same-season periods this plan will project, from the chosen origin"
+            >
+              {targetPeriods.length ? targetPeriods.join(", ") : "—"}
+            </div>
+          </div>
           {method === "percent_change" ? (
             <>
               <Field label="Assumed change (%)">
@@ -254,6 +366,28 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
                   <option value="per_step">Compounded per step</option>
                 </select>
               </Field>
+              <Field label="Assumption bands">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showCases}
+                    onChange={(e) => setShowCases(e.target.checked)}
+                  />
+                  Show lower &amp; higher cases
+                </label>
+              </Field>
+              {showCases ? (
+                <>
+                  <Field label="Lower change (%)">
+                    <input type="number" step={1} className={INPUT} value={caseLower}
+                      onChange={(e) => setCaseLower(Number(e.target.value))} />
+                  </Field>
+                  <Field label="Higher change (%)">
+                    <input type="number" step={1} className={INPUT} value={caseHigher}
+                      onChange={(e) => setCaseHigher(Number(e.target.value))} />
+                  </Field>
+                </>
+              ) : null}
             </>
           ) : null}
           {baseline === "median_window" && method !== "personal" ? (
@@ -277,13 +411,30 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
               </Field>
             </>
           ) : null}
+          {bandsRequested && !bandsOrdered ? (
+            <p className="text-xs text-red-600 sm:col-span-2 lg:col-span-4">
+              The lower band must not exceed your assumed change ({changePct}%), and your assumed
+              change must not exceed the higher band ({caseHigher}%). Calculate stays disabled until
+              the bands are ordered — no band is silently dropped.
+            </p>
+          ) : null}
+          {bandsRequested && bandsOrdered ? (
+            <p className="text-xs text-slate-600 sm:col-span-2 lg:col-span-4">
+              Your assumed change ({changePct}%) is the main case; lower and higher frame the band
+              around it.
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-forest/10 p-4">
           <button
             type="button"
             className="rounded-md bg-forest px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             disabled={!valid || projection.isPending}
-            onClick={() => projection.mutate(request)}
+            onClick={() =>
+              projection.mutate(request, {
+                onSuccess: (_data, variables) => setCalculatedRequest(variables),
+              })
+            }
           >
             {projection.isPending ? "Calculating…" : "Calculate"}
           </button>
@@ -295,8 +446,18 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
               setBaseline("latest_observed");
               setHorizon(2);
               setMetric("yield_kg_ha");
+              setWindowSize(3);
               setChangePct(10);
               setCompounding("once");
+              setAssumedYield(1500);
+              setAssumedArea(1);
+              setOriginPeriod("");
+              setShowCases(false);
+              setCaseLower(5);
+              setCaseHigher(15);
+              setCalculatedRequest(null);
+              setNotice(null);
+              setExportError(null);
               projection.reset();
             }}
           >
@@ -305,17 +466,52 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
           {submitted ? (
             <button
               type="button"
-              className="rounded-md border border-forest/20 px-4 py-2 text-sm"
-              onClick={() => downloadCsv(submitted)}
+              className="rounded-md border border-forest/20 px-4 py-2 text-sm disabled:opacity-50"
+              disabled={exporting}
+              onClick={() => {
+                void exportCsv();
+              }}
             >
-              Export CSV
+              {exporting ? "Preparing…" : "Export CSV"}
             </button>
           ) : null}
+          <button
+            type="button"
+            className="rounded-md border border-forest/20 px-4 py-2 text-sm"
+            onClick={() => {
+              void copyShareLink();
+            }}
+          >
+            {copied ? "Copied!" : "Copy plan link"}
+          </button>
+          <a
+            className="rounded-md border border-forest/20 px-4 py-2 text-sm text-forest"
+            href={shareHref}
+            title="Opens this plan as a shareable URL"
+          >
+            Open plan link
+          </a>
           <span className="rounded-full bg-amber/10 px-2 py-1 text-xs font-medium text-amber">
             Your assumptions
           </span>
+          {exportError ? (
+            <span className="text-xs text-red-600" role="alert">{exportError}</span>
+          ) : null}
         </div>
       </Card>
+
+      {notice ? (
+        <div
+          role="status"
+          className={
+            notice.kind === "error"
+              ? "rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              : "rounded-md border border-forest/15 bg-forest/5 p-3 text-sm text-slate-700"
+          }
+        >
+          {notice.message}
+        </div>
+      ) : null}
 
       {projection.error ? (
         <ErrorState
@@ -327,11 +523,25 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
         />
       ) : null}
 
+      {outdated ? (
+        <div role="status" className="rounded-md border border-amber/30 bg-amber/10 p-3 text-sm text-amber">
+          Inputs changed since this result was calculated. Press Calculate to refresh — the result
+          below still shows the previous inputs.
+        </div>
+      ) : null}
+
       {submitted ? (
         <Card>
           <CardHeader
             title={`${submitted.resolved.crop} · ${submitted.resolved.district || submitted.resolved.geography} · ${submitted.resolved.season}-season`}
             subtitle={`${submitted.method_label}. ${submitted.baseline_note ?? ""}`}
+            action={
+              outdated ? (
+                <span className="rounded-full bg-amber/10 px-2 py-1 text-xs font-medium text-amber">
+                  Outdated
+                </span>
+              ) : null
+            }
           />
           <div className="p-4">
             <ResponsiveContainer width="100%" height={280}>
@@ -343,11 +553,25 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
                   {...TOOLTIP_STYLE}
                   formatter={(value, name) => [
                     value === null || value === undefined ? "—" : fmtNumber(Number(value), 1),
-                    name === "observed" ? "Observed" : "Your projection",
+                    name === "observed"
+                      ? "Observed"
+                      : name === "lower"
+                        ? "Lower assumption"
+                        : name === "higher"
+                          ? "Higher assumption"
+                          : "Your projection",
                   ]}
                 />
                 <Legend
-                  formatter={(value: string) => (value === "observed" ? "Observed" : "Your projection")}
+                  formatter={(value: string) =>
+                    value === "observed"
+                      ? "Observed"
+                      : value === "lower"
+                        ? "Lower assumption"
+                        : value === "higher"
+                          ? "Higher assumption"
+                          : "Your projection"
+                  }
                 />
                 <Line
                   type="monotone"
@@ -368,10 +592,36 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
                   connectNulls={false}
                   isAnimationActive={motion.isAnimationActive}
                 />
+                {hasBands ? (
+                  <Line
+                    type="monotone"
+                    dataKey="lower"
+                    stroke={CHART.amber}
+                    strokeDasharray="2 4"
+                    strokeWidth={1.5}
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={motion.isAnimationActive}
+                  />
+                ) : null}
+                {hasBands ? (
+                  <Line
+                    type="monotone"
+                    dataKey="higher"
+                    stroke={CHART.amber}
+                    strokeDasharray="10 4"
+                    strokeWidth={1.5}
+                    dot={false}
+                    connectNulls={false}
+                    isAnimationActive={motion.isAnimationActive}
+                  />
+                ) : null}
               </ComposedChart>
             </ResponsiveContainer>
             <p className="mt-2 text-xs text-slate-600">
-              Solid is observed. Dashed is your projection. Unit: {submitted.units}.
+              Solid is observed. Dashed is your projection
+              {hasBands ? "; the dotted lines are your lower and higher assumption bands" : ""}.
+              Unit: {submitted.units}.
             </p>
 
             {submitted.warnings.length ? (
@@ -417,6 +667,35 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
       ) : null}
     </div>
   );
+
+  /** The export downloads what is on screen — the calculated request, not the
+   *  form as it stands now — as a Python-generated file named by calculation id. */
+  async function exportCsv(): Promise<void> {
+    if (!calculatedRequest) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await api.manualProjectionCsv(calculatedRequest);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "The CSV export could not be downloaded.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  /** Copy the share URL; when the clipboard API is unavailable the "Open plan
+   *  link" anchor stays as the universal fallback. */
+  async function copyShareLink(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(new URL(shareHref, window.location.origin).href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 }
 
 const INPUT = "w-full rounded-md border border-forest/20 bg-white px-2 py-1.5 text-sm";

@@ -29,22 +29,27 @@ Design rules:
 from __future__ import annotations
 
 import io
+import json
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.analytics.manual_projection import ProjectionError
 from app.repositories import dataset_repository as repo
 from app.schemas.common import Provenance
 from app.schemas.filters import AnalyticsFilters, analytics_filters, apply_filters
+from app.schemas.manual_projection import ManualProjectionRequest, ManualProjectionResponse
 from app.services import (
     analytics_service,
     dataset_service,
+    manual_projection_service,
     meta_service,
     period_service,
     postharvest_service,
 )
+from app.services.manual_projection_service import ProjectionUnavailable
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -207,12 +212,19 @@ def _scorecard(f: AnalyticsFilters) -> pd.DataFrame:
     Yield and the benchmark are returned as reported; the gap is the documented
     ``100 * (1 - yield / benchmark)`` transform. Nothing is averaged across
     crops, because a cross-crop mean yield is not an agricultural quantity.
+
+    The benchmark is computed over the reference population (the district
+    inspection dropped) and the rows are narrowed afterwards, so exporting one
+    district never redefines its own benchmark.
     """
-    frame = _district_panel(f)
+    ref = analytics_service.reference_filters(f)
+    frame = _district_panel(ref)
     if frame.empty:
         return pd.DataFrame()
 
     gapped = analytics_service.gapped(frame, f.benchmark_strategy)
+    if f.district:
+        gapped = apply_filters(gapped, f)
     if gapped.empty:
         return pd.DataFrame()
 
@@ -626,7 +638,10 @@ def district_summary(
 
 @router.get("/crop-summary")
 def crop_summary(crop: str, f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
-    frame = _district_panel(f)
+    # The benchmark (and therefore the median gap) is computed over the
+    # reference population before any district inspection filter is applied.
+    ref = analytics_service.reference_filters(f)
+    frame = _district_panel(ref)
     sub = frame[frame["canonical_crop_name"].astype(str).str.lower() == crop.lower()]
     if sub.empty:
         raise HTTPException(
@@ -635,6 +650,9 @@ def crop_summary(crop: str, f: AnalyticsFilters = Depends(analytics_filters)) ->
         )
     valid = sub[sub["yield_kg_ha"].fillna(0) > 0]
     g = analytics_service.gapped(sub, f.benchmark_strategy)
+    if f.district:
+        g = apply_filters(g, f)
+        valid = apply_filters(valid, f)
     period_code = analytics_service.frame_period_code(sub)
     return {
         "crop": crop,
@@ -693,14 +711,126 @@ def post_harvest_csv() -> StreamingResponse:
 
 
 @router.get("/dataset/{key}.csv")
-def dataset_csv(key: str) -> StreamingResponse:
+def dataset_csv(
+    request: Request,
+    key: str,
+    search: str | None = None,
+    period_code: str | None = Query(None, description="published period, e.g. 2025B"),
+    year: int | None = Query(None, ge=2000, le=2100),
+    season: str | None = Query(None, description="A, B or C"),
+    crop: str | None = None,
+    province: str | None = None,
+    district: str | None = None,
+    indicator_code: str | None = None,
+    domain: str | None = None,
+    sort_by: str | None = None,
+    sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
+) -> StreamingResponse:
     """Export any whitelisted processed dataset exactly as the API serves it.
 
     Kept for reproducibility and debugging. The curated reports above are the
-    supported analytical exports; these are the raw processed tables.
+    supported analytical exports; these are the raw processed tables. The
+    explorer's download link passes its search, filters and sort through here,
+    so the CSV matches the rows on screen instead of dumping the full table.
+    The same whitelist applies: an unsupported filter is a 400, an unknown
+    period a 422, an unknown dataset a 404.
     """
+    dataset_service.assert_known_query_params(
+        request.query_params, dataset_service.DATASET_CSV_PARAMS
+    )
+    filters = dataset_service.parse_filters(
+        period_code=period_code,
+        year=year,
+        season=season,
+        crop=crop,
+        province=province,
+        district=district,
+        indicator_code=indicator_code,
+        domain=domain,
+    )
     try:
-        df = dataset_service.records_for_export(key)
+        df = dataset_service.records_for_export(
+            key, search=search, filters=filters, sort_by=sort_by, sort_dir=sort_dir
+        )
     except KeyError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown dataset: {key!r}") from None
     return _csv_response(df, f"{key}.csv")
+
+
+def _projection_frame(result: ManualProjectionResponse) -> pd.DataFrame:
+    """One DataFrame row per export row, with the plan's full context repeated.
+
+    The file has to stay self-describing once it leaves the platform: every
+    row carries the calculation id, the dataset and method versions, the
+    resolved scope, the origin and target, the assumption case, the compounding
+    choice and the complete assumptions (``assumptions_json``), so a row pasted
+    into a spreadsheet still says what it is, which plan produced it and which
+    numbers were assumed rather than published.
+    """
+    resolved = result.resolved
+    assumptions = result.assumptions or {}
+    context = {
+        "calculation_id": result.calculation_id,
+        "value_kind": result.value_kind,
+        "assumption_badge": result.assumption_badge,
+        "methodology_version": result.methodology_version,
+        "dataset_version": result.dataset_version,
+        "crop": resolved.crop,
+        "geography": resolved.geography,
+        "district": resolved.district,
+        "province": resolved.province,
+        "season": resolved.season,
+        "origin_period": resolved.origin_period,
+        "origin_kind": resolved.origin_kind,
+        "metric": resolved.metric,
+        "method": result.method,
+        "baseline": result.baseline,
+        "baseline_window": assumptions.get("baseline_window"),
+        "change_pct": assumptions.get("change_pct"),
+        "compounding": assumptions.get("compounding"),
+        "assumed_yield_kg_ha": assumptions.get("assumed_yield_kg_ha"),
+        "assumed_harvested_area_ha": assumptions.get("assumed_harvested_area_ha"),
+        "assumptions_json": json.dumps(assumptions, sort_keys=True, default=str),
+    }
+    rows = []
+    for row in result.export_rows:
+        rows.append(
+            {
+                **context,
+                # The row's own metric wins: the assumed-production baseline row
+                # is production even when the plan's resolved metric is a yield.
+                "metric": row.metric,
+                "row_kind": row.row_kind,
+                "label": row.label,
+                "period_code": row.period_code,
+                "period_label": row.period_label,
+                "target_period": row.period_code if row.row_kind == "projection" else None,
+                "value": row.value,
+                "unit": row.unit,
+                "assumption_case": row.case,
+                "source_id": row.source_id,
+                "note": row.note,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+@router.post("/manual-projection.csv")
+def manual_projection_csv(payload: ManualProjectionRequest) -> StreamingResponse:
+    """The Python-generated export of a manual projection.
+
+    POST because the request body *is* the plan (nested assumption cases do
+    not fit a query string) — the same body ``POST /scenarios/manual-projection``
+    accepts, so the download computes exactly what the screen showed. The file
+    starts with a normal CSV header (no prose comment before it) and carries
+    the calculation id, versions, scope, origin/target, assumption case and
+    complete assumptions on every row. A selection the projection engine
+    refuses is refused here too, with the same structured 422.
+    """
+    try:
+        result = manual_projection_service.run(payload)
+    except (ProjectionUnavailable, ProjectionError) as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+    return _csv_response(_projection_frame(result), f"{result.calculation_id}.csv")

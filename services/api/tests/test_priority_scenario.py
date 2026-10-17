@@ -259,3 +259,74 @@ def test_provenance_names_the_release_and_the_method(client):
     assert provenance["source_period"] == f"{PERIOD}-{PERIOD}"
     assert "deterministic" in provenance["method"].lower()
     assert provenance["limitations"]
+
+
+# --- explanation carry ---------------------------------------------------------
+
+
+def test_scenario_rows_carry_the_engine_explanation_fields(client):
+    """``shortfall_pct``, ``purpose`` and ``reference_n`` survive the projection.
+
+    ``_rank_rows`` reduces a ranked candidate to the comparison's fields; if it
+    drops the engine's explanation, a scenario row says only where it landed —
+    not what the score is about or which population it is relative to. The
+    planner endpoint and the lab must also explain the same candidate the same
+    way, or the two views of one ranking disagree.
+    """
+    _require_data(client)
+    planner = client.get(
+        "/api/v1/analytics/intervention-priorities",
+        params={"period_code": PERIOD, "limit": 500},
+    ).json()
+    planner_by_id = {row["id"]: row for row in planner["rows"]}
+    assert planner_by_id, "the default scope has candidates in this build"
+
+    body = _scenario(client, baseline=_side(), scenario=_side(weights=GAP_FOCUSED))
+    baseline_rows = body["baseline"]["rows"]
+    assert baseline_rows
+    for row in baseline_rows:
+        assert isinstance(row["shortfall_pct"], int | float)
+        assert row["shortfall_pct"] >= 0
+        assert row["purpose"] == body["purpose"] == "productivity_support"
+        assert isinstance(row["reference_n"], int) and row["reference_n"] > 0
+        assert row["eligible"] is True
+        assert row["eligibility_reason"] is None
+        expected = planner_by_id[row["id"]]
+        assert row["shortfall_pct"] == expected["shortfall_pct"]
+        assert row["purpose"] == expected["purpose"]
+        assert row["reference_n"] == expected["reference_n"]
+
+    # The projection is per side: the scenario side carries them too.
+    scenario_rows = body["scenario"]["rows"]
+    assert len(scenario_rows) == len(baseline_rows)
+    for row in scenario_rows:
+        assert isinstance(row["shortfall_pct"], int | float)
+        assert row["purpose"] == body["purpose"]
+        assert isinstance(row["reference_n"], int) and row["reference_n"] > 0
+        assert row["reference_n"] == planner_by_id[row["id"]]["reference_n"]
+
+
+def test_explanation_fields_survive_a_threshold_scenario(client):
+    """The carried fields follow eligibility: a tighter threshold shrinks the
+    candidate set but never rewrites the explanation of a surviving row."""
+    _require_data(client)
+    baseline = _side(shortfall_threshold_pct=0)
+    scenario = _side(shortfall_threshold_pct=30)
+    body = _scenario(client, baseline=baseline, scenario=scenario)
+    assert body["baseline"]["rows"]
+    assert len(body["scenario"]["rows"]) <= len(body["baseline"]["rows"])
+    planner = {
+        row["id"]: row
+        for row in client.get(
+            "/api/v1/analytics/intervention-priorities",
+            # The planner's query param is `threshold_pct`; the scenario calls it
+            # `shortfall_threshold_pct` in the body. Same engine threshold.
+            params={"period_code": PERIOD, "limit": 500, "threshold_pct": 30},
+        ).json()["rows"]
+    }
+    # Same eligibility rule on both endpoints: the surviving set matches.
+    assert set(planner) == {row["id"] for row in body["scenario"]["rows"]}
+    for row in body["scenario"]["rows"]:
+        assert row["purpose"] == body["purpose"]
+        assert row["reference_n"] == planner[row["id"]]["reference_n"]
+        assert row["shortfall_pct"] == planner[row["id"]]["shortfall_pct"]

@@ -1,4 +1,9 @@
-import { NO_DATA_COLOR, scaleDirectionText, type ColorScale } from "@/features/maps/colors";
+import {
+  NO_DATA_COLOR,
+  legendGradient,
+  scaleDirectionText,
+  type ColorScale,
+} from "@/features/maps/colors";
 
 /**
  * The map legend.
@@ -39,7 +44,7 @@ export function MapLegend({
   /** Entry for the yield-shortfall hatch, shown only while the hatch is drawn. */
   overlay?: string | null;
 }) {
-  const gradient = `linear-gradient(to right, ${scale.stops.join(", ")})`;
+  const gradient = legendGradient(scale);
   const format = (v: number) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1));
   const fallback =
     higherIs === "worse"

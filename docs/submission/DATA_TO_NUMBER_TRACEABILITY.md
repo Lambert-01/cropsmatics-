@@ -2,8 +2,9 @@
 
 Review note, 2026-10-17: this document mixes desired contracts with worked
 examples. Exact per-metric cell lineage and a resolver remain outstanding.
-The selected-district benchmark and historical personal-plan evidence-window
-defects are recorded in [Current Status](../CURRENT_STATUS.md). Do not interpret
+National-median district filtering and historical plan evidence windows are now
+repaired; a peer-benchmark headline mismatch remains documented in
+[Current Status](../CURRENT_STATUS.md). Do not interpret
 the examples as proof of complete traceability across every route.
 
 Every displayed analytical number must be traceable from the UI to the exact

@@ -1073,6 +1073,14 @@ export interface PriorityCandidateRow {
   band: string;
   in_priority_group: boolean;
   in_top_n: boolean;
+  /** Published shortfall vs benchmark (%), carried through the projection. */
+  shortfall_pct?: number | null;
+  /** Planning purpose this row was ranked under (e.g. `productivity_support`). */
+  purpose?: string | null;
+  /** Reference population the score was normalized against. */
+  reference_n?: number | null;
+  eligible?: boolean;
+  eligibility_reason?: string | null;
 }
 
 export interface PriorityViewStats {
@@ -1371,6 +1379,29 @@ export interface ManualProjectionResponse {
   provenance: Provenance;
 }
 
+/**
+ * One selectable planning origin for the origin selector. Options come from
+ * the scope's actual same-season coverage — a period that is not offered
+ * would only ever fail on calculate — and every option says whether its value
+ * is a published observation or a planning-period assumption.
+ */
+export interface ProjectionOriginOption {
+  period_code: string;
+  period_label: string;
+  kind: "observed" | "assumed";
+  value: number | null;
+  unit: string | null;
+  source_id: string | null;
+}
+
+export interface ProjectionOriginsResponse {
+  season: string;
+  metric: ProjectionMetric;
+  origins: ProjectionOriginOption[];
+  /** Plain-language reason when the list is short or empty; null otherwise. */
+  note: string | null;
+}
+
 export interface DatasetInfo {
   key: string;
   label: string;
@@ -1378,6 +1409,8 @@ export interface DatasetInfo {
   /** Selector group: current multi-period tables lead, legacy extracts archive. */
   group: string;
   group_label: string;
+  /** Exact-match query params this dataset accepts (API-validated). */
+  filters: string[];
 }
 
 export interface DatasetResponse {

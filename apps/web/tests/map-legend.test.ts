@@ -69,6 +69,43 @@ describe("map colour scale", () => {
     expect(scale.color(-20)).not.toBe(scale.color(80));
   });
 
+  it("distinguishes interior negative values under a mixed domain", () => {
+    // The defect: under [-50, 20] every negative value computed value/-min < 0,
+    // clamped to the same low-ramp stop, so -40 and -10 painted one green.
+    const scale = makeScale(-50, 20, "diverging", [-50, -10, 0, 20]);
+    const colours = [-50, -40, -10].map((v) => scale.color(v));
+    expect(new Set(colours).size).toBe(3);
+    // Zero stays the neutral stop, and the positive side keeps its own span.
+    expect(scale.color(-10)).not.toBe(scale.color(0));
+    expect(scale.color(10)).not.toBe(scale.color(20));
+    expect(scale.color(10)).not.toBe(scale.color(-10));
+  });
+
+  it("is continuous across zero on both sides", () => {
+    const scale = makeScale(-50, 20, "diverging");
+    const toRgb = (colour: string) =>
+      colour.startsWith("#")
+        ? [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16))
+        : (colour.match(/\d+/g) ?? []).map(Number);
+    const distance = (a: string, b: string) => {
+      const [ra, ga, ba] = toRgb(a);
+      const [rb, gb, bb] = toRgb(b);
+      return Math.abs(ra - rb) + Math.abs(ga - gb) + Math.abs(ba - bb);
+    };
+    const neutral = scale.color(0);
+    expect(distance(scale.color(-1e-9), neutral)).toBeLessThanOrEqual(1);
+    expect(distance(scale.color(1e-9), neutral)).toBeLessThanOrEqual(1);
+    // ...while values far from zero stay clearly apart from it.
+    expect(distance(scale.color(-40), neutral)).toBeGreaterThan(60);
+  });
+
+  it("spans the whole low ramp for a one-sided negative domain", () => {
+    const scale = makeScale(-50, -10, "diverging", [-50, -10]);
+    expect(scale.color(-50)).not.toBe(scale.color(-10));
+    // The least-below value sits at the neutral end of the ramp.
+    expect(scale.color(-50)).not.toBe(scale.color(0));
+  });
+
   it("flags a scope whose every district shares one published value", () => {
     const scale = makeScale(1200, 1200, "sequential", [1200, 1200]);
     expect(scale.flat).toBe(true);
@@ -127,6 +164,24 @@ describe("map legend", () => {
   it("marks zero as the benchmark on a diverging bar", () => {
     const html = legend(makeScale(-20, 80, "diverging"), { unit: "%" });
     expect(html).toContain("0 is the benchmark");
+  });
+
+  it("places the legend's neutral stop where zero falls in the published span", () => {
+    // Under [-50, 20] zero sits at 50/70 ≈ 71.43% of the bar. An evenly spaced
+    // gradient put it at 50%, so the legend swatch and the district fill
+    // disagreed about which colour "0" was.
+    const html = legend(makeScale(-50, 20, "diverging"));
+    expect(html).toContain("#fef9c3 71.43%");
+    expect(html).not.toContain("#fef9c3 50%");
+    // The endpoints still sit at the ends of the bar.
+    expect(html).toContain("#15803d 0%");
+    expect(html).toContain("#b91c1c 100%");
+  });
+
+  it("keeps even stops for a sequential legend bar", () => {
+    const html = legend(makeScale(0, 100, "worse"));
+    expect(html).toContain("#f0fdf4 0%");
+    expect(html).toContain("#16a34a 100%");
   });
 
   it("says when a selection has only one published value", () => {

@@ -1,190 +1,68 @@
-# Feature / Data Coverage Matrix
+# Feature And Data Coverage
 
-What the real data can and cannot support. This file is the source of truth for
-every "showing national statistics" / "no verified data" message in the UI.
+Reviewed 2026-10-17 from the local processed tables. Runtime coverage is derived
+from the serving data and exposed through `/api/v1/meta/data-coverage`; this
+document does not override a deployment's actual availability.
 
-The machine-readable version of the same facts is `data_coverage.csv`, served as
-`GET /meta/data-coverage` and generated from the processed tables themselves. If
-this page and that response disagree, the response is right and this page is a
-bug: it is written by hand only for the prose the API does not carry.
+## Official Analytical Tables
 
-## Geographic and temporal coverage
+| Source layer | Observed local coverage | Meaning and limitations |
+|---|---|---|
+| `crop_productivity` | 6,156 rows; 14 periods, 2022A through 2026B | Contains district and aggregate rows. Select geography/farmer scale before analysis; do not add published totals to their component districts. Crop coverage is narrower in Season C. |
+| `agricultural_practice_observation` | 9,468 rows; 2024A/B/C, 2025A/B/C, 2026A/B | Long-form practice, irrigation, water and erosion observations. Indicator, geography and unit availability vary by release. |
+| `crop_postharvest_use_multi_period` | 1,573 rows over the same eight 2024-2026 periods | Crop/indicator observations, not invented district loss estimates. Share-sum warnings are retained. |
+| Legacy factor/irrigation/erosion extracts | 2025 Season B | Retained for existing joined-factor analysis and the current priority readiness/cost component policy; do not claim all practice history is 2025B-only. |
+| Legacy post-harvest use | 2025 Season B, national crop shares | Retained separately from the multi-period table. |
+| Legacy national trends/input trends | Their published periods only | Do not substitute them silently for missing canonical observations. |
+| Cold-chain/program context | Registered 2026 context | Program districts are not verified facility capacity. Capacity remains null where unverified. |
 
-| Dataset | 2024A | 2024B | 2024C | 2025A | 2025B | 2025C | 2026A | 2026B |
-|---|---|---|---|---|---|---|---|---|
-| Crop productivity panel (`crop_productivity`) | **district** | **district** | **district** | **district** | **district** | **district** | **district** | **district** |
-| Legacy district extract (`district_crop_productivity`) | — | national | — | national | **district** | — | national | — |
-| District factors (02) | — | — | — | — | **district** | — | — | — |
-| Irrigation (03) | — | — | — | — | **district** | — | — | — |
-| Erosion control (04) | — | — | — | — | **district** | — | — | — |
-| Post-harvest use (05) | — | — | — | — | **national (crop level)** | — | — | — |
-| National crop trends (06) | — | national | — | national | national | — | national | — |
-| National input trends (07) | national | national | national | national | national | national | national | national |
-| Cold-chain context (08) | — | — | — | — | — | — | district (6 program districts) | — |
+Counts describe the reviewed artifacts, not API constants. Rebuilds and new
+sources must regenerate the manifest and coverage metadata. This review did not
+rebuild the full pipeline or resolve outstanding source conflicts.
 
-- **district** = real district-level values exist.
-- **national** = national value exists only. The UI shows national statistics and
-  states that district estimates are not fabricated.
-- **—** = no data; the UI shows an empty state.
+## What Each Feature May Claim
 
-### What the productivity panel actually carries
+- District yield, gaps and priorities use the selected crop/period and declared
+  reference population. District inspection must not redefine that population.
+- Same-season change compares B with B (or A with A, C with C), not consecutive
+  seasons interpreted as years. Missing comparisons stay unavailable.
+- All-crop production and area may be summed across comparable rows. Their ratio
+  is aggregate output per harvested hectare and changes with crop composition;
+  it is not the yield of one crop or an average of unrelated crop yields.
+- Factor associations use the coverage the service actually joins. Long-form
+  practice data existing does not mean every analytical engine already uses it.
+- Post-harvest shares are shown at the geographic level supported by the source.
+  National crop shares are not district-specific measured losses.
+- The priority engine still uses 2025B readiness/cost observations only where
+  available. Other periods redistribute missing component weights and label
+  proxies rather than borrowing another period or filling a constant.
+- Manual projections are user-assumption calculations, never official statistics
+  or validated forecasts. Their origins and targets must use the same season.
 
-The canonical panel (`crop_productivity`) is the multi-period source. District
-rows exist for **every listed period**, at these counts:
+## Operational Data
 
-| Period | Districts | Crops | Season letter |
-|---|---|---|---|
-| 2024A | 30 | 17 | A |
-| 2024B | 30 | 17 | B |
-| 2024C | 30 | 6 | C |
-| 2025A | 30 | 17 | A |
-| 2025B | 30 | 17 | B |
-| 2025C | 30 | 6 | C |
-| 2026A | 30 | 17 | A |
-| 2026B | 30 | 17 | B |
+Farm profiles and harvest registrations are voluntary mobile records, separate
+from NISR statistics. The latest server code persists additional field inputs
+and links farms and harvests by client UUID, but authenticated ownership and
+complete local farm status handling are still outstanding. Do not infer a
+verified multi-user sync workflow from an upload returning 201.
 
-Season C releases tabulate a smaller crop set (6), which is a property of the
-release, not a gap in the pipeline. A period is listed here only because the
-table has rows for it; the API derives the period axis from the data rather than
-from a fixed list, so an unpublished season such as 2026C does not exist as a
-value a client can ask for.
+Rule-based post-harvest risk is an expert-set indicator, not a locally calibrated
+probability. Storage optimization uses explicitly entered scenario supply and
+capacity, never unverified capacity portrayed as an observed national total.
 
-This is the correction that matters most in this file: an earlier version said
-district productivity existed only for 2025B and that other years were
-national-only. That was true of the legacy single-release extract and is false of
-the panel, and the UI followed the stale text instead of the data.
+## Intentionally Unavailable
 
-## Which release a query reads
+No fabricated storage capacity, farmer counts, budgets, expected economic gains
+or market prices may fill an empty module. Validated model forecasts stay
+withheld until publication evidence qualifies. A manual planning case does not
+remove this requirement.
 
-A request that names no period is **not** "whatever the default table happens to
-be". Both facts below are reported in the response, so no screen has to guess:
+## Outstanding Data Decisions
 
-- Period-aware district analytics read the **latest published district release**
-  (`period_service.latest_district()`), which is 2026B. The response names it:
-  `scope: "history"` plus `snapshot.period_code` on the dashboard overview, and
-  `period_code` / `provenance.source_period` elsewhere.
-- Single-release layers read **the release that carries them** (2025B for district
-  factors, irrigation and erosion), and say so via `available_period`. They are
-  never colour-filled from another period's rows, and never rendered as an empty
-  layer under a period label they do not belong to.
-
-Selecting an explicit release always wins over both rules.
-
-## Feature capability by dimension
-
-| Feature | National | District | Crop | Periods available | Missing values |
-|---|---|---|---|---|---|
-| Average yield KPI | yes | yes | yes | 2024A–2026B | null when a district reports no crop |
-| Productivity gap | yes | yes | yes | 2024A–2026B | gap null when benchmark undefined |
-| District map choropleth | yes | yes | yes | 2024A–2026B | districts without a valid yield render grey |
-| Priority ranking | yes | yes | yes | 2024A–2026B | readiness/cost components are 2025B only; their weight is redistributed, never borrowed |
-| Factor associations | yes | — | yes | 2025B | correlations skipped for n < 3 |
-| Yield/production trend | yes | no | yes | 2024B/2025A/2025B/2026A | `yield_mt_ha` blank for aggregate rows |
-| Input adoption trend | yes | no | no | 2024A–C, 2025A–C, 2026A–B | series start later; blanks stay null |
-| Irrigation detail | yes | yes | no | 2025B | zero-heavy districts exist |
-| Erosion detail | yes | yes | no | 2025B | — |
-| Post-harvest use/loss | yes | no | yes | 2025B | shares may not sum to exactly 100 |
-| Cold-chain context | yes | yes (6) | no | 2026 | **capacity null for all rows** |
-| Storage optimization | scenario only | scenario only | user input | n/a | capacity unknown → excluded |
-| Model performance | — | — | — | when `ml/reports` exists | shows "not yet trained" otherwise |
-
-## Operational (voluntary app) data
-
-| Signal | Source | Geographic level | Notes |
-|---|---|---|---|
-| Harvest registrations | mobile → API → Postgres | district (declared) | idempotent by client UUID |
-| Post-harvest risk score | rule-based `risk_service` | crop + district context | **not** official statistics |
-| Sync queue state | mobile SQLite | device | never merged into official tables |
-
-Official statistics and voluntary app data remain separate layers and are never
-merged at respondent level (see `docs/04_DATA_ARCHITECTURE.md`).
-
-## Values that are deliberately absent
-
-These are intentionally **not** shown anywhere in the product:
-
-- storage capacity (any facility) — not published in the source;
-- budgets, projected yield gains, farmer counts — no verified methodology;
-- market prices — no licensed price feed registered;
-- a validated future-yield forecast — the published window is eight seasonal
-  releases, which supports trends and scenarios but not a district-level forecast
-  presented as decision support (see the Yield Intelligence methodology note).
-
-Where a mockup suggested these, the UI substitutes *"Capacity not verified"*,
-*"Model not yet trained for this selection"*, or a documented proxy label.
-
-## Matching this page to the code
-
-- `services/api/app/services/period_service.py` — the period axis, derived from
-  the processed tables.
-- `services/api/app/services/analytics_service.py` — `resolved_period()` and
-  `productivity_frame()`, which implement the default-release rules above.
-- `services/api/app/services/map_service.py` — `effective_period_filters()`, which
-  pins each map layer to the release that carries it.
-- `apps/web/lib/coverage.ts` — the notices and the period/timeline display rules.
-
-## 2022A–2026B repair: period coverage, availability semantics, null policy
-
-### Productivity coverage (what the panel actually publishes)
-
-`crop_productivity.csv` (14 periods, 6,156 rows, 30 districts, 17 crops) is the
-only district-level productivity source. Every period NISR has released is
-present, with the season-C releases tabulating a narrower crop list:
-
-| Periods | District rows | Districts | Crops |
-|---|---|---|---|
-| 2022A, 2022B, 2023A, 2023B | 510 each | 30 | 17 |
-| 2022C, 2023C | 150 each | 30 | 5 |
-| 2024A, 2024B, 2025A, 2025B, 2026A, 2026B | 561 each | 30 | 17 |
-| 2024C, 2025C | 186 each | 30 | 6 |
-
-The national rows for the same periods are what
-`GET /analytics/canonical-trend` charts.
-
-### Practices, irrigation, erosion, post-harvest
-
-| Domain | Dataset | Periods | Level |
-|---|---|---|---|
-| Practices / irrigation / erosion / water source | `agricultural_practice_observation.csv` | 2024A–2026B | district |
-| Post-harvest use shares (multi-period) | `crop_postharvest_use_multi_period.csv` | 2024A–2026B | national crop |
-| Single-release factor / irrigation / erosion tables | `district_productivity_factors.csv`, `irrigation_water.csv`, `erosion_control.csv` | 2025B only | district |
-| National crop context trends (legacy) | `national_crop_trends.csv` | 2024B–2026A (context only) | national |
-
-**2022 and 2023 have no practice/irrigation/erosion/post-harvest data.** Those
-releases published productivity tables only. A 2022 practice request returns no
-rows and says so; it is never filled from the 2025 Season B survey.
-
-### Published vs servable (period availability semantics)
-
-`GET /meta/periods` returns, per period, both facts and keeps them apart:
-
-* `published` — the release exists in the processed/source coverage;
-* `servable` — the canonical dataset in **this deployment** carries rows for it;
-* `canonical_n_rows` / `canonical_n_districts` / `canonical_n_crops` — what the
-  canonical panel holds;
-* `availability_status` (`servable` | `coverage_only` | `not_servable`) and
-  `availability_message`.
-
-All 14 published periods stay visible even when the serving database cannot
-answer them. A published-but-not-loaded period is `coverage_only`, never
-advertised as usable, and never silently substituted with another release.
-
-### Historical vs snapshot semantics
-
-* **Historical overview** (bare `/dashboard`) — all published periods; no figure
-  sums several years into a "combined production" KPI, and no map is coloured for
-  a period it does not describe. Where a district panel still needs one release,
-  the response names it in `snapshot`.
-* **Release snapshot** (`?period=2022A`) — every headline metric shares that one
-  period's district scope.
-
-A stored `defaultPeriod` no longer overrides the dashboard landing scope
-(preference version bumped to 2 so an obsolete stored default is discarded);
-drilldown pages still honour it.
-
-### Null policy
-
-A value the source did not publish stays `null` end to end — CSV → canonical
-table → API → chart. Missing is never `0`. The map renders "No verified value"
-for a null district, and a period the release did not tabulate is an explicit
-`null` on the trend axis, never an interpolated point.
+See [SAS coverage audit](data/SAS_COVERAGE_AUDIT.md),
+[data card](submission/DATA_CARD.md),
+[traceability](submission/DATA_TO_NUMBER_TRACEABILITY.md) and
+[Current Status](CURRENT_STATUS.md). Standalone 2025B source precedence,
+worksheet dispositions, national subtotal semantics and exact cell lineage
+remain unresolved. Never edit raw official inputs to hide a discrepancy.
