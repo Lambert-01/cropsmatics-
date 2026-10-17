@@ -147,4 +147,3 @@ const makeStyles = (colors: Palette) =>
     secondaryText: { color: colors.forest, fontWeight: "600" as const },
     error: { color: colors.danger, fontSize: 13 },
   }) as const;
-

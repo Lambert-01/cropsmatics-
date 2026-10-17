@@ -11,4 +11,3 @@ export async function setItemAsync(key: string, value: string): Promise<void> {
 export async function deleteItemAsync(key: string): Promise<void> {
   values.delete(key);
 }
-

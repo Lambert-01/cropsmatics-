@@ -18,4 +18,3 @@ export const authApi = {
       body: JSON.stringify({ email, password, full_name: fullName || null }),
     }),
 };
-

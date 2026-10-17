@@ -31,4 +31,3 @@ export async function saveSession(session: AuthSession): Promise<void> {
 export async function clearSession(): Promise<void> {
   await SecureStore.deleteItemAsync(SESSION_KEY);
 }
-
