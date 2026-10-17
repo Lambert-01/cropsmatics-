@@ -29,6 +29,9 @@ dist/
 build/
 *.tsbuildinfo
 coverage/
+test-results/
+playwright-report/
+blob-report/
 .expo/
 .expo-shared/
 web-build/

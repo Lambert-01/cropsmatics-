@@ -23,7 +23,19 @@ Three test classes are kept separate and never substituted for one another:
 A passing component test is **not** a browser pass, and a mobile-web screenshot is
 **not** a native pass.
 
-## What was verified this session
+## Latest local audit, 2026-10-17
+
+The current audit observed the ordinary Planning calculation and CSV download
+at 1440x900, 1920x1080, 768x1024 and 390x844. Those samples passed without
+horizontal overflow. Expanded source notes on Dashboard failed: document width
+was 1624 at a 1440 px viewport. These are sampled browser checks, not a complete
+route/state/language matrix or owner-approved screenshots. Temporary evidence
+is outside the repository; no approved screenshot bundle is claimed.
+
+Fresh mobile `npm ci` in an isolated directory passed typecheck, lint, all 341
+tests and Expo configuration. It is not a native-device check.
+
+## Earlier implementation-session checks
 
 | Route / target | Environment | Check | Result |
 |---|---|---|---|
@@ -34,20 +46,20 @@ A passing component test is **not** a browser pass, and a mobile-web screenshot 
 | API (whole suite) | Python 3.11, no DB | 717 passed, 27 skipped | **PASS** |
 
 Skipped (not failures): PostGIS integration tests, which require an explicit
-`DATABASE_URL` (CI provides one from a `postgres:16` container).
+`CANONICAL_TEST_DATABASE_URL` (CI provides an isolated `postgis/postgis:16-3.4` container).
 
-## Browser matrix — NOT RUN
+## Browser matrix
 
-The brief's required rows. None of these was exercised this session; populate
-`Observed`, attach `Evidence`, and have a human sign `Reviewer`/`Date`.
+The brief's required rows. Sampled audit results are recorded below; other rows
+remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 
 | Route | Viewport | Language | State | Task | Expected | Observed | Status |
 |---|---|---|---|---|---|---|---|
 | `/dashboard` | 1440×900 | EN | normal | read headline + map | latest district snapshot named; history separate | — | NOT RUN |
-| `/dashboard` | 1440×900 | EN | sources expanded | confirm no horizontal overflow | document fits viewport | — | NOT RUN |
+| `/dashboard` | 1440×900 | EN | sources expanded | confirm no horizontal overflow | document fits viewport | document width 1624 px | FAIL |
 | `/interventions` | 1440×900 | EN | Nyagatare maize 2026B | inspect eligibility | "no yield shortfall" for productivity support | — | NOT RUN |
-| `/yield-intelligence` | 1440×900 | EN | forecast withheld | build a projection | projection calculated and labelled "Your assumptions" | — | NOT RUN |
-| `/yield-intelligence` | 390×844 | EN | narrow | planning form usable | controls reachable, no overlap | — | NOT RUN |
+| `/yield-intelligence` | 1440×900 | EN | forecast withheld | build a projection | projection calculated and labelled "Your assumptions" | ordinary carry-forward calculation and CSV download | PASS (sample) |
+| `/yield-intelligence` | 390×844 | EN | narrow | planning form usable | controls reachable, no overlap | ordinary carry-forward calculated; no document overflow | PASS (sample) |
 | `/maps` | 1920×1080 | EN | crop+metric change | legend semantics | legend explains the metric, not just endpoints | — | NOT RUN |
 | `/reports` | 1440×900 | EN | district selected | download | export honours the selected scope | — | NOT RUN |
 | `/data-explorer` | 1440×900 | EN | multi-period dataset | filter + export | full filtered result downloads, not just the page | — | NOT RUN |

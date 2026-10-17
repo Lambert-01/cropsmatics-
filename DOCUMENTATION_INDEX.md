@@ -1,71 +1,63 @@
-# Documentation Index
+# Documentation
 
-Start with the audit and overview, then follow the architecture and policy docs.
+Start with the [README](README.md). For the latest implementation state use
+[Current Status](docs/CURRENT_STATUS.md); for the next engineering task use
+[Remaining Build Prompt](docs/REMAINING_BUILD_PROMPT.md).
 
-## Foundations
-- [00_REPOSITORY_AUDIT.md](docs/00_REPOSITORY_AUDIT.md)
-- [REPOSITORY_REFINEMENT_REPORT.md](docs/REPOSITORY_REFINEMENT_REPORT.md)
-- [PROJECT_RENAME_REPORT.md](docs/PROJECT_RENAME_REPORT.md)
-- [01_PROJECT_OVERVIEW.md](docs/01_PROJECT_OVERVIEW.md)
-- [02_PROBLEM_STATEMENT.md](docs/02_PROBLEM_STATEMENT.md)
-- [03_SYSTEM_ARCHITECTURE.md](docs/03_SYSTEM_ARCHITECTURE.md)
+## Product And Architecture
 
-## Data
-- [04_DATA_ARCHITECTURE.md](docs/04_DATA_ARCHITECTURE.md)
-- [FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md) (period × geography coverage)
-- [05_DATASET_CATALOG.md](docs/05_DATASET_CATALOG.md)
-- [DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md)
-- [06_DATABASE_SCHEMA.md](docs/06_DATABASE_SCHEMA.md)
+- [Project overview](docs/01_PROJECT_OVERVIEW.md)
+- [Problem statement](docs/02_PROBLEM_STATEMENT.md)
+- [System architecture](docs/03_SYSTEM_ARCHITECTURE.md)
+- [Data architecture](docs/04_DATA_ARCHITECTURE.md)
+- [Dataset catalog](docs/05_DATASET_CATALOG.md)
+- [Database schema](docs/06_DATABASE_SCHEMA.md)
+- [API architecture](docs/07_API_ARCHITECTURE.md)
+- [Web application](docs/08_WEB_APPLICATION.md)
+- [Mobile application](docs/09_MOBILE_APPLICATION.md)
+- [Web data-to-UI matrix](docs/DATA_TO_UI_MATRIX.md)
+- [Mobile data-to-UI matrix](docs/MOBILE_DATA_TO_UI_MATRIX.md)
+- [Mobile information architecture](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
+- [Visual references and review limitations](docs/VISUAL_REFERENCE_IMPLEMENTATION.md)
 
-## Applications
-- [07_API_ARCHITECTURE.md](docs/07_API_ARCHITECTURE.md)
-- [08_WEB_APPLICATION.md](docs/08_WEB_APPLICATION.md)
-- [09_MOBILE_APPLICATION.md](docs/09_MOBILE_APPLICATION.md)
+## Data And Methods
 
-## Analytics & models
-- [10_ML_METHODOLOGY.md](docs/10_ML_METHODOLOGY.md)
-- [11_INTERVENTION_ENGINE.md](docs/11_INTERVENTION_ENGINE.md)
-- [12_POST_HARVEST_MODEL.md](docs/12_POST_HARVEST_MODEL.md)
-- [13_OPTIMIZATION_ENGINE.md](docs/13_OPTIMIZATION_ENGINE.md)
-- [14_AI_ASSISTANT.md](docs/14_AI_ASSISTANT.md)
-- [MODEL_INTERPRETATION_POLICY.md](docs/MODEL_INTERPRETATION_POLICY.md)
+- [Feature coverage](docs/FEATURE_DATA_COVERAGE.md)
+- [SAS worksheet coverage audit](docs/data/SAS_COVERAGE_AUDIT.md)
+- [Data provenance](docs/DATA_PROVENANCE.md)
+- [Production database authority](docs/P0_DATABASE_AUTHORITY.md)
+- [ML methodology](docs/10_ML_METHODOLOGY.md)
+- [Intervention engine](docs/11_INTERVENTION_ENGINE.md)
+- [Post-harvest risk](docs/12_POST_HARVEST_MODEL.md)
+- [Storage optimization](docs/13_OPTIMIZATION_ENGINE.md)
+- [AI assistant](docs/14_AI_ASSISTANT.md)
+- [Forecast validation](docs/forecasting/FORECAST_VALIDATION.md)
+- [Statistical interpretation policy](docs/MODEL_INTERPRETATION_POLICY.md)
 
-## Submission evidence
-- [submission/DATA_CARD.md](docs/submission/DATA_CARD.md) (sources, definitions, appropriate/inappropriate use)
-- [submission/DATA_TO_NUMBER_TRACEABILITY.md](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md) (lineage + worked examples)
-- [submission/IMPLEMENTATION_EVIDENCE.md](docs/submission/IMPLEMENTATION_EVIDENCE.md) (what is implemented / verified / blocked)
-- [submission/UX_VERIFICATION.md](docs/submission/UX_VERIFICATION.md) (browser + device matrix; mostly NOT RUN)
-- [submission/AI_EVALUATION.md](docs/submission/AI_EVALUATION.md) (claim-level evaluation set, results, and what it does not prove)
+## Development And Operations
 
-## Operations
-- [15_SECURITY_PRIVACY.md](docs/15_SECURITY_PRIVACY.md)
-- [16_TESTING.md](docs/16_TESTING.md)
-- [17_DEPLOYMENT.md](docs/17_DEPLOYMENT.md)
-- [18_MVP_ROADMAP.md](docs/18_MVP_ROADMAP.md)
-- [19_DEMO_STORY.md](docs/19_DEMO_STORY.md)
-- [20_AI_USAGE_DISCLOSURE.md](docs/20_AI_USAGE_DISCLOSURE.md)
+- [Developer setup](docs/reference/DEVELOPER_SETUP.md)
+- [Testing](docs/16_TESTING.md)
+- [Deployment](docs/17_DEPLOYMENT.md)
+- [Release checklist](docs/PRODUCTION_READINESS.md)
+- [Incident runbook](docs/19_PRODUCTION_INCIDENT_RUNBOOK.md)
+- [Security and privacy](docs/15_SECURITY_PRIVACY.md)
+- [Scripts](scripts/README.md)
+- [Infrastructure](infra/README.md)
 
-## Dashboard work (latest pass)
-- [DASHBOARD_REFINEMENT_REPORT.md](docs/DASHBOARD_REFINEMENT_REPORT.md)
-- [DASHBOARD_IMPLEMENTATION_PROGRESS.md](docs/DASHBOARD_IMPLEMENTATION_PROGRESS.md)
-- [DATA_TO_UI_MATRIX.md](docs/DATA_TO_UI_MATRIX.md)
-- [FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md)
+## Submission And Review
 
-## Current pass (2026-10-15)
-- [FORECAST_INTEGRATION_REPAIR_REPORT.md](docs/FORECAST_INTEGRATION_REPAIR_REPORT.md) - latest repairs and verification
-- [REMAINING_BUILD_PROMPT.md](docs/REMAINING_BUILD_PROMPT.md) - completion brief; preserve already implemented modules
-- [REMAINING_IMPLEMENTATION_PLAN.md](docs/REMAINING_IMPLEMENTATION_PLAN.md) — the
-  file-level plan, written before the code changes
-- [REMAINING_IMPLEMENTATION_REPORT.md](docs/REMAINING_IMPLEMENTATION_REPORT.md) —
-  what was implemented, what was measured, and what remains blocked
+- [Data card](docs/submission/DATA_CARD.md)
+- [Number traceability and outstanding lineage work](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md)
+- [UX verification matrix](docs/submission/UX_VERIFICATION.md)
+- [AI evaluation and known guard limitations](docs/submission/AI_EVALUATION.md)
+- [Kinyarwanda review](docs/KINYARWANDA_REVIEW.md)
+- [Demo story](docs/19_DEMO_STORY.md)
+- [AI usage disclosure](docs/20_AI_USAGE_DISCLOSURE.md)
+- [Judging alignment](docs/reference/JUDGING_ALIGNMENT.md)
+- [Data rights](DATA_LICENSE_AND_PROVENANCE.md)
 
-Earlier audits under `docs/audits/` are dated records of the state at the time;
-read the latest repair report before treating an earlier finding as still open.
-
-## Reference (supporting material)
-- [reference/ALGORITHM_DESIGN.md](docs/reference/ALGORITHM_DESIGN.md)
-- [reference/BACKEND_FASTAPI.md](docs/reference/BACKEND_FASTAPI.md)
-- [reference/DEVELOPER_SETUP.md](docs/reference/DEVELOPER_SETUP.md)
-- [reference/JUDGING_ALIGNMENT.md](docs/reference/JUDGING_ALIGNMENT.md)
-- [reference/RISK_REGISTER.md](docs/reference/RISK_REGISTER.md)
-- [reference/TEAM_PLAN.md](docs/reference/TEAM_PLAN.md)
+Historical session reports, stale project trees and generated audit inventories
+were removed from the active documentation. Their original contents remain in
+Git history. Architecture documents describe contracts and intent; use Current
+Status and current test evidence before treating a feature as release-ready.

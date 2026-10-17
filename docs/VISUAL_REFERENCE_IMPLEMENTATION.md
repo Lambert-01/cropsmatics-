@@ -1,5 +1,10 @@
 # Visual Reference Implementation
 
+Historical reference mapping, not current visual sign-off. Status labels below
+describe an earlier implementation pass and must not be read as approved visual
+parity. Use [Current Status](CURRENT_STATUS.md) and the
+[UX verification matrix](submission/UX_VERIFICATION.md) for current evidence.
+
 **Date:** 2026-09-25
 **Purpose:** map every supplied design reference to the route and components that
 implement it, and state plainly where the implementation deliberately differs.

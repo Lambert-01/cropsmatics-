@@ -14,8 +14,9 @@ aggregate as advice about one farm.
 
 ## Sources
 
-All figures come from the **Seasonal Agricultural Survey (SAS)** workbooks
-published by NISR, read through the pipeline in `scripts/data/`. The raw
+Official crop observations come from the **Seasonal Agricultural Survey (SAS)**
+workbooks published by NISR, read through the pipeline in `scripts/data/`.
+Other registered sources and user assumptions are distinguished below. The raw
 workbooks are immutable and are never edited to make a warning disappear.
 
 Registered source releases in the current serving panel (from the processed
@@ -71,7 +72,7 @@ untrained model is not "0% accurate". A user-entered range is not a confidence
 interval. A derived district sum is labelled as derived, never substituted for a
 published national total.
 
-## How a number is produced (the four value kinds)
+## How a number is produced (the five value kinds)
 
 | Kind | Example | Evidence |
 |---|---|---|

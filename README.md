@@ -2,279 +2,158 @@
 
 **Crop Intelligence from Data to Action.**
 
-A full-stack agricultural decision-intelligence platform for the
-**[NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity](https://statistics.gov.rw/about/hackathon/2026-hackathon-competition)**. Cropmatics Rwanda combines
-agricultural informatics, statistical analysis, machine learning, geospatial
-intelligence and optimization to turn official agricultural statistics,
-geospatial information and operational field data into actionable insights for
-farmers, cooperatives and agricultural decision-makers.
+An agricultural decision-support platform built for the NISR agricultural
+productivity challenge. Explore official crop statistics, compare district
+productivity, investigate intervention priorities and plan harvest logistics.
 
-> Results describe **associations** and **priorities for investigation** — not
-> proven causal effects. See [MODEL_INTERPRETATION_POLICY](docs/MODEL_INTERPRETATION_POLICY.md).
+[Web dashboard](https://cropsmatics-web.vercel.app/dashboard) |
+[API documentation](https://cropsmatics-api.onrender.com/docs) |
+[Documentation](DOCUMENTATION_INDEX.md) |
+[Current status](docs/CURRENT_STATUS.md) |
+[Remaining implementation brief](docs/REMAINING_BUILD_PROMPT.md)
 
-## Why it exists
+## What You Can Do
 
-Rwanda has rich agricultural statistics, but raw data do not automatically tell
-planners where productivity gaps are greatest, which observed factors track with
-them, where to investigate first, or how upcoming harvests should be coordinated
-with storage. Cropmatics turns that data into reviewable action.
+| Workflow | Application |
+|---|---|
+| Explore crop performance across available periods | Dashboard, Crops, Productivity, Maps |
+| Compare productivity shortfalls and transparent planning priorities | Interventions |
+| Create assumption-based plans, separate from observed statistics | Yield Intelligence: Planning |
+| Explore reported production use and verified storage-program context | Post-Harvest, Storage |
+| Inspect sources, coverage and analytical datasets | Data Explorer, Data & Models |
+| Ask questions grounded in retrieved analytical evidence | AI Assistant |
+| Register harvests offline | Expo mobile app; server synchronization still needs repair |
+
+**Status:** an actively developed MVP, not a completed production certification.
+The current audit identifies benchmark-filtering, projection edge-case, AI
+attribution and mobile synchronization defects. See
+[current limitations and verification](docs/CURRENT_STATUS.md). A passing test
+suite does not mean those issues are fixed or that the latest commit is deployed.
+
+## Data And Interpretation
+
+- The district crop productivity panel contains 14 published periods from
+  2022A through 2026B. Coverage varies by crop and indicator.
+- Multi-period practice and post-harvest observations are distinct from the
+  legacy 2025B factor extracts. Not every worksheet is mapped into analytics.
+- Official statistics and voluntary mobile records remain separate.
+- Priorities identify candidates for investigation, not proven causal effects.
+- Manual plans use user assumptions. They are not official statistics or
+  validated model forecasts; model output stays withheld when validation fails.
+- Missing capacity and absent price data stay unavailable, never invented.
+
+Versioned worksheet extracts are under `data/raw/nisr/sas/`. Owner-provided
+workbooks are generally untracked; the curated official 2025B original is
+retained for provenance. Do not edit raw sources. Read the
+[data card](docs/submission/DATA_CARD.md),
+[coverage audit](docs/data/SAS_COVERAGE_AUDIT.md) and
+[interpretation policy](docs/MODEL_INTERPRETATION_POLICY.md).
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  A[NISR SAS / official tables] --> E[ETL + harmonization]
-  D[Expo mobile operational data] --> E
-  E --> DB[(PostgreSQL + PostGIS)]
-  DB --> P[Productivity engine]
-  DB --> R[Post-harvest risk]
-  DB --> I[Intervention priority]
-  DB --> O[Storage optimizer]
-  P & R & I & O --> API[FastAPI /api/v1]
-  DB --> API
-  API --> WEB[Next.js dashboard]
-  API --> MOB[Expo mobile app]
-  MOB --> API
-```
-
-Official statistics, external open data and voluntary app data are kept in
-separate layers and never merged at respondent level.
-
-## Stack
-
-| Layer | Stack |
-|---|---|
-| Web | Next.js (App Router) + React + TypeScript + Tailwind + TanStack Query |
-| Mobile | React Native + Expo + Expo Router + SQLite (offline-first) + TanStack Query |
-| Backend | Python 3.11 + FastAPI + Pydantic + SQLAlchemy 2 + Alembic |
-| Database | PostgreSQL + PostGIS |
-| ML | pandas, scikit-learn; SHAP; OR-Tools |
-| Deployment | Vercel + Render/Fly + Neon/Supabase + Expo EAS |
-
-## Repository layout
-
 ```text
-apps/web              Next.js planner dashboard
-apps/mobile           Expo farmer/field-officer app (offline-first)
-services/api          FastAPI service (routers, models, services, analytics, optimization)
-ml                    productivity gap, yield model, risk, priority, storage optimization
-data                  raw | external | interim | processed | dictionaries | source_registry | dev_fixtures
-scripts               data pipeline + db/dev/deployment helpers
-docs                  audit, architecture, policy, and reference documents
-infra                 infrastructure notes
+Official worksheet extracts -> Python ETL -> processed analytical tables
+                                           |
+                                  PostgreSQL / PostGIS
+                                           |
+                             FastAPI analytics and optimization
+                                           |
+                         Next.js dashboard / Expo mobile app
 ```
 
-## Datasets
+Python computes analytical values. Clients visualize API responses. PostgreSQL
+is the production analytical authority; explicit file mode supports development.
+Dataset-version checks prevent silent reads from an out-of-sync deployment.
 
-NISR SAS worksheet extracts for 2022–2026 live under `data/raw/nisr/sas/`.
-Unique source workbooks are organized by year and release in `workbooks/`
-subfolders; owner-supplied workbooks remain untracked, while the extracted CSVs
-and their manifest are versioned for a reproducible Docker build. The separate
-curated 2025B original is retained in the 2025B workbook folder for provenance.
-The 2025B derived pack remains under `data/raw/cropmatics_real_data_2024_2026/`;
-MINAGRI inputs are under `data/raw/external/minagri/`. Neither unreviewed SAS
-sheets nor operational app records are presented as official analytical values.
-Synthetic demo records are isolated in `data/dev_fixtures/`.
-
-See [05_DATASET_CATALOG](docs/05_DATASET_CATALOG.md) and
-[DATA_PROVENANCE](docs/DATA_PROVENANCE.md).
-
-## Status
-
-| Area | State |
+| Directory | Responsibility |
 |---|---|
-| Data layer + pipeline | Functional; 14 productivity periods, with narrower coverage for other indicators and unmapped source sheets |
-| Reference dictionaries | 30 districts, 17 crop categories |
-| Backend analytics and optimization | Implemented; verify current production readiness before a demo |
-| ML modules | Gap, priority, risk and optimizer implemented; forecast output is withheld without sufficient validation |
-| Priority engine | Methodology **2.0.1**: two named planning purposes; a candidate above its benchmark is *ineligible* for productivity support rather than LOW-scoring; the reference population is stated and stable under a district inspection |
-| Web app | Deployed dashboard, crop, map and analysis routes; check the live build and API readiness before a demo |
-| Mobile app | Expo app with offline registration and sync; APK/network verification remains device-specific |
-| Database migrations | Implemented; production readiness must still be checked |
-| Auth/RBAC, notifications, reports export | ⚠️ Partial / scaffolded |
-| Deployment | Web on Vercel and API on Render; see live readiness before a demo |
+| `apps/web` | Next.js, React, TanStack Query, maps and charts |
+| `apps/mobile` | Expo, React Native, SQLite and offline queue |
+| `services/api` | FastAPI, services, repositories and Alembic migrations |
+| `scripts/data` | Deterministic extraction, validation, build and database load |
+| `ml` | Statistical models, validation and optimization |
+| `data` | Sources, dictionaries, registries and generated outputs |
+| `docs` | Architecture, methods, operations and submission evidence |
 
-As checked on 2026-10-15, `GET /api/v1/health/readiness` reports `status: ready`
-with dataset `0.2.0-646a72d53cd349df` and 14 published periods, and
-`python scripts/verify_production.py` passes 12/12 required endpoints. The same
-run resolves the API host from the system resolver and from two public resolvers,
-those probes did not reproduce the reported browser DNS failure. They do not
-establish the cause on the affected user's network. The script names the failing layer
-(`dns_failure` / `tls_failure` / `timeout` / `connection_closed` / `http_error`).
+## Local Setup
 
-Note that the checks above describe the **deployed** service. The intervention
-priority engine in this working tree is methodology **2.0.1** (productivity-support
-eligibility; see [11_INTERVENTION_ENGINE](docs/11_INTERVENTION_ENGINE.md)) and is
-not live until the API is redeployed.
-
-Latest local repairs: [FORECAST_INTEGRATION_REPAIR_REPORT](docs/FORECAST_INTEGRATION_REPAIR_REPORT.md).
-Forecast filters, mobile failure states and Responses tool continuation are implemented locally;
-this does not imply a new validated forecast, a production deployment or a device-tested APK.
-
-Full details: [REPOSITORY_REFINEMENT_REPORT](docs/REPOSITORY_REFINEMENT_REPORT.md).
-Dashboard work (this pass): [DASHBOARD_REFINEMENT_REPORT](docs/DASHBOARD_REFINEMENT_REPORT.md),
-[DASHBOARD_IMPLEMENTATION_PROGRESS](docs/DASHBOARD_IMPLEMENTATION_PROGRESS.md),
-[DATA_TO_UI_MATRIX](docs/DATA_TO_UI_MATRIX.md),
-[FEATURE_DATA_COVERAGE](docs/FEATURE_DATA_COVERAGE.md).
-
-### Dashboard pages
-
-| Page | What it shows |
-|---|---|
-| `/dashboard` | National overview: Python KPIs, Rwanda choropleth, priority table, trends, gap heatmap |
-| `/productivity` | Productivity intelligence: benchmark strategies, ranking, factor associations, model panel |
-| `/interventions` | Intervention planner with adjustable transparent weights and scenario comparison |
-| `/post-harvest` | Loss by crop, use composition, risk classification |
-| `/storage` | Verified cold-chain context + clearly-marked OR-Tools scenario demo |
-| `/maps` | District choropleth explorer |
-| `/reports` | CSV exports generated by Python |
-| `/data-explorer` | Search, filter and download every processed dataset |
-| `/transparency` | Sources, coverage, algorithms, models, limitations, AI usage |
-| `/assistant` | Grounded Q&A over validated analytics |
-| `/yield-intelligence` | Yield workspaces and forecast status; no forecast is shown without qualifying evidence |
-| `/markets` | Market data-status screen; verified price observations are not yet loaded |
-| `/settings` | Application settings |
-
-The web interface never computes an official analytical value: filters requery
-the Python API, and the frontend only renders what the API returns.
-
-## Getting started
-
-Prerequisites: Node 20+, pnpm 9+, Python 3.11+, and (optionally) Docker for Postgres/PostGIS.
+Requirements: Node 20+, pnpm 9, Python 3.11+, and Docker if running local
+PostgreSQL/PostGIS. Run from the repository root:
 
 ```bash
-# 1. Environment
-cp .env.example .env         # then edit secrets
-
-# 2. JavaScript workspaces (web + mobile)
-pnpm install
-
-# 3. API virtualenv
-make install-api             # creates services/api/.venv and installs deps
-
-# 4. Build analytical tables from versioned official extracts
-make data                    # uses services/api/.venv; rebuilds data/processed/
+cp .env.example .env
+pnpm install --frozen-lockfile
+npm --prefix apps/mobile ci
+make install-api
+make data
 ```
 
-### Run
+Edit `.env` privately before starting services. For a local database:
 
 ```bash
-make api                     # FastAPI on http://localhost:8000
-make web                     # Next.js on http://localhost:3000
-make mobile                  # Expo dev server
+make db-up
+make migrate
+make load
+make dev
 ```
 
-Entry files: `apps/web/app/page.tsx` redirects to `/dashboard`;
-`services/api/app/main.py` creates the FastAPI app;
-`apps/mobile/app/index.tsx` is the Expo home screen; and
-`scripts/data/run_all.py` starts the reproducible data build. Use `make dev`
-to start the local API and web together, or `make api`, `make web`, and
-`make mobile` separately. `scripts/dev.sh status` reports local services.
+The web app runs at `http://localhost:3000` and the API at
+`http://localhost:8000`. Separate commands are `make api` and `make web`.
+`bash scripts/dev.sh status` shows local service status. See
+[developer setup](docs/reference/DEVELOPER_SETUP.md) for environment and database
+options. Never run migrations or loaders against production unintentionally.
 
-### Database
+### Mobile With The Hosted API
+
+Mobile is intentionally outside the pnpm workspace and uses its own npm lockfile:
 
 ```bash
-make db-up                   # PostGIS via docker compose
-make migrate                 # apply Alembic migrations
-make db-init                 # or create tables directly from models (dev)
+cd apps/mobile
+npm ci
+EXPO_PUBLIC_API_BASE_URL=https://cropsmatics-api.onrender.com/api/v1 npx expo start --clear --tunnel
 ```
 
-The API reads `DATABASE_URL` from the environment (`.env` locally; a secret
-environment variable on Render). Do not commit credentials. Confirm a live
-connection and the correct dataset version at
-`/api/v1/health/readiness`; `database: connected` with `status: not_ready`
-means the connection works but the analytical database still needs attention.
-
-### Share the mobile app (QR / link install)
-
-The app reaches other phones through a shared QR code or link, not the Play Store:
+To submit a shareable Android APK build with the hosted backend configured in
+the existing `release-apk` profile:
 
 ```bash
-./scripts/build-apk.sh       # EAS Build -> APK; API = this machine's LAN IP
-./scripts/build-apk.sh --api https://api.example.com/api/v1   # deployed API
+cd apps/mobile
+npx eas-cli login
+npx eas-cli build --platform android --profile release-apk
 ```
 
-Requires a free Expo account (`npm i -g eas-cli && eas login`). The script bakes
-the API URL and install-page URL into the APK; when the build finishes EAS hosts
-the .apk at a public link. The in-app **Profile → Share app** screen shows the
-QR + link to forward, and the web app exposes **/install** — a landing page with
-the QR code, install steps and which API the build talks to. Put `/install` on
-the big screen at a demo: attendees scan it and install.
+EAS returns the artifact link when the build completes. A successful build still
+needs physical-device verification. Do not use the local-backend development
+profile for an APK intended for remote users. See
+[deployment](docs/17_DEPLOYMENT.md) for build configuration.
 
-### Data pipeline
+## Verification
 
 ```bash
-make data           # validate + normalize + build processed tables
-make data-validate  # validation report only
-make migrate        # apply the canonical schema (Alembic)
-make load           # upsert processed tables into the canonical PostgreSQL tables
-make load-dry       # report exactly what a load would change, writing nothing
-make bootstrap      # deploy step: migrate, load only if the version changed, verify
-make bootstrap-dry  # show what the deploy step would do, writing nothing
+make lint
+make typecheck
+make test
+pnpm --filter cropmatics-web test
+npm --prefix apps/mobile test
+NEXT_PUBLIC_API_BASE_URL=https://cropsmatics-api.onrender.com/api/v1 pnpm --filter cropmatics-web build
 ```
 
-The loader is idempotent: re-running it reports rows as *unchanged* instead of
-duplicating them, records a `dataset_version` and one `data_ingestion_run` per
-target table, and never deletes. `scripts/data/load_database.py` is kept as an
-alias for backwards compatibility.
+The database integration suite needs an isolated PostGIS database through
+`CANONICAL_TEST_DATABASE_URL`; never point it at a production database.
+GitHub Actions runs web, mobile, API/integration, ML and pipeline jobs. Consult
+the [actual workflow runs](https://github.com/Lambert-01/cropsmatics-/actions),
+not merely the presence of a workflow file.
 
-**PostgreSQL is the production analytical authority.** `CANONICAL_DATA_MODE`
-decides which layer answers a read: `required` (production default — the
-canonical database must serve it), `preferred` (database first, explicit file
-fallback), or `file` (development only). The deploy step and CI are documented in
-[`docs/P0_DATABASE_AUTHORITY.md`](docs/P0_DATABASE_AUTHORITY.md), which also
-classifies the storage decision for every data domain.
+Entrypoints: `services/api/app/main.py`, `apps/web/app/page.tsx`,
+`apps/mobile/app/index.tsx`, and `scripts/data/run_all.py`.
+Check `/api/v1/health/readiness` for current backend/database readiness.
 
-### ML
+## Documentation And Data Rights
 
-```bash
-make ml             # baseline yield model -> ml/reports/ model card
-```
+Use [the documentation index](DOCUMENTATION_INDEX.md) to find architecture,
+methods, deployment and evidence. Superseded session reports and generated audit
+inventories have been consolidated; their history remains available in Git.
+Regression tests, source data and provenance documentation are retained.
 
-### Quality
-
-```bash
-make lint           # web + mobile + Python (ruff)
-make typecheck      # web + mobile
-make test           # API + ML pytest
-```
-
-## Documentation
-
-Start at [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md). Key documents:
-audit ([00](docs/00_REPOSITORY_AUDIT.md)), architecture
-([03](docs/03_SYSTEM_ARCHITECTURE.md), [04](docs/04_DATA_ARCHITECTURE.md)), rename
-record ([PROJECT_RENAME_REPORT](docs/PROJECT_RENAME_REPORT.md)),
-API ([07](docs/07_API_ARCHITECTURE.md)), ML
-([10](docs/10_ML_METHODOLOGY.md)), and the interpretation policy
-([MODEL_INTERPRETATION_POLICY](docs/MODEL_INTERPRETATION_POLICY.md)).
-
-## Data policy
-
-- Official NISR/MINAGRI statistics and voluntary app data are kept separate.
-- Respondent-level NISR microdata is **not** redistributed.
-- Missing values are `null`; capacity is never invented.
-- Synthetic fixtures are test-only and labelled `SYNTHETIC`.
-
-## Data coverage (2022A–2026B)
-
-The canonical district productivity panel covers **14 published periods**
-(2022A–2026B), 30 districts and 17 crops (6,156 rows); 2026 Season C has not been
-published. District practice/irrigation/erosion and post-harvest observations
-cover 2024A–2026B; the legacy single-release factor tables cover 2025 Season B
-only. A value the source did not publish stays `null` everywhere — missing is
-never `0`.
-
-PostgreSQL is the production authority. A deployment serves the built dataset
-only when its content-addressed version matches the image; otherwise analytical
-reads return a structured `503 DATASET_OUT_OF_SYNC` rather than stale figures.
-See [docs/P0_DATABASE_AUTHORITY.md](docs/P0_DATABASE_AUTHORITY.md),
-[docs/FEATURE_DATA_COVERAGE.md](docs/FEATURE_DATA_COVERAGE.md) and
-[docs/17_DEPLOYMENT.md](docs/17_DEPLOYMENT.md) (the pre-deploy bootstrap and the
-dashboard checklist).
-
-## License / provenance
-
-See [DATA_LICENSE_AND_PROVENANCE.md](DATA_LICENSE_AND_PROVENANCE.md) and
-[docs/DATA_PROVENANCE.md](docs/DATA_PROVENANCE.md).
-
+See [data rights and provenance](DATA_LICENSE_AND_PROVENANCE.md). This repository
+does not grant additional redistribution rights over third-party datasets.

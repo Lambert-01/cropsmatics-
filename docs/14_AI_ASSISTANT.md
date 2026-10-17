@@ -9,10 +9,10 @@ The current pipeline is route -> deterministic reference -> typed evidence -> op
 | Guard | What it proves |
 |---|---|
 | `numeric_guard` | Every figure in the answer appears somewhere in the retrieved evidence, at the precision it was written. |
-| `claim_guard` | Every figure is attributable *in its own scope*: the unit the sentence gives it, the metric word it is attached to, and the crop, district, province and period the sentence places it in. Comparison direction, percentage-change direction, effect-asserting wording over observational evidence, and a capacity asserted as zero are checked too. |
+| `claim_guard` | Heuristic checks for units, metrics, scope, comparisons and causal wording. These are incomplete: the current audit reproduces wrong-district attribution and two-value swaps that pass. |
 | `citation_guard` | Every cited evidence id was actually retrieved, so provenance cannot be fabricated into existence. |
 
-A failed guard returns the deterministic answer instead - which is correct by construction - and records which guard failed and why in `validation`. The guards are a floor, not a proof of semantic accuracy: they are limited to English (or language-neutral) unit and scope vocabulary; a credentialed provider has still not been exercised from this environment; and adaptive-style evasion (paraphrase that moves a claim without moving a number) is only partly addressed. The evaluation set that measures them is documented in [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).
+A failed guard returns the deterministic answer and records which guard failed and why in `validation`. This fallback also depends on correct analytical inputs. The guards are not proof of semantic accuracy: known attribution bypasses remain; vocabulary coverage is limited; and a credentialed provider has not been evaluated here. The evaluation set and limitations are documented in [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).
 
 ## Provider Configuration
 
@@ -69,4 +69,4 @@ pnpm exec playwright test --config playwright.forecast.config.ts
 
 That configuration uses installed Chrome, local test ports 3107/8007 and generated local data. It is not a production or Expo-device test.
 
-See [FORECAST_INTEGRATION_REPAIR_REPORT.md](FORECAST_INTEGRATION_REPAIR_REPORT.md), [MODEL_INTERPRETATION_POLICY.md](MODEL_INTERPRETATION_POLICY.md) and the current remaining-build prompt.
+See [CURRENT_STATUS.md](CURRENT_STATUS.md), [MODEL_INTERPRETATION_POLICY.md](MODEL_INTERPRETATION_POLICY.md) and [REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).

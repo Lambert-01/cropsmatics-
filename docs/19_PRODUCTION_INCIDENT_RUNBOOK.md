@@ -143,7 +143,7 @@ path.
 ## 8. Evidence to collect before escalating
 
 ```bash
-python scripts/verify_production.py --json docs/audits/artifacts/smoke-$(date +%F).json
+python scripts/verify_production.py --json /tmp/cropmatics-smoke-$(date +%F).json
 curl -sS $API/health/readiness | jq .            # sanitised: no credentials, no paths
 curl -sS $API/meta/data-version | jq '{pipeline_version, build_timestamp, row_counts}'
 ```

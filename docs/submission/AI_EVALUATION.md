@@ -1,5 +1,11 @@
 # AI Evaluation
 
+Review update, 2026-10-17: the passing corpus below is not complete safety
+evidence. The current audit accepts both an evidence value assigned to an
+unlisted district and two district values swapped within one sentence. Claim
+entity bindings must be repaired and these cases added as regression tests.
+See [Current Status](../CURRENT_STATUS.md).
+
 What the assistant's answers are checked against, which of those checks are
 executed automatically, and what remains unverified. Written from the commands
 that were actually run in this session, not from the intentions behind them.
@@ -17,7 +23,7 @@ of an agricultural figure. That splits into three testable claims:
    percentage change, association not restated as effect, and missing capacity not
    asserted as zero.
 
-Claim 1 is enforced by `numeric_guard`; claims 2 and 3 by `claim_guard`; the
+Claim 1 is checked by `numeric_guard`; heuristic checks for claims 2 and 3 run in `claim_guard`; the
 provenance of the citations by `citation_guard`. All three run in
 `app/ai/output_validator.py` for every provider answer — including the
 deterministic provider, so the fallback text is itself checked — and again in
