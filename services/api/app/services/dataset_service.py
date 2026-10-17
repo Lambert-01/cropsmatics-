@@ -25,6 +25,19 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "crop_productivity",
         "",
     ),
+    "agricultural_practice_observation": (
+        # Multi-period long-form practice/irrigation/erosion observations. The
+        # label and source list are resolved from the loaded frame at request time
+        # (see ``_resolved_meta``) so a new release cannot leave them stale.
+        "Agricultural Practice Observations",
+        "agricultural_practice_observation",
+        "",
+    ),
+    "postharvest_use_multi_period": (
+        "Post-Harvest Use & Loss (multi-period)",
+        "postharvest_use_multi_period",
+        "",
+    ),
     "district_crop_productivity": (
         "District Crop Productivity (2025B legacy)",
         "productivity_dataset",
@@ -35,7 +48,11 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "factors_dataset",
         "NISR_SAS_2025B_DISTRICT_FACTORS",
     ),
-    "irrigation_water": ("Irrigation & Water", "irrigation_water", "NISR_SAS_2025B_IRRIGATION_WATER"),
+    "irrigation_water": (
+        "Irrigation & Water",
+        "irrigation_water",
+        "NISR_SAS_2025B_IRRIGATION_WATER",
+    ),
     "erosion_control": ("Erosion Control", "erosion_control", "NISR_SAS_2025B_EROSION"),
     "crop_postharvest_use": (
         "Post-Harvest Use & Loss",
@@ -87,6 +104,28 @@ FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
         "farmer_scale",
         "source_id",
     ),
+    "agricultural_practice_observation": (
+        "period_code",
+        "year",
+        "season",
+        "geography_level",
+        "district",
+        "district_code",
+        "province",
+        "row_scope",
+        "domain",
+        "indicator_code",
+        "source_id",
+    ),
+    "postharvest_use_multi_period": (
+        "period_code",
+        "year",
+        "season",
+        "crop",
+        "canonical_crop_name",
+        "indicator_code",
+        "source_id",
+    ),
     "district_crop_productivity": ("district", "province", "canonical_crop_name", "year", "season"),
     "district_factors": ("district", "province", "year", "season"),
     "irrigation_water": ("district", "province", "year", "season"),
@@ -104,6 +143,42 @@ FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
 # Common aliases accepted from the generic analytics filter vocabulary.
 _COLUMN_ALIASES = {"crop": "canonical_crop_name"}
 
+# Which group a dataset belongs to. The explorer leads with the current
+# multi-period tables and keeps the legacy single-release 2025 Season B extracts
+# grouped as an archive rather than deleting them: models and tests still read
+# them, and a researcher may need the exact table a published figure came from.
+GROUP_CURRENT = "current"
+GROUP_ARCHIVE = "archive"
+GROUP_PROGRAM = "program"
+GROUP_REFERENCE = "reference"
+
+GROUP_ORDER: tuple[str, ...] = (GROUP_CURRENT, GROUP_ARCHIVE, GROUP_PROGRAM, GROUP_REFERENCE)
+
+GROUP_LABELS: dict[str, str] = {
+    GROUP_CURRENT: "Current (multi-period)",
+    GROUP_ARCHIVE: "Archive (2025 Season B single release)",
+    GROUP_PROGRAM: "Program context",
+    GROUP_REFERENCE: "Reference",
+}
+
+DATASET_GROUPS: dict[str, str] = {
+    "crop_productivity": GROUP_CURRENT,
+    "agricultural_practice_observation": GROUP_CURRENT,
+    "postharvest_use_multi_period": GROUP_CURRENT,
+    "national_crop_trends": GROUP_CURRENT,
+    "national_input_trends": GROUP_CURRENT,
+    "district_crop_productivity": GROUP_ARCHIVE,
+    "district_factors": GROUP_ARCHIVE,
+    "irrigation_water": GROUP_ARCHIVE,
+    "erosion_control": GROUP_ARCHIVE,
+    "crop_postharvest_use": GROUP_ARCHIVE,
+    "cold_chain_context": GROUP_PROGRAM,
+    "postharvest_infrastructure": GROUP_PROGRAM,
+    "cold_chain_network_summary": GROUP_PROGRAM,
+    "districts": GROUP_REFERENCE,
+    "crops": GROUP_REFERENCE,
+}
+
 
 def _resolve_column(df: pd.DataFrame, requested: str) -> str | None:
     """Map a requested filter name onto a real column, alias-aware."""
@@ -117,15 +192,30 @@ def _resolve_column(df: pd.DataFrame, requested: str) -> str | None:
 
 
 def list_datasets() -> list[dict]:
-    return [
-        {"key": key, "label": label, "source_id": source_id}
+    """Every whitelisted dataset, current first.
+
+    Grouped rather than flat: the current multi-period tables lead, the legacy
+    2025 Season B extracts follow as an archive, and the reference dictionaries
+    come last. Ordering is stable, so a client never has to hand-maintain a list
+    of tabs as new releases arrive.
+    """
+    order = {group: index for index, group in enumerate(GROUP_ORDER)}
+    rows = [
+        {
+            "key": key,
+            "label": label,
+            "source_id": source_id,
+            "group": DATASET_GROUPS.get(key, GROUP_CURRENT),
+            "group_label": GROUP_LABELS.get(
+                DATASET_GROUPS.get(key, GROUP_CURRENT), GROUP_LABELS[GROUP_CURRENT]
+            ),
+        }
         for key, (label, _, source_id) in DATASETS.items()
     ]
+    return sorted(rows, key=lambda row: order.get(row["group"], 99))
 
 
-def _resolved_meta(
-    key: str, label: str, source_id: str, df: pd.DataFrame
-) -> tuple[str, str]:
+def _resolved_meta(key: str, label: str, source_id: str, df: pd.DataFrame) -> tuple[str, str]:
     """Dataset label and source ids that reflect what the panel actually holds.
 
     The multi-period panel now covers 2022A-2026B from six releases, so both the
@@ -134,6 +224,17 @@ def _resolved_meta(
     """
     if key == "crop_productivity":
         label = f"{label} ({period_service.district_range()})"
+        if "source_id" in df.columns:
+            sources = sorted({str(value) for value in df["source_id"].dropna() if str(value)})
+            if sources:
+                source_id = ",".join(sources)
+    elif key in ("agricultural_practice_observation", "postharvest_use_multi_period"):
+        # The printed range and provenance come from the loaded frame, so a new
+        # release shows up without a hand-edited literal in this file.
+        if "period_code" in df.columns:
+            codes = sorted({str(code) for code in df["period_code"].dropna() if str(code)})
+            if codes:
+                label = f"{label} ({codes[0]}-{codes[-1]})"
         if "source_id" in df.columns:
             sources = sorted({str(value) for value in df["source_id"].dropna() if str(value)})
             if sources:
@@ -180,9 +281,11 @@ def fetch(
     # --- free-text search over all columns -----------------------------------
     if search:
         needle = search.lower()
-        mask = df.astype(str).apply(
-            lambda col: col.str.lower().str.contains(needle, na=False)
-        ).any(axis=1)
+        mask = (
+            df.astype(str)
+            .apply(lambda col: col.str.lower().str.contains(needle, na=False))
+            .any(axis=1)
+        )
         df = df[mask]
 
     # --- sorting (whitelisted to real columns; direction whitelisted) --------

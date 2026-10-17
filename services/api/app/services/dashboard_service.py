@@ -165,13 +165,18 @@ def _national_overview(
         {"id": "national_area", "label": "National harvested area", "value": round(area, 1) if trend_points else None,
          "unit": "ha", "period": period, "period_code": f.period_code,
          "source_id": source},
-        # Production-weighted across reported crops. Kept as context, never as a
-        # headline "yield" figure - raw crop yields are not comparable.
+        # Area-weighted aggregate output per harvested hectare across reported
+        # crops (total production / total harvested area). Kept as context, never
+        # as a headline "yield" figure: it moves with crop composition, so raw
+        # crop yields stay the comparable unit.
         {"id": "national_yield", "label": "National yield (production / area)",
          "value": round(yield_value, 3) if yield_value is not None else None,
          "unit": "t/ha", "period": period, "period_code": f.period_code,
          "source_id": source, "scope": "context",
-         "note": "production-weighted across reported crops; not a comparable crop yield"},
+         "note": (
+             "area-weighted aggregate output per harvested hectare; moves with crop "
+             "mix and is not a comparable crop yield"
+         )},
         {"id": "national_seed", "label": "Improved seed use", "value": seed,
          "unit": "% of farmers", "period": period, "period_code": f.period_code,
          "source_id": "NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS", "scope": "context"},
@@ -406,11 +411,15 @@ def overview(f: AnalyticsFilters) -> dict:
             "limitations": [
                 "observational district aggregates, not plot-level evidence",
                 "associations are not causation",
-                # Derived from the period catalogue so the scope text cannot
-                # describe a different calendar than the data it annotates.
-                f"district productivity covers {period_service.district_range()}; "
-                "district input/practice, irrigation and erosion tables cover "
-                f"{period_service.single_release_scope()} only",
+                # Derived from the period catalogue so the scope text cannot describe
+                # a different calendar than the data it annotates - and dataset by
+                # dataset, because the practice observations are multi-period while
+                # the legacy wide extract one model reads is not.
+                f"district productivity covers {period_service.district_range()}",
+                "district practice observations cover "
+                f"{period_service.practice_period_range() or period_service.single_release_scope()}; "
+                "the legacy single-release input/practice, irrigation and erosion "
+                f"extracts cover {period_service.single_release_scope()} only",
             ],
         },
     }

@@ -30,6 +30,13 @@ Start with the audit and overview, then follow the architecture and policy docs.
 - [14_AI_ASSISTANT.md](docs/14_AI_ASSISTANT.md)
 - [MODEL_INTERPRETATION_POLICY.md](docs/MODEL_INTERPRETATION_POLICY.md)
 
+## Submission evidence
+- [submission/DATA_CARD.md](docs/submission/DATA_CARD.md) (sources, definitions, appropriate/inappropriate use)
+- [submission/DATA_TO_NUMBER_TRACEABILITY.md](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md) (lineage + worked examples)
+- [submission/IMPLEMENTATION_EVIDENCE.md](docs/submission/IMPLEMENTATION_EVIDENCE.md) (what is implemented / verified / blocked)
+- [submission/UX_VERIFICATION.md](docs/submission/UX_VERIFICATION.md) (browser + device matrix; mostly NOT RUN)
+- [submission/AI_EVALUATION.md](docs/submission/AI_EVALUATION.md) (claim-level evaluation set, results, and what it does not prove)
+
 ## Operations
 - [15_SECURITY_PRIVACY.md](docs/15_SECURITY_PRIVACY.md)
 - [16_TESTING.md](docs/16_TESTING.md)

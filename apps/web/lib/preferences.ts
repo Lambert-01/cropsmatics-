@@ -15,16 +15,23 @@ import { DEFAULTS_NONE, SCOPE_HISTORY, SCOPE_PERIOD, type ScopeView } from "./fi
 
 export const PREFERENCES_KEY = "cropmatics-preferences";
 /**
- * Bumped to 2 after the dashboard landing-scope repair.
+ * Version 2: the dashboard landing-scope repair.
  *
  * Version 1 could hold ``defaultPeriod = "2025B"``, which made a bare
  * ``/dashboard`` open on a single 2025 Season B release instead of the historical
- * overview. ``normalizePreferences`` discards an entry whose version is not the
- * current one, so bumping the version guarantees no browser can carry that
- * obsolete default forward - which is the only way to change stored behaviour,
- * since a page cannot rewrite a preference it can no longer read.
+ * overview. Version 1 entries are therefore still **discarded**, never migrated:
+ * that obsolete default must not be carried forward.
+ *
+ * Version 3: compact provenance by default.
+ *
+ * ``showSources`` used to default to ``true``, so every new reader met every
+ * source panel already expanded. It now defaults to ``false`` (compact, with a
+ * reachable ``Sources``/``Details`` control). Existing entries are **migrated**
+ * rather than reset: a v2 user who deliberately expanded sources keeps that
+ * choice, and unrelated theme/filter preferences are preserved. Only the default
+ * a *new* user gets changes.
  */
-export const PREFERENCES_VERSION = 2;
+export const PREFERENCES_VERSION = 3;
 
 export type NumberGrouping = "grouped" | "plain";
 export type ThemePreference = "system" | "light" | "dark";
@@ -58,7 +65,13 @@ export interface Preferences {
   theme: ThemePreference;
   /** District names drawn on the choropleth. */
   mapLabels: boolean;
-  /** Whether source notes and provenance panels are expanded by default. */
+  /**
+   * Whether source notes and provenance panels are expanded by default.
+   *
+   * ``false`` is the compact default: provenance is still present (a short
+   * source label, the period, and a reachable ``Sources`` control) - it is just
+   * not expanded on arrival. This is not a way to hide accountability.
+   */
   showSources: boolean;
 }
 
@@ -73,7 +86,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   reducedMotion: false,
   theme: "system",
   mapLabels: true,
-  showSources: true,
+  showSources: false,
 };
 
 /** Only the keys this build knows about, so storage cannot inject new fields. */
@@ -96,13 +109,29 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
  * older build (or a hand-edited entry) must keep its default instead of reaching
  * the UI as `undefined`.
  */
+/**
+ * Carry a supported older entry forward, or return null when it must be discarded.
+ *
+ * v1 -> discarded. It could hold the ``defaultPeriod`` that broke the dashboard
+ * landing scope; that reason still stands.
+ * v2 -> migrated field by field, including ``showSources``. A deliberate choice
+ * to expand sources survives; only the default for a new user changes.
+ * Anything else (unknown, or written by a newer build) -> discarded rather than
+ * guessed at, which is the only safe option for a shape this build does not know.
+ */
+function migrate(raw: Record<string, unknown>, version: number | null): Record<string, unknown> | null {
+  if (version === null || version === 1) return null;
+  if (version === PREFERENCES_VERSION) return raw;
+  if (version === 2) return { ...raw, version: PREFERENCES_VERSION };
+  return null;
+}
+
 export function normalizePreferences(input: unknown): Preferences {
   if (typeof input !== "object" || input === null) return { ...DEFAULT_PREFERENCES };
-  const raw = input as Record<string, unknown>;
-
-  // A different version is not migrated: guessing at a shape this build does not
-  // know would be worse than starting from the defaults.
-  if (raw.version !== PREFERENCES_VERSION) return { ...DEFAULT_PREFERENCES };
+  const rawInput = input as Record<string, unknown>;
+  const version = typeof rawInput.version === "number" ? rawInput.version : null;
+  const raw = migrate(rawInput, version);
+  if (!raw) return { ...DEFAULT_PREFERENCES };
 
   return {
     version: PREFERENCES_VERSION,

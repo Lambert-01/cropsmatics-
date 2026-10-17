@@ -76,8 +76,9 @@ def data_coverage() -> list[EvidenceItem]:
     except Exception:
         return []
 
+    periods = list(catalog.get("periods", []))
     items: list[EvidenceItem] = []
-    for entry in catalog.get("periods", []):
+    for entry in periods:
         code = str(entry.get("period_code"))
         items.append(
             EvidenceItem(
@@ -91,6 +92,21 @@ def data_coverage() -> list[EvidenceItem]:
                 source_id=None,
                 method="district count present in the published period panel",
                 note=f"{entry.get('label')}; {entry.get('n_crops')} crops",
+            )
+        )
+    if periods:
+        # The count an answer states out loud ("Cropmatics publishes 14 periods")
+        # has to be an evidence value like any other, or the numeric guard is right
+        # to reject the platform's own summary of its coverage.
+        items.append(
+            EvidenceItem(
+                evidence_id="coverage:periods_published",
+                kind=EvidenceKind.DERIVED,
+                metric="periods_published",
+                value=len(periods),
+                unit="periods",
+                period_code=str(periods[-1].get("period_code")) or None,
+                method="count of periods in the published period catalogue",
             )
         )
     return items

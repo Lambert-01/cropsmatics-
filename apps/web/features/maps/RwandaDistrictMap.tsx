@@ -8,7 +8,7 @@ import { EmptyState, MapSkeleton } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
 import { DistrictChoropleth } from "@/features/maps/DistrictChoropleth";
 import { FacilityDistrictMarkers, FacilityLayer } from "@/features/maps/FacilityLayer";
-import { HarvestPressureLayer } from "@/features/maps/HarvestPressureLayer";
+import { YieldShortfallLayer } from "@/features/maps/YieldShortfallLayer";
 import { MapControls } from "@/features/maps/MapControls";
 import { MapLegend } from "@/features/maps/MapLegend";
 import { MapTooltip } from "@/features/maps/MapTooltip";
@@ -21,7 +21,7 @@ import type { FacilityItem, MapMetricsResponse } from "@/types";
 
 const VIEW_W = 1000;
 const VIEW_H = 880;
-const PRESSURE_GAP = 20; // % below benchmark -> hatched "harvest pressure" overlay
+const SHORTFALL_GAP = 20; // % below benchmark -> hatched yield-shortfall overlay
 
 export function RwandaDistrictMap({
   data,
@@ -83,28 +83,37 @@ export function RwandaDistrictMap({
     facilities.filter((f) => f.district_code).map((f) => [f.district_code, f]),
   ), [facilities]);
 
+  // The service reports a null range when the metric has no published value for
+  // this selection. That null is passed through rather than turned into 0..1, so
+  // the legend reports the absence instead of inventing a span.
   const scale = useMemo(
     () =>
       makeScale(
-        data?.min_value ?? 0,
-        data?.max_value ?? 1,
-        METRIC_SEMANTICS[metric].higherIs,
+        data?.min_value,
+        data?.max_value,
+        METRIC_SEMANTICS[metric].scaleKind,
       ),
     [data, metric],
   );
 
-  const pressure = useMemo(() => {
+  const shortfall = useMemo(() => {
     const set = new Set<string>();
     (data?.districts ?? []).forEach((d) => {
       const gap = d.details?.gap_index;
-      if (d.district_code && typeof gap === "number" && gap >= PRESSURE_GAP) set.add(d.district_code);
+      if (d.district_code && typeof gap === "number" && gap >= SHORTFALL_GAP) set.add(d.district_code);
     });
     return set;
   }, [data]);
 
   const colorFor = (districtCode: string) => {
     const datum = datumByDistrict.get(districtCode);
-    return scale.color(datum?.value ?? null);
+    if (!datum) return scale.color(null);
+    // A banded score is coloured from the API's own band label when it has one, so
+    // the map can never disagree with the ranking about a district's band.
+    if (scale.kind === "bands") {
+      return scale.colorForBand(datum.details?.priority_band as string | null, datum.value);
+    }
+    return scale.color(datum.value ?? null);
   };
 
   const labelFor = (districtCode: string) => {
@@ -161,8 +170,8 @@ export function RwandaDistrictMap({
           cropSelected={Boolean(data?.crop)}
         />
         <p className="mt-2 text-[11px] text-slate-500">
-          {METRIC_SEMANTICS[metric].note}. Hatched districts have a productivity gap of at least{" "}
-          {PRESSURE_GAP}% (harvest-pressure overlay).
+          {METRIC_SEMANTICS[metric].note}. Hatched districts have a yield gap of at least{" "}
+          {SHORTFALL_GAP}% against this crop's benchmark (yield-shortfall overlay).
         </p>
       </div>
 
@@ -215,10 +224,10 @@ export function RwandaDistrictMap({
           onLeave={() => setHovered(null)}
           onSelect={(d) => onSelectDistrict?.(d)}
         >
-          <HarvestPressureLayer
+          <YieldShortfallLayer
             features={collection.features}
             project={project}
-            highlighted={pressure}
+            highlighted={shortfall}
           />
           {showFacilities ? (
             <FacilityDistrictMarkers features={collection.features} project={project} facilities={facilities} />
@@ -243,6 +252,14 @@ export function RwandaDistrictMap({
         scale={scale}
         unit={data?.unit ?? null}
         higherIs={METRIC_SEMANTICS[metric].higherIs}
+        direction={METRIC_SEMANTICS[metric].direction}
+        // Distinguishes "nothing published for this district" from "this layer is
+        // not published for the selected period" - the second case has a release
+        // that does carry it, named just above the legend.
+        noDataLabel={
+          data?.available_period ? "Not published for this period" : "No verified observation"
+        }
+        overlay={shortfall.size ? `Yield gap ≥ ${SHORTFALL_GAP}%` : null}
         note={data?.crop ? `Crop: ${data.crop}` : "All crops"}
       />
 

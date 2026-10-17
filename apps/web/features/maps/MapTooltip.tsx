@@ -68,6 +68,24 @@ export function MapTooltip({
             : null,
         )}
         {show("Priority band", details.priority_band as string | null)}
+        {/* Eligibility is a separate fact from the score: a district whose crops are
+            all at or above their benchmark is not eligible for productivity support,
+            and that reason is stated here rather than implied by a low band. */}
+        {show(
+          "Productivity support",
+          details.eligible === true
+            ? "Eligible"
+            : details.eligible === false
+              ? "Not eligible"
+              : null,
+        )}
+        {show("Why not", details.eligibility_reason as string | null)}
+        {show(
+          "Crops eligible",
+          details.n_eligible != null
+            ? `${details.n_eligible} of ${Number(details.n_eligible) + Number(details.n_excluded ?? 0)}`
+            : null,
+        )}
         {show("Period", periodLabel(details.period as string | null))}
         {facility ? show("Program", facility.initiative ?? "Cold-chain context") : null}
         {facility ? show("Capacity", "Not verified") : null}

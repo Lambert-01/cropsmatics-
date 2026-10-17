@@ -2,8 +2,11 @@
 
 Order matters here. The deterministic grounded answer is computed first and is
 correct by construction, so it is always available as the fallback. A provider's
-answer is then checked against the evidence bundle, and if it carries a single
-unattributable number the deterministic answer is returned instead.
+answer is then checked against the evidence bundle twice over: every figure must
+be attributable (``numeric_guard``), and every figure must be attributable *in the
+unit, metric, crop, district and period the sentence places it in*, with
+directional, causal and missing-value wording checked too (``claim_guard``). One
+failure of either kind and the deterministic answer is returned instead.
 
 That is what makes "the LLM may not state a figure" an enforcement rather than a
 policy: an unsupported number cannot reach a client, because there is no code path
@@ -14,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.ai import citation_guard, numeric_guard
+from app.ai import citation_guard, claim_guard, numeric_guard
 from app.ai.evidence import EvidenceBundle
 from app.ai.grounded import GroundedAnswer
 from app.ai.schemas import ProviderOutcome
@@ -57,11 +60,13 @@ def validate(
 ) -> ValidatedAnswer:
     """Return the provider's answer only if the evidence supports every figure."""
     numeric = numeric_guard.check(outcome.answer, bundle)
+    claims = claim_guard.check(outcome.answer, bundle)
     citations = citation_guard.check(outcome.citations, bundle)
 
     validation = {
         "used_fallback": False,
         "numeric": numeric.as_dict(),
+        "claims": claims.as_dict(),
         "citations": citations.as_dict(),
         "mode": outcome.mode,
     }
@@ -71,6 +76,19 @@ def validate(
             reference,
             "the generated answer contained a figure that the evidence does not "
             "support; it was rejected and the deterministic explanation returned",
+            validation,
+        )
+
+    if not claims.ok:
+        # The digits exist in the evidence, but the sentence moved them to another
+        # unit, metric, place or period - or claimed a direction, an effect or a
+        # zero the evidence does not support. Named explicitly so the audit trail
+        # says which claim failed rather than only that one did.
+        first = claims.violations[0]
+        return _fallback(
+            reference,
+            f"a claim could not be verified against the evidence ({first.kind}): "
+            f"{first.detail}; the deterministic explanation was returned",
             validation,
         )
 

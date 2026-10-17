@@ -1,15 +1,21 @@
 import { featureToPath, type GeoFeature, type Project } from "@/features/maps/geo";
 
 /**
- * Harvest-pressure overlay: a hatched highlight on districts whose selected value
- * crosses the pressure threshold. It is an overlay on the choropleth, never a
+ * Yield-shortfall overlay: a hatched highlight on districts whose selected value
+ * crosses the shortfall threshold. It is an overlay on the choropleth, never a
  * replacement for the metric legend.
+ *
+ * The name matters. The hatch encodes a published yield gap against each crop's
+ * own benchmark, so calling it "harvest pressure" asserted a post-harvest
+ * interpretation the underlying observation does not carry. A bigger harvest is
+ * what would create real harvest pressure, and the map has no harvest-volume
+ * projection behind this pattern.
  */
-export function HarvestPressureLayer({
+export function YieldShortfallLayer({
   features,
   project,
   highlighted,
-  patternId = "harvest-pressure",
+  patternId = "yield-shortfall",
 }: {
   features: GeoFeature[];
   project: Project;
@@ -30,7 +36,7 @@ export function HarvestPressureLayer({
       <g aria-hidden="true" className="pointer-events-none">
         {targets.map((f) => (
           <path
-            key={`pressure-${f.properties.district_code}`}
+            key={`shortfall-${f.properties.district_code}`}
             d={featureToPath(f, project)}
             fill={`url(#${patternId})`}
           />

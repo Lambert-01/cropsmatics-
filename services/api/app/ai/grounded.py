@@ -934,12 +934,28 @@ def data_coverage() -> GroundedAnswer:
         return _unsupported("data_coverage")
 
     codes = [str(entry["period_code"]) for entry in periods]
+    practice_range = period_service.practice_period_range()
+    postharvest_range = period_service.postharvest_period_range()
+    legacy_scope = period_service.single_release_scope()
     answer = (
         f"Cropmatics currently publishes {len(codes)} periods, from "
         f"{period_service.label(codes[0])} through {period_service.label(codes[-1])}. "
-        "District-level crop productivity rows exist for these periods; the district "
-        "input/practice, irrigation and erosion tables are a single 2025 Season B "
-        "release, and an unpublished season such as 2026C does not appear at all."
+        "District-level crop productivity rows exist for these periods."
+    )
+    if practice_range:
+        answer += (
+            " District agricultural practice observations (improved seed, fertiliser, "
+            f"irrigation, water source, erosion control and severity) cover {practice_range}."
+        )
+    if postharvest_range:
+        answer += (
+            " Post-harvest use shares are national crop-level values covering "
+            f"{postharvest_range}."
+        )
+    answer += (
+        " The legacy single-release input, irrigation and erosion extracts cover "
+        f"{legacy_scope} only, and an unpublished season such as 2026C does not "
+        "appear at all."
     )
 
     return GroundedAnswer(
@@ -953,6 +969,12 @@ def data_coverage() -> GroundedAnswer:
         limitations=_limitations(
             "only periods present in the processed tables are listed",
             "a period with no district rows is reported as national-only",
+            # Named per dataset: a single-release extract and the multi-period
+            # practice observations are not the same coverage, and one sentence
+            # covering both understated the second.
+            f"the legacy input/practice, irrigation and erosion extracts cover "
+            f"{legacy_scope} only; the practice observations cover "
+            f"{practice_range or legacy_scope}",
         ),
     )
 
@@ -1146,7 +1168,10 @@ def methodology(indicator_ids: list[str] | None = None) -> GroundedAnswer:
         coverage="data dictionary",
         limitations=_limitations(
             "aggregation policy is per indicator and is published with the definition",
-            "district indicators are a single 2025 Season B release",
+            # Per dataset, so a reviewer can tell which of the two series answered.
+            "the legacy district indicator extracts are single-release "
+            f"({period_service.single_release_scope()}); the multi-period practice "
+            f"observations cover {period_service.practice_period_range() or 'no periods in this deployment'}",
         ),
     )
 

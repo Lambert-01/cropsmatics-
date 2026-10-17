@@ -189,8 +189,9 @@ export interface CanonicalTrendSeries {
  * Distinct from `TrendResponse` (the legacy single-release context table): the
  * axis is every period the panel publishes, `series` is aligned to `periods`,
  * and a period the release did not tabulate stays `null` rather than being
- * interpolated. No cross-crop yield is averaged; the only all-crop yield is
- * production-weighted (`yield_from_totals_kg_ha`).
+ * interpolated. No cross-crop yield is averaged; the only all-crop yield is the
+ * area-weighted aggregate `yield_from_totals_kg_ha` (output per harvested
+ * hectare, which moves with crop mix).
  */
 export interface CanonicalTrendResponse {
   geography_scope: string;
@@ -514,7 +515,12 @@ export interface MapDistrictMetric {
   agro_ecological_zone?: string | null;
   value?: number | null;
   n_observations: number;
-  details: Record<string, string | number | null | undefined>;
+  /**
+   * Extra field values for the tooltip. `boolean` is in the union because
+   * eligibility is a real JSON boolean, and coercing it to a string here would
+   * make "not eligible" and "unknown" indistinguishable at the display layer.
+   */
+  details: Record<string, string | number | boolean | null | undefined>;
 }
 
 export interface MapMetricsResponse {
@@ -1229,10 +1235,149 @@ export interface SensitivityResponse {
   provenance: Provenance;
 }
 
+// --- manual projection ("Build a projection") ----------------------------------
+//
+// Three different future-looking things, kept apart in the types themselves:
+// published observations, user-controlled projections (below) and validated
+// model forecasts. A projection is labelled `planning_projection` and never
+// claims to be an official statistic or a forecast.
+
+export type ProjectionMetric = "yield_kg_ha" | "production_mt";
+export type ProjectionMethod = "carry_forward" | "percent_change" | "personal";
+export type ProjectionBaseline = "latest_observed" | "median_window";
+export type ProjectionCompounding = "once" | "per_step";
+export type ProjectionCaseLabel = "lower" | "main" | "higher";
+
+export interface ProjectionCase {
+  label: ProjectionCaseLabel;
+  change_pct: number;
+}
+
+export interface ManualProjectionRequest {
+  crop: string;
+  geography?: "district" | "national";
+  district?: string | null;
+  season: "A" | "B" | "C";
+  origin_period?: string | null;
+  horizon_steps?: number;
+  metric?: ProjectionMetric;
+  method?: ProjectionMethod;
+  baseline?: ProjectionBaseline;
+  baseline_window?: number | null;
+  change_pct?: number | null;
+  compounding?: ProjectionCompounding;
+  assumed_yield_kg_ha?: number | null;
+  assumed_harvested_area_ha?: number | null;
+  cases?: ProjectionCase[] | null;
+}
+
+export interface BaselineObservation {
+  period_code: string;
+  period_label: string;
+  value: number;
+  unit: string;
+  source_id: string | null;
+  source_release: string | null;
+  source_workbook: string | null;
+  source_sheets: string | null;
+  row_scope: string | null;
+  farmer_scale: string | null;
+  geography: string;
+}
+
+export interface ProjectedPoint {
+  period_code: string;
+  period_label: string;
+  value: number;
+  unit: string;
+  /** A future season code is a planning target, never a published release. */
+  is_planning_target: boolean;
+}
+
+export interface ProjectionCaseResult {
+  label: string;
+  change_pct: number | null;
+  compounding: string | null;
+  points: ProjectedPoint[];
+  change_from_baseline_pct: number | null;
+}
+
+export interface ProjectionResolvedSelection {
+  crop: string;
+  crop_code: string | null;
+  geography: string;
+  district: string | null;
+  province: string | null;
+  season: string;
+  metric: ProjectionMetric;
+  metric_unit: string;
+  origin_period: string;
+  origin_label: string;
+  horizon_steps: number;
+  target_periods: string[];
+}
+
+export interface ProjectionEvidenceReference {
+  source_id: string | null;
+  period_code: string | null;
+  metric: string | null;
+  geography: string | null;
+  value: number | null;
+  unit: string | null;
+  value_kind: string;
+  source_workbook: string | null;
+  source_sheets: string | null;
+}
+
+export interface ProjectionExportRow {
+  row_kind: "observed_baseline" | "assumption" | "projection";
+  label: string;
+  period_code: string | null;
+  period_label: string | null;
+  metric: string;
+  value: number;
+  unit: string;
+  case: string | null;
+  source_id: string | null;
+  note: string | null;
+}
+
+export interface ManualProjectionResponse {
+  calculation_id: string;
+  value_kind: "planning_projection";
+  value_kind_label: string;
+  assumption_badge: string;
+  methodology_version: string;
+  dataset_version: string | null;
+  method: string;
+  method_label: string;
+  method_note: string;
+  baseline: string;
+  baseline_label: string;
+  baseline_value: number;
+  baseline_unit: string;
+  baseline_is_assumption: boolean;
+  baseline_observations: BaselineObservation[];
+  baseline_note: string | null;
+  assumptions: Record<string, unknown>;
+  cases: ProjectionCaseResult[];
+  units: string;
+  resolved: ProjectionResolvedSelection;
+  evidence: ProjectionEvidenceReference[];
+  rounding: Record<string, unknown>;
+  warnings: string[];
+  limitations: string[];
+  export_rows: ProjectionExportRow[];
+  provenance: Provenance;
+}
+
 export interface DatasetInfo {
   key: string;
   label: string;
   source_id: string;
+  /** Selector group: current multi-period tables lead, legacy extracts archive. */
+  group: string;
+  group_label: string;
 }
 
 export interface DatasetResponse {

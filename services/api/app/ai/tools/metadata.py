@@ -12,8 +12,22 @@ from app.repositories import dataset_repository as repo
 from app.services import meta_service
 
 
+def _note(*values: object) -> str | None:
+    """Join the descriptive fields a registry row actually carries."""
+    parts = [str(value).strip() for value in values if value]
+    return "; ".join(parts) if parts else None
+
+
 def source_metadata(*, source_id: str | None = None) -> list[EvidenceItem]:
-    """Registered sources, optionally filtered to one id."""
+    """Registered sources, optionally filtered to one dataset name.
+
+    The registry keys a source by its *dataset* name, which is also the name an
+    answer lists when it says where its figures come from. Reading a key the
+    service does not produce (a ``source_id`` or ``title`` column) produced empty
+    items and colliding evidence ids, so no provenance answer was actually
+    grounded; the dataset name and its descriptive fields are what the registry
+    has, and they are what is carried here.
+    """
     try:
         rows = meta_service.sources()
     except Exception:
@@ -21,7 +35,9 @@ def source_metadata(*, source_id: str | None = None) -> list[EvidenceItem]:
 
     items: list[EvidenceItem] = []
     for row in rows:
-        identifier = str(row.get("source_id") or "")
+        identifier = str(row.get("dataset") or "").strip()
+        if not identifier:
+            continue
         if source_id and identifier != source_id:
             continue
         items.append(
@@ -29,10 +45,16 @@ def source_metadata(*, source_id: str | None = None) -> list[EvidenceItem]:
                 evidence_id=f"source:{identifier}",
                 kind=EvidenceKind.CONTEXT,
                 metric="source",
-                value=identifier or None,
-                period_code=None if row.get("source_period") is None else str(row["source_period"]),
-                source_id=identifier or None,
-                note=None if row.get("title") is None else str(row["title"]),
+                value=identifier,
+                source_id=identifier,
+                note=_note(
+                    row.get("owner"),
+                    row.get("coverage"),
+                    row.get("use"),
+                    row.get("status_in_package") or row.get("access_status"),
+                    row.get("limitations"),
+                ),
+                method="curated source registry entry",
             )
         )
     return items
@@ -49,7 +71,11 @@ def source_registry(*, query: str | None = None) -> list[EvidenceItem]:
 
     items: list[EvidenceItem] = []
     for _, row in frame.iterrows():
-        dataset = str(row.get("dataset") or "")
+        # The curated registry names its sources in a ``source`` column; reading a
+        # ``dataset`` column that does not exist yielded empty entries.
+        dataset = str(row.get("source") or "").strip()
+        if not dataset:
+            continue
         if query and query.lower() not in dataset.lower():
             continue
         items.append(
@@ -57,9 +83,16 @@ def source_registry(*, query: str | None = None) -> list[EvidenceItem]:
                 evidence_id=f"registry:{dataset}",
                 kind=EvidenceKind.CONTEXT,
                 metric="source_registry_entry",
-                value=dataset or None,
-                source_id=None if row.get("owner") is None else str(row["owner"]),
-                note=None if row.get("limitations") is None else str(row["limitations"]),
+                value=dataset,
+                source_id=dataset,
+                note=_note(
+                    row.get("owner"),
+                    row.get("type"),
+                    row.get("access_status"),
+                    row.get("recommended_use"),
+                    row.get("redistribution_note"),
+                ),
+                method="curated source registry entry",
             )
         )
     return items

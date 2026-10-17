@@ -30,7 +30,7 @@ const KG_PER_TONNE = 1000;
  * line, never an interpolated or zero point. Production is a bar on the left
  * axis and yield a line on the right axis; raw per-crop yields are comparable
  * only within one crop, so the chart never derives a cross-crop yield itself -
- * the all-crops view uses the production-weighted yield the API computes.
+ * the all-crops view uses the area-weighted aggregate yield the API computes.
  */
 export function CanonicalTrendChart({
   data,
@@ -63,9 +63,9 @@ export function CanonicalTrendChart({
     const yieldFromTotals = series?.yield_from_totals_kg_ha ?? [];
     const production = series?.production_mt ?? [];
     return periods.map((code, index) => {
-      // One crop reports its published yield; the all-crops view reports only a
-      // production-weighted yield. Prefer a real per-crop yield, then the
-      // production-weighted one - never a bare cross-crop average.
+      // One crop reports its published yield; the all-crops view reports only an
+      // area-weighted aggregate yield. Prefer a real per-crop yield, then the
+      // aggregate one - never a bare cross-crop average.
       const perCrop = yieldKg[index];
       const weighted = yieldFromTotals[index];
       const yieldKgHa = perCrop ?? weighted ?? null;
@@ -106,7 +106,7 @@ export function CanonicalTrendChart({
         title={`${scope} trend`}
         subtitle={
           isWeightedYield
-            ? "Production (metric tonnes, left axis) and production-weighted yield (t/ha, right axis) across every published period"
+            ? "Production (metric tonnes, left axis) and area-weighted aggregate yield (t/ha, right axis) across every published period"
             : "Production (metric tonnes, left axis) and published yield (t/ha, right axis) across every published period"
         }
         action={<UpdatingPill active={updating} />}

@@ -1009,20 +1009,31 @@ def same_season_yoy(f: AnalyticsFilters, period_code: str | None) -> dict | None
 def single_release_note(f: AnalyticsFilters, dataset: str, what: str) -> str | None:
     """Explain, honestly, why a period selection has no rows for a dataset.
 
-    District input/practice, irrigation and erosion tables are still a
-    single-release extract, so any other period genuinely has no such data.
-    Saying so is better than an empty result that reads as "nothing measured".
+    The legacy district input/practice, irrigation and erosion tables are a
+    single-release extract, so any other period genuinely has no such data there.
+    Saying so is better than an empty result that reads as "nothing measured" - and
+    the note names the multi-period practice series that *does* answer the period,
+    because "not in this table" was being read as "not published at all".
     """
     if not f.period_code:
         return None
     covers = any(d["dataset"] == dataset for d in period_service.datasets_for(f.period_code))
     if covers:
         return None
-    return (
-        f"{what} is not published for {f.period_code}; the district "
-        f"{dataset.replace('_', ' ')} table covers 2025 Season B only, so this "
-        "period returns no rows"
+    # The period this dataset's own release covers, not a literal.
+    code = period_service.SINGLE_RELEASE_DATASETS.get(dataset)
+    scope = period_service.label(code) if code else period_service.single_release_scope()
+    note = (
+        f"{what} is not published for {f.period_code} in this legacy single-release "
+        f"table, which covers {scope} only, so this period returns no rows"
     )
+    practice_range = period_service.practice_period_range()
+    if practice_range and dataset in ("district_factors", "irrigation_water", "erosion_control"):
+        note += (
+            f". The multi-period practice observations cover {practice_range} for the "
+            "same indicators; see /api/v1/analytics/practice-indicators"
+        )
+    return note
 
 
 def factor_associations(f: AnalyticsFilters) -> dict:

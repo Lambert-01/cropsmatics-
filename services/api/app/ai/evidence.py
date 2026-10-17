@@ -104,17 +104,30 @@ class EvidenceBundle(BaseModel):
 
         The definition is intentionally blunt: a number is attributable when it
         appears somewhere in the evidence. That includes published values, counts
-        the platform computed, and numbers that are part of a period code or a
-        source identifier - all of which are grounded facts rather than
-        model-generated quantities.
+        the platform computed, and numbers that are part of a period code, a
+        source identifier or a dataset name carried as a value - all of which are
+        grounded facts rather than model-generated quantities.
+
+        A string ``value`` is scanned exactly like the other textual fields. A
+        registered source named ``NISR_SAS_2024_2026_NATIONAL_TRENDS`` carries its
+        years, and an answer that lists that source by name is not inventing them.
         """
         allowed: set[float] = set()
         for item in self.items:
             if isinstance(item.value, int | float) and not isinstance(item.value, bool):
                 allowed.add(float(item.value))
-            for text in (item.period_code, item.source_id, item.district, item.note, item.unit):
+            texts = (item.period_code, item.source_id, item.district, item.note, item.unit)
+            if isinstance(item.value, str):
+                texts = (*texts, item.value)
+            for text in texts:
                 if text:
-                    allowed |= _numbers_in(str(text))
+                    found = _numbers_in(str(text))
+                    allowed |= found
+                    # A published figure quoted with or without its sign is the
+                    # same figure ("skill -146.4%" is stated as "146.4%"). The
+                    # claim guard checks the direction that sign carries; the
+                    # numeric guard only has to recognise the value.
+                    allowed |= {abs(value) for value in found}
         for text in self.limitations + self.missing_data + self.sources:
             allowed |= _numbers_in(text)
         # Deterministic counts the platform itself produces.

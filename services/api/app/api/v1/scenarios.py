@@ -6,6 +6,14 @@ does the same for the Intervention Planner's weighted ranking, and
 ``POST /scenarios/sensitivity`` re-ranks the same candidates under a reproducible
 sweep of plausible weightings.
 
+``POST /scenarios/manual-projection`` is the one route here that looks *forward*.
+It computes a user-controlled projection from a published observed baseline and
+the caller's explicit assumptions, and labels every value as
+``planning_projection``. It is deliberately separate from ``/analytics`` (which
+reports published observations) and from the validated-forecast status endpoint
+(which reports what a gated model may publish). It writes nothing and cannot
+mutate the canonical tables.
+
 Every route here is a re-computation, not a prediction: see
 ``app.services.scenario_service`` and ``app.services.priority_scenario_service``.
 They are intentionally read-only in effect even though they are POSTs - a
@@ -17,17 +25,21 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from app.analytics.manual_projection import ProjectionError
 from app.analytics.scenario import ScenarioError
 from app.analytics.sensitivity import SensitivityError
+from app.schemas.manual_projection import ManualProjectionRequest, ManualProjectionResponse
 from app.schemas.priority_scenario import PriorityScenarioRequest, PriorityScenarioResponse
 from app.schemas.scenario import ScenarioRequest, ScenarioResponse
 from app.schemas.sensitivity import SensitivityRequest, SensitivityResponse
 from app.services import (
+    manual_projection_service,
     period_service,
     priority_scenario_service,
     scenario_service,
     sensitivity_service,
 )
+from app.services.manual_projection_service import ProjectionUnavailable
 from app.services.priority_scenario_service import UnknownSelectionError
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
@@ -63,6 +75,28 @@ def priority_scenario(payload: PriorityScenarioRequest) -> PriorityScenarioRespo
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (UnknownSelectionError, ScenarioError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/manual-projection", response_model=ManualProjectionResponse)
+def manual_projection(payload: ManualProjectionRequest) -> ManualProjectionResponse:
+    """Build a planning projection from a published baseline and stated assumptions.
+
+    Returns ``422`` with a structured reason when the selection cannot be
+    projected (no published same-season history, a window larger than the
+    history, an incompatible personal-plan combination) rather than an all-null
+    success. The response is a ``planning_projection``; it is never an official
+    statistic and never a validated forecast.
+    """
+    try:
+        return manual_projection_service.run(payload)
+    except ProjectionUnavailable as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+    except ProjectionError as exc:
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
 
 
 @router.post("/sensitivity", response_model=SensitivityResponse)

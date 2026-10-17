@@ -55,18 +55,44 @@ def coverage_notes() -> list[str]:
     from app.services import period_service
 
     codes = period_service.period_codes()
+    # Three genuinely different things, kept apart on purpose: the multi-period
+    # practice observations, the multi-period post-harvest shares, and the legacy
+    # single-release extracts that one ranking model still uses for readiness.
+    # The blanket sentence "input/practice, irrigation and erosion tables are still
+    # single-release" was true of the legacy wide extracts and false of the practice
+    # observations ingested alongside them, so it understated what the platform
+    # serves and made a 2024A or 2026B practice question look unanswerable.
+    practice_range = period_service.practice_period_range()
+    postharvest_range = period_service.postharvest_period_range()
+    practice_note = (
+        "District agricultural practice observations (improved seed, fertiliser, "
+        "irrigation technique, water source, erosion control and severity) are "
+        f"multi-period: {practice_range}."
+        if practice_range
+        else "District agricultural practice observations are not built in this deployment."
+    )
+    postharvest_note = (
+        "Post-harvest use shares are national crop-level values, not district values, "
+        f"and are multi-period: {postharvest_range}."
+        if postharvest_range
+        else "Post-harvest use shares are not built in this deployment."
+    )
     return [
         "District productivity (area, harvested area, production, yield) is "
         f"available for all {len(codes)} published periods "
         f"({period_service.district_range()}) in the multi-period panel; "
         "2026 Season C has not been published.",
-        "District input/practice, irrigation and erosion tables are still "
-        f"single-release ({period_service.single_release_scope()}). See "
-        "/api/v1/meta/periods for which datasets each period covers.",
+        practice_note,
+        postharvest_note,
+        "The legacy single-release district extracts (input/practice, irrigation, "
+        "erosion and the wide district crop table) still cover "
+        f"{period_service.single_release_scope()} only. A ranking component that "
+        "needs them for another period is reported as unavailable rather than "
+        "borrowed from that release.",
         "2024B, 2025A and 2026A national trend rows are context series and are NOT "
         "district estimates.",
-        "Post-harvest use shares are national crop-level values, not district values.",
         "Cold-chain context lists program districts; facility capacity is not verified.",
+        "See /api/v1/meta/periods for which datasets each period covers.",
     ]
 
 

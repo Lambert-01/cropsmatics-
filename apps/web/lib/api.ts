@@ -21,6 +21,8 @@ import type {
   HeatmapResponse,
   MapMetricsResponse,
   MarketDispersionGroup,
+  ManualProjectionRequest,
+  ManualProjectionResponse,
   MarketObservation,
   MarketStatus,
   MarketTrendSeries,
@@ -405,6 +407,16 @@ export const api = {
    */
   sensitivity: (body: SensitivityRequest) =>
     post<SensitivityResponse>("/scenarios/sensitivity", body),
+
+  /**
+   * Manual projection ("Build a projection"). A stateless calculation from a
+   * published observed baseline and the caller's explicit assumptions. It returns
+   * a `planning_projection` — never an official statistic and never a validated
+   * forecast — and it writes nothing. Python computes every number; the browser
+   * sends only the specification.
+   */
+  manualProjection: (body: ManualProjectionRequest) =>
+    post<ManualProjectionResponse>("/scenarios/manual-projection", body),
 
   /**
    * Market Intelligence. With no verified price feed loaded these answer

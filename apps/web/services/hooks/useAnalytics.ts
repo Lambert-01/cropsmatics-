@@ -7,6 +7,7 @@ import { forecastQuery } from "@/lib/forecast";
 import { SCOPE_HISTORY, scopeKey, type DashboardFilters } from "@/lib/filters";
 import type {
   AssistantContext,
+  ManualProjectionRequest,
   PriorityScenarioRequest,
   ScenarioRequest,
   SensitivityRequest,
@@ -163,6 +164,17 @@ export function usePriorityScenario() {
 export function useSensitivity() {
   return useMutation({
     mutationFn: (body: SensitivityRequest) => api.sensitivity(body),
+  });
+}
+
+/**
+ * Manual projection. A mutation because a projection is only computed on an
+ * explicit "Calculate" action — moving a slider must never silently recompute a
+ * result, and an old result must never appear to update before Python answers.
+ */
+export function useManualProjection() {
+  return useMutation({
+    mutationFn: (body: ManualProjectionRequest) => api.manualProjection(body),
   });
 }
 

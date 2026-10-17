@@ -4,7 +4,15 @@
 
 The assistant explains retrieved agricultural evidence. It does not originate official statistics or forecast values. Deterministic answers work without a provider key; an optional remote provider can select allowlisted read-only tools and compose prose.
 
-The current pipeline is route -> deterministic reference -> typed evidence -> optional provider/agent -> output validation -> response. Existing numeric/citation guards and deterministic fallback remain in place. These guards are not proof of complete claim-level semantic accuracy; further evaluation remains required.
+The current pipeline is route -> deterministic reference -> typed evidence -> optional provider/agent -> output validation -> response. Validation is three independent guards, and a provider's answer is returned only if all three pass:
+
+| Guard | What it proves |
+|---|---|
+| `numeric_guard` | Every figure in the answer appears somewhere in the retrieved evidence, at the precision it was written. |
+| `claim_guard` | Every figure is attributable *in its own scope*: the unit the sentence gives it, the metric word it is attached to, and the crop, district, province and period the sentence places it in. Comparison direction, percentage-change direction, effect-asserting wording over observational evidence, and a capacity asserted as zero are checked too. |
+| `citation_guard` | Every cited evidence id was actually retrieved, so provenance cannot be fabricated into existence. |
+
+A failed guard returns the deterministic answer instead - which is correct by construction - and records which guard failed and why in `validation`. The guards are a floor, not a proof of semantic accuracy: they are limited to English (or language-neutral) unit and scope vocabulary; a credentialed provider has still not been exercised from this environment; and adaptive-style evasion (paraphrase that moves a claim without moving a number) is only partly addressed. The evaluation set that measures them is documented in [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).
 
 ## Provider Configuration
 
@@ -42,6 +50,15 @@ Run provider/parser and scoped evidence tests with:
 ```
 
 Mocked multi-turn tests cover tool results, unknown tools, exhausted budgets and request isolation. They do not prove credentialed provider connectivity, account/model availability, cost behavior or resistance to every prompt injection.
+
+Claim-level validation and its evaluation set run through the real request path:
+
+```bash
+.venv/bin/python -m pytest services/api/tests/test_ai_claim_guard.py \
+  services/api/tests/test_ai_claim_eval.py
+```
+
+The evaluation set drives adversarial providers (a figure moved to another unit, another district, another period; a reversed comparison; an effect asserted over association; a figure from an injected instruction) and requires each to be rejected, with a control case that requires a correct restatement to be **accepted**.
 
 For local rendered web checks:
 

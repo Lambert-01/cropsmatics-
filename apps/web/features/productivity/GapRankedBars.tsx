@@ -66,7 +66,11 @@ export function GapRankedBars({
     // The domain spans every published gap, not just the displayed slice, so a
     // district's colour never shifts because a neighbour was cut by the limit.
     const domain = gapScaleDomain(parsed);
-    const colourScale = makeScale(domain.min, domain.max, "worse");
+    // A signed gap against a real zero (the benchmark) is a diverging quantity: the
+    // district at or above its benchmark is not "slightly less red" than the worst
+    // district, it is on the other side of zero. Passing the kind explicitly keeps
+    // this in step with the map, which reads the same kind from METRIC_SEMANTICS.
+    const colourScale = makeScale(domain.min, domain.max, "diverging", parsed.map((r) => r.gapIndex));
     return {
       points: rankedRows.map((row) => ({
         district: row.district,
@@ -152,8 +156,8 @@ export function GapRankedBars({
             />
             <span>{fmtNumber(scale.max, 0)}%</span>
             <span className="ml-2">
-              same scale as the district map — dark green is near or above benchmark, red is a wider
-              gap
+              same scale as the district map — red is a wider gap, green is at or above benchmark
+              {scale.min <= 0 && scale.max >= 0 ? ", and 0 is the benchmark" : ", and every ranked district sits below the benchmark"}
             </span>
           </div>
         </>

@@ -157,3 +157,74 @@ blocker on each.
 * **Physical-device mobile and EAS builds** — requires an Expo account/device.
 * **Stakeholder interviews, Kinyarwanda native review, live deployment actions** —
   require humans, credentials or authorization.
+
+---
+
+## 5. Session 2026-10-16 — evidence-first completion pass (part 1)
+
+Baseline at start: `cdffdf7`, `main`, clean working tree. The 2026-10-16 brief was
+re-audited against the tree before editing. Several of its items were already
+implemented and are **regression criteria, not build instructions**:
+
+* Methodology **2.0.1** productivity-support eligibility, named planning purposes,
+  constant-component exclusion, weight redistribution and a stable reference
+  population (`analytics/intervention_priority.py`) — present and tested.
+* Canonical database authority with an out-of-sync refusal
+  (`repositories/dataset_repository.py`) — present.
+* Scoped forecast publication gates — present and withheld.
+
+### Work landed in this session
+
+| # | Item | Files | Verified |
+|---|---|---|---|
+| 1 | **Manual projection engine** (brief §14–§21): pure arithmetic, strict schema, service, `POST /scenarios/manual-projection`, web builder + workspace, shared Python/TS contract fixture | `app/analytics/manual_projection.py`, `app/schemas/manual_projection.py`, `app/services/manual_projection_service.py`, `app/api/v1/scenarios.py`, `apps/web/lib/manualProjection.ts`, `apps/web/features/yield-intelligence/ManualProjectionWorkspace.tsx`, `apps/web/lib/api.ts`, `apps/web/types/index.ts`, `apps/web/services/hooks/useAnalytics.ts`, `apps/web/app/yield-intelligence/page.tsx`, fixture + 2 test files | 19 + 8 Python tests, 8 TS tests |
+| 2 | **Explorer exposure** (§30): register `agricultural_practice_observation` and `postharvest_use_multi_period`, grouped current/archive | `services/api/app/services/dataset_service.py`, `app/schemas/dataset.py` | 8 tests |
+| 3 | **All-crop yield wording** (§43): area-weighted aggregate, not production-weighted | `canonical_trend_service.py`, `dashboard_service.py`, `apps/web/types/index.ts`, `CanonicalTrendChart.tsx` | dashboard + provenance suites |
+| 4 | **Compact provenance default + v3 migration** (§25) | `apps/web/lib/preferences.ts`, `tests/preferences.test.ts` | 42 preference tests |
+
+Full results are in [submission/IMPLEMENTATION_EVIDENCE.md](submission/IMPLEMENTATION_EVIDENCE.md).
+
+### Dependency-ordered remaining work
+
+1. Source precedence (`docs/data/SAS_SOURCE_PRECEDENCE.md`, §4) and worksheet
+   coverage disposition (§5).
+2. National metric coverage repair + fixtures (§6).
+3. ~~Claim-level grounding repair in the AI layer (§21).~~ **Done in part 2**
+   (§6 below).
+4. ~~Yield Intelligence navigation simplification to four workspaces with legacy
+   aliases (§23)~~ **Done in part 2** (§6 below); ~~map legends (§27)~~ **Done in
+   part 2**. Remaining in this group: `/maps` (§28) and `/reports` (§29).
+5. Transparency (§31) and Settings (§32) restructure.
+6. Mobile clarity (§33) and harvest/farm sync repair (§34) — the mobile toolchain
+   itself is verified clean as of part 2 (§35), so these are behavioural.
+7. Browser matrix, accessibility, Kinyarwanda review and device verification
+   (§36–§37) — **blocked on a device and a native speaker**.
+
+## 6. Session 2026-10-16 — part 2
+
+Planned before the code, as the brief requires. Part 1's honest gap list named
+§21 (claim-level grounding) as the largest unfinished AI item and §23/§27 as the
+navigation and map items; part 2 took those three plus a precondition check on
+mobile.
+
+| # | Item | Files | Verified |
+|---|---|---|---|
+| 1 | **Claim-level grounding** (§21): unit, metric, crop/district/province/period scope, comparison and change direction, causal wording, unknown capacity | `app/ai/claim_guard.py` (new), `output_validator.py`, `api/v1/assistant.py`, `ai/tools/metadata.py`, `ai/tools/analysis.py`, `ai/evidence.py` | 35 rule tests + 10 end-to-end cases; 12 grounded questions pass both guards with no fallback |
+| 2 | **Two grounding defects found by the evaluations**: registry tools reading columns that do not exist (empty, colliding evidence for every provenance answer); the numeric allow-list missing string values and unsigned quotes of a published negative figure | `ai/tools/metadata.py`, `ai/evidence.py`, `ai/tools/analysis.py` | provenance/coverage/forecast answers now pass their own guards |
+| 3 | **Yield Intelligence to four workspaces with legacy aliases** (§23) | `apps/web/lib/yield-workspaces.ts`, `app/yield-intelligence/page.tsx` | 16 web unit tests |
+| 4 | **Map legend honesty** (§27): a null published range is no longer rendered as `0 → 1`; one shared no-data colour | `features/maps/colors.ts`, `MapLegend.tsx`, `RwandaDistrictMap.tsx` | new `tests/map-legend.test.ts` (7 tests) |
+| 5 | **Mobile toolchain baseline** (§35 precondition) | none (verification only) | typecheck, lint, 341 tests, `expo config` all pass |
+
+Full results: [submission/IMPLEMENTATION_EVIDENCE.md](submission/IMPLEMENTATION_EVIDENCE.md)
+part 2, and [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md) for what the
+claim evaluation does and does not prove.
+
+### Dependency-ordered remaining work (updated after part 2)
+
+1. Source precedence (§4) and worksheet coverage disposition (§5).
+2. National metric coverage repair + fixtures (§6).
+3. `/maps` (§28) and `/reports` (§29) workflows.
+4. Transparency (§31) and Settings (§32) restructure.
+5. Mobile clarity (§33) and harvest/farm sync repair (§34).
+6. Browser matrix, accessibility, Kinyarwanda review and device verification
+   (§36–§37) — **blocked on a device and a native speaker**.

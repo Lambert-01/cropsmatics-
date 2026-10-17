@@ -37,8 +37,7 @@ function render(extra: Record<string, unknown> = {}) {
   const element = createElement(PredictionsSection, {
     status: fixture(), isLoading: false, ...extra,
   });
-  // The shared SSR renderer's declarations use React 18; native uses React 19.
-  return renderToStaticMarkup(element as unknown as Parameters<typeof renderToStaticMarkup>[0]);
+  return renderToStaticMarkup(element);
 }
 describe("mobile forecast rendering", () => {
   it("shows a retryable error instead of silently disappearing", () => {

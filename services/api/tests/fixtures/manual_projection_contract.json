@@ -1,0 +1,156 @@
+{
+  "_note": "Shared by services/api/tests/test_manual_projection_contract.py and apps/web/tests/manual-projection.test.ts. The Python test posts every `request`; the TypeScript test builds the same request from `inputs` via lib/manualProjection.ts. Both read this one file so the two sides cannot drift.",
+  "accepted": [
+    {
+      "name": "carry forward a district yield baseline",
+      "inputs": {
+        "crop": "Maize",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "carry_forward",
+        "baseline": "latest_observed",
+        "horizon": 2,
+        "metric": "yield_kg_ha"
+      },
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "horizon_steps": 2,
+        "metric": "yield_kg_ha",
+        "method": "carry_forward",
+        "baseline": "latest_observed"
+      },
+      "expect": {
+        "origin_period": "2026B",
+        "target_periods": ["2027B", "2028B"]
+      }
+    },
+    {
+      "name": "apply a compounded change to a national yield",
+      "inputs": {
+        "crop": "Maize",
+        "district": null,
+        "season": "B",
+        "method": "percent_change",
+        "baseline": "latest_observed",
+        "horizon": 3,
+        "metric": "yield_kg_ha",
+        "changePct": 10,
+        "compounding": "per_step"
+      },
+      "request": {
+        "crop": "Maize",
+        "geography": "national",
+        "district": null,
+        "season": "B",
+        "horizon_steps": 3,
+        "metric": "yield_kg_ha",
+        "method": "percent_change",
+        "baseline": "latest_observed",
+        "change_pct": 10,
+        "compounding": "per_step"
+      },
+      "expect": {
+        "origin_period": "2026B",
+        "target_periods": ["2027B", "2028B", "2029B"]
+      }
+    },
+    {
+      "name": "median window baseline over three observations",
+      "inputs": {
+        "crop": "Maize",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "percent_change",
+        "baseline": "median_window",
+        "horizon": 1,
+        "metric": "yield_kg_ha",
+        "windowSize": 3,
+        "changePct": -5,
+        "compounding": "once"
+      },
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "horizon_steps": 1,
+        "metric": "yield_kg_ha",
+        "method": "percent_change",
+        "baseline": "median_window",
+        "baseline_window": 3,
+        "change_pct": -5,
+        "compounding": "once"
+      },
+      "expect": {
+        "origin_period": "2026B",
+        "target_periods": ["2027B"]
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "name": "engine-keyed vocabulary is not accepted here",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "carry_forward",
+        "wg": 0.3
+      },
+      "refusal": "extra_forbidden"
+    },
+    {
+      "name": "a personal plan cannot return a yield",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "personal",
+        "metric": "yield_kg_ha",
+        "assumed_yield_kg_ha": 1500,
+        "assumed_harvested_area_ha": 2
+      },
+      "refusal": "personal_metric_mismatch"
+    },
+    {
+      "name": "carry forward does not take a change assumption",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "carry_forward",
+        "change_pct": 10
+      },
+      "refusal": "unexpected_assumption"
+    },
+    {
+      "name": "a horizon beyond the safeguard is refused",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Bugesera",
+        "season": "B",
+        "method": "carry_forward",
+        "horizon_steps": 9
+      },
+      "refusal": "validation"
+    },
+    {
+      "name": "a district outside the panel has no baseline",
+      "request": {
+        "crop": "Maize",
+        "geography": "district",
+        "district": "Atlantis",
+        "season": "B",
+        "method": "carry_forward"
+      },
+      "refusal": "no_published_rows"
+    }
+  ]
+}

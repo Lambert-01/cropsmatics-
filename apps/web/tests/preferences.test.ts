@@ -416,3 +416,52 @@ describe("obsolete stored defaults cannot survive the version migration", () => 
     expect(loaded).toEqual(DEFAULT_PREFERENCES);
   });
 });
+
+describe("version 3 migration (compact provenance by default)", () => {
+  it("defaults a new user to compact provenance, not expanded sources", () => {
+    expect(DEFAULT_PREFERENCES.showSources).toBe(false);
+  });
+
+  it("migrates a v2 entry forward without resetting unrelated preferences", () => {
+    const v2 = {
+      version: 2,
+      defaultPeriod: "2026B",
+      defaultCrop: "Maize",
+      defaultProvince: "Eastern",
+      defaultDistrict: "Bugesera",
+      numberGrouping: "plain",
+      compactTables: true,
+      reducedMotion: true,
+      theme: "dark",
+      mapLabels: false,
+      // The v2 default was `true`, so this may be deliberate.
+      showSources: true,
+    };
+    const out = normalizePreferences(v2);
+    expect(out.version).toBe(PREFERENCES_VERSION);
+    // Every unrelated preference survives the bump.
+    expect(out.defaultPeriod).toBe("2026B");
+    expect(out.defaultCrop).toBe("Maize");
+    expect(out.defaultProvince).toBe("Eastern");
+    expect(out.defaultDistrict).toBe("Bugesera");
+    expect(out.numberGrouping).toBe("plain");
+    expect(out.compactTables).toBe(true);
+    expect(out.reducedMotion).toBe(true);
+    expect(out.theme).toBe("dark");
+    expect(out.mapLabels).toBe(false);
+    // A deliberate "expand sources" choice is preserved, not silently reversed.
+    expect(out.showSources).toBe(true);
+  });
+
+  it("still discards a v1 entry rather than carrying its landing-scope default", () => {
+    expect(normalizePreferences({ version: 1, defaultPeriod: "2025B", showSources: true })).toEqual(
+      DEFAULT_PREFERENCES,
+    );
+  });
+
+  it("treats a corrupt field in a v2 entry as that field's default", () => {
+    const out = normalizePreferences({ version: 2, compactTables: "yes" });
+    expect(out.compactTables).toBe(DEFAULT_PREFERENCES.compactTables);
+    expect(out.showSources).toBe(DEFAULT_PREFERENCES.showSources);
+  });
+});

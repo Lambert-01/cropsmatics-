@@ -75,6 +75,12 @@ SINGLE_RELEASE_DATASETS: dict[str, str] = {
     "crop_postharvest_use": "2025B",
 }
 
+#: Catalogue keys for the two multi-period indicator series, as the coverage
+#: matrix names them. Kept here so a coverage sentence and the dataset registry
+#: cannot drift apart under different spellings.
+MULTI_PERIOD_PRACTICE_DATASET = "agricultural_practices"
+MULTI_PERIOD_POSTHARVEST_DATASET = "crop_postharvest_use_multi"
+
 
 class UnknownPeriodError(ValueError):
     """Raised for a malformed or unpublished period code."""
@@ -415,6 +421,41 @@ def single_release_scope() -> str:
     """Label(s) of the periods only the legacy single-release tables cover."""
     codes = sorted(set(SINGLE_RELEASE_DATASETS.values()))
     return ", ".join(label(code) for code in codes)
+
+
+def dataset_range(*datasets: str) -> str:
+    """Published period range of the periods whose catalogue entry covers any of
+    ``datasets``.
+
+    The coverage matrix is the source: a sentence about what a *specific* dataset
+    carries must be derived from that dataset's own periods, not from a
+    platform-wide phrase. "Practices are 2025 Season B only" was true of the legacy
+    wide extract and false of the multi-period practice observations that were
+    ingested alongside it, and the stale sentence understated what the platform
+    serves.
+    """
+    wanted = {name for name in datasets if name}
+    if not wanted:
+        return ""
+    codes = [
+        str(entry["period_code"])
+        for entry in catalog()["periods"]
+        if any(
+            str(dataset.get("dataset")) in wanted
+            for dataset in (entry.get("datasets") or [])
+        )
+    ]
+    return f"{codes[0]}-{codes[-1]}" if codes else ""
+
+
+def practice_period_range() -> str:
+    """Period range of the multi-period district practice observations."""
+    return dataset_range(MULTI_PERIOD_PRACTICE_DATASET)
+
+
+def postharvest_period_range() -> str:
+    """Period range of the multi-period post-harvest use shares."""
+    return dataset_range(MULTI_PERIOD_POSTHARVEST_DATASET)
 
 
 def period_codes() -> list[str]:

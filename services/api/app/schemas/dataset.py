@@ -9,6 +9,11 @@ class DatasetInfo(BaseModel):
     key: str
     label: str
     source_id: str
+    #: Which selector group this dataset belongs to. Current multi-period tables
+    #: lead; legacy single-release extracts are kept as an archive so a client
+    #: does not have to hand-maintain a tab per release.
+    group: str = "current"
+    group_label: str = "Current (multi-period)"
 
 
 class DatasetListResponse(BaseModel):

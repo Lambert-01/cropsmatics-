@@ -24,7 +24,7 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.ai import numeric_guard
+from app.ai import claim_guard, numeric_guard
 from app.ai.conversation import STORE
 from app.ai.intent_router import INTENTS
 from app.ai.orchestrator import answer as engine_answer
@@ -154,11 +154,15 @@ async def query(payload: QueryIn) -> QueryOut:
         language=language,
     )
 
-    # A translated rendering is checked too. Templates preserve numbers, but if a
-    # template ever introduced one, the English grounded answer is returned rather
-    # than a translation the evidence cannot support.
+    # A translated rendering is checked too - for the figures and for the claims
+    # around them. Templates preserve numbers and unit symbols, but if a template
+    # ever introduced, moved or re-scoped one, the English grounded answer is
+    # returned rather than a translation the evidence cannot support.
     if language != "en" and result.bundle is not None:
-        if not numeric_guard.check(rendered, result.bundle).ok:
+        if not (
+            numeric_guard.check(rendered, result.bundle).ok
+            and claim_guard.check(rendered, result.bundle).ok
+        ):
             rendered = result.answer
             translation_status = "TEMPORARY_ENGLISH_FALLBACK"
 

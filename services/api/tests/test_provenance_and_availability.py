@@ -96,7 +96,7 @@ def test_canonical_trend_covers_the_published_axis(client):
     for values in series.values():
         assert len(values) == len(body["periods"])
     # A cross-crop yield is never a simple average: it is either absent or the
-    # production-weighted series.
+    # area-weighted aggregate series (output per harvested hectare).
     assert series["yield_kg_ha"] == [None] * len(body["periods"])
 
 

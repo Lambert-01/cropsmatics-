@@ -50,6 +50,26 @@ def _resolved_source_id(result: dict, f: AnalyticsFilters) -> str | None:
     return analytics_service.resolved_source_id(result, f)
 
 
+def _legacy_single_release_limit(what: str) -> str:
+    """One limitation line for a legacy single-release extract.
+
+    Names the period the extract actually covers, the multi-period practice series
+    that supersedes it where one exists, and the endpoint that serves it. A bare
+    "covers 2025 Season B only" left a reader with no way to find the newer data.
+    """
+    practice_range = period_service.practice_period_range()
+    text = (
+        f"legacy single-release extract: {what} cover "
+        f"{period_service.single_release_scope()} only"
+    )
+    if practice_range:
+        text += (
+            f"; the multi-period practice observations cover {practice_range} and are "
+            "served by GET /api/v1/analytics/practice-indicators"
+        )
+    return text
+
+
 def _gap_limitations() -> list[str]:
     """Limitations built from the period catalogue, not from literals.
 
@@ -60,9 +80,15 @@ def _gap_limitations() -> list[str]:
         "observational district aggregates, not plot-level evidence",
         "associations are not causation",
         "benchmark choice materially affects the gap",
-        f"district productivity covers {period_service.district_range()}; district "
-        f"input/practice, irrigation and erosion tables cover "
-        f"{period_service.single_release_scope()} only",
+        f"district productivity covers {period_service.district_range()}",
+        # Dataset by dataset: the practice observations are multi-period, the legacy
+        # wide extract that a ranking component reads is not. "Input/practice,
+        # irrigation and erosion are 2025B only" was true of the second and false of
+        # the first.
+        "district practice observations cover "
+        f"{period_service.practice_period_range() or period_service.single_release_scope()}; "
+        "the legacy single-release input/practice, irrigation and erosion extracts "
+        f"cover {period_service.single_release_scope()} only",
     ]
 
 
@@ -467,7 +493,7 @@ def irrigation(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
             source_id="NISR_SAS_2025B_IRRIGATION_WATER",
             source_period=result["period"],
             method="official district irrigation technique and water-source shares",
-            limitations=["district shares cover 2025 Season B only"],
+            limitations=[_legacy_single_release_limit("irrigation and water-source shares")],
         ).model_dump(),
     }
 
@@ -484,7 +510,7 @@ def erosion(f: AnalyticsFilters = Depends(analytics_filters)) -> dict:
             source_id="NISR_SAS_2025B_EROSION",
             source_period=result["period"],
             method="official district erosion-control technique and severity shares",
-            limitations=["district shares cover 2025 Season B only"],
+            limitations=[_legacy_single_release_limit("erosion-control shares")],
         ).model_dump(),
     }
 
@@ -534,7 +560,11 @@ def practice_indicators(
                     if periods
                     else "no periods are available in this deployment"
                 ),
-                "the coverage audit's legacy district tables still serve 2025 Season B only",
+                (
+                    "the legacy single-release district extracts served by "
+                    "/analytics/irrigation and /analytics/erosion still cover "
+                    f"{period_service.single_release_scope()} only"
+                ),
                 "a published null is returned as null, never as zero",
                 "an indicator absent for a period simply has no rows",
             ],

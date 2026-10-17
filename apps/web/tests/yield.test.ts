@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { summarizeDistricts } from "@/lib/yield";
 import {
   DEFAULT_YIELD_WORKSPACE,
+  LEGACY_WORKSPACE_ALIASES,
   YIELD_WORKSPACES,
+  canonicalWorkspace,
   resolveWorkspace,
 } from "@/lib/yield-workspaces";
 
@@ -89,11 +91,68 @@ describe("yield workspaces", () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
-  it("covers the analytical questions the page answers", () => {
+  it("is a decision path of four workspaces, not a nine-item menu", () => {
+    expect(YIELD_WORKSPACES.map((w) => w.id)).toEqual([
+      "summary",
+      "trends",
+      "map",
+      "planning",
+    ]);
+  });
+
+  it("does not offer Spatial, Drivers, AI Analyst or Methodology as destinations", () => {
     const ids = YIELD_WORKSPACES.map((w) => w.id);
-    for (const expected of ["overview", "trends", "spatial", "gaps", "drivers", "scenarios", "ai", "methodology"]) {
-      expect(ids).toContain(expected);
+    const labels = YIELD_WORKSPACES.map((w) => w.label.toLowerCase());
+    for (const gone of ["spatial", "drivers", "ai", "methodology", "scenarios", "gaps", "forecast"]) {
+      expect(ids, gone).not.toContain(gone);
     }
+    for (const gone of ["spatial", "drivers", "ai analyst", "methodology"]) {
+      expect(labels, gone).not.toContain(gone);
+    }
+  });
+
+  it("keeps every workspace id that was ever published working through an alias", () => {
+    // Both earlier builds put these in URLs. Each one must still open the
+    // workspace that now holds its content.
+    const legacy = [
+      "overview",
+      "ai",
+      "drivers",
+      "methodology",
+      "gaps",
+      "spatial",
+      "forecast",
+      "scenarios",
+    ];
+    for (const id of legacy) {
+      const resolved = canonicalWorkspace(id);
+      expect(resolved, id).not.toBeNull();
+      expect(YIELD_WORKSPACES.map((w) => w.id)).toContain(resolved);
+    }
+    // Where each one's content went.
+    expect(canonicalWorkspace("overview")).toBe("summary");
+    expect(canonicalWorkspace("ai")).toBe("summary");
+    expect(canonicalWorkspace("drivers")).toBe("summary");
+    expect(canonicalWorkspace("methodology")).toBe("summary");
+    expect(canonicalWorkspace("gaps")).toBe("trends");
+    expect(canonicalWorkspace("spatial")).toBe("map");
+    expect(canonicalWorkspace("forecast")).toBe("planning");
+    expect(canonicalWorkspace("scenarios")).toBe("planning");
+  });
+
+  it("never aliases a workspace onto itself or onto an id that does not exist", () => {
+    const ids = YIELD_WORKSPACES.map((w) => w.id);
+    for (const [from, to] of Object.entries(LEGACY_WORKSPACE_ALIASES)) {
+      expect(ids, from).not.toContain(from);
+      expect(ids, from).toContain(to);
+    }
+  });
+
+  it("keeps intervention-weight scenarios out of the yield workspace strip", () => {
+    // The weight lab has one home (Interventions) and is linked from Planning.
+    const ids = YIELD_WORKSPACES.map((w) => w.id);
+    expect(ids).not.toContain("interventions");
+    expect(canonicalWorkspace("scenarios")).toBe("planning");
   });
 
   it("describes every workspace so the tab strip is not a bare label", () => {
@@ -110,6 +169,17 @@ describe("yield workspaces", () => {
   });
 
   it("honours a known workspace id", () => {
-    expect(resolveWorkspace("spatial")).toBe("spatial");
+    expect(resolveWorkspace("planning")).toBe("planning");
+    expect(resolveWorkspace("map")).toBe("map");
+  });
+
+  it("resolves a legacy id to the workspace that holds its content", () => {
+    expect(resolveWorkspace("spatial")).toBe("map");
+    expect(resolveWorkspace("ai")).toBe("summary");
+  });
+
+  it("reports null rather than guessing for an id it does not know", () => {
+    expect(canonicalWorkspace("not-a-workspace")).toBeNull();
+    expect(canonicalWorkspace(null)).toBeNull();
   });
 });

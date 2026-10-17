@@ -17,7 +17,10 @@ Method (fixed, and reported with every response):
   canonical crops (a non-overlapping, additive set, so the sum is valid). A
   cross-crop *yield* is never a simple average of per-crop yields; the only
   derived yield offered is ``yield_from_totals_kg_ha`` = 1000 * total production
-  / total harvested area, and it is labelled as production-weighted;
+  / total harvested area, and it is labelled as an **area-weighted aggregate** -
+  aggregate output per harvested hectare. Changing crop composition moves that
+  aggregate even when no individual crop's yield changed, so it is a national
+  context figure and never a comparable cross-crop yield;
 * a family total is never added to its own varieties. The canonical panel
   already stores one row per canonical crop (the published varieties are
   normalised to their family), so the crop set is non-overlapping by
@@ -163,8 +166,10 @@ def national_trend(crop: str | None = None) -> dict:
         series["yield_kg_ha"] = [None] * len(periods)
         method = (
             "all crops: production and harvested area summed across the canonical "
-            "crop set per period; no crop yield is averaged - the only yield is "
-            "production-weighted (1000 * total production / total harvested area)"
+            "crop set per period; no crop yield is averaged - the only yield is the "
+            "area-weighted aggregate output per harvested hectare "
+            "(1000 * total production / total harvested area), which moves with "
+            "crop composition and is not a comparable crop yield"
         )
 
     return {

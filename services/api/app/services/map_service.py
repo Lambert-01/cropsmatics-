@@ -295,6 +295,26 @@ def district_metrics(
         ).to_dict()
         if not prio.empty else {}
     )
+    # Eligibility is a per-candidate (district x crop) fact, and the map is a
+    # district summary of it. A district where every crop is at or above its
+    # benchmark must be readable as "ineligible for support", not merely as a low
+    # score, so the flag and its reason travel with the tile. The reason shown is
+    # the one that applies to the crops this district actually has.
+    eligible_by_district: dict[str, bool] = {}
+    reason_by_district: dict[str, str | None] = {}
+    n_eligible_by_district: dict[str, int] = {}
+    n_excluded_by_district: dict[str, int] = {}
+    if metric == "priority" and not prio.empty and "priority_eligible" in prio.columns:
+        flags = prio["priority_eligible"].fillna(False).astype(bool)
+        eligible_by_district = flags.groupby(prio["district"]).any().to_dict()
+        n_eligible_by_district = flags.groupby(prio["district"]).sum().astype(int).to_dict()
+        n_excluded_by_district = (
+            (~flags).groupby(prio["district"]).sum().astype(int).to_dict()
+        )
+        if "priority_ineligible_reason" in prio.columns:
+            for district, grp in prio[~flags].groupby("district"):
+                reasons = [r for r in grp["priority_ineligible_reason"].dropna().tolist()]
+                reason_by_district[str(district)] = str(reasons[0]) if reasons else None
 
     factors = [c for c in FACTOR_COLUMNS if c in g.columns]
     if factors:
@@ -369,9 +389,24 @@ def district_metrics(
                 "input_adoption_pct": _round(adoption),
                 "priority_band": band_by_district.get(district),
                 "priority_score": None if priority is None or pd.isna(priority) else round(priority, 4),
+                # Eligibility travels with the tile so the map can say "no yield
+                # shortfall" instead of implying a low-priority defect. Only the
+                # priority metric has an eligibility rule; the others report None
+                # rather than a reassuring default.
+                "eligible": eligible_by_district.get(district) if metric == "priority" else None,
+                "eligibility_reason": (
+                    reason_by_district.get(str(district)) if metric == "priority" else None
+                ),
+                "n_eligible": (
+                    n_eligible_by_district.get(district) if metric == "priority" else None
+                ),
+                "n_excluded": (
+                    n_excluded_by_district.get(district) if metric == "priority" else None
+                ),
+                "purpose": purpose if metric == "priority" else None,
                 "period": period,
                 "period_code": period_code,
-                "reference_period": None,
+                "reference_period": reference if (metric == "priority" and unavailable) else None,
             },
         })
 

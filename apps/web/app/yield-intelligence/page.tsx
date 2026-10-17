@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -7,6 +8,7 @@ import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
+import { SourceDisclosure } from "@/components/ui/SourceDisclosure";
 import { EmptyState, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { Tabs } from "@/components/ui/Tabs";
 import { TrendCompareControl } from "@/features/crops/TrendCompareControl";
@@ -14,10 +16,10 @@ import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
-import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import { AIExplainPanel } from "@/features/yield-intelligence/AIExplainPanel";
 import { DistrictYieldDrawer } from "@/features/yield-intelligence/DistrictYieldDrawer";
 import { ForecastPanel } from "@/features/yield-intelligence/ForecastPanel";
+import { ManualProjectionWorkspace } from "@/features/yield-intelligence/ManualProjectionWorkspace";
 import { SimulationLab } from "@/features/yield-intelligence/SimulationLab";
 import { YieldGapDistribution } from "@/features/yield-intelligence/YieldGapDistribution";
 import {
@@ -38,14 +40,16 @@ import {
 import { useFilters } from "@/services/hooks/useFilters";
 
 /**
- * Yield Intelligence, organised as focused workspaces.
+ * Yield Intelligence, organised as four decisions.
  *
- * This was previously one long scroll of eight stacked analyses. Each workspace
- * below now holds one question, and the selection lives in the URL so a link
- * opens the same workspace it was copied from.
+ * Summary answers where the crop stands; Trends answers how it moved; Map answers
+ * which districts; Planning answers what would follow from the reader's own
+ * assumptions. The selection lives in the URL, so a link opens the workspace it was
+ * copied from, and moving between workspaces pushes a history entry so the browser's
+ * back button returns to the previous one.
  *
- * Headline set is declared here rather than inherited from response order: at
- * most four cards, all crop-specific and all for the selected period.
+ * Headline set is declared here rather than inherited from response order: at most
+ * four cards, all crop-specific and all for the selected period.
  */
 const YIELD_KPI_IDS = ["mean_yield", "benchmark_yield", "gap_shortfall", "yoy_yield"];
 
@@ -110,10 +114,22 @@ export default function YieldIntelligencePage() {
   // they are shown only once the clicked district is the one being queried.
   const drawerHasSelection = drawerDistrict !== null && drawerDistrict === filters.district;
 
+  // The filter selection, without the workspace itself, so a link into another
+  // page opens it on exactly the selection the reader is looking at.
+  const filterQuery = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("workspace");
+    const query = params.toString();
+    return query ? `?${query}` : "";
+  }, [searchParams]);
+
   function setWorkspace(id: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("workspace", id);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // `push`, not `replace`: the brief's journey requires back/forward to move
+    // between workspaces, and a replaced entry made the previous workspace
+    // unreachable with the browser's own controls.
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   /**
@@ -126,6 +142,14 @@ export default function YieldIntelligencePage() {
     setDrawerDistrict(district);
     setFilters({ district });
   }
+
+  const aiPrompts = [
+    filters.district
+      ? `Explain ${filters.district} ${crop} yield`
+      : `Explain the ${crop} yield pattern`,
+    "Which districts are furthest below the benchmark?",
+    "What data are missing for this selection?",
+  ];
 
   return (
     <div className="space-y-5">
@@ -152,9 +176,20 @@ export default function YieldIntelligencePage() {
             ariaLabel="Yield Intelligence workspaces"
           />
 
-          <p className="px-1 text-xs text-slate-500">
-            {YIELD_WORKSPACES.find((item) => item.id === workspace)?.description}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <p className="text-xs text-slate-500">
+              {YIELD_WORKSPACES.find((item) => item.id === workspace)?.description}
+            </p>
+            {/* A contextual action carrying the current scope, not a tab. It is a
+                disclosure, so a reader who does not want it is never routed
+                through it. */}
+            <Link
+              className="text-xs font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+              href={`/productivity${filterQuery}`}
+            >
+              Model details and methods
+            </Link>
+          </div>
 
           {productivity.error ? (
             <ErrorState
@@ -166,26 +201,87 @@ export default function YieldIntelligencePage() {
           {productivity.isLoading ? <KpiRowSkeleton count={4} /> : null}
 
           {productivity.data ? (
-            <DashboardKpis
-              kpis={productivity.data.kpis}
-              primaryIds={YIELD_KPI_IDS}
-            />
+            <DashboardKpis kpis={productivity.data.kpis} primaryIds={YIELD_KPI_IDS} />
           ) : null}
 
-          {workspace === "overview" ? (
-            <YieldOverview
-              crop={crop}
-              district={filters.district}
-              rows={rows}
-              yoy={productivity.data?.yoy}
-              periodText={periodText}
-              isLoading={productivity.isLoading}
-              onSelectDistrict={openDistrict}
-            />
+          {workspace === "summary" ? (
+            <div className="space-y-5">
+              <YieldOverview
+                crop={crop}
+                district={filters.district}
+                rows={rows}
+                yoy={productivity.data?.yoy}
+                periodText={periodText}
+                isLoading={productivity.isLoading}
+                onSelectDistrict={openDistrict}
+              />
+
+              {/* A compact shortfall view on the same period as the headline
+                  figures, so the size of the gap is on the summary without a
+                  second trip. */}
+              <YieldGapDistribution
+                bands={productivity.data?.gap_bands ?? []}
+                isLoading={productivity.isLoading}
+                crop={crop}
+              />
+
+              {/* Practice associations: context for the shortfall, one deliberate
+                  interaction away. The full analysis also lives on Productivity. */}
+              <Card>
+                <CardHeader
+                  title="Related practices"
+                  subtitle="Observed district associations with yield — association, not cause"
+                />
+                <SourceDisclosure summary="Show associated practices">
+                  <div className="grid gap-5 px-4 pb-4 pt-2 xl:grid-cols-[3fr_2fr]">
+                    <FactorAssociationChart
+                      data={factors.data}
+                      isLoading={factors.isLoading}
+                      crop={crop}
+                    />
+                    <PracticesContext
+                      note={factors.data?.note}
+                      periodText={periodText}
+                      provenancePeriod={factors.data?.provenance.reference_period ?? "2025B"}
+                    />
+                  </div>
+                </SourceDisclosure>
+              </Card>
+
+              {/* The explanation of the figures immediately above it. */}
+              <Card>
+                <CardHeader
+                  title="Explain this selection"
+                  subtitle="A grounded answer about the crop, period and district currently selected"
+                />
+                <SourceDisclosure summary="Ask about this selection">
+                  <div className="px-4 pb-4 pt-2">
+                    <AIExplainPanel
+                      context={{
+                        page: "yield-intelligence",
+                        metric: mapMetric,
+                        period_code: periodCode,
+                        crop,
+                        district: filters.district,
+                        province: filters.province,
+                        benchmark_strategy: filters.benchmark,
+                      }}
+                      prompts={aiPrompts}
+                    />
+                  </div>
+                </SourceDisclosure>
+              </Card>
+
+              {productivity.data ? (
+                <SourceDisclosure summary="Sources and method for these figures">
+                  <ProvenanceCard provenance={productivity.data.provenance} />
+                </SourceDisclosure>
+              ) : null}
+            </div>
           ) : null}
 
           {workspace === "trends" ? (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="card flex flex-wrap items-center gap-3 px-4 py-2.5">
                 <TrendCompareControl
                   value={compareTarget}
@@ -208,10 +304,22 @@ export default function YieldIntelligencePage() {
                 comparison={comparisonData}
                 comparisonLabel={comparisonLabel}
               />
+              <Card className="flex flex-wrap items-center justify-between gap-3 p-4 text-xs text-slate-600">
+                <span>
+                  Gap distribution, benchmark formulas, practice associations and model cards live on
+                  the productivity workspace, filtered to this same selection.
+                </span>
+                <Link
+                  className="font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+                  href={`/productivity${filterQuery}`}
+                >
+                  Open the detailed gap view
+                </Link>
+              </Card>
             </div>
           ) : null}
 
-          {workspace === "spatial" ? (
+          {workspace === "map" ? (
             <div className="space-y-5">
               <RwandaDistrictMap
                 data={mapMetrics.data}
@@ -229,78 +337,51 @@ export default function YieldIntelligencePage() {
             </div>
           ) : null}
 
-          {workspace === "gaps" ? (
+          {workspace === "planning" ? (
             <div className="space-y-5">
-              <YieldGapDistribution
-                bands={productivity.data?.gap_bands ?? []}
-                isLoading={productivity.isLoading}
+              {/* The publication gate first: whether a validated forecast exists
+                  determines what the rest of this workspace can claim. It renders
+                  whatever the backtest decided — including "no forecast may be
+                  served", with the reasons — so the absence of a forecast is
+                  explained rather than hidden. */}
+              <ForecastPanel filters={filters} />
+
+              {/* The user-controlled projection, kept visually and verbally separate
+                  from the validated-forecast status above: it answers what would
+                  follow from stated assumptions, never what will happen. */}
+              <ManualProjectionWorkspace filters={filters} />
+
+              {/* Period and benchmark assumptions, compared against the current
+                  selection. */}
+              <SimulationLab
                 crop={crop}
+                periodCode={periodCode}
+                province={filters.province}
+                district={filters.district}
+                benchmark={filters.benchmark}
               />
-              <DistrictRankingTable rows={rows} onSelectDistrict={openDistrict} />
-              <Card className="p-4 text-xs text-slate-600">
-                A gap here is measured against each district&apos;s own benchmark for this crop and
-                period. Persistence is only claimed when several comparable same-season observations
-                agree; a single release never establishes it, and no cause is attributed to a gap.
+
+              <Card className="space-y-2 p-4 text-xs text-slate-600">
+                <p>
+                  Planning results are your assumptions, not an official NISR figure and not a
+                  validated model forecast. The published forecast status above is the only place a
+                  model estimate can appear.
+                </p>
+                <p className="flex flex-wrap gap-x-4 gap-y-1">
+                  <Link
+                    className="font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+                    href={`/interventions${filterQuery}`}
+                  >
+                    Intervention-weight scenarios
+                  </Link>
+                  <Link
+                    className="font-medium text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-primary/40"
+                    href="/transparency"
+                  >
+                    Model cards and methods
+                  </Link>
+                </p>
               </Card>
-            </div>
-          ) : null}
-
-          {workspace === "drivers" ? (
-            <div className="grid gap-5 xl:grid-cols-[3fr_2fr]">
-              <FactorAssociationChart data={factors.data} isLoading={factors.isLoading} crop={crop} />
-              <PracticesContext
-                note={factors.data?.note}
-                periodText={periodText}
-                provenancePeriod={factors.data?.provenance.reference_period ?? "2025B"}
-              />
-            </div>
-          ) : null}
-
-          {workspace === "scenarios" ? (
-            <SimulationLab
-              crop={crop}
-              periodCode={periodCode}
-              province={filters.province}
-              district={filters.district}
-              benchmark={filters.benchmark}
-            />
-          ) : null}
-
-          {/* The publication gate. It renders whatever the backtest decided —
-              including "no forecast may be served" with the reasons — so the
-              absence of a forecast is explained rather than hidden. */}
-          {workspace === "forecast" ? <ForecastPanel filters={filters} /> : null}
-
-          {workspace === "ai" ? (
-            <AIExplainPanel
-              context={{
-                page: "yield-intelligence",
-                metric: mapMetric,
-                period_code: periodCode,
-                crop,
-                district: filters.district,
-                province: filters.province,
-                benchmark_strategy: filters.benchmark,
-              }}
-              prompts={[
-                filters.district
-                  ? `Explain ${filters.district} ${crop} yield`
-                  : `Explain the ${crop} yield pattern`,
-                "Which districts are furthest below the benchmark?",
-                "What data are missing for this selection?",
-              ]}
-            />
-          ) : null}
-
-          {workspace === "methodology" ? (
-            <div className="space-y-5">
-              <div className="grid gap-5 xl:grid-cols-2">
-                <ModelPerformancePanel />
-                <ObservedVsModelled />
-              </div>
-              {productivity.data ? (
-                <ProvenanceCard provenance={productivity.data.provenance} />
-              ) : null}
             </div>
           ) : null}
 
@@ -315,7 +396,8 @@ export default function YieldIntelligencePage() {
               onClose={() => setDrawerDistrict(null)}
               onAskAi={() => {
                 setDrawerDistrict(null);
-                setWorkspace("ai");
+                // The explanation lives on Summary, next to the figures it explains.
+                setWorkspace("summary");
               }}
             />
           ) : null}
@@ -349,10 +431,10 @@ function PracticesContext({
             <span className="mr-1.5 rounded-sm bg-amber/15 px-1.5 py-0.5 font-semibold text-amber">
               Reference period: {release}
             </span>
-            Practice-adoption data (improved seed, fertiliser, irrigation, erosion protection,
-            agroforestry, mechanization) are published as a single district survey for {release}.
-            They are <strong>not</strong> measurements for {periodText ?? "the selected period"}, so
-            the association chart must not be read as describing the selected release.
+            This model component reads the legacy single-release district practice extract for{" "}
+            {release}. The multi-period practice observations are served separately by the practice
+            indicators endpoint, so this section is <strong>not</strong> a measurement of{" "}
+            {periodText ?? "the selected period"}.
           </p>
         ) : (
           <p>
@@ -372,40 +454,6 @@ function PracticesContext({
       <SourceNote>
         Source: NISR SAS district practice/land survey. Yield figures elsewhere on this page come
         from the crop productivity panel for the selected period.
-      </SourceNote>
-    </Card>
-  );
-}
-
-/** Keeps observed official data explicitly separate from any modelled value. */
-function ObservedVsModelled() {
-  return (
-    <Card>
-      <CardHeader
-        title="Observed vs modelled"
-        subtitle="What is a measurement and what is a model output"
-      />
-      <div className="space-y-3 px-4 pb-4 pt-3 text-xs text-slate-600">
-        <div className="rounded-lg border border-success/25 bg-success/[0.05] p-3">
-          <p className="font-semibold text-success">Observed (official)</p>
-          <p className="mt-1">
-            All yields, areas, production and gaps on this page are published NISR SAS district
-            aggregates. A blank published cell stays blank — it is never imputed, and no value is
-            substituted from another period.
-          </p>
-        </div>
-        <div className="rounded-lg border border-info/25 bg-info/[0.05] p-3">
-          <p className="font-semibold text-info">Modelled (separate)</p>
-          <p className="mt-1">
-            Model cards to the left report a fitted model&apos;s error metrics only when a real
-            training artifact exists. Model output is never displayed as an observed yield figure and
-            is never merged into the district ranking.
-          </p>
-        </div>
-      </div>
-      <SourceNote>
-        Metrics are reported only when a model card exists in <code>ml/reports</code>. None are
-        generated for display.
       </SourceNote>
     </Card>
   );

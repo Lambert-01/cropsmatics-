@@ -21,8 +21,17 @@ export function GapHeatmap({
     return map;
   }, [data]);
 
+  // Nulls are passed through rather than replaced with 0..1: when the API has no
+  // published gap for the selection, every cell is "no verified data" and the
+  // legend says the range is unpublished instead of drawing an invented span.
   const scale = useMemo(
-    () => makeScale(data?.min_value ?? 0, data?.max_value ?? 1, "worse"),
+    () =>
+      makeScale(
+        data?.min_value,
+        data?.max_value,
+        "diverging",
+        (data?.cells ?? []).map((c) => c.value),
+      ),
     [data],
   );
 
@@ -35,7 +44,7 @@ export function GapHeatmap({
     <Card className="overflow-hidden">
       <CardHeader
         title="Productivity gap heatmap"
-        subtitle="District × crop median gap index — darker green is closer to benchmark, red is a larger gap"
+        subtitle="District × crop median gap index against each crop's benchmark — red is a larger gap, green is at or above benchmark"
       />
       {districts.length === 0 || crops.length === 0 ? (
         <div className="p-4">
@@ -72,7 +81,9 @@ export function GapHeatmap({
               aria-hidden="true"
             />
             <span>{fmtNumber(scale.max, 0)}%</span>
-            <span className="ml-2">gap index (higher = further below benchmark)</span>
+            <span className="ml-2">
+              gap index{scale.min <= 0 && scale.max >= 0 ? " — 0 is the benchmark" : " — every cell sits below the benchmark"}
+            </span>
           </div>
         </>
       )}
