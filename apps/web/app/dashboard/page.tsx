@@ -171,6 +171,7 @@ export default function DashboardPage() {
           <div className="grid gap-5 xl:grid-cols-2">
             <PriorityTable
               rows={priorities.data?.rows ?? []}
+              isFetching={priorities.isFetching}
               onSelectDistrict={(d) => setFilters({ district: d })}
               benchmarkStrategy={priorities.data?.provenance?.benchmark_strategy ?? null}
               period={priorities.data?.provenance?.source_period ?? null}

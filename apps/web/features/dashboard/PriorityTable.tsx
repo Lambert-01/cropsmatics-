@@ -5,7 +5,7 @@ import { Fragment, useState } from "react";
 import { ResponsiveTable, type Column } from "@/components/table/ResponsiveTable";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/States";
+import { EmptyState, UpdatingPill } from "@/components/ui/States";
 import { fmtNumber, periodLabel } from "@/lib/format";
 import { componentText } from "@/lib/priority";
 import type { PriorityRow } from "@/types";
@@ -22,6 +22,7 @@ export function PriorityTable({
   limit = 12,
   benchmarkStrategy,
   period,
+  isFetching,
 }: {
   rows: PriorityRow[];
   onSelectDistrict?: (district: string) => void;
@@ -29,6 +30,8 @@ export function PriorityTable({
   benchmarkStrategy?: string | null;
   /** The period actually scored, from the response provenance. Never assumed. */
   period?: string | null;
+  /** Keep the table mounted while a new filter scope is being fetched. */
+  isFetching?: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const top = rows.slice(0, limit);
@@ -156,6 +159,7 @@ export function PriorityTable({
       <CardHeader
         title="Priority district / crop observations"
         subtitle="Transparent weighted score — higher means stronger case for investigation first"
+        action={<UpdatingPill active={isFetching && rows.length > 0} />}
       />
       {top.length === 0 ? (
         <div className="p-4">

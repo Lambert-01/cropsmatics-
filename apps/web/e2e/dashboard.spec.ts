@@ -85,6 +85,35 @@ test.describe("Overview", () => {
     await stopWatching(page);
   });
 
+  test("keeps the current workspace mounted while a filter response is pending", async ({ page }) => {
+    await page.goto("/dashboard?period=2025B&district=Bugesera&defaults=none");
+    const mapHeading = page.getByRole("heading", { name: "Rwanda Productivity & Risk Map", exact: true });
+    await expect(mapHeading).toBeVisible({ timeout: 20_000 });
+
+    // A slow overview response used to make `overview.data` temporarily
+    // undefined. The page then treated the request as national coverage and
+    // replaced the map/table workspace with a different chart grid.
+    await page.route("**/dashboard/overview?**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
+
+    const response = page.waitForResponse(
+      (candidate) =>
+        candidate.url().includes("/dashboard/overview") &&
+        candidate.url().includes("period_code=2026B") &&
+        candidate.status() === 200,
+    );
+    await page.getByLabel("Year", { exact: true }).selectOption("2026");
+    await page.getByLabel("Season", { exact: true }).selectOption("B");
+
+    // The assertion has to land during the artificial delay, not after the
+    // response settles. A layout swap would fail here even if the final page
+    // eventually rendered successfully.
+    await expect(mapHeading).toBeVisible({ timeout: 400 });
+    await response;
+  });
+
   test("rapid period switching keeps exactly one scope description in the URL", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page.locator(".recharts-wrapper").first()).toBeVisible({ timeout: 20_000 });

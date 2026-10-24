@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { usePreferences } from "@/components/providers/PreferencesProvider";
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
-import { EmptyState, MapSkeleton } from "@/components/ui/States";
+import { EmptyState, MapSkeleton, UpdatingPill } from "@/components/ui/States";
 import { makeScale } from "@/features/maps/colors";
 import { DistrictChoropleth } from "@/features/maps/DistrictChoropleth";
 import { FacilityDistrictMarkers, FacilityLayer } from "@/features/maps/FacilityLayer";
@@ -26,6 +26,7 @@ const SHORTFALL_GAP = 20; // % below benchmark -> hatched yield-shortfall overla
 export function RwandaDistrictMap({
   data,
   metric,
+  isFetching = false,
   onMetricChange,
   onSelectDistrict,
   selectedDistrict,
@@ -35,6 +36,7 @@ export function RwandaDistrictMap({
 }: {
   data?: MapMetricsResponse;
   metric: MapMetricId;
+  isFetching?: boolean;
   onMetricChange: (metric: MapMetricId) => void;
   onSelectDistrict?: (district: string) => void;
   selectedDistrict?: string | null;
@@ -158,6 +160,7 @@ export function RwandaDistrictMap({
               )}`
             : "Loading map metric…"
         }
+        action={<UpdatingPill active={isFetching && Boolean(data)} />}
       />
       <div className="px-4 pt-3">
         <MapControls

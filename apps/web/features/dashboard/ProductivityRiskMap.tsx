@@ -24,7 +24,7 @@ export function ProductivityRiskMap({
   // map renders before a crop is chosen.
   const [metric, setMetric] = useState<MapMetricId>("production");
   const mapQuery = useMapMetrics(filters, metric);
-  const { data, isLoading, isError, refetch } = mapQuery;
+  const { data, isLoading, isError, isFetching, refetch } = mapQuery;
   const { data: facilities } = useFacilities();
 
   if (isError && !data) {
@@ -47,6 +47,7 @@ export function ProductivityRiskMap({
     <RwandaDistrictMap
       data={data}
       metric={metric}
+      isFetching={isFetching}
       onMetricChange={setMetric}
       onSelectDistrict={onSelectDistrict}
       selectedDistrict={selectedDistrict}

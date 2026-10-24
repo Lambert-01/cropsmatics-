@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 import { forecastQuery } from "@/lib/forecast";
@@ -28,6 +28,11 @@ export function useOverview(filters: DashboardFilters) {
   return useQuery({
     queryKey: ["overview", scopeKey(filters)],
     queryFn: () => api.overview(filters),
+    // Keep the last valid coverage response while a new filter scope is being
+    // fetched. The dashboard uses coverage to choose its layout; returning
+    // `undefined` for one render swaps the map/table workspace for the
+    // national chart workspace and makes features appear to vanish.
+    placeholderData: keepPreviousData,
     staleTime: FIVE_MIN,
   });
 }
@@ -228,6 +233,9 @@ export function useMapMetrics(filters: DashboardFilters, metric: string, enabled
   return useQuery({
     queryKey: ["map-metrics", scopeKey(filters), metric],
     queryFn: () => api.mapDistrictMetrics(filters, metric),
+    // Preserve the rendered map during a filter transition; the map component
+    // can show its updating state while the new metric arrives.
+    placeholderData: keepPreviousData,
     staleTime: FIVE_MIN,
     enabled,
   });
@@ -257,6 +265,9 @@ export function useCanonicalTrend(crop?: string, district?: string) {
   return useQuery({
     queryKey: ["canonical-trend", crop ?? "national", district ?? ""],
     queryFn: () => api.canonicalTrend(crop, district),
+    // A crop or district change should update in place rather than replace a
+    // real chart with a blank/skeleton during the request.
+    placeholderData: keepPreviousData,
     staleTime: FIVE_MIN,
   });
 }
@@ -314,6 +325,8 @@ export function usePriorities(filters: DashboardFilters, limit = 50, enabled = t
   return useQuery({
     queryKey: ["priorities", scopeKey(filters), limit],
     queryFn: () => api.priorities(filters, limit),
+    // The table owns the previous valid ranking until the new scope resolves.
+    placeholderData: keepPreviousData,
     staleTime: FIVE_MIN,
     enabled,
   });
