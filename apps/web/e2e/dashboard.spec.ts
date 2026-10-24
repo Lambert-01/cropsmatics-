@@ -124,8 +124,9 @@ test.describe("Overview", () => {
     await page.goto("/dashboard?period=2025B");
     await expect(page.locator(".recharts-wrapper").first()).toBeVisible({ timeout: 20_000 });
 
-    // The filter bar's Reset writes the explicit history scope.
-    await page.getByRole("button", { name: /Reset all filters/i }).click();
+    // The responsive filter bar calls the action "Clear all"; it writes the
+    // explicit history scope on both desktop and mobile layouts.
+    await page.getByRole("button", { name: "Clear all", exact: true }).click();
     await expect(page).toHaveURL(/view=history/);
     const url = new URL(page.url());
     expect(url.searchParams.get("period")).toBeNull();

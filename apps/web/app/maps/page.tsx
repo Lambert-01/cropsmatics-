@@ -3,7 +3,8 @@
 import { useState } from "react";
 
 import { PageHeading } from "@/components/ui/PageHeading";
-import { MapSkeleton } from "@/components/ui/States";
+import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
+import { ErrorState, MapSkeleton, UpdatingPill } from "@/components/ui/States";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
@@ -25,25 +26,40 @@ export default function MapsPage() {
         subtitle="Explore district-level productivity, gap and adoption across the country."
       />
 
+      <AnalyticsFilterBar
+        supported={["period", "crop", "province", "district", "benchmark"]}
+        coverageLabel="MAP VALUES FOLLOW THESE FILTERS"
+      />
+
       <div className="px-1">
         <CropEntryPoint crop={filters.crop} />
       </div>
 
-      {mapMetrics.isLoading ? (
+      {mapMetrics.isError && !mapMetrics.data ? (
+        <ErrorState
+          message="The map metric could not be loaded for this selection."
+          onRetry={() => void mapMetrics.refetch()}
+        />
+      ) : mapMetrics.isLoading && !mapMetrics.data ? (
         <MapSkeleton height={560} />
       ) : (
-        <RwandaDistrictMap
-          data={mapMetrics.data}
-          metric={metric}
-          onMetricChange={setMetric}
-          selectedDistrict={filters.district}
-          onSelectDistrict={(d) =>
-            setFilters({ district: filters.district === d ? undefined : d })
-          }
-          facilities={facilities.data?.facilities ?? []}
-          height={560}
-          title="District choropleth explorer"
-        />
+        <div className="space-y-2">
+          <div className="flex min-h-5 items-center justify-end">
+            <UpdatingPill active={mapMetrics.isFetching && Boolean(mapMetrics.data)} />
+          </div>
+          <RwandaDistrictMap
+            data={mapMetrics.data}
+            metric={metric}
+            onMetricChange={setMetric}
+            selectedDistrict={filters.district}
+            onSelectDistrict={(d) =>
+              setFilters({ district: filters.district === d ? undefined : d })
+            }
+            facilities={facilities.data?.facilities ?? []}
+            height={560}
+            title="District choropleth explorer"
+          />
+        </div>
       )}
 
       <DistrictRankingTable

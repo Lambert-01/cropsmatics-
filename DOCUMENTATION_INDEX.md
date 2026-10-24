@@ -24,6 +24,7 @@ Start with the [README](README.md). For the latest implementation state use
 
 - [Feature coverage](docs/FEATURE_DATA_COVERAGE.md)
 - [SAS worksheet coverage audit](docs/data/SAS_COVERAGE_AUDIT.md)
+- [SAS source precedence](docs/data/SAS_SOURCE_PRECEDENCE.md)
 - [Data provenance](docs/DATA_PROVENANCE.md)
 - [Production database authority](docs/P0_DATABASE_AUTHORITY.md)
 - [ML methodology](docs/10_ML_METHODOLOGY.md)
@@ -55,6 +56,7 @@ Start with the [README](README.md). For the latest implementation state use
 - [Demo story](docs/19_DEMO_STORY.md)
 - [AI usage disclosure](docs/20_AI_USAGE_DISCLOSURE.md)
 - [Judging alignment](docs/reference/JUDGING_ALIGNMENT.md)
+- [NISR webinar submission alignment](docs/submission/NISR_WEBINAR_ALIGNMENT.md)
 - [Data rights](DATA_LICENSE_AND_PROVENANCE.md)
 
 Historical session reports, stale project trees and generated audit inventories

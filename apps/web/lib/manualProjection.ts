@@ -61,7 +61,13 @@ export function manualProjectionRequest(form: ManualProjectionForm): ManualProje
     body.baseline_window = form.windowSize;
   }
   if (form.method === "percent_change") {
-    body.change_pct = form.changePct ?? 0;
+    // A partial case set can intentionally omit the main case. In that case
+    // leave the scalar change out as well: Python uses `cases` as the complete
+    // assumption specification, and adding a default scalar would change the
+    // calculation identity of a restored link without changing its cases.
+    if (!form.cases?.length || form.changePct != null) {
+      body.change_pct = form.changePct ?? 0;
+    }
     body.compounding = form.compounding ?? "once";
   }
   if (form.cases?.length) {

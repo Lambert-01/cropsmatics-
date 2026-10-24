@@ -7,14 +7,14 @@ Working branch: `review/latest-improvements-2026-10-17` (no auto-promotion to
 
 ## Latest status
 
-WP-2 through WP-6 are implemented in the working tree and have focused passing
+WP-2 through WP-7 are implemented in the working tree and have focused passing
 tests. This includes authenticated operational ownership, AI crop/period claim
 binding, displayed-row peer benchmark headlines, entity-aware transactional
-mobile sync, the one-to-one farmer-profile migration, and the JSON/CSV dataset
-filter contract. WP-8 and WP-9 remain evidence/UX work; WP-10 is only partly
-complete until the full suite, clean data rebuild, isolated PostGIS migration
-rehearsal, browser matrix and physical Android checks are run against this
-exact revision.
+mobile sync, the one-to-one farmer-profile migration, the JSON/CSV dataset
+filter contract, grouped Explorer browsing, exact partial-case restoration and
+snapshot-guarded exports. WP-8 and WP-9 remain evidence/UX work; WP-10 is only
+partly complete until the isolated PostGIS migration rehearsal, browser matrix
+and physical Android checks are run against this exact revision.
 
 Each work package is a file-level plan. Status is updated only with evidence;
 reproduced findings are re-checked before their status changes.
@@ -75,15 +75,15 @@ source edits, official/operational separation, mobile's own npm lockfile.
 | File | Change |
 |---|---|
 | `services/api/app/services/dataset_service.py`, `api/v1/data.py`, `api/v1/reports.py`, dataset schemas | support each advertised filter in JSON **and** CSV, or stop advertising it; explicit unsupported filters; identical CSV scope/sort |
-| `apps/web/features/data-explorer/DataTable.tsx`, catalog UI | grouped current/archive/program/reference browsing, meaningful selector options, metadata |
+| `apps/web/features/data-explorer/DataTable.tsx`, catalog UI | **Done locally:** grouped current/archive/program/reference browsing, active source metadata and accepted-filter disclosure; meaningful selector options remain future UX work |
 | tests | contract test per advertised filter; literal punctuation; CSV ≡ JSON selection |
 
 ## WP-7 Plan restoration and export integrity
 
 | File | Change |
 |---|---|
-| `apps/web/features/yield-intelligence/ManualProjectionWorkspace.tsx`, `apps/web/lib/manualProjection.ts` | restore exact partial cases or explicitly refuse the unsupported form (no silent defaults); predictable share-link/page-scope mismatch; explicit decision before replacing a restored origin |
-| projection service/schema + report exporter | bind export to calculation ID/dataset version; changed snapshot → reject + ask recalculation |
+| `apps/web/features/yield-intelligence/ManualProjectionWorkspace.tsx`, `apps/web/lib/manualProjection.ts` | **Done locally:** restore exact partial cases without silent defaults; keep predictable share-link/page-scope mismatch; preserve explicit origin selection |
+| projection service/schema + report exporter | **Done locally:** bind export to calculation ID/dataset version; changed snapshot → reject + ask recalculation |
 | Planning screen copy | density pass, optional detail collapsed, EN/RW copy completed |
 | tests | Calculate → controlled version change → Export parity; partial-case restoration |
 
@@ -91,8 +91,8 @@ source edits, official/operational separation, mobile's own npm lockfile.
 
 | File | Change |
 |---|---|
-| `scripts/data/inventory_sas_workbooks.py`, `ingest_sas_tables.py`, `sas_table_map.py` | hash/overlap comparison of the two 2025B variants; worksheet disposition justification |
-| `docs/data/SAS_SOURCE_PRECEDENCE.md` | **only after real review**; if workbooks are absent, record the blocker instead |
+| `scripts/data/inventory_sas_workbooks.py`, `ingest_sas_tables.py`, `sas_table_map.py` | **Partly done:** worksheet disposition now records the archive-only 2025B decision; cell-level diff remains future source-review work |
+| `docs/data/SAS_SOURCE_PRECEDENCE.md` | **Done:** annual release is the serving authority; standalone variants remain archive-only until publication authority changes the decision |
 | builders + canonical loader | per-metric lineage/sidecar resolver; UI metric id → workbook/table/cell path |
 | transparency/export | keep quality flags, affected keys, review status visible |
 | verification | two consecutive rebuilds byte-stable (`check_idempotent_build.py`); update coverage audit, data card, traceability doc |
@@ -106,7 +106,7 @@ source edits, official/operational separation, mobile's own npm lockfile.
 | Transparency | compact source/quality/method/model sections |
 | Settings | groups, real effects, service/data status |
 | Cross-page | one authoritative period control; shareable Yield Intelligence workspaces; preserve content on refetch; wrapping with sources expanded |
-| Mobile | Analyze/Compare/Maps/Ask design + filters, manual planning integration, device-tested sync journey — **device/EAS evidence is an explicit blocker until a real device and authorized build exist** |
+| Mobile | Analyze/Compare/Maps/Ask design + filters and the Python-backed manual planning workspace are implemented locally; planning origins and POST payloads have contract tests, and APK helpers preflight git/host configuration. Device-tested sync, map tapping, Compare, Ask and planning journey remain **blocked on a real device and authorized EAS build** |
 
 ## WP-10 Verification ladder
 
@@ -114,7 +114,9 @@ Per package: focused regressions. At the end: `make lint`, `make typecheck`,
 `make test`, `pnpm --filter cropmatics-web test`, `npm --prefix apps/mobile test`
 (from fresh `npm ci`), `pytest services/api/tests`, `ruff check`,
 `python scripts/data/run_all.py` twice + `check_idempotent_build.py`,
-`NEXT_PUBLIC_API_BASE_URL=... pnpm --filter cropmatics-web build`.
+`NEXT_PUBLIC_API_BASE_URL=... pnpm --filter cropmatics-web build`. The current
+working tree has passed the full local ladder, including the idempotency check;
+PostGIS, browser/device and exact deployment evidence are still unrun.
 True exit codes only (no `|| true`, no output-filter masking). PostGIS suites
 run only against `CANONICAL_TEST_DATABASE_URL`. Update
 `docs/CURRENT_STATUS.md`, this plan, `docs/PRODUCTION_READINESS.md` and the

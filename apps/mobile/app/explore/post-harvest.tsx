@@ -70,6 +70,10 @@ export default function PostHarvestScreen() {
     <ScreenLayout back active="explore">
       <SectionHeader title={t.postHarvestTitle} subtitle={t.postHarvestSubtitle} />
 
+      {crops.isError ? (
+        <ErrorState message={t.errorGeneric} onRetry={() => void crops.refetch()} />
+      ) : null}
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -200,7 +204,9 @@ export default function PostHarvestScreen() {
       ) : null}
 
       <DataSection title={t.nationalContext} subtitle={t.postHarvestNationalSubtitle}>
-        {storage.isLoading ? (
+        {storage.isError ? (
+          <ErrorState message={t.errorGeneric} onRetry={() => void storage.refetch()} />
+        ) : storage.isLoading ? (
           <LoadingSkeleton height={140} />
         ) : items.length ? (
           <>

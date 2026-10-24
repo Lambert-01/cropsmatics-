@@ -22,6 +22,7 @@ export { indicatorsApi } from "./api/indicators";
 export { mapsApi } from "./api/maps";
 export { postHarvestApi } from "./api/postharvest";
 export { sourcesApi } from "./api/sources";
+export { projectionApi } from "./api/projection";
 export { authApi } from "./api/auth";
 export { BASE_URL, API_CONFIG, PRODUCTION_API_BASE_URL } from "./api/client";
 export {

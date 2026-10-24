@@ -162,10 +162,11 @@ and CSV or advertise only the dimensions that actually work. Add a contract test
 for every advertised filter, not just indicator/domain. Keep unsupported filters
 explicit, literal punctuation safe and CSV scope/sort identical to JSON.
 
-Complete grouped current/archive/program/reference browsing, meaningful selector
-options and metadata. Free-text boxes with unknown exact codes are not a finished
-researcher workflow. Keep every source dataset reachable without creating one
-primary navigation tab per release.
+Grouped current/archive/program/reference browsing and source/filter metadata are
+implemented locally. Continue the remaining researcher work: replace free-text
+boxes with meaningful selector options where the API can provide them, and keep
+every source dataset reachable without creating one primary navigation tab per
+release.
 
 ## 7. Finish Plan Restoration And Export Integrity
 
@@ -173,11 +174,11 @@ Inspect `apps/web/features/yield-intelligence/ManualProjectionWorkspace.tsx`,
 `apps/web/lib/manualProjection.ts`, API hooks/types and the projection service,
 schema and report exporter.
 
-Test real browser restoration, including partial assumption cases. The parser
-accepts partial sets, but the form uses a fixed three-case builder; either restore
-the exact cases or explicitly refuse an unsupported form without adding defaults
-silently. Handle share-link/page-scope mismatches predictably, and do not replace
-a restored origin without an explicit decision when it changes the plan.
+Test real browser restoration, including partial assumption cases. The form and
+request builder now restore the exact present cases without adding defaults;
+browser coverage must prove that behavior through the real share-link journey.
+Handle share-link/page-scope mismatches predictably, and do not replace a
+restored origin without an explicit decision when it changes the plan.
 
 Export currently recomputes the saved request against whatever dataset is current.
 Bind exports to the displayed calculation ID/dataset version or explicitly reject
@@ -197,10 +198,11 @@ Relevant files include `scripts/data/inventory_sas_workbooks.py`,
 `ingest_sas_tables.py`, `sas_table_map.py`, productivity/national builders,
 `build_manifest.py`, repository adapters and canonical models.
 
-Resolve the two standalone 2025B workbook variants against annual sources using
-hashes, overlapping keys and machine-readable differences. Add
-`docs/data/SAS_SOURCE_PRECEDENCE.md` only after a real review. If workbooks are
-unavailable, record the blocker rather than inventing a decision.
+Keep the resolved source decision in
+`docs/data/SAS_SOURCE_PRECEDENCE.md`: `SAS_2025_ANNUAL` is the serving authority
+for 2025B and both standalone variants are archive-only. Do not promote either
+variant without written publication authority, cell-level comparison and the
+documented change-control checklist.
 
 Review worksheet dispositions (currently 134 used, 304 unmapped, two metadata),
 justify exclusions and national subtotal semantics, and add per-metric cell/row
@@ -231,8 +233,9 @@ loaded content during refetch. Test slow, error, empty and partial coverage
 states. Wrapping must work with sources expanded, not via global clipping.
 
 Complete native Analyze, Compare, Maps and Ask design/filters without breaking
-SQLite or query contracts. Native mobile still lacks manual planning integration
-and a complete device-tested synchronization journey. Tap selection and
+SQLite or query contracts. Native mobile now has a manual planning integration
+backed by the Python scenario endpoint, but still lacks a complete device-tested
+synchronization journey. Tap selection and
 accessible alternatives must work on a phone. Do not confuse mobile-web captures
 with native evidence. Obtain a real approved APK link only after an authorized
 EAS build against the hosted API and device verification.

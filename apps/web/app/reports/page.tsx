@@ -309,6 +309,13 @@ export default function ReportsPage() {
         </p>
         {datasets.isLoading ? (
           <TableSkeleton rows={4} />
+        ) : datasets.error ? (
+          <div className="mt-3">
+            <ErrorState
+              message={(datasets.error as Error).message}
+              onRetry={() => datasets.refetch()}
+            />
+          </div>
         ) : (
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {(datasets.data?.datasets ?? []).map((d) => (

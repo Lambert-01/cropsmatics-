@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText } from "@/lib/filters";
 import { cn } from "@/lib/cn";
+import { ErrorState } from "@/components/ui/States";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
 
@@ -290,9 +291,13 @@ export function AnalyticsFilterBar({
   className,
 }: Props) {
   const { filters, setFilters, reset } = useFilters();
-  const { data: districts } = useDistricts();
-  const { data: crops } = useCrops();
-  const { data: periodsData } = usePeriods();
+  const districtsQuery = useDistricts();
+  const cropsQuery = useCrops();
+  const periodsQuery = usePeriods();
+  const { data: districts } = districtsQuery;
+  const { data: crops } = cropsQuery;
+  const { data: periodsData } = periodsQuery;
+  const referenceError = districtsQuery.error || cropsQuery.error || periodsQuery.error;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const supportedList = Array.isArray(supported) ? supported : [supported];
@@ -550,6 +555,16 @@ export function AnalyticsFilterBar({
 
   return (
     <section aria-label="Analytics filters" className={cn("space-y-2", className)}>
+      {referenceError ? (
+        <ErrorState
+          message="Reference data could not be loaded, so filter options may be incomplete."
+          onRetry={() => {
+            void districtsQuery.refetch();
+            void cropsQuery.refetch();
+            void periodsQuery.refetch();
+          }}
+        />
+      ) : null}
       {/* Desktop / tablet bar */}
       <div className="card hidden items-end gap-3 px-4 py-3 md:flex">
         {controlsNode}

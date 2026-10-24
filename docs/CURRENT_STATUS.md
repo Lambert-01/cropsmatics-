@@ -1,6 +1,7 @@
 # Current Status
 
-Reviewed: **2026-10-18**, latest working-tree changes after `48e55d6`.
+Reviewed: **2026-10-24**, latest working-tree changes after the mobile and
+submission-readiness pass.
 Working branch: `review/latest-improvements-2026-10-17`.
 
 **Verdict: the previously identified code defects are repaired locally, but this
@@ -20,13 +21,23 @@ remaining task is specified in
 | Projection season and cutoff | Personal Season C plans remain on C targets. A personal 2023B origin now restricts baseline observations to 2022B and 2023B. |
 | Assumption cases | Inverted partial cases are rejected, including lower=30% with main=10%. Carry-forward refuses meaningless change cases. |
 | Planning workflow | Origin-options endpoint, origin selection, lower/main/higher chart series, outdated-result messaging and versioned plan links are implemented. Browser acceptance is separate from helper-unit tests. |
-| Planning export | Python generates CSV with calculation ID, dataset/method versions, origin/targets, scope, assumptions and row kinds. Normal headers replace the old prose prefix. |
+| Partial plan restoration | Shared links with only some ordered assumption cases now restore and re-submit the exact present case rows; the web request builder omits an unrelated scalar main case. A regression test covers lower/higher-only plans. |
+| Planning export | Python generates CSV with calculation ID, dataset/method versions, origin/targets, scope, assumptions and row kinds. Export requests now carry the displayed calculation/dataset identity and reject stale snapshots. |
 | AI district attribution | The earlier unknown-district and two-district swap reproductions now fall back; correctly attributed controls still pass. This does not establish full semantic safety. |
 | Explorer | Indicator/domain filters reach the service; literal `[` search returns 200 instead of 500; filtered CSV uses the same selection path as JSON. |
+| Explorer grouping | The Data Explorer now groups the backend catalogue into current, archive, programme-context and reference evidence groups, with the active source and accepted filters visible before opening the table. |
+| Mobile release helper | Both APK scripts now make standard macOS `git` locations available and fail early with an actionable Xcode Command Line Tools message instead of surfacing EAS `spawn git ENOENT` after upload preparation. |
 | Maps | Negative interior values interpolate distinctly and diverging legend stops align with zero's position. Tests cover mixed, one-sided and asymmetric domains. |
+| Maps route resilience | The dedicated Maps page now exposes the shared period/crop/province/district/benchmark filters, preserves a loaded map while a new selection refetches, and shows a recoverable Retry state for a first-load API failure. |
+| Mobile planning projection | Analyze now includes a compact planning workspace backed by `/scenarios/manual-projection`: crop, scope, season, published origin, method, horizon and personal assumptions are sent to Python, with result units, planning-target labels and provenance rendered on-device. It remains separate from the validated forecast gate. |
+| Transparency failure states | Data & Models now distinguishes failed source, coverage, manifest, algorithm and model requests from genuine empty datasets, with a recoverable Retry action. |
+| Reports failure states | Reports now distinguishes a failed raw-dataset catalogue request from a catalogue with zero tables, with a recoverable Retry action. |
 | Sources | Cards permit shrinking and source text wraps. All four Dashboard source disclosures were expanded after requests settled at 1440, 1920, 768 and 390 px; document width matched each viewport. The old overflow reproduction is repaired. |
 | Scenario explanations | `shortfall_pct`, `purpose`, `reference_n` and eligibility survive scenario row projection. API/ML parity tests include explanation fields. |
 | Operational persistence | New farm upload route and migration persist farm identity and additional harvest fields. Queue entries wait for a server response; uploads arriving in either order can link. Authenticated ownership and entity-aware sync status are now implemented locally. |
+| Shared reference/filter failures | Settings and the shared analytics filter bar now surface failed period/crop/district catalogues with Retry instead of silently showing empty selectors; Settings also reports loaded reference counts. |
+| Shared map failures | Dashboard/productivity and Storage map consumers now show a recoverable metric error and preserve an already-loaded map during a failed refresh. |
+| Mobile secondary-query failures | Compare, Maps, District Detail, Crop Detail and Post-Harvest now expose retryable catalogue, period, chart, factor and post-harvest failures instead of collapsing them into empty states. |
 
 ## Latest repair pass
 
@@ -44,13 +55,10 @@ remaining task is specified in
 The earlier P1/P2 code findings are closed in the working tree. Remaining gaps
 are verification or product-evidence work:
 
-- Share-plan helpers preserve partial cases, but the form restores them into
-  fixed lower/main/higher controls. Browser coverage is needed to prove the
-  restored request does not add or alter cases. Scope mismatches currently warn
-  rather than restoring the page filters automatically.
-- Python export recomputes the request against current data. It does not bind to
-  an expected calculation/dataset version, so a data refresh between Calculate
-  and Export can change the downloaded result. Add snapshot parity checks.
+- Partial assumption cases now restore exactly in the form and request builder.
+  Browser coverage is still needed to prove the real share-link journey does
+  not add or alter cases. Scope mismatches currently warn rather than restoring
+  the page filters automatically.
 - Ownership and migration tests still need a disposable PostGIS rehearsal before
   deployment. The local SQLite fixture cannot prove PostgreSQL/PostGIS DDL.
 - Physical Android restart/reconnect/idempotency testing is still required for
@@ -58,17 +66,22 @@ are verification or product-evidence work:
 
 ## Data And Product Work Still Pending
 
-No raw mappings or ETL builders changed in this increment. Source precedence for
-the two standalone 2025B workbooks remains unresolved; the inventory still lists
-134 used, 304 unmapped and two metadata sheets. Worksheet exclusions, national
-subtotal interpretation, exact per-metric cell lineage and a reviewed issue
-register remain open. All periods are not interchangeable and not every crop
-exists in every release.
+No raw mappings or ETL builders changed in this increment. The 2025 annual
+release is now explicitly documented as the serving authority for 2025B; both
+standalone 2025B files remain archive-only. The inventory still lists 134 used,
+304 unmapped and two metadata sheets. Worksheet exclusions, national subtotal
+interpretation, exact per-metric cell lineage and a reviewed issue register
+remain open. All periods are not interchangeable and not every crop exists in
+every release.
 
-Dedicated Reports, Maps, Transparency and Settings pages have no page-level
-redesign in this increment. Explorer adds appropriate controls but still lacks a
-completed grouped catalog workflow. Native mobile gains API/queue changes, not
-the full requested Analyze/Compare/Ask design pass or physical-device sign-off.
+Dedicated Reports and Transparency pages still need their full page-level
+visual/accessibility review. Settings now has reference-data status and retry
+states. Maps now has the shared filter and failure-state wiring, but its full
+visual/accessibility review is still pending. Explorer now has a grouped
+catalog workflow, but exact per-metric lineage and a full researcher review
+remain open. Native mobile now has the local planning workflow and API/queue
+changes, but the full requested Analyze/Compare/Ask design pass and
+physical-device sign-off remain open.
 The complete EN/RW browser-state matrix, automated accessibility/keyboard review,
 native-speaker Kinyarwanda review and approved APK/install artifact are pending.
 
@@ -82,18 +95,22 @@ Fresh checks against this increment:
 
 | Check | Result |
 |---|---|
-| API + scripts + ML pytest | 988 passed, 28 skipped; exit 0 |
-| Web Vitest | 444 passed in 31 files; exit 0 |
-| Mobile Vitest | 347 passed in 26 files; exit 0 |
+| API + scripts + ML pytest | 989 passed, 28 skipped; exit 0 |
+| Web Vitest | 445 passed in 31 files; exit 0 |
+| Mobile Vitest | 354 passed in 29 files; exit 0 (cache disabled because the sandbox cannot write `node_modules/.vite`) |
 | Ruff | Passed; exit 0 |
 | Web lint and production build | Passed; exit 0; 19 static pages generated |
-| Mobile lint | Passed; exit 0 |
+| Mobile lint | Passed with no warnings or errors; exit 0 |
 | Mobile TypeScript after fresh npm ci | Passed; exit 0 |
 | Rendered Planning | Calculation passed at 1440x900, 1920x1080, 768x1024 and 390x844 without document overflow or uncaught page errors |
 | Desktop plan workflow | Python CSV downloaded with normal metadata header; outdated-result notice and a full plan-link restoration passed |
 | Expanded Dashboard sources | All four disclosures opened at all four viewports; no document overflow |
 | Old reproduction suite | Projection empty-history/season/cutoff/case and district-attribution cases now behave correctly |
 | New adversarial checks | Wrong crop and swapped periods rejected; peer KPI matches displayed row; every catalog filter accepted by JSON and CSV |
+| Data rebuild determinism | `check_idempotent_build.py` passed; dataset identity stayed `0.2.0-0e76c4d8f79ee5fc` across two builds |
+| APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
+| Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
+| Live Render release gate | `scripts/verify_production.py` passed 13/13 required checks; readiness, coverage, 14-period catalogue, dashboard, trends, a 30-district Maize yield map, practice and post-harvest endpoints answered successfully |
 
 Focused checks in this pass:
 
@@ -103,8 +120,11 @@ Focused checks in this pass:
 | `pytest tests/test_farm_sync.py` | 25 passed |
 | `pytest tests/test_dataset_filters.py` | 17 passed |
 | `pytest tests/test_yield_intelligence.py` | passed, including peer-headline regression |
-| `npm test -- --run` in `apps/mobile` | 347 passed in 26 files |
+| `npm test -- --run --no-cache` in `apps/mobile` | 354 passed in 29 files |
 | `npm run typecheck` in `apps/mobile` | passed |
+| `services/api/tests/test_manual_projection_export.py` | 9 passed; stale dataset/calculation snapshots rejected |
+| Mobile planning payload tests | 3 passed in `tests/manual-projection.test.ts`; personal inputs and method-specific fields remain explicit |
+| Mobile planning API contract tests | 2 passed in `tests/projection-api.test.ts`; origins query and scenario POST body are asserted |
 
 An initial mobile typecheck used a stale installation and picked up React 18 DOM
 types from the parent tree. `npm ci` restored the declared React 19 type package
@@ -115,8 +135,10 @@ file and SQLite persistence tests are not proof of PostGIS upgrade/rollback or
 real Android behavior. Current CI and deployment must be verified for the actual
 pushed revision; the earlier green run on `48e55d6` does not verify this increment.
 
-The browser used the production web build with API requests explicitly proxied
-to the temporary local file-mode API. This is rendered local evidence, not a
+The browser matrix used the production web build with requests explicitly
+served by a temporary local file-mode API. Sixteen Playwright tests passed at
+1440x900 and 360x740, including the dashboard scope/refetch/reset journey and
+forecast retry/withholding states. This is rendered local evidence, not a
 production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
@@ -124,6 +146,10 @@ are temporary audit artifacts, not approved submission designs.
 This increment is prepared on `review/latest-improvements-2026-10-17`. After
 promotion, production must be verified against the exact deployed commit; a
 green local suite does not prove Render, Vercel, or a physical APK is using it.
+The live Render gate was rechecked on 2026-10-24 and reported dataset version
+`0.2.0-646a72d53cd349df`. That is a healthy deployed release, but it is not
+proof that this uncommitted working tree is deployed; promotion and version
+parity remain release-owner actions.
 
 ## Repository Hygiene
 

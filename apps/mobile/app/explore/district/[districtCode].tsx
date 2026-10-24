@@ -218,7 +218,14 @@ export default function DistrictDetailScreen() {
               }))}
             />
 
-            {panel.isLoading ? (
+            {periods.isError ? (
+              <ErrorState
+                message={t.errorGeneric}
+                onRetry={() => void periods.refetch()}
+              />
+            ) : panel.isError ? (
+              <ErrorState message={t.errorGeneric} onRetry={() => void panel.refetch()} />
+            ) : panel.isLoading ? (
               <LoadingSkeleton height={160} />
             ) : rows.length ? (
               <ScrollView
@@ -283,7 +290,9 @@ export default function DistrictDetailScreen() {
                 <Text style={typography.micro}>{t.districtNoBenchmark}</Text>
               )}
 
-              {cropSeries.isLoading ? (
+              {cropSeries.isError ? (
+                <ErrorState message={t.errorGeneric} onRetry={() => void cropSeries.refetch()} />
+              ) : cropSeries.isLoading ? (
                 <LoadingSkeleton height={chart.height} />
               ) : yieldSeries.some((point) => point.value !== null) ? (
                 <>
@@ -320,7 +329,9 @@ export default function DistrictDetailScreen() {
 
           <DataSection title={t.factorsTitle} subtitle={t.factorsSubtitle}>
             <DataWarning text={t.factorsDistrictScope} />
-            {factors.isLoading ? (
+            {factors.isError ? (
+              <ErrorState message={t.errorGeneric} onRetry={() => void factors.refetch()} />
+            ) : factors.isLoading ? (
               <LoadingSkeleton height={160} />
             ) : (
               <FactorAssociation
@@ -337,6 +348,7 @@ export default function DistrictDetailScreen() {
 
       {tab === "inputs" ? (
         <DataSection title={t.inputs} subtitle={t.districtInputsSubtitle} first>
+          {panel.isError ? <ErrorState message={t.errorGeneric} onRetry={() => void panel.refetch()} /> : null}
           <DataWarning text={t.districtSingleReleaseNote} />
           {percentRows(data.factors).length ? (
             <HorizontalBarChart values={percentRows(data.factors)} unit="%" maxItems={10} />

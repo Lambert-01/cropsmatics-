@@ -643,6 +643,24 @@ def run(payload: ManualProjectionRequest) -> ManualProjectionResponse:
             "statistical confidence interval"
         )
 
+    calculation_id = _calculation_id(spec, dataset_version)
+    if (
+        payload.expected_dataset_version is not None
+        and payload.expected_dataset_version != dataset_version
+    ):
+        raise ProjectionUnavailable(
+            "the dataset changed after this result was calculated; calculate the plan again before exporting",
+            code="dataset_changed",
+        )
+    if (
+        payload.expected_calculation_id is not None
+        and payload.expected_calculation_id != calculation_id
+    ):
+        raise ProjectionUnavailable(
+            "the displayed projection no longer matches this request; calculate the plan again before exporting",
+            code="calculation_changed",
+        )
+
     export_rows: list[ProjectionExportRow] = []
     for o in window:
         obs = o["observation"]
@@ -694,7 +712,7 @@ def run(payload: ManualProjectionRequest) -> ManualProjectionResponse:
             )
 
     return ManualProjectionResponse(
-        calculation_id=_calculation_id(spec, dataset_version),
+        calculation_id=calculation_id,
         value_kind=mp.VALUE_KIND,
         value_kind_label=mp.VALUE_KIND_LABEL,
         assumption_badge=mp.ASSUMPTION_BADGE,

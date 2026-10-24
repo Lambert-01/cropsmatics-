@@ -6,7 +6,7 @@ import { useMemo } from "react";
 
 import { Card, CardHeader } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
-import { EmptyState, TableSkeleton } from "@/components/ui/States";
+import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { coverageLimitations, type CoverageDetailRow } from "@/lib/coverage";
 import { benchmarkLabel, periodLabel } from "@/lib/format";
@@ -63,6 +63,13 @@ export default function TransparencyPage() {
           <div className="p-4">
             <TableSkeleton rows={5} />
           </div>
+        ) : sources.error ? (
+          <div className="p-4">
+            <ErrorState
+              message={(sources.error as Error).message}
+              onRetry={() => sources.refetch()}
+            />
+          </div>
         ) : (sources.data?.sources ?? []).length === 0 ? (
           <div className="p-4">
             <EmptyState title="No registered sources." hint="Run the data pipeline to build the registry." />
@@ -114,6 +121,13 @@ export default function TransparencyPage() {
         {coverage.isLoading ? (
           <div className="p-4">
             <TableSkeleton rows={5} />
+          </div>
+        ) : coverage.error ? (
+          <div className="p-4">
+            <ErrorState
+              message={(coverage.error as Error).message}
+              onRetry={() => coverage.refetch()}
+            />
           </div>
         ) : (
           <div className="px-4 pb-4 pt-3">
@@ -169,6 +183,11 @@ export default function TransparencyPage() {
         <div className="px-4 pb-4 pt-3">
           {dataVersion.isLoading ? (
             <TableSkeleton rows={3} />
+          ) : dataVersion.error ? (
+            <ErrorState
+              message={(dataVersion.error as Error).message}
+              onRetry={() => dataVersion.refetch()}
+            />
           ) : !dataVersion.data?.available ? (
             <EmptyState
               title="No data manifest is present."
@@ -261,6 +280,11 @@ export default function TransparencyPage() {
           <div className="px-4 pb-4 pt-3 text-sm text-slate-700">
             {algorithms.isLoading ? (
               <TableSkeleton rows={3} />
+            ) : algorithms.error ? (
+              <ErrorState
+                message={(algorithms.error as Error).message}
+                onRetry={() => algorithms.refetch()}
+              />
             ) : algorithms.data ? (
               <>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -309,6 +333,8 @@ export default function TransparencyPage() {
         <div className="px-4 pb-4 pt-3">
           {models.isLoading ? (
             <TableSkeleton rows={2} />
+          ) : models.error ? (
+            <ErrorState message={(models.error as Error).message} onRetry={() => models.refetch()} />
           ) : (models.data?.models ?? []).length === 0 ? (
             <EmptyState title="No model artifact is present." hint="Run `make ml` to train the baseline." />
           ) : (

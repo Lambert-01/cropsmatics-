@@ -112,6 +112,22 @@ class ManualProjectionRequest(BaseModel):
         max_length=3,
         description="optional lower/main/higher assumption bands for the same method",
     )
+    # Export requests may carry the identity of the result currently visible in
+    # the browser. These fields are verification guards, not calculation inputs:
+    # the service excludes them from the calculation specification and refuses
+    # an export if the underlying dataset or result has changed.
+    expected_calculation_id: str | None = Field(
+        None,
+        min_length=3,
+        max_length=80,
+        description="calculation id shown by the caller before downloading an export",
+    )
+    expected_dataset_version: str | None = Field(
+        None,
+        min_length=1,
+        max_length=160,
+        description="dataset version shown by the caller before downloading an export",
+    )
 
 
 class BaselineObservation(BaseModel):

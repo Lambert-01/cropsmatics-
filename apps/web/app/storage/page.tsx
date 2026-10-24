@@ -114,15 +114,28 @@ export default function StoragePage() {
         </label>
 
         <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
-          {mapMetrics.isLoading ? (
+          {mapMetrics.isError && !mapMetrics.data ? (
+            <ErrorState
+              message="The storage map metric could not be loaded for this selection."
+              onRetry={() => void mapMetrics.refetch()}
+            />
+          ) : mapMetrics.isLoading && !mapMetrics.data ? (
             <MapSkeleton />
           ) : (
-            <RwandaDistrictMap
-              data={mapMetrics.data}
-              metric={metric}
-              onMetricChange={setMetric}
-              facilities={facilities.data?.facilities ?? []}
-            />
+            <div className="space-y-2">
+              {mapMetrics.isError ? (
+                <ErrorState
+                  message="The latest storage map refresh failed; showing the last loaded metric."
+                  onRetry={() => void mapMetrics.refetch()}
+                />
+              ) : null}
+              <RwandaDistrictMap
+                data={mapMetrics.data}
+                metric={metric}
+                onMetricChange={setMetric}
+                facilities={facilities.data?.facilities ?? []}
+              />
+            </div>
           )}
           <div className="space-y-5">
             {facilities.error ? (

@@ -39,9 +39,9 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts.data import sas_table_map as tmap  # noqa: E402
 from scripts.data.common import RAW_SAS_DIR, SAS_SOURCE_IDS, log  # noqa: E402
 
-# Eight unique workbooks, including both distinct 2025B originals. The 2025B
-# seasonal sources are retained but not mapped until publication precedence is
-# settled against the 2025 annual release.
+# Eight unique workbooks, including both distinct 2025B originals. The
+# standalone 2025B files remain in the inventory as archive-only evidence; the
+# annual release is the serving authority for the 2025A/B/C period family.
 WORKBOOKS: tuple[tuple[str, str, str], ...] = (
     # (filename, canonical year, season-or-annual)
     ("SAS 2022_Tables_0.xlsx", "2022", "annual"),
@@ -68,6 +68,11 @@ FILENAME_TO_RELEASE: dict[str, str | None] = {
     "Tables_2026 Season A.xlsx": "SAS_2026A",
     "Tables_2026 Season B.xlsx": "SAS_2026B",
 }
+
+ARCHIVE_ONLY_REASON = (
+    "archive-only standalone 2025B workbook; SAS_2025_ANNUAL is the reviewed "
+    "serving authority for 2025B (see docs/data/SAS_SOURCE_PRECEDENCE.md)"
+)
 
 # Domain -> the processed dataset that surfaces it, i.e. the file the API/loader
 # actually reads. A mapped sheet is only ``used`` when that file exists in this
@@ -224,8 +229,15 @@ def main() -> int:
                 else:
                     stage = "not_yet_mapped"
                     exclusion_reason = (
-                        "sheet has no reviewed sas_table_map specification; "
-                        "preserved for source review, not exposed as analytical data"
+                        ARCHIVE_ONLY_REASON
+                        if filename in {
+                            "Tables_2025_Season_B_0.xlsx",
+                            "Tables_2025_Season_B_0_curated_official.xlsx",
+                        }
+                        else (
+                            "sheet has no reviewed sas_table_map specification; "
+                            "preserved for source review, not exposed as analytical data"
+                        )
                     )
 
                 source_kind = (

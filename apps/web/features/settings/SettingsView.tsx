@@ -1,11 +1,12 @@
 "use client";
 
-import { Check, Languages, Moon, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { Check, Database, Languages, Moon, RotateCcw, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { usePreferences } from "@/components/providers/PreferencesProvider";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
+import { ErrorState } from "@/components/ui/States";
 import { useLanguage, type Lang } from "@/lib/i18n";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 
@@ -87,12 +88,14 @@ function PreferenceSelect({
   onChange,
   options,
   ariaLabel,
+  disabled = false,
 }: {
   id: string;
   value: string;
   onChange: (next: string) => void;
   options: { value: string; label: string }[];
   ariaLabel: string;
+  disabled?: boolean;
 }) {
   return (
     <select
@@ -100,6 +103,7 @@ function PreferenceSelect({
       aria-label={ariaLabel}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       className="input w-52"
     >
       {options.map((o) => (
@@ -128,9 +132,14 @@ export function SettingsView() {
   const { preferences, setPreference, reset } = usePreferences();
   const { lang, setLang } = useLanguage();
 
-  const { data: periodsData } = usePeriods();
-  const { data: crops } = useCrops();
-  const { data: districts } = useDistricts();
+  const periodsQuery = usePeriods();
+  const cropsQuery = useCrops();
+  const districtsQuery = useDistricts();
+  const { data: periodsData } = periodsQuery;
+  const { data: crops } = cropsQuery;
+  const { data: districts } = districtsQuery;
+  const referenceLoading = periodsQuery.isLoading || cropsQuery.isLoading || districtsQuery.isLoading;
+  const referenceError = periodsQuery.error || cropsQuery.error || districtsQuery.error;
 
   const periods = periodsData?.periods ?? [];
   const periodOptions = [
@@ -169,6 +178,17 @@ export function SettingsView() {
           </button>
         }
       />
+
+      {referenceError ? (
+        <ErrorState
+          message="Reference data could not be loaded, so default selectors are temporarily unavailable."
+          onRetry={() => {
+            void periodsQuery.refetch();
+            void cropsQuery.refetch();
+            void districtsQuery.refetch();
+          }}
+        />
+      ) : null}
 
       {/* Language */}
       <Card>
@@ -225,6 +245,7 @@ export function SettingsView() {
                 ariaLabel="Default period"
                 value={preferences.defaultPeriod ?? ""}
                 onChange={(v) => setPreference("defaultPeriod", v || null)}
+                disabled={referenceLoading || Boolean(referenceError)}
                 options={periodOptions}
               />
             }
@@ -238,6 +259,7 @@ export function SettingsView() {
                 ariaLabel="Default crop"
                 value={preferences.defaultCrop ?? ""}
                 onChange={(v) => setPreference("defaultCrop", v || null)}
+                disabled={referenceLoading || Boolean(referenceError)}
                 options={cropOptions}
               />
             }
@@ -261,6 +283,7 @@ export function SettingsView() {
                     if (!stillValid) setPreference("defaultDistrict", null);
                   }
                 }}
+                disabled={referenceLoading || Boolean(referenceError)}
                 options={provinceOptions}
               />
             }
@@ -274,10 +297,46 @@ export function SettingsView() {
                 ariaLabel="Default district"
                 value={preferences.defaultDistrict ?? ""}
                 onChange={(v) => setPreference("defaultDistrict", v || null)}
+                disabled={referenceLoading || Boolean(referenceError)}
                 options={districtOptions}
               />
             }
           />
+        </CardBody>
+      </Card>
+
+      {/* Reference-data status */}
+      <Card>
+        <CardHeader
+          title={
+            <span className="inline-flex items-center gap-2">
+              <Database className="h-4 w-4 text-primary" aria-hidden="true" /> Data status
+            </span>
+          }
+          subtitle="Reference catalogues used to populate filters and defaults."
+        />
+        <CardBody>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              ["Published periods", periods.length],
+              ["Crops", crops?.length ?? 0],
+              ["Districts", districts?.length ?? 0],
+            ].map(([label, count]) => (
+              <div key={String(label)} className="rounded-lg border border-forest/10 bg-forest/[0.025] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums text-forest-deep">
+                  {referenceLoading || referenceError ? "—" : count}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {referenceError ? "Unavailable" : referenceLoading ? "Loading" : "Loaded from API"}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+            These counts describe reference options, not the number of observations behind an
+            analysis. The selected page still reports its own coverage and source.
+          </p>
         </CardBody>
       </Card>
 

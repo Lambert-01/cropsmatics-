@@ -66,6 +66,8 @@ const BASELINES: { id: ProjectionBaseline; label: string }[] = [
 ];
 
 type Notice = { kind: "restored" | "error" | "info"; message: string };
+type CaseLabel = "lower" | "main" | "higher";
+const DEFAULT_CASE_LABELS: CaseLabel[] = ["lower", "main", "higher"];
 
 export function ManualProjectionWorkspace({ filters = {} }: { filters?: DashboardFilters }) {
   const motion = useChartMotion();
@@ -82,7 +84,7 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   const [horizon, setHorizon] = useState(2);
   const [metric, setMetric] = useState<ProjectionMetric>("yield_kg_ha");
   const [windowSize, setWindowSize] = useState(3);
-  const [changePct, setChangePct] = useState(10);
+  const [changePct, setChangePct] = useState<number | null>(10);
   const [compounding, setCompounding] = useState<ProjectionCompounding>("once");
   const [assumedYield, setAssumedYield] = useState(1500);
   const [assumedArea, setAssumedArea] = useState(1);
@@ -90,6 +92,7 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   const [showCases, setShowCases] = useState(false);
   const [caseLower, setCaseLower] = useState(5);
   const [caseHigher, setCaseHigher] = useState(15);
+  const [caseLabels, setCaseLabels] = useState<CaseLabel[]>(DEFAULT_CASE_LABELS);
 
   const submitted = projection.data;
   /** The exact request that produced the displayed result — the export and the
@@ -112,18 +115,35 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   });
 
   const bandsRequested = method === "percent_change" && showCases;
-  const bandsOrdered = caseLower <= changePct && changePct <= caseHigher;
   const cases = useMemo<ProjectionCase[] | null>(
     () =>
       bandsRequested
-        ? [
-            { label: "lower", change_pct: caseLower },
-            { label: "main", change_pct: changePct },
-            { label: "higher", change_pct: caseHigher },
-          ]
+        ? caseLabels.flatMap((label) => {
+            const value = label === "lower" ? caseLower : label === "main" ? changePct : caseHigher;
+            return value == null ? [] : [{ label, change_pct: value }];
+          })
         : null,
-    [bandsRequested, caseLower, caseHigher, changePct],
+    [bandsRequested, caseLabels, caseLower, caseHigher, changePct],
   );
+
+  const bandsOrdered = useMemo(() => {
+    const values: Record<CaseLabel, number | null> = {
+      lower: caseLower,
+      main: changePct,
+      higher: caseHigher,
+    };
+    const pairs: [CaseLabel, CaseLabel][] = [
+      ["lower", "main"],
+      ["main", "higher"],
+      ["lower", "higher"],
+    ];
+    return pairs.every(([lower, higher]) => {
+      if (!caseLabels.includes(lower) || !caseLabels.includes(higher)) return true;
+      const low = values[lower];
+      const high = values[higher];
+      return low != null && high != null && low <= high;
+    });
+  }, [caseLabels, caseLower, caseHigher, changePct]);
 
   const form = useMemo<ManualProjectionForm>(
     () => ({
@@ -152,7 +172,7 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   const valid =
     Boolean(crop) &&
     (method !== "personal" || (assumedYield > 0 && assumedArea > 0)) &&
-    (method !== "percent_change" || Number.isFinite(changePct)) &&
+    (method !== "percent_change" || (bandsRequested ? Boolean(cases?.length) : Number.isFinite(changePct))) &&
     (!bandsRequested || bandsOrdered);
 
   /** True the moment the form differs from what Python last computed. */
@@ -191,13 +211,15 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
     setAssumedArea(f.assumedArea ?? 1);
     setOriginPeriod(f.originPeriod ?? "");
     const plannedCases = f.cases ?? [];
+    const plannedLabels = plannedCases.map((item) => item.label) as CaseLabel[];
+    setCaseLabels(plannedLabels.length ? plannedLabels : DEFAULT_CASE_LABELS);
     const lower = plannedCases.find((c) => c.label === "lower")?.change_pct;
     const main = plannedCases.find((c) => c.label === "main")?.change_pct;
     const higher = plannedCases.find((c) => c.label === "higher")?.change_pct;
     setShowCases(plannedCases.length > 0);
     if (lower !== undefined) setCaseLower(lower);
     if (higher !== undefined) setCaseHigher(higher);
-    if (main !== undefined) setChangePct(main);
+    setChangePct(main ?? f.changePct ?? null);
     const mismatch =
       f.crop !== crop || (f.district ?? null) !== (district ?? null) || f.season !== season;
     const linkScope = `${f.crop}${f.district ? ` · ${f.district}` : ""} · ${f.season}-season`;
@@ -357,8 +379,8 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
           {method === "percent_change" ? (
             <>
               <Field label="Assumed change (%)">
-                <input type="number" step={1} className={INPUT} value={changePct}
-                  onChange={(e) => setChangePct(Number(e.target.value))} />
+                <input type="number" step={1} className={INPUT} value={changePct ?? ""}
+                  onChange={(e) => setChangePct(e.target.value === "" ? null : Number(e.target.value))} />
               </Field>
               <Field label="Applied">
                 <select className={INPUT} value={compounding} onChange={(e) => setCompounding(e.target.value as ProjectionCompounding)}>
@@ -373,19 +395,45 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
                     checked={showCases}
                     onChange={(e) => setShowCases(e.target.checked)}
                   />
-                  Show lower &amp; higher cases
+                  Use case rows
                 </label>
               </Field>
               {showCases ? (
                 <>
-                  <Field label="Lower change (%)">
-                    <input type="number" step={1} className={INPUT} value={caseLower}
-                      onChange={(e) => setCaseLower(Number(e.target.value))} />
+                  <Field label="Case rows">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 rounded-md border border-forest/15 bg-slate-50 px-2 py-2 text-xs">
+                      {(["lower", "main", "higher"] as CaseLabel[]).map((label) => (
+                        <label key={label} className="inline-flex items-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            checked={caseLabels.includes(label)}
+                            onChange={(event) => {
+                              setCaseLabels((current) => {
+                                if (event.target.checked) {
+                                  return current.includes(label) ? current : [...current, label];
+                                }
+                                if (current.length <= 1) return current;
+                                return current.filter((item) => item !== label);
+                              });
+                            }}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
                   </Field>
-                  <Field label="Higher change (%)">
-                    <input type="number" step={1} className={INPUT} value={caseHigher}
-                      onChange={(e) => setCaseHigher(Number(e.target.value))} />
-                  </Field>
+                  {caseLabels.includes("lower") ? (
+                    <Field label="Lower change (%)">
+                      <input type="number" step={1} className={INPUT} value={caseLower}
+                        onChange={(e) => setCaseLower(Number(e.target.value))} />
+                    </Field>
+                  ) : null}
+                  {caseLabels.includes("higher") ? (
+                    <Field label="Higher change (%)">
+                      <input type="number" step={1} className={INPUT} value={caseHigher}
+                        onChange={(e) => setCaseHigher(Number(e.target.value))} />
+                    </Field>
+                  ) : null}
                 </>
               ) : null}
             </>
@@ -413,15 +461,15 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
           ) : null}
           {bandsRequested && !bandsOrdered ? (
             <p className="text-xs text-red-600 sm:col-span-2 lg:col-span-4">
-              The lower band must not exceed your assumed change ({changePct}%), and your assumed
-              change must not exceed the higher band ({caseHigher}%). Calculate stays disabled until
-              the bands are ordered — no band is silently dropped.
+              The selected case values must stay in lower-to-higher order. Calculate stays disabled
+              until the present cases are ordered — no case is silently dropped.
             </p>
           ) : null}
           {bandsRequested && bandsOrdered ? (
             <p className="text-xs text-slate-600 sm:col-span-2 lg:col-span-4">
-              Your assumed change ({changePct}%) is the main case; lower and higher frame the band
-              around it.
+              {caseLabels.includes("main") && changePct != null
+                ? `Your assumed change (${changePct}%) is the main case; selected lower and higher rows frame it.`
+                : "The selected partial case rows are preserved exactly as entered."}
             </p>
           ) : null}
         </div>
@@ -455,6 +503,8 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
               setShowCases(false);
               setCaseLower(5);
               setCaseHigher(15);
+              setCaseLabels(DEFAULT_CASE_LABELS);
+              setChangePct(10);
               setCalculatedRequest(null);
               setNotice(null);
               setExportError(null);
@@ -671,11 +721,15 @@ export function ManualProjectionWorkspace({ filters = {} }: { filters?: Dashboar
   /** The export downloads what is on screen — the calculated request, not the
    *  form as it stands now — as a Python-generated file named by calculation id. */
   async function exportCsv(): Promise<void> {
-    if (!calculatedRequest) return;
+    if (!calculatedRequest || !submitted) return;
     setExporting(true);
     setExportError(null);
     try {
-      await api.manualProjectionCsv(calculatedRequest);
+      await api.manualProjectionCsv({
+        ...calculatedRequest,
+        expected_calculation_id: submitted.calculation_id,
+        expected_dataset_version: submitted.dataset_version,
+      });
     } catch (error) {
       setExportError(
         error instanceof Error ? error.message : "The CSV export could not be downloaded.",

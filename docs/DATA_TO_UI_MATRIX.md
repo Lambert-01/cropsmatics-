@@ -68,9 +68,11 @@ carries it and names that. See `FEATURE_DATA_COVERAGE.md`.
 | Data coverage matrix | C | `meta_service.coverage` | `GET /meta/data-coverage` | `app/transparency/page.tsx` |
 | Source registry | 09 + registry | `meta_service.sources` | `GET /meta/sources` | `app/transparency/page.tsx` |
 | Algorithms & proxies | constants | `meta_service` | `GET /meta/algorithms` | `app/transparency/page.tsx` |
+| Data & Models failure state | API response status | shared UI state | each reference endpoint | `app/transparency/page.tsx` |
 | Assistant answer | 01+02 retrieved | `assistant` router | `POST /assistant/query` | `app/assistant/page.tsx` |
 | Mobile risk result | 05 | `risk_service.score` | `POST /risk/post-harvest` | `app/register-harvest.tsx` |
 | Mobile nearby context | 08 | `facility_service.context` | `GET /facilities/context` | `app/index.tsx` |
+| Mobile planning projection | P + period axis | `manual_projection_service` | `GET /scenarios/manual-projection/origins` + `POST /scenarios/manual-projection` | `ManualPlanningSection` |
 
 ## Rules this matrix enforces
 

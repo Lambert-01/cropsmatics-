@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { TimeSeriesChart } from "../../src/components/charts";
 import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
 import { ForecastWorkspace } from "../../src/components/analytics/ForecastWorkspace";
+import { ManualPlanningSection } from "../../src/components/analytics/ManualPlanningSection";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import {
   Card,
@@ -55,31 +56,26 @@ const ACTIONS: {
   id: keyof Strings;
   href: string;
   icon: keyof typeof Ionicons.glyphMap;
-  desc: string;
 }[] = [
   {
     id: "compareCrops",
     href: "/explore/compare?mode=crops",
     icon: "git-compare-outline",
-    desc: "Several crops on one shared axis, absolute or indexed.",
   },
   {
     id: "compareDistricts",
     href: "/explore/compare?mode=districts",
     icon: "git-compare-outline",
-    desc: "One crop, one period, the same indicator per district.",
   },
   {
     id: "districts",
     href: "/explore/districts",
     icon: "location-outline",
-    desc: "Open a district and read its record.",
   },
   {
     id: "indicators",
     href: "/explore/indicators",
     icon: "analytics-outline",
-    desc: "Productivity, inputs, irrigation and erosion indicators.",
   },
 ];
 
@@ -266,6 +262,9 @@ export default function AnalyzeScreen() {
           is empty — "no forecast, here is why" is a complete result. */}
       <ForecastWorkspace />
 
+      {/* A user-controlled planning scenario is separate from the gated forecast. */}
+      <ManualPlanningSection />
+
       {/* The ways to go deeper. Same routes as before, nothing removed. */}
       {ACTIONS.map((action) => (
         <Card
@@ -279,7 +278,6 @@ export default function AnalyzeScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={typography.h2}>{t[action.id]}</Text>
-            <Text style={typography.caption}>{action.desc}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.slate300} />
         </Card>

@@ -13,6 +13,20 @@
 #
 set -euo pipefail
 
+# EAS invokes git while it prepares the upload. GUI-launched terminals and
+# minimal shells sometimes omit Apple's command-line-tool paths, producing the
+# opaque `spawn git ENOENT` error after the project has already been packaged.
+# Put the standard macOS locations first and fail before touching the build env.
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+if ! command -v git >/dev/null 2>&1; then
+  echo "git was not found on PATH. Install/enable Xcode Command Line Tools, then rerun this script."
+  exit 1
+fi
+if ! git --version >/dev/null 2>&1; then
+  echo "git is present but cannot run. Install/enable Xcode Command Line Tools, then rerun this script."
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MOBILE_DIR="$ROOT/apps/mobile"
 
@@ -47,9 +61,17 @@ IP="$(lan_ip)"
 API_FINAL="${API_URL:-http://$IP:$API_PORT/api/v1}"
 WEB_FINAL="${WEB_URL:-http://$IP:$WEB_PORT/install}"
 
+case "$API_FINAL" in
+  http://localhost:*|http://localhost/*|http://127.0.0.1:*|http://127.0.0.1/*|http://0.0.0.0:*|http://0.0.0.0/*)
+    echo "WARNING: this APK will point at a loopback API that a physical phone cannot reach."
+    echo "         Pass --api https://<host>/api/v1 for the hosted demo build."
+    ;;
+esac
+
 echo "==> API base URL   : $API_FINAL"
 echo "==> Install page   : $WEB_FINAL"
 echo "==> EAS profile    : $PROFILE"
+echo "==> Git            : $(git --version)"
 echo
 
 if ! command -v eas >/dev/null 2>&1; then

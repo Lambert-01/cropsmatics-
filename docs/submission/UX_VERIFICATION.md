@@ -23,7 +23,7 @@ Three test classes are kept separate and never substituted for one another:
 A passing component test is **not** a browser pass, and a mobile-web screenshot is
 **not** a native pass.
 
-## Latest local audit, 2026-10-17
+## Latest local audit, 2026-10-17 browser evidence / 2026-10-24 code pass
 
 The latest follow-up observed the ordinary Planning calculation at 1440x900,
 1920x1080, 768x1024 and 390x844 without horizontal overflow or uncaught page
@@ -37,9 +37,18 @@ requests redirected to the local file-mode API, not production verification,
 the full route/state/language matrix or owner-approved screenshots. Temporary
 evidence is outside the repository; no approved screenshot bundle is claimed.
 
+The repository Playwright suite now runs against that same deterministic
+file-backed API and passes **16/16** rendered checks across 1440x900 desktop and
+360x740 mobile-web. It covers dashboard loading, period changes, reset, chart
+persistence, forecast withholding/retry and horizontal overflow. This does not
+replace the still-open route-by-route accessibility, keyboard, language and
+physical-device checks below.
+
 Fresh mobile `npm ci` in an isolated directory passed typecheck, lint and Expo
-configuration in the earlier pass. Latest mobile has 347 passing tests and a
-passing typecheck after the sync/auth changes. Neither is a native-device check.
+configuration in the earlier pass. The 2026-10-24 code pass has 354 passing
+mobile tests in 29 files, a passing typecheck and a warning-free lint run after
+the Home/map and secondary-query reliability changes. Neither is a native-device
+check.
 
 ## Earlier implementation-session checks
 

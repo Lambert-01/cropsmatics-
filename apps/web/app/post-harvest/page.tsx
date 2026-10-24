@@ -115,7 +115,12 @@ export default function PostHarvestPage() {
           </h2>
           <DataBadge kind="official_national" />
         </div>
-        {infrastructure.data?.totals ? (
+        {infrastructure.error ? (
+          <ErrorState
+            message={(infrastructure.error as Error).message}
+            onRetry={() => void infrastructure.refetch()}
+          />
+        ) : infrastructure.data?.totals ? (
           <p className="text-xs text-slate-600">
             Rwanda has{" "}
             <strong className="text-forest">

@@ -231,6 +231,7 @@ export default function MapsScreen() {
   const selectedDistrictLabel =
     districtPickerOptions.find((option) => option.id === selected)?.label ?? null;
   const unit = data?.unit ?? "";
+  const referenceError = periods.error ?? crops.error ?? districtCatalogue.error;
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.surface }}>
@@ -332,6 +333,16 @@ export default function MapsScreen() {
 
         {unknownDistrict ? (
           <DataWarning text={t.mapDistrictUnknown.replace("{district}", unknownDistrict)} />
+        ) : null}
+        {referenceError ? (
+          <ErrorState
+            message={t.errorGeneric}
+            onRetry={() => {
+              void periods.refetch();
+              void crops.refetch();
+              void districtCatalogue.refetch();
+            }}
+          />
         ) : null}
       </View>
 

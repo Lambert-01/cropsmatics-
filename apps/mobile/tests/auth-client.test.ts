@@ -28,7 +28,7 @@ describe("authenticated mobile API requests", () => {
 
     await expect(request<{ ok: boolean }>("/harvests/1")).resolves.toEqual({ ok: true });
 
-    const calls = fetchMock.mock.calls as unknown as Array<[RequestInfo, RequestInit]>;
+    const calls = fetchMock.mock.calls as unknown as [RequestInfo, RequestInit][];
     const init = calls[0]?.[1];
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer access-1");
   });
@@ -58,7 +58,7 @@ describe("authenticated mobile API requests", () => {
     await expect(request<{ id: string }>("/harvests/h-1")).resolves.toEqual({ id: "h-1" });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    const calls = fetchMock.mock.calls as unknown as Array<[RequestInfo, RequestInit]>;
+    const calls = fetchMock.mock.calls as unknown as [RequestInfo, RequestInit][];
     expect(String(calls[1]?.[0])).toContain("/auth/refresh");
     const retryInit = calls[2]?.[1];
     expect(new Headers(retryInit.headers).get("Authorization")).toBe("Bearer access-2");

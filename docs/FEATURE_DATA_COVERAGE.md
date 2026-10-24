@@ -64,7 +64,9 @@ remove this requirement.
 
 See [SAS coverage audit](data/SAS_COVERAGE_AUDIT.md),
 [data card](submission/DATA_CARD.md),
+[source precedence](data/SAS_SOURCE_PRECEDENCE.md),
 [traceability](submission/DATA_TO_NUMBER_TRACEABILITY.md) and
-[Current Status](CURRENT_STATUS.md). Standalone 2025B source precedence,
-worksheet dispositions, national subtotal semantics and exact cell lineage
-remain unresolved. Never edit raw official inputs to hide a discrepancy.
+[Current Status](CURRENT_STATUS.md). The annual release is the serving
+authority for 2025B; standalone variants are archive-only. Worksheet
+dispositions, national subtotal semantics and exact cell lineage remain open.
+Never edit raw official inputs to hide a discrepancy.

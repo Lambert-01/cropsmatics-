@@ -33,21 +33,27 @@ export default function MapDistrictScreen() {
         <LoadingSkeleton height={300} />
       ) : (
         <>
-          <Card style={{ alignItems: "center" }}>
-            <RwandaMap
-              width={width}
-              values={row?.district_code ? { [row.district_code]: { value: row.value, color: colors.primary } } : {}}
-              selected={slug}
-            />
-            <Text style={{ ...typography.micro, textAlign: "center" }}>
-              {row && row.value !== null
-                ? t.mapGapReadout
-                    .replace("{value}", row.value.toLocaleString())
-                    .replace("{unit}", metrics.data?.unit ?? "")
-                    .replace("{period}", metrics.data?.period ?? "—")
-                : t.mapNoVerifiedValue}
-            </Text>
-          </Card>
+          {metrics.isError ? (
+            <ErrorState message={t.errorGeneric} onRetry={() => void metrics.refetch()} />
+          ) : metrics.isLoading ? (
+            <LoadingSkeleton height={300} />
+          ) : (
+            <Card style={{ alignItems: "center" }}>
+              <RwandaMap
+                width={width}
+                values={row?.district_code ? { [row.district_code]: { value: row.value, color: colors.primary } } : {}}
+                selected={slug}
+              />
+              <Text style={{ ...typography.micro, textAlign: "center" }}>
+                {row && row.value !== null
+                  ? t.mapGapReadout
+                      .replace("{value}", row.value.toLocaleString())
+                      .replace("{unit}", metrics.data?.unit ?? "")
+                      .replace("{period}", metrics.data?.period ?? "—")
+                  : t.mapNoVerifiedValue}
+              </Text>
+            </Card>
+          )}
 
           <Card>
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>

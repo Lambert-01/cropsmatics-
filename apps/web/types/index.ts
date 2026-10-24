@@ -1277,6 +1277,10 @@ export interface ManualProjectionRequest {
   assumed_yield_kg_ha?: number | null;
   assumed_harvested_area_ha?: number | null;
   cases?: ProjectionCase[] | null;
+  /** Optional export guard: identity of the result currently shown on screen. */
+  expected_calculation_id?: string | null;
+  /** Optional export guard: dataset version currently shown on screen. */
+  expected_dataset_version?: string | null;
 }
 
 export interface BaselineObservation {

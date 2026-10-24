@@ -68,6 +68,10 @@ REQUIRED_CHECKS: tuple[Check, ...] = (
     ),
     Check("input adoption", "/analytics/input-adoption"),
     Check("canonical trend", "/analytics/canonical-trend?crop=Maize"),
+    # A yield map needs a named crop and a district-bearing period. An unscoped
+    # yield request is valid but can return zero districts, which is not a useful
+    # release assertion for the map workflow.
+    Check("map metrics", "/maps/district-metrics?metric=yield&crop=Maize&period_code=2026B"),
     Check("practice indicators", "/analytics/practice-indicators?district=Bugesera"),
     Check("post-harvest history", "/analytics/postharvest-history?limit=50"),
 )
@@ -75,7 +79,6 @@ REQUIRED_CHECKS: tuple[Check, ...] = (
 CONTEXT_CHECKS: tuple[Check, ...] = (
     Check("legacy trends", "/analytics/trends", required=False),
     Check("productivity", "/productivity", required=False),
-    Check("map metrics", "/maps/district-metrics?metric=yield", required=False),
     Check("model registry", "/meta/models", required=False),
     Check("forecast status", "/analytics/forecast-status", required=False),
 )

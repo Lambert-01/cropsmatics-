@@ -239,3 +239,25 @@ def test_csv_export_refuses_what_the_projection_refuses(client):
     exported = client.post("/api/v1/reports/manual-projection.csv", json=plan)
     assert exported.status_code == 422
     assert exported.json()["detail"]["code"] == code
+
+
+def test_csv_export_rejects_a_changed_dataset_snapshot(client):
+    _require_panel(client)
+    plan = _plan(method="carry_forward", horizon_steps=1)
+    response = client.post(
+        "/api/v1/reports/manual-projection.csv",
+        json={**plan, "expected_dataset_version": "stale-dataset-version"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "dataset_changed"
+
+
+def test_csv_export_rejects_a_changed_calculation_snapshot(client):
+    _require_panel(client)
+    plan = _plan(method="carry_forward", horizon_steps=1)
+    response = client.post(
+        "/api/v1/reports/manual-projection.csv",
+        json={**plan, "expected_calculation_id": "mp_stale-result"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "calculation_changed"

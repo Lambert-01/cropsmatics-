@@ -21,8 +21,8 @@ classifier cannot claim exposure that is not real.
 | `SAS 2023_Annual Tables (3).xlsx` | `fc07b45002c7` | 79 | `SAS_2023_ANNUAL` | **Mapped and extracted** (productivity, 2023A/B/C) |
 | `SAS 2024_Annual Tables.xlsx` | `5c7c6024d9a7` | 79 | `SAS_2024_ANNUAL` | Extracted + mapped |
 | `SAS 2025_Annual Tables.xlsx` | `3a6ed44f1e97` | 80 | `SAS_2025_ANNUAL` | Extracted + mapped |
-| `Tables_2025_Season_B_0.xlsx` | `49b045312731` | 33 | *(none)* | Seasonal source; **not ingested** (precedence undecided) |
-| `Tables_2025_Season_B_0_curated_official.xlsx` | `6fdfd6ababdf` | 33 | *(none)* | Distinct curated original; **not ingested** |
+| `Tables_2025_Season_B_0.xlsx` | `49b045312731` | 33 | *(none)* | **Archive-only**; annual release is the serving authority |
+| `Tables_2025_Season_B_0_curated_official.xlsx` | `6fdfd6ababdf` | 33 | *(none)* | **Archive-only**; distinct curated original, not ingested |
 | `Tables_2026 Season A.xlsx` | `c4e4cb4c4e69` | 35 | `SAS_2026A` | Extracted + mapped; sole retained copy |
 | `Tables_2026 Season B.xlsx` | `5ca81c6b0a54` | 33 | `SAS_2026B` | Extracted + mapped |
 
@@ -163,10 +163,11 @@ forecast trainer exclude a row.
   rows) rather than letting a period selector imply coverage that is not there.
 * **2026C does not exist** and is rejected by `normalize_period`; the period
   dimension lists exactly what NISR has published.
-* **Both standalone 2025B originals remain uningested.** The 2025B rows in the
-  panel come from the 2025 annual workbook. The two standalone originals differ
-  by hash; their cell-level differences and publication precedence must be
-  settled before either is ingested.
+* **The annual release is the serving authority for 2025B.** The two standalone
+  originals remain retained as archive-only evidence. They differ by hash and
+  are not interchangeable; neither is ingested or mixed into the panel. See
+  [`SAS_SOURCE_PRECEDENCE.md`](SAS_SOURCE_PRECEDENCE.md) for the promotion
+  controls.
 * NISR SAS publications are official statistics; the
   `DATA_LICENSE_AND_PROVENANCE.md` obligations apply. Owner-supplied workbooks
   stay untracked in git; the separately curated 2025B original remains
@@ -174,9 +175,10 @@ forecast trainer exclude a row.
 
 ## Next steps (ordered)
 
-1. Compare both standalone 2025B originals against each other and the 2025
-   annual Season B tables, then record publication precedence. **Still open** -
-   these are the two wholly unmapped 2025B workbook sources.
+1. Keep the annual release as the canonical 2025B source unless NISR publishes
+   superseding authority. If that authority arrives, complete the cell-level
+   comparison and change-control checklist in `SAS_SOURCE_PRECEDENCE.md` before
+   promoting a standalone workbook.
 2. ~~Materialize the multi-period practice/irrigation/erosion/post-harvest
    domains into processed datasets.~~ **Done**: `used` is now 134 and
    `mapped_not_exposed` is 0. The pipeline order in `scripts/data/run_all.py`
@@ -191,13 +193,13 @@ forecast trainer exclude a row.
    The web/mobile period selectors still need to read that availability.
 4. Forecast work must exclude the 89 `review`-flagged rows from training, or
    include them only in a documented sensitivity run.
-5. Review the remaining 304 `not_yet_mapped` sheets, starting with both distinct
-   2025B originals once their publication precedence is settled.
+5. Review the remaining 304 `not_yet_mapped` sheets as future scope. The two
+   standalone 2025B originals are already classified as archive-only; promote
+   either one only under `SAS_SOURCE_PRECEDENCE.md` change control.
 
 ## Current review note
 
-The 2025B precedence decision remains intentionally open in this revision. The
-two standalone workbooks have different hashes and neither is silently promoted
-over the other. The serving panel continues to use the mapped annual releases;
-this audit update changes the review date only and does not claim that an
-unreviewed 2025B worksheet is part of the analytical panel.
+The 2025B serving decision is explicit in this revision: the mapped annual
+release remains canonical, while both standalone files are archive-only. This
+does not claim the files are identical; it prevents an unreviewed workbook from
+changing an analytical result without a source-authority and lineage review.

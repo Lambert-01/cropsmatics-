@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Share, Text, View } from "react-native";
+import { Share, View } from "react-native";
 
 import { FactorAssociation } from "../../../src/components/analytics/FactorAssociation";
 import { StackedShareBar } from "../../../src/components/charts";
@@ -39,7 +39,7 @@ import { periodsCarryingLayer } from "../../../src/utils/coverage";
 import { buildCropShareText } from "../../../src/utils/shareCrop";
 
 export default function CropTerminalScreen() {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
   const router = useRouter();
   const t = strings(useAppStore((s) => s.language));
   const params = useLocalSearchParams<{ cropCode: string }>();
@@ -378,7 +378,7 @@ export default function CropTerminalScreen() {
       {/* ---- Factors associated with yield --------------------------------- */}
       <DataSection title={t.factorsTitle} subtitle={t.factorsSubtitle}>
         {cropFactors.isError ? (
-          <Text style={typography.caption}>{t.errorGeneric}</Text>
+          <ErrorState message={t.errorGeneric} onRetry={() => void cropFactors.refetch()} />
         ) : cropFactors.isLoading ? (
           <LoadingSkeleton height={180} />
         ) : (
@@ -394,7 +394,9 @@ export default function CropTerminalScreen() {
 
       {/* ---- Post-harvest use ---------------------------------------------- */}
       <DataSection title={t.useOfProduction} subtitle={t.postHarvest}>
-        {postHarvest.isLoading ? (
+        {postHarvest.isError ? (
+          <ErrorState message={t.errorGeneric} onRetry={() => void postHarvest.refetch()} />
+        ) : postHarvest.isLoading ? (
           <LoadingSkeleton height={180} />
         ) : share ? (
           <>

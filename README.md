@@ -10,7 +10,8 @@ productivity, investigate intervention priorities and plan harvest logistics.
 [API documentation](https://cropsmatics-api.onrender.com/docs) |
 [Documentation](DOCUMENTATION_INDEX.md) |
 [Current status](docs/CURRENT_STATUS.md) |
-[Remaining implementation brief](docs/REMAINING_BUILD_PROMPT.md)
+[Remaining implementation brief](docs/REMAINING_BUILD_PROMPT.md) |
+[NISR submission alignment](docs/submission/NISR_WEBINAR_ALIGNMENT.md)
 
 ## What You Can Do
 
@@ -31,6 +32,11 @@ the dataset explorer's JSON/CSV filter contract. Remaining limitations are
 documented in [current limitations and verification](docs/CURRENT_STATUS.md).
 A passing test suite does not mean this working tree is deployed or that a
 physical device and isolated PostGIS migration have been verified.
+
+For the NISR 2026 submission, the required public GitHub link, deployed app,
+README, runnable scripts and source/data disclosure are represented here. The
+maximum-three-minute screen recording is a submission artifact still to be
+recorded and committed; see [the webinar alignment checklist](docs/submission/NISR_WEBINAR_ALIGNMENT.md).
 
 ## Data And Interpretation
 
@@ -119,14 +125,15 @@ To submit a shareable Android APK build with the hosted backend configured in
 the existing `release-apk` profile:
 
 ```bash
-cd apps/mobile
-npx eas-cli login
-npx eas-cli build --platform android --profile release-apk
+bash scripts/build_mobile_apk.sh release-apk \
+  --api "https://cropsmatics-api.onrender.com/api/v1"
 ```
 
-EAS returns the artifact link when the build completes. A successful build still
-needs physical-device verification. Do not use the local-backend development
-profile for an APK intended for remote users. See
+The helper validates the mobile lockfile, TypeScript, lint, tests, Expo config,
+and the local `git` executable before submitting. EAS returns the artifact link
+when the build completes. A successful build still needs physical-device
+verification. Do not use the local-backend development profile for an APK
+intended for remote users. See
 [deployment](docs/17_DEPLOYMENT.md) for build configuration.
 
 ## Verification
@@ -138,7 +145,14 @@ make test
 pnpm --filter cropmatics-web test
 npm --prefix apps/mobile test
 NEXT_PUBLIC_API_BASE_URL=https://cropsmatics-api.onrender.com/api/v1 pnpm --filter cropmatics-web build
+(cd apps/web && npx playwright test --config=playwright.config.ts)
 ```
+
+The Playwright command starts a deterministic file-backed API for local browser
+verification and covers the dashboard scope workflow, chart persistence, reset,
+forecast withholding/retry and responsive overflow at desktop and mobile-web
+sizes. It is not a substitute for production smoke tests or a physical Android
+device run.
 
 The database integration suite needs an isolated PostGIS database through
 `CANONICAL_TEST_DATABASE_URL`; never point it at a production database.

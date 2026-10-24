@@ -36,7 +36,7 @@ import {
   SearchBar,
 } from "../src/components/ui";
 import { features } from "../src/config/features";
-import { useAllCrops, useNationalBoard } from "../src/hooks/queries";
+import { useAllCrops, useAllDistricts, useNationalBoard } from "../src/hooks/queries";
 import { useNationalInsights } from "../src/hooks/useNationalInsights";
 import { useSavedCrops } from "../src/hooks/useSavedCrops";
 import { strings } from "../src/i18n";
@@ -250,6 +250,7 @@ export default function HomeScreen() {
   const home = useQuery({ queryKey: ["mobile-home"], queryFn: homeApi.get });
   const board = useNationalBoard();
   const crops = useAllCrops();
+  const districts = useAllDistricts();
   const { insights } = useNationalInsights();
   // Saved crops are a *preference*, kept separate from published observations:
   // they reorder the watchlist, they never change a figure.
@@ -293,11 +294,13 @@ export default function HomeScreen() {
   const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
   const metricUnits = board.data?.metric_units ?? {};
 
-  const refreshing = home.isFetching || board.isFetching;
+  const refreshing = home.isFetching || board.isFetching || crops.isFetching || districts.isFetching;
   const onRefresh = useCallback(() => {
     void home.refetch();
     void board.refetch();
-  }, [home, board]);
+    void crops.refetch();
+    void districts.refetch();
+  }, [home, board, crops, districts]);
 
   const totals = board.data?.national ?? null;
 
@@ -373,7 +376,7 @@ export default function HomeScreen() {
   }, [seriesFor, changeFor, cropFilter, entry, totals]);
 
   const cropsAnalysed = home.data?.crop_count ?? crops.data?.length ?? null;
-  const districtsCovered = home.data?.district_count ?? null;
+  const districtsCovered = home.data?.district_count ?? districts.data?.length ?? null;
 
   // ---- seasons genuinely present in the published axis ----------------------
   const availableSeasons = useMemo(() => {
@@ -558,14 +561,17 @@ export default function HomeScreen() {
   }, [gapLayer.data, colors.missing]);
 
   const boardLoading = board.isLoading;
-  const failable = home.isError || board.isError;
+  // `/mobile/home` is a convenience summary. The national board is the
+  // authoritative first-screen dataset, so a transient summary failure must
+  // not hide an otherwise usable dashboard.
+  const failable = board.isError && !board.data;
 
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.primary }}>
       <AppHeader
         context={
-          home.data?.latest_period_label
-            ? `${home.data.latest_period_label} \u00b7 ${t.nationalSeries}`
+          (home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""])
+            ? `${home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]} \u00b7 ${t.nationalSeries}`
             : null
         }
       />
@@ -629,10 +635,12 @@ export default function HomeScreen() {
                   <Ionicons name="leaf" size={11} color={colors.white} />
                   <Text style={styles.heroBadgeSolidText}>{t.homeEyebrow.toUpperCase()}</Text>
                 </LinearGradient>
-                {home.data?.latest_period_label ? (
+                {(home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]) ? (
                   <View style={styles.heroBadgeGlass}>
                     <Ionicons name="calendar-outline" size={11} color={colors.white} />
-                    <Text style={styles.heroBadgeGlassText}>{home.data.latest_period_label}</Text>
+                    <Text style={styles.heroBadgeGlassText}>
+                      {home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]}
+                    </Text>
                   </View>
                 ) : null}
               </View>
@@ -648,7 +656,7 @@ export default function HomeScreen() {
                   <View style={styles.heroStatRule} />
                   <HeroStat value={districtsCovered} label={HERO_STAT_LABELS.districts} />
                   <View style={styles.heroStatRule} />
-                  <HeroStat value={3} label={HERO_STAT_LABELS.seasons} />
+                  <HeroStat value={availableSeasons.length || null} label={t.seasons} />
                 </View>
               </View>
             </ImageBackground>
@@ -955,7 +963,9 @@ export default function HomeScreen() {
                 </Pressable>
               }
             >
-              {gapLayer.isLoading ? (
+              {gapLayer.isError ? (
+                <ErrorState message={t.errorGeneric} onRetry={() => void gapLayer.refetch()} />
+              ) : gapLayer.isLoading ? (
                 <LoadingSkeleton height={200} />
               ) : districtView.ranked.length ? (
                 <>

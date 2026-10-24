@@ -103,15 +103,17 @@ probability.
 
 ## Source precedence and worksheet coverage
 
-The two standalone 2025B workbooks differ and are **not** interchangeable
-duplicates; resolving precedence is an explicit source-management decision
-(§4 of the brief) and is **not yet documented in
-`docs/data/SAS_SOURCE_PRECEDENCE.md`** — that document is outstanding. Likewise,
-not every worksheet becomes an app feature, and the honest disposition of the
-unmapped instances in `docs/data/SAS_COVERAGE_AUDIT.md` is outstanding (§5).
-Using the relevant, justified data is the acceptance criterion — not consuming
-every sheet. This revision keeps the precedence decision open and does not add
-either unreviewed standalone workbook to the serving panel.
+`SAS_2025_ANNUAL` is the canonical serving source for 2025A/B/C in this
+release. The two distinct standalone 2025B workbooks remain archive-only and
+are not loaded into the serving panel because no source-authority record proves
+that either supersedes the annual release. They must not be mixed or selected
+by filename. The full decision and promotion checklist is in
+[`docs/data/SAS_SOURCE_PRECEDENCE.md`](../data/SAS_SOURCE_PRECEDENCE.md).
+
+Not every worksheet becomes an app feature. The inventory records all 440
+worksheet instances: 134 are used by the analytical pipeline, 304 remain
+unmapped/archive-only, and 2 are metadata sheets. This is an explicit scope
+decision, not silent data loss; the coverage audit names the current disposition.
 
 ## Reproducibility
 

@@ -127,6 +127,24 @@ describe("plan share links", () => {
     expect(restored.ok).toBe(true);
     if (restored.ok) expect(restored.form).toEqual(minimal);
   });
+
+  it("keeps a partial lower/higher case set without adding a scalar main case", () => {
+    const partial: ManualProjectionForm = {
+      ...BASE,
+      changePct: null,
+      cases: [
+        { label: "lower", change_pct: -10 },
+        { label: "higher", change_pct: 5 },
+      ],
+    };
+    const request = manualProjectionRequest(partial);
+    expect(request.change_pct).toBeUndefined();
+    expect(request.cases).toEqual(partial.cases);
+
+    const restored = parsePlan(serializePlan(partial));
+    expect(restored.ok).toBe(true);
+    if (restored.ok) expect(restored.form.cases).toEqual(partial.cases);
+  });
 });
 
 describe("nextSameSeasonCodes — mirror of Python next_same_season_codes", () => {

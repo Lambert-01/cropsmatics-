@@ -50,7 +50,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "cd ../../services/api && .venv/bin/python -m uvicorn app.main:app --port 8000",
+        "cd ../../services/api && env PYTHONPATH=. CANONICAL_DATA_MODE=file CORS_ORIGINS=http://localhost:3000 .venv/bin/python -m uvicorn app.main:app --port 8000",
       url: "http://localhost:8000/api/v1/health",
       reuseExistingServer: true,
       timeout: 120_000,
@@ -58,7 +58,11 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "npx next start -p 3000",
+      // The production bundle normally requires a public HTTPS API. Browser
+      // tests deliberately use the local FastAPI process above, so opt into
+      // the explicit local-preview guard instead of inheriting .env.local.
+      command:
+        "env CROPMATICS_LOCAL_PREVIEW=1 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1 npx next start -p 3000",
       url: "http://localhost:3000",
       reuseExistingServer: true,
       timeout: 120_000,

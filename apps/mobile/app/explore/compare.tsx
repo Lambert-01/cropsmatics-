@@ -117,6 +117,7 @@ export default function CompareScreen() {
   const crops = useAllCrops();
   const districts = useAllDistricts();
   const periods = usePeriods();
+  const referenceError = crops.error ?? districts.error ?? periods.error;
 
   const compareTrends = useQuery({
     queryKey: ["compare-trends", selectedCrops, cropMetric],
@@ -157,13 +158,21 @@ export default function CompareScreen() {
   const panel = useQuery({
     queryKey: ["compare-panel", compareCrop, activePeriod],
     queryFn: () => analyticsApi.productivity({ crop: compareCrop as string, periodCode: activePeriod ?? undefined }),
-    enabled: mode === "districts" && Boolean(compareCrop) && districtMetric !== "gap",
+    enabled:
+      mode === "districts" &&
+      Boolean(compareCrop) &&
+      districtPeriods.length > 0 &&
+      districtMetric !== "gap",
   });
 
   const gapLayer = useQuery({
     queryKey: ["compare-gap", compareCrop, activePeriod],
     queryFn: () => mapsApi.districtMetrics({ metric: "gap", crop: compareCrop as string, periodCode: activePeriod ?? undefined }),
-    enabled: mode === "districts" && Boolean(compareCrop) && districtMetric === "gap",
+    enabled:
+      mode === "districts" &&
+      Boolean(compareCrop) &&
+      districtPeriods.length > 0 &&
+      districtMetric === "gap",
   });
 
   const panelRows = useMemo(
@@ -249,6 +258,16 @@ export default function CompareScreen() {
         <FilterChip label={t.compareCrops} selected={mode === "crops"} onPress={() => setMode("crops")} />
         <FilterChip label={t.compareDistricts} selected={mode === "districts"} onPress={() => setMode("districts")} />
       </View>
+      {referenceError ? (
+        <ErrorState
+          message={t.errorGeneric}
+          onRetry={() => {
+            void crops.refetch();
+            void districts.refetch();
+            void periods.refetch();
+          }}
+        />
+      ) : null}
       {mode === "crops" ? (
         <DataSection
           title={t.compareCrops}
@@ -442,16 +461,20 @@ export default function CompareScreen() {
                 {`${compareCrop} · ${activePeriodLabel}`}
               </Text>
 
-              <PeriodSelector
-                label={t.selectPeriod}
-                value={activePeriod}
-                onChange={setPeriodCode}
-                options={districtPeriods.map((period) => ({
-                  id: period.period_code,
-                  label: period.label,
-                  hint: t.compareDistrictHint.replace("{count}", String(period.n_districts)),
-                }))}
-              />
+              {districtPeriods.length ? (
+                <PeriodSelector
+                  label={t.selectPeriod}
+                  value={activePeriod}
+                  onChange={setPeriodCode}
+                  options={districtPeriods.map((period) => ({
+                    id: period.period_code,
+                    label: period.label,
+                    hint: t.compareDistrictHint.replace("{count}", String(period.n_districts)),
+                  }))}
+                />
+              ) : (
+                <EmptyState title={t.noPublishedPeriods} message={t.noDataAvailable} icon="time-outline" />
+              )}
 
               <MetricSelector
                 label={t.selectIndicator}
@@ -528,7 +551,7 @@ export default function CompareScreen() {
                   message={t.comparePickTwoDistrictsMessage}
                   icon="git-compare-outline"
                 />
-              ) : districtMetric === "gap" ? (
+              ) : districtPeriods.length === 0 ? null : districtMetric === "gap" ? (
                 // A failed request is recoverable, not "no data".
                 gapLayer.isError ? (
                   <ErrorState message={t.errorGeneric} onRetry={() => void gapLayer.refetch()} />

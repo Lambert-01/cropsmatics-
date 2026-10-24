@@ -29,6 +29,15 @@
 #   apps/mobile/.env for the duration of the build and restores it on exit.
 set -euo pipefail
 
+# EAS invokes git while preparing the upload. Keep the standard macOS command
+# line tool locations available even when this script is launched from a GUI or
+# a minimal shell, then fail before npm/EAS work if git is genuinely missing.
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+if ! command -v git >/dev/null 2>&1 || ! git --version >/dev/null 2>&1; then
+  echo "git could not be executed. Install/enable Xcode Command Line Tools, then rerun this script."
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MOBILE_DIR="$ROOT/apps/mobile"
 
@@ -73,6 +82,8 @@ with_api_env() {
     trap restore_env EXIT
     printf 'EXPO_PUBLIC_API_BASE_URL=%s\n' "$API_URL" > "$GEN_ENV"
     echo "==> API base URL : $API_URL (baked into this build)"
+  else
+    echo "==> API base URL : profile default (verify it is the hosted Render URL before sharing)"
   fi
 }
 
@@ -81,6 +92,7 @@ build_eas() {
   require_eas
   with_api_env
   echo "==> EAS profile  : $profile"
+  echo "==> Git          : $(git --version)"
   cd "$MOBILE_DIR"
   eas build --platform android --profile "$profile" --non-interactive
   cat <<EOF
@@ -133,6 +145,9 @@ case "$MODE" in
     ;;
   debug)
     validate
+    # Expo inlines EXPO_PUBLIC_* while Metro bundles the native app. Keep the
+    # local Gradle path consistent with EAS: --api must affect every APK mode.
+    with_api_env
     if [ ! -x "$MOBILE_DIR/android/gradlew" ]; then
       echo "apps/mobile/android/gradlew not found."
       echo "Generate the native project first:  (cd apps/mobile && npx expo prebuild --platform android)"
