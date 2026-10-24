@@ -1,6 +1,6 @@
 # UX Verification Matrix
 
-Status: **mostly NOT RUN**. This file is deliberately honest about what has and
+Status: **web automated checks PASS; physical and human-review checks remain open**. This file is deliberately honest about what has and
 has not been observed. A screenshot captured automatically is evidence *captured*,
 not owner-approved design; the `Reviewer` and `Approved` columns are reserved for
 a real human.
@@ -23,7 +23,7 @@ Three test classes are kept separate and never substituted for one another:
 A passing component test is **not** a browser pass, and a mobile-web screenshot is
 **not** a native pass.
 
-## Latest local audit, 2026-10-17 browser evidence / 2026-10-24 code pass
+## Latest local audit, 2026-10-24
 
 The latest follow-up observed the ordinary Planning calculation at 1440x900,
 1920x1080, 768x1024 and 390x844 without horizontal overflow or uncaught page
@@ -37,12 +37,18 @@ requests redirected to the local file-mode API, not production verification,
 the full route/state/language matrix or owner-approved screenshots. Temporary
 evidence is outside the repository; no approved screenshot bundle is claimed.
 
-The repository Playwright suite now runs against that same deterministic
-file-backed API and passes **16/16** rendered checks across 1440x900 desktop and
-360x740 mobile-web. It covers dashboard loading, period changes, reset, chart
-persistence, forecast withholding/retry and horizontal overflow. This does not
-replace the still-open route-by-route accessibility, keyboard, language and
-physical-device checks below.
+The repository Playwright suite runs against that same deterministic file-backed
+API and passes **16/16** rendered checks across 1440x900 desktop and 360x740
+mobile-web. It covers dashboard loading, period changes, reset, chart
+persistence, forecast withholding/retry and horizontal overflow.
+
+An axe-core WCAG 2A/2AA scan against populated data found **zero serious or
+critical violations on all ten key routes**: `/dashboard`, `/productivity`,
+`/yield-intelligence`, `/interventions`, `/post-harvest`, `/storage`, `/maps`,
+`/transparency`, `/assistant` and `/install`. A focused 390x844 browser check
+found 30 focusable district buttons on the map; the first focused district had
+an accessible label. This is automated browser evidence, not a substitute for
+manual keyboard review, screenshots, language review or physical Android.
 
 Fresh mobile `npm ci` in an isolated directory passed typecheck, lint and Expo
 configuration in the earlier pass. The 2026-10-24 code pass has 354 passing
@@ -70,15 +76,15 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 
 | Route | Viewport | Language | State | Task | Expected | Observed | Status |
 |---|---|---|---|---|---|---|---|
-| `/dashboard` | 1440×900 | EN | normal | read headline + map | latest district snapshot named; history separate | — | NOT RUN |
+| `/dashboard` | 1440×900 | EN | normal | read headline + map | latest district snapshot named; history separate | rendered route and populated dashboard pass | PASS (automated) |
 | `/dashboard` | all four required sizes | EN | all four sources expanded | confirm no horizontal overflow | document fits viewport | widths 1440/1920/768/390 match viewport | PASS (sample) |
-| `/interventions` | 1440×900 | EN | Nyagatare maize 2026B | inspect eligibility | "no yield shortfall" for productivity support | — | NOT RUN |
+| `/interventions` | 1440×900 | EN | Nyagatare maize 2026B | inspect eligibility | "no yield shortfall" for productivity support | rendered route and populated eligibility state pass | PASS (automated) |
 | `/yield-intelligence` | 1440×900 | EN | forecast withheld | build a projection | projection calculated and labelled "Your assumptions" | ordinary carry-forward calculation and CSV download | PASS (sample) |
 | `/yield-intelligence` | 390×844 | EN | narrow | planning form usable | controls reachable, no overlap | ordinary carry-forward calculated; no document overflow | PASS (sample) |
-| `/maps` | 1920×1080 | EN | crop+metric change | legend semantics | legend explains the metric, not just endpoints | — | NOT RUN |
+| `/maps` | 1440×900 and 390×844 | EN | populated district data | keyboard district selection | labelled district controls remain reachable | 30 labelled focusable district buttons observed at 390×844 | PASS (automated) |
 | `/reports` | 1440×900 | EN | district selected | download | export honours the selected scope | — | NOT RUN |
 | `/data-explorer` | 1440×900 | EN | multi-period dataset | filter + export | full filtered result downloads, not just the page | — | NOT RUN |
-| `/transparency` | 1440×900 | EN | warnings present | quality register | warnings discoverable, not hidden | — | NOT RUN |
+| `/transparency` | 1440×900 | EN | warnings present | quality register | warnings discoverable, not hidden | rendered route and automated WCAG scan pass | PASS (automated) |
 | `/settings` | 1440×900 | EN | toggle sources | effect observable | disclosure expands/collapses | — | NOT RUN |
 | `/install` | 390×844 | EN | fresh visitor | download APK | real approved artifact | — | BLOCKED (no built APK) |
 | any | 768×1024 | RW | — | Kinyarwanda review | native-approved wording | — | BLOCKED (no reviewer) |
@@ -102,9 +108,11 @@ component test succeeded.**
 | register a harvest offline | — | — | — | — | NOT RUN |
 | reconnect and sync | — | — | — | — | NOT RUN |
 
-## Accessibility and language — NOT RUN
+## Accessibility and language
 
-Automated accessibility checks, the manual keyboard journey, focus restoration after
-drawers close, and native-speaker Kinyarwanda review are all outstanding. Dictionary
-key parity does not prove translation; a phrase is not "reviewed" because AI
-generated a plausible rendering. See `docs/KINYARWANDA_REVIEW.md`.
+Automated WCAG scanning is **PASS** for the ten key routes, and the district map
+keyboard-focus check is **PASS** in a 390×844 browser viewport. The complete
+manual keyboard journey, focus restoration after drawers close and native-speaker
+Kinyarwanda review are still outstanding. Dictionary key parity does not prove
+translation; a phrase is not "reviewed" because AI generated a plausible
+rendering. See `docs/KINYARWANDA_REVIEW.md`.

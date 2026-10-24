@@ -139,7 +139,7 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
           {/* Active scope, read-only: what the numbers on screen actually cover. */}
           {scope.length ? (
             <div className="hidden items-center gap-1.5 rounded-lg border border-forest/15 bg-forest/[0.03] px-2.5 py-1.5 md:flex">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                 {t("header.scope")}
               </span>
               <span className="max-w-[22rem] truncate text-xs font-medium text-slate-700">

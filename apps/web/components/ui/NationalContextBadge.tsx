@@ -20,7 +20,7 @@ export function NationalContextBadge({
   return (
     <span
       className={cn(
-        "inline-flex flex-wrap items-center gap-1.5 rounded-full border border-info/25 bg-info/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-info",
+        "inline-flex flex-wrap items-center gap-1.5 rounded-full border border-info/25 bg-info/[0.06] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-800",
         className,
       )}
       title="This dataset is published at national level only. Values are never broken down by district."

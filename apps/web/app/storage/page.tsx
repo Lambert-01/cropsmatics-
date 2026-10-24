@@ -42,7 +42,7 @@ export default function StoragePage() {
       />
 
       <div className="card border-amber/25 bg-amber/[0.05] p-4">
-        <h2 className="text-sm font-semibold text-amber">No verified facility capacity is assumed</h2>
+        <h2 className="text-sm font-semibold text-amber-800">No verified facility capacity is assumed</h2>
         <p className="mt-1 text-xs text-slate-700">
           The public cold-chain announcement names program districts but publishes neither facility
           coordinates nor capacities. Cropmatics therefore shows <strong>Capacity not verified</strong>{" "}

@@ -18,8 +18,10 @@ not a dated list of assumed passes.
 - [ ] Verify projection, filters, report downloads, expanded sources and error
   states in a rendered browser, not just returned HTML. Local component/API
   tests pass, but the current-commit browser matrix is still required.
-- [ ] Complete the [UX matrix](submission/UX_VERIFICATION.md), keyboard checks,
-  accessibility audit and native-language review.
+- [x] Run the automated accessibility audit and populated-data keyboard map
+  check; the ten key web routes have zero serious/critical axe violations.
+- [ ] Complete the manual keyboard/drawer journey, full UX matrix, screenshots
+  and native-language review.
 - [ ] Build an APK against the hosted API and record real-device offline,
   restart, reconnect, idempotency and persistence tests.
 - [ ] Confirm no secrets, private operational records, unlicensed source data or
@@ -32,9 +34,12 @@ the [incident runbook](19_PRODUCTION_INCIDENT_RUNBOOK.md) before operating on
 deployed services. A green build does not certify data methodology or UX.
 
 Latest evidence (2026-10-24): the local Playwright suite passed 16/16 rendered
-dashboard/forecast checks at desktop and mobile-web sizes. Commit `387076a`
-is pushed to `main`; Vercel reports the production deployment ready and Render
-reports the API deployment live. The post-deploy read-only gate currently fails
+dashboard/forecast checks at desktop and mobile-web sizes. The populated-data
+axe-core scan reported zero serious/critical violations on ten key routes, and
+the mobile-viewport map check found 30 labelled focusable district controls.
+The current release is pushed to `main`; Vercel reports the production
+deployment ready and Render reports the API deployment live. The post-deploy
+read-only gate currently fails
 readiness plus four canonical analytics checks because the external production
 database still reports dataset version `0.2.0-646a72d53cd349df`, while the
 deployed image expects the newer processed version `0.2.0-0e76c4d8f79ee5fc`.

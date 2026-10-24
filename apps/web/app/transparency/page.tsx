@@ -75,7 +75,12 @@ export default function TransparencyPage() {
             <EmptyState title="No registered sources." hint="Run the data pipeline to build the registry." />
           </div>
         ) : (
-          <div className="thin-scroll mt-3 max-h-[22rem] overflow-auto">
+          <div
+            className="thin-scroll mt-3 max-h-[22rem] overflow-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Registered data sources"
+          >
             <table className="table-base">
               <thead>
                 <tr>
@@ -136,7 +141,12 @@ export default function TransparencyPage() {
                 <li key={n}>• {n}</li>
               ))}
             </ul>
-            <div className="thin-scroll max-h-[26rem] overflow-auto">
+            <div
+              className="thin-scroll max-h-[26rem] overflow-auto"
+              tabIndex={0}
+              role="region"
+              aria-label="Data coverage details"
+            >
               <table className="table-base">
                 <thead>
                   <tr>
@@ -156,7 +166,7 @@ export default function TransparencyPage() {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                             d.coverage_level === "district"
-                              ? "bg-success/10 text-success"
+                              ? "bg-success/10 text-green-800"
                               : "bg-slate-500/10 text-slate-600"
                           }`}
                         >
@@ -199,7 +209,7 @@ export default function TransparencyPage() {
                 <span
                   className={`rounded-full px-2 py-0.5 font-medium ${
                     dataVersion.data.validation?.status === "passed"
-                      ? "bg-success/10 text-success"
+                      ? "bg-success/10 text-green-800"
                       : "bg-danger/10 text-danger"
                   }`}
                 >
@@ -233,7 +243,12 @@ export default function TransparencyPage() {
               </p>
 
               {(dataVersion.data.validation?.issues ?? []).length > 0 ? (
-                <div className="thin-scroll mt-3 max-h-[20rem] overflow-auto">
+                <div
+                  className="thin-scroll mt-3 max-h-[20rem] overflow-auto"
+                  tabIndex={0}
+                  role="region"
+                  aria-label="Data quality issues"
+                >
                   <table className="table-base">
                     <thead>
                       <tr>
@@ -252,7 +267,7 @@ export default function TransparencyPage() {
                                 i.level === "error"
                                   ? "bg-danger/10 text-danger"
                                   : i.level === "warn"
-                                    ? "bg-amber/10 text-amber"
+                                    ? "bg-amber/10 text-amber-800"
                                     : "bg-slate-500/10 text-slate-600"
                               }`}
                             >

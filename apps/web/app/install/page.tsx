@@ -55,7 +55,13 @@ export default function InstallPage() {
             Scan to install
           </div>
           <div className="mt-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-forest/10">
-            <QRCodeSVG value={installUrl} size={220} fgColor="#1a3c2e" bgColor="#ffffff" />
+            <QRCodeSVG
+              value={installUrl}
+              size={220}
+              fgColor="#1a3c2e"
+              bgColor="#ffffff"
+              aria-label="QR code for the Cropmatics app install page"
+            />
           </div>
           <p className="mt-4 max-w-sm text-xs leading-relaxed text-slate-600">
             Open the camera app on your Android phone and point it at this code.

@@ -13,7 +13,10 @@
   --c-success: 22 163 74;
   --c-info: 37 99 235;
   --c-amber: 217 119 6;
-  --c-danger: 220 38 38;
+  --c-amber-800: 146 64 14;
+  --c-green-800: 22 101 52;
+  --c-blue-800: 30 64 175;
+  --c-danger: 185 28 28;
   --c-risk-low: 22 163 74;
   --c-risk-moderate: 217 119 6;
   --c-risk-high: 220 38 38;
@@ -40,7 +43,7 @@
   --c-slate-100: 241 245 249;
   --c-slate-200: 226 232 240;
   --c-slate-300: 203 213 225;
-  --c-slate-400: 148 163 184;
+  --c-slate-400: 100 116 139;
   --c-slate-500: 100 116 139;
   --c-slate-600: 71 85 105;
   --c-slate-700: 51 65 85;
@@ -63,6 +66,9 @@ html.dark {
   --c-success: 52 211 153;
   --c-info: 96 165 250;
   --c-amber: 251 191 36;
+  --c-amber-800: 251 191 36;
+  --c-green-800: 52 211 153;
+  --c-blue-800: 96 165 250;
   --c-danger: 248 113 113;
   --c-risk-low: 52 211 153;
   --c-risk-moderate: 251 191 36;
@@ -266,7 +272,7 @@ html.dark .map-district {
     @apply flex flex-col gap-0.5; /* label on line 1, unit on line 2 */
   }
   .responsive-table .rt-unit {
-    @apply text-[10px] font-medium normal-case tracking-normal text-slate-500;
+    @apply text-[10px] font-medium normal-case tracking-normal text-slate-600;
   }
   .responsive-table .rt-sort-btn {
     @apply flex w-full items-end justify-between gap-1.5 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40;

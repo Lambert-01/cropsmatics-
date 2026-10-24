@@ -17,24 +17,24 @@ export type DataBadgeKind =
 export const BADGE_KINDS: Record<DataBadgeKind, { label: string; className: string; title: string }> = {
   official_national: {
     label: "OFFICIAL NATIONAL DATA",
-    className: "border-primary/25 bg-primary/10 text-primary",
+    className: "border-primary/25 bg-primary/10 text-forest",
     title:
       "Published MINAGRI national totals. Not district values and not facility-level capacity.",
   },
   verified_program: {
     label: "VERIFIED PROGRAM CONTEXT",
-    className: "border-info/25 bg-info/10 text-info",
+    className: "border-info/25 bg-info/10 text-blue-800",
     title:
       "Region/program membership confirmed by an official source. No facility capacity is published.",
   },
   scenario_input: {
     label: "SCENARIO INPUT",
-    className: "border-amber/30 bg-amber/10 text-amber",
+    className: "border-amber/30 bg-amber/10 text-amber-800",
     title: "Values supplied by the user for a what-if optimization run. Not official data.",
   },
   not_verified: {
     label: "NOT VERIFIED",
-    className: "border-amber/30 bg-amber/10 text-amber",
+    className: "border-amber/30 bg-amber/10 text-amber-800",
     title: "The official source does not publish this value, so it is shown as not verified.",
   },
   facility_unavailable: {

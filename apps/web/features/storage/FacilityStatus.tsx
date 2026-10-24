@@ -21,7 +21,12 @@ export function FacilityStatus({ data }: { data?: FacilitiesResponse }) {
           />
         </div>
       ) : (
-        <div className="thin-scroll mt-3 max-h-[24rem] overflow-auto">
+        <div
+          className="thin-scroll mt-3 max-h-[24rem] overflow-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Verified storage program districts"
+        >
           <table className="table-base">
             <thead>
               <tr>
@@ -37,7 +42,7 @@ export function FacilityStatus({ data }: { data?: FacilitiesResponse }) {
                   <td className="font-medium text-slate-700">{f.district}</td>
                   <td className="text-slate-600">{f.initiative}</td>
                   <td>
-                    <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[11px] font-medium text-amber">
+                    <span className="rounded-full bg-amber/10 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                       Capacity not verified
                     </span>
                   </td>

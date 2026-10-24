@@ -37,9 +37,9 @@ export function ComponentAvailabilityNotice({
             <span
               className={
                 entry.status === "unavailable"
-                  ? "chip border-amber/40 bg-amber/10 text-amber"
+                  ? "chip border-amber/40 bg-amber/10 text-amber-800"
                   : entry.status === "measured"
-                    ? "chip border-success/30 bg-success/10 text-success"
+                    ? "chip border-success/30 bg-success/10 text-green-800"
                     : "chip"
               }
             >

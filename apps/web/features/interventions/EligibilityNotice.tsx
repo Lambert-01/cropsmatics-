@@ -49,7 +49,7 @@ export function EligibilityNotice({
           {excluded > 0 ? (
             <>
               {" · "}
-              <span className="font-semibold tabular-nums text-amber">{excluded}</span> not a
+              <span className="font-semibold tabular-nums text-amber-800">{excluded}</span> not a
               shortfall
             </>
           ) : null}

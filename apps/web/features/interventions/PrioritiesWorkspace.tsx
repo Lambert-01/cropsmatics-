@@ -196,9 +196,9 @@ export function PrioritiesWorkspace({ filters }: { filters: DashboardFilters }) 
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-slate-800">
                         {row.district}
-                        <span className="font-normal text-slate-500"> · {row.crop}</span>
+                        <span className="font-normal text-slate-600"> · {row.crop}</span>
                       </span>
-                      <span className="mt-0.5 block text-xs text-slate-500">
+                      <span className="mt-0.5 block text-xs text-slate-600">
                         Gap {fmtNumber(row.gap, 1)}% · score {fmtNumber(row.score * 100, 0)}/100
                       </span>
                     </span>

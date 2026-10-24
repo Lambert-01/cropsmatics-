@@ -4,8 +4,8 @@ Reviewed: **2026-10-24**, latest working-tree changes after the mobile and
 submission-readiness pass.
 Working branch: `review/latest-improvements-2026-10-17`.
 
-**Verdict: the previously identified code defects are repaired and commit
-`387076a` is now pushed to `main`, but the production data release is still
+**Verdict: the previously identified code defects are repaired and the latest
+release is pushed to `main`, but the production data release is still
 blocked by canonical database parity.** Render and Vercel have deployed the
 commit, while the API intentionally fails closed until the external database is
 loaded with the dataset built by that commit. The remaining task is now
@@ -77,15 +77,15 @@ interpretation, exact per-metric cell lineage and a reviewed issue register
 remain open. All periods are not interchangeable and not every crop exists in
 every release.
 
-Dedicated Reports and Transparency pages still need their full page-level
-visual/accessibility review. Settings now has reference-data status and retry
-states. Maps now has the shared filter and failure-state wiring, but its full
-visual/accessibility review is still pending. Explorer now has a grouped
+Dedicated Reports and Transparency pages still need their full page-level visual
+review and approved screenshots. Settings now has reference-data status and retry
+states. Maps now has the shared filter, failure-state wiring and automated
+keyboard/WCAG checks, but its full visual review is still pending. Explorer now has a grouped
 catalog workflow, but exact per-metric lineage and a full researcher review
 remain open. Native mobile now has the local planning workflow and API/queue
 changes, but the full requested Analyze/Compare/Ask design pass and
 physical-device sign-off remain open.
-The complete EN/RW browser-state matrix, automated accessibility/keyboard review,
+The complete EN/RW browser-state matrix, manual keyboard/drawer review,
 native-speaker Kinyarwanda review and approved APK/install artifact are pending.
 
 Validated forecasts remain withheld when publication criteria fail. Missing
@@ -113,7 +113,8 @@ Fresh checks against this increment:
 | Data rebuild determinism | `check_idempotent_build.py` passed; dataset identity stayed `0.2.0-0e76c4d8f79ee5fc` across two builds |
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
-| Live Render deployment | Commit `387076a` is live, but the release gate currently reports `DATASET_OUT_OF_SYNC`: readiness, dashboard overview, input adoption, canonical trend and scoped map metrics return 503 until the external canonical database is synchronized |
+| Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
+| Live Render deployment | The latest Render deployment is live, but the release gate currently reports `DATASET_OUT_OF_SYNC`: readiness, dashboard overview, input adoption, canonical trend and scoped map metrics return 503 until the external canonical database is synchronized |
 
 Focused checks in this pass:
 
@@ -147,7 +148,7 @@ settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
 This increment is prepared on `review/latest-improvements-2026-10-17` and
-promoted to `main` as `387076a`. A green local suite does not by itself prove
+promoted to `main`. A green local suite does not by itself prove
 canonical production readiness. The post-deploy Render check on 2026-10-24
 reported the old loaded version `0.2.0-646a72d53cd349df`, while the local and
 deployed build expects `0.2.0-0e76c4d8f79ee5fc`. The manual

@@ -116,9 +116,9 @@ export function bandForScore(score: number): string {
 /** Priority bands are always shown as colour + text (+ icon at call sites). */
 export const PRIORITY_BANDS: Record<string, { label: string; className: string; icon: string }> = {
   CRITICAL: { label: "Critical", className: "bg-danger/10 text-danger border-danger/30", icon: "▲" },
-  HIGH: { label: "High", className: "bg-amber/10 text-amber border-amber/30", icon: "▲" },
-  MEDIUM: { label: "Medium", className: "bg-info/10 text-info border-info/30", icon: "■" },
-  LOW: { label: "Low", className: "bg-success/10 text-success border-success/30", icon: "●" },
+  HIGH: { label: "High", className: "bg-amber/10 text-amber-800 border-amber/30", icon: "▲" },
+  MEDIUM: { label: "Medium", className: "bg-info/10 text-blue-800 border-info/30", icon: "■" },
+  LOW: { label: "Low", className: "bg-success/10 text-green-800 border-success/30", icon: "●" },
 };
 
 export function priorityBand(band: string | null | undefined) {

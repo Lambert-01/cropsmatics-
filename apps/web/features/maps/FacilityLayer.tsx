@@ -82,7 +82,7 @@ export function FacilityLayer({ facilities }: { facilities: FacilityItem[] }) {
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium text-forest">{f.district}</span>
-              <span className="rounded-full bg-amber/10 px-1.5 py-0.5 text-[10px] font-medium text-amber">
+              <span className="rounded-full bg-amber/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
                 Capacity not verified
               </span>
             </div>

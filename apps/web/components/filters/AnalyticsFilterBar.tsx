@@ -174,7 +174,7 @@ function SearchableSelect({
         }}
         className="input flex w-full items-center justify-between gap-2 text-left"
       >
-        <span className={cn("truncate", !selected && "text-slate-400")}>
+        <span className={cn("truncate", !selected && "text-slate-500")}>
           {selected?.label ?? placeholder}
         </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />

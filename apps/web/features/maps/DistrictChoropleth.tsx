@@ -46,7 +46,7 @@ export function DistrictChoropleth({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      role="img"
+      role="group"
       aria-label="Rwanda district choropleth map"
       className="h-auto w-full touch-none"
     >

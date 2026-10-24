@@ -49,17 +49,17 @@ export function DistrictRationale({
             <PriorityBadge band={row.band} />
           </div>
 
-          <dl className="mt-3 space-y-2">
+          <div className="mt-3 space-y-2" role="list" aria-label="Priority score components">
             {COMPONENTS.map((c) => {
               const value = row[c.key] as number | null;
               const excluded = value === null || value === undefined;
               return (
-                <div key={c.key}>
+                <div key={c.key} role="listitem">
                   <div className="flex items-center justify-between text-xs">
-                    <dt className="text-slate-600">{c.label}</dt>
-                    <dd className={excluded ? "text-amber" : "tabular-nums text-slate-500"}>
+                    <span className="text-slate-600">{c.label}</span>
+                    <span className={excluded ? "text-amber-800" : "tabular-nums text-slate-500"}>
                       {excluded ? "not available for this period" : fmtNumber(value, 2)}
-                    </dd>
+                    </span>
                   </div>
                   <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-forest/10">
                     <div
@@ -77,7 +77,7 @@ export function DistrictRationale({
                 </div>
               );
             })}
-          </dl>
+          </div>
 
           {unavailable.length ? (
             <p className="mt-3 rounded-lg border border-amber/25 bg-amber/[0.06] p-3 text-[11px] text-slate-600">

@@ -62,7 +62,7 @@ export function OptimizationDemo() {
         title={
           <span className="inline-flex items-center gap-2">
             Storage allocation (OR-Tools)
-            <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber">
+            <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
               Scenario / demonstration mode
             </span>
           </span>

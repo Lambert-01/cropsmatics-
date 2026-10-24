@@ -59,7 +59,7 @@ export function KpiCard({
       </div>
       {kpi.note ? <p className="mt-1 text-[11px] leading-snug text-slate-400">{kpi.note}</p> : null}
       {kpi.source_id ? (
-        <p className="mt-1 truncate text-[10px] text-slate-300" title={kpi.source_id}>
+        <p className="mt-1 truncate text-[10px] text-slate-500" title={kpi.source_id}>
           {kpi.source_id}
         </p>
       ) : null}

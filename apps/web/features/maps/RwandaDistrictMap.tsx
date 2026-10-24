@@ -186,7 +186,7 @@ export function RwandaDistrictMap({
 
       {data?.components_unavailable?.length ? (
         <p className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
-          <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber">
+          <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber-800">
             Not in this score
           </span>{" "}
           {unavailableSummary(data.components_unavailable)}
