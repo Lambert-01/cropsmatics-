@@ -5,14 +5,12 @@ submission-readiness pass.
 Working branch: `main`.
 
 **Verdict: this is a strong release candidate, but not yet a fully verified
-submission.** The latest dashboard refetch fix is now on local `main` at
-`2e8737a`; the last Render deployment observed during this audit is `2f4dfc5`.
-Render logs subsequently showed readiness and analytics requests returning
-`200`, so the canonical database release is serving again. The latest `main`
-revision still needs to deploy and be rechecked before it is called the
-production revision. Remaining work is UX/device/demo evidence rather than the
-earlier ownership, claim-binding, benchmark-KPI, sync-state or dataset-contract
-defects. The remaining task is specified in
+submission.** The latest dashboard refetch fix is on `main` at `2ef8219`.
+Render is live on that revision, Vercel reports a successful deployment, and
+readiness plus representative analytics smoke tests returned `200`. The
+canonical database release is serving again. Remaining work is UX/device/demo
+evidence rather than the earlier ownership, claim-binding, benchmark-KPI,
+sync-state or dataset-contract defects. The remaining task is specified in
 [REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).
 
 ## Confirmed Improvements
@@ -115,7 +113,7 @@ Fresh checks against this increment:
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | The last deployed `main` revision is live; Render logs observed during this audit show readiness, dashboard overview, input adoption, canonical trend and scoped map metrics returning 200 after canonical database synchronization. The latest `main` revision still needs a post-deploy smoke check. |
+| Live Render deployment | Render is live on `main` commit `2ef8219`; readiness, dashboard overview, input adoption, canonical trend and scoped Maize district metrics all returned 200 in the final smoke check. |
 
 Focused checks in this pass:
 
@@ -148,12 +146,9 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The latest dashboard fix is now fast-forwarded onto local `main`. A green local
-suite does not by itself prove that Vercel and Render serve that exact SHA; after
-the push, record the deployed commit and rerun the production release gate. The
-canonical database synchronization has already been observed through live `200`
-responses, but the release workflow and deployed SHA should remain part of the
-final evidence.
+The latest dashboard fix is fast-forwarded onto `main`, and the final GitHub,
+Render and representative API checks passed for `2ef8219`. Future code changes
+must repeat the same deployed-SHA and production smoke checks.
 
 Local debug and release APK files exist and were built against the hosted API.
 The Gradle release variant currently uses the debug keystore, so it is suitable

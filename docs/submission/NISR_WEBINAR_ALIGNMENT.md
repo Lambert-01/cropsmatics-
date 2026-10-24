@@ -10,8 +10,8 @@ minutes.
 
 | Webinar requirement | Repository state | Evidence or remaining action |
 |---|---|---|
-| Public GitHub repository | Ready in the current repository | Push the final reviewed revision to the intended public branch and record the commit SHA. |
-| Public deployed application | Existing web/API links are documented | Verify Vercel and Render serve that same commit; test readiness and key routes after deployment. |
+| Public GitHub repository | Verified | `main` contains `2ef8219`; GitHub Actions completed successfully for that commit. |
+| Public deployed application | Verified for the current release candidate | Render is live on `2ef8219`; Vercel reports a successful deployment and the API readiness, overview, input adoption, canonical trend and map smoke checks returned HTTP 200. |
 | README explaining data, message and interaction | Present | README describes the NISR data, Python/API architecture, user workflows and hosted mobile build. |
 | Runnable scripts | Present | `scripts/data/run_all.py`, API/web/mobile commands and APK helpers are documented. |
 | Data file or source link | Present with provenance constraints | Official worksheet extracts, processed outputs and source registry are documented; do not publish restricted workbooks without permission. |

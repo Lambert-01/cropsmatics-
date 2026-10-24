@@ -26,9 +26,9 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
 **Status:** release-candidate code, not a completed production certification.
-The latest dashboard refetch fix is on `main` locally and must be deployed and
-smoke-tested against Vercel/Render. The production API was observed healthy
-after canonical database synchronization. The latest changes repair
+The latest dashboard refetch fix is deployed from `main` at `2ef8219`; the
+production API smoke test passed after canonical database synchronization. The
+latest changes repair
 authenticated operational ownership, AI crop/period claim binding, peer
 benchmark headlines, transactional mobile sync state and the dataset explorer's
 JSON/CSV filter contract. Remaining limitations are documented in [current
