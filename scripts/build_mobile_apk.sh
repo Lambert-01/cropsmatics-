@@ -93,8 +93,34 @@ build_eas() {
   with_api_env
   echo "==> EAS profile  : $profile"
   echo "==> Git          : $(git --version)"
-  cd "$MOBILE_DIR"
-  eas build --platform android --profile "$profile" --non-interactive
+
+  # EAS's ignore walker cannot handle this repository's historical trailing
+  # space in its absolute path. Build from a normalized temporary mobile
+  # project when that path is present; the staged copy contains the same
+  # committed source and the generated hosted-API environment file.
+  case "$ROOT" in
+    *[[:space:]])
+      command -v rsync >/dev/null 2>&1 || {
+        echo "rsync is required to stage an EAS build from a whitespace-suffixed checkout."
+        exit 1
+      }
+      local stage_root
+      stage_root="$(mktemp -d "${TMPDIR:-/tmp}/cropmatics-eas.XXXXXX")"
+      echo "==> EAS staging path: $stage_root"
+      rsync -a \
+        --exclude 'node_modules' \
+        --exclude 'android/.gradle' \
+        --exclude 'android/app/build' \
+        --exclude '.env.build-backup' \
+        "$MOBILE_DIR/" "$stage_root/"
+      (cd "$stage_root" && npm ci --ignore-scripts && \
+        EAS_NO_VCS=1 EAS_PROJECT_ROOT="$stage_root" \
+        eas build --platform android --profile "$profile" --non-interactive)
+      ;;
+    *)
+      (cd "$MOBILE_DIR" && eas build --platform android --profile "$profile" --non-interactive)
+      ;;
+  esac
   cat <<EOF
 
 Build submitted. EAS prints the artifact URL when it finishes (10-20 min).

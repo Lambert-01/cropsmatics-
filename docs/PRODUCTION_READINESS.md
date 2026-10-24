@@ -32,8 +32,18 @@ the [incident runbook](19_PRODUCTION_INCIDENT_RUNBOOK.md) before operating on
 deployed services. A green build does not certify data methodology or UX.
 
 Latest evidence (2026-10-24): the local Playwright suite passed 16/16 rendered
-dashboard/forecast checks at desktop and mobile-web sizes, and the read-only
-production gate passed 13/13 required Render endpoints. The checklist remains
-open for exact pushed-commit parity: the live API reports dataset version
-`0.2.0-646a72d53cd349df`, while this working tree contains newer uncommitted
-changes.
+dashboard/forecast checks at desktop and mobile-web sizes. Commit `387076a`
+is pushed to `main`; Vercel reports the production deployment ready and Render
+reports the API deployment live. The post-deploy read-only gate currently fails
+readiness plus four canonical analytics checks because the external production
+database still reports dataset version `0.2.0-646a72d53cd349df`, while the
+deployed image expects the newer processed version `0.2.0-0e76c4d8f79ee5fc`.
+This is an intentional fail-closed state, not permission to fall back to stale
+or fabricated data. Run the approval-gated `Release database (canonical sync)`
+workflow from `main` after the required backup and isolated rehearsal, then
+rerun `scripts/verify_production.py` until it passes 13/13.
+
+The hosted signed APK submission was attempted with the hosted Render API but
+Expo rejected it because the account has exhausted its free Android-build quota
+for the month. The local debug APK remains available; a signed shareable APK
+requires the quota reset or an EAS plan upgrade.

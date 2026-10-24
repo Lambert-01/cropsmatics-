@@ -104,8 +104,33 @@ EXPO_PUBLIC_INSTALL_PAGE_URL=$WEB_FINAL
 EOF
 
 # ---- build ------------------------------------------------------------------
-cd "$MOBILE_DIR"
-eas build --platform android --profile "$PROFILE" --non-interactive
+# EAS's ignore walker cannot handle this repository's historical trailing space
+# in its absolute path. Stage only the mobile project from a normalized path so
+# the hosted build remains usable after the free-plan quota resets.
+case "$ROOT" in
+  *[[:space:]])
+    command -v rsync >/dev/null 2>&1 || {
+      echo "rsync is required to stage an EAS build from a whitespace-suffixed checkout."
+      exit 1
+    }
+    STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cropmatics-eas.XXXXXX")"
+    echo "==> EAS staging path: $STAGE_ROOT"
+    rsync -a \
+      --exclude 'node_modules' \
+      --exclude 'android/.gradle' \
+      --exclude 'android/app/build' \
+      --exclude '.env.build-backup' \
+      "$MOBILE_DIR/" "$STAGE_ROOT/"
+    cd "$STAGE_ROOT"
+    npm ci --ignore-scripts
+    EAS_NO_VCS=1 EAS_PROJECT_ROOT="$STAGE_ROOT" \
+      eas build --platform android --profile "$PROFILE" --non-interactive
+    ;;
+  *)
+    cd "$MOBILE_DIR"
+    eas build --platform android --profile "$PROFILE" --non-interactive
+    ;;
+esac
 
 # ---- done -------------------------------------------------------------------
 cat <<EOF

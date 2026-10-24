@@ -26,12 +26,15 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
 **Status:** release-candidate code, not a completed production certification.
-The latest changes repair authenticated operational ownership, AI crop/period
-claim binding, peer benchmark headlines, transactional mobile sync state and
-the dataset explorer's JSON/CSV filter contract. Remaining limitations are
+Commit `387076a` is pushed to `main` and deployed to Vercel/Render. The API is
+currently fail-closed because the external canonical database still needs the
+release workflow to load the dataset version built by this commit. The latest
+changes repair authenticated operational ownership, AI crop/period claim
+binding, peer benchmark headlines, transactional mobile sync state and the
+dataset explorer's JSON/CSV filter contract. Remaining limitations are
 documented in [current limitations and verification](docs/CURRENT_STATUS.md).
-A passing test suite does not mean this working tree is deployed or that a
-physical device and isolated PostGIS migration have been verified.
+A passing test suite does not mean that the canonical database, physical
+device, isolated PostGIS migration or signed APK has been verified.
 
 For the NISR 2026 submission, the required public GitHub link, deployed app,
 README, runnable scripts and source/data disclosure are represented here. The
