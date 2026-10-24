@@ -26,13 +26,13 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
 **Status:** release-candidate code, not a completed production certification.
-The latest release is pushed to `main` and deployed to Vercel/Render. The API is
-currently fail-closed because the external canonical database still needs the
-release workflow to load the dataset version built by the release. The latest
-changes repair authenticated operational ownership, AI crop/period claim
-binding, peer benchmark headlines, transactional mobile sync state and the
-dataset explorer's JSON/CSV filter contract. Remaining limitations are
-documented in [current limitations and verification](docs/CURRENT_STATUS.md).
+The latest dashboard refetch fix is on `main` locally and must be deployed and
+smoke-tested against Vercel/Render. The production API was observed healthy
+after canonical database synchronization. The latest changes repair
+authenticated operational ownership, AI crop/period claim binding, peer
+benchmark headlines, transactional mobile sync state and the dataset explorer's
+JSON/CSV filter contract. Remaining limitations are documented in [current
+limitations and verification](docs/CURRENT_STATUS.md).
 A passing test suite does not mean that the canonical database, physical
 device, isolated PostGIS migration or signed APK has been verified.
 

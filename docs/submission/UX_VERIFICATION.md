@@ -86,7 +86,7 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 | `/data-explorer` | 1440×900 | EN | multi-period dataset | filter + export | full filtered result downloads, not just the page | — | NOT RUN |
 | `/transparency` | 1440×900 | EN | warnings present | quality register | warnings discoverable, not hidden | rendered route and automated WCAG scan pass | PASS (automated) |
 | `/settings` | 1440×900 | EN | toggle sources | effect observable | disclosure expands/collapses | — | NOT RUN |
-| `/install` | 390×844 | EN | fresh visitor | download APK | real approved artifact | — | BLOCKED (no built APK) |
+| `/install` | 390×844 | EN | fresh visitor | download APK | real approved artifact | local APK exists; approved shareable artifact not verified | BLOCKED (signed artifact) |
 | any | 768×1024 | RW | — | Kinyarwanda review | native-approved wording | — | BLOCKED (no reviewer) |
 
 Cross-cutting checks still outstanding: page-level overflow with sources expanded,

@@ -2,16 +2,17 @@
 
 Reviewed: **2026-10-24**, latest working-tree changes after the mobile and
 submission-readiness pass.
-Working branch: `review/latest-improvements-2026-10-17`.
+Working branch: `main`.
 
-**Verdict: the previously identified code defects are repaired and the latest
-release is pushed to `main`, but the production data release is still
-blocked by canonical database parity.** Render and Vercel have deployed the
-commit, while the API intentionally fails closed until the external database is
-loaded with the dataset built by that commit. The remaining task is now
-database-release/UX/device verification rather than the earlier ownership,
-claim-binding, benchmark-KPI, sync-state or dataset-contract defects. The
-remaining task is specified in
+**Verdict: this is a strong release candidate, but not yet a fully verified
+submission.** The latest dashboard refetch fix is now on local `main` at
+`2e8737a`; the last Render deployment observed during this audit is `2f4dfc5`.
+Render logs subsequently showed readiness and analytics requests returning
+`200`, so the canonical database release is serving again. The latest `main`
+revision still needs to deploy and be rechecked before it is called the
+production revision. Remaining work is UX/device/demo evidence rather than the
+earlier ownership, claim-binding, benchmark-KPI, sync-state or dataset-contract
+defects. The remaining task is specified in
 [REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).
 
 ## Confirmed Improvements
@@ -114,7 +115,7 @@ Fresh checks against this increment:
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | The latest Render deployment is live, but the release gate currently reports `DATASET_OUT_OF_SYNC`: readiness, dashboard overview, input adoption, canonical trend and scoped map metrics return 503 until the external canonical database is synchronized |
+| Live Render deployment | The last deployed `main` revision is live; Render logs observed during this audit show readiness, dashboard overview, input adoption, canonical trend and scoped map metrics returning 200 after canonical database synchronization. The latest `main` revision still needs a post-deploy smoke check. |
 
 Focused checks in this pass:
 
@@ -147,16 +148,16 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-This increment is prepared on `review/latest-improvements-2026-10-17` and
-promoted to `main`. A green local suite does not by itself prove
-canonical production readiness. The post-deploy Render check on 2026-10-24
-reported the old loaded version `0.2.0-646a72d53cd349df`, while the local and
-deployed build expects `0.2.0-0e76c4d8f79ee5fc`. The manual
-`Release database (canonical sync)` workflow must be run with its target,
-backup, rehearsal and approval gates before the API can return canonical
-analytics again.
+The latest dashboard fix is now fast-forwarded onto local `main`. A green local
+suite does not by itself prove that Vercel and Render serve that exact SHA; after
+the push, record the deployed commit and rerun the production release gate. The
+canonical database synchronization has already been observed through live `200`
+responses, but the release workflow and deployed SHA should remain part of the
+final evidence.
 
-The local Android debug APK was built successfully against the hosted API.
+Local debug and release APK files exist and were built against the hosted API.
+The Gradle release variant currently uses the debug keystore, so it is suitable
+for local installation but is not the final signed/shareable submission artifact.
 EAS account authentication works, but the signed remote build was rejected by
 the account's exhausted free-plan Android quota. Physical-device verification
 and the signed shareable artifact remain open.
