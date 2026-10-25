@@ -95,16 +95,16 @@ export const darkColors: typeof colors = {
 
   // Neutrals
   slate900: "#F1F5F9",
-  slate700: "#CBD5E1",
-  slate500: "#94A3B8",
-  slate: "#CBD5E1",
-  muted: "#94A3B8",
+  slate700: "#E2E8F0",
+  slate500: "#A7B8B1",
+  slate: "#E2E8F0",
+  muted: "#A7B8B1",
   slate300: "#3A4A44",
 
   // Data-surface neutrals
   hairline: "#1F332C",
   grid: "#1B2A25",
-  axis: "#7C8F87",
+  axis: "#A7B8B1",
   missing: "#3A4A44",
 
   // Tinted surfaces for semantic badges

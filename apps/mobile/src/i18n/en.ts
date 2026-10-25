@@ -642,6 +642,7 @@ export const en = {
   copyLink: "Copy link",
   linkCopied: "Link copied",
   sendToSomeone: "Send to someone",
+  downloadApk: "Download APK",
   shareVia: "Share via…",
   installSteps: "Install steps",
   stepOne: "Open the link or scan the code on the other phone.",

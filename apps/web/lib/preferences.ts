@@ -24,22 +24,14 @@ export const PREFERENCES_KEY = "cropmatics-preferences";
  *
  * Version 3: compact provenance by default.
  *
- * ``showSources`` used to default to ``true``, so every new reader met every
- * source panel already expanded. It now defaults to ``false`` (compact, with a
- * reachable ``Sources``/``Details`` control). Existing entries are **migrated**
- * rather than reset: unrelated theme/filter preferences are preserved, and a
- * stored ``true`` survives even though it cannot be verified. Only the default
- * a *new* user gets changes.
+ * ``showSources`` used to default to ``true``. The field remains in the stored
+ * shape for backwards-compatible preference loading, but SourceDisclosure now
+ * always starts collapsed so old local storage cannot reopen every footer.
  *
- * Uncertainty around inherited old defaults: a v2 entry with ``showSources:
- * true`` may record a deliberate expansion, or it may simply be the old default
- * the user never touched — v2 wrote ``true`` unconditionally, so the two are
- * indistinguishable on disk. The migration keeps the stored value rather than
- * guessing against it, because the failure direction is safe: a possibly
- * inherited ``true`` shows *more* provenance than the reader asked for, while
- * silently collapsing a genuine choice would hide sources the reader wanted.
- * Anyone who prefers compact provenance can still collapse it once; that
- * choice then persists.
+ * A v2 entry with ``showSources: true`` may record a deliberate expansion, or
+ * it may simply be the old default. The value is retained for storage
+ * compatibility, but SourceDisclosure ignores it so every page still starts
+ * compact.
  */
 export const PREFERENCES_VERSION = 3;
 
@@ -124,11 +116,9 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
  *
  * v1 -> discarded. It could hold the ``defaultPeriod`` that broke the dashboard
  * landing scope; that reason still stands.
- * v2 -> migrated field by field, including ``showSources``. A stored ``true``
- * is preserved whether it was a deliberate expansion or the inherited v2
- * default the user never changed — the two are indistinguishable, and keeping
- * it is the safe direction (more provenance shown, never less). Only the
- * default for a new user changes.
+ * v2 -> migrated field by field, including the legacy ``showSources`` field.
+ * The value is retained for storage compatibility but is no longer used to
+ * expand every disclosure.
  * Anything else (unknown, or written by a newer build) -> discarded rather than
  * guessed at, which is the only safe option for a shape this build does not know.
  */

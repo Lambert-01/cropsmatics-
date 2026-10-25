@@ -5,15 +5,13 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
-import { usePreferences } from "@/components/providers/PreferencesProvider";
 
 /**
  * Source and methodology disclosure.
  *
- * The `showSources` preference decides whether the disclosure is **open** by
- * default — never whether it exists. Source information that can be switched off
- * entirely is source information that will be, and a figure with no provenance
- * is exactly what this platform must not present.
+ * Provenance is always available, but starts collapsed so analytical pages stay
+ * readable. It deliberately does not follow a saved preference: an old
+ * `showSources: true` value must not reopen every footer for returning users.
  *
  * When collapsed it degrades to a single labelled control rather than
  * disappearing, so the reader still knows there is something behind it.
@@ -27,11 +25,10 @@ export function SourceDisclosure({
   summary?: string;
   className?: string;
 }) {
-  // `null` means "follow the preference". A local override lets the reader open
-  // or close this one disclosure without changing their saved preference.
+  // `null` means "collapsed". The local override is intentionally per-panel so
+  // opening one disclosure does not turn every chart into a wall of metadata.
   const [override, setOverride] = useState<boolean | null>(null);
-  const { preferences } = usePreferences();
-  const open = override ?? preferences.showSources;
+  const open = override === true;
 
   if (!open) {
     return (

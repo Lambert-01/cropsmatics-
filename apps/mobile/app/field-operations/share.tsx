@@ -5,7 +5,7 @@ import { Linking, Pressable, Share, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 
 import { ScreenLayout } from "../../src/components/ScreenLayout";
-import { apiBaseUrl, apiIsLan, apiIsLocal, shareUrl, shareUrlText } from "../../src/config/share";
+import { apiBaseUrl, apiIsLan, apiIsLocal, apkUrl, shareUrl, shareUrlText } from "../../src/config/share";
 import { strings } from "../../src/i18n";
 import { useAppStore } from "../../src/store/useAppStore";
 import { radius, spacing } from "../../src/theme";
@@ -102,6 +102,20 @@ export default function ShareScreen() {
               <Ionicons name="share-social-outline" size={16} color={colors.forest} />
               <Text style={{ color: colors.forest, fontSize: 13 }}>{t.sendToSomeone}</Text>
             </Pressable>
+
+            {apkUrl ? (
+              <Pressable
+                accessibilityRole="link"
+                onPress={() => {
+                  const url = apkUrl;
+                  if (url) void Linking.openURL(url);
+                }}
+                style={secondaryButton}
+              >
+                <Ionicons name="download-outline" size={16} color={colors.forest} />
+                <Text style={{ color: colors.forest, fontSize: 13 }}>{t.downloadApk}</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable
               accessibilityRole="button"

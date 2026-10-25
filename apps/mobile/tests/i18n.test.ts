@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CROPS, DISTRICTS } from "../src/constants/reference";
-import { en, rw, strings } from "../src/i18n";
+import { en, fr, rw, strings } from "../src/i18n";
 import { PENDING_KINYARWANDA_REVIEW, SHARED_BY_DESIGN } from "../src/i18n/pending-review";
 import { uuidv4 } from "../src/utils/uuid";
 
@@ -11,6 +11,7 @@ const untranslatedKeys = Object.keys(en).filter((key) => en[key as keyof typeof 
 describe("i18n", () => {
   it("has matching keys in every language", () => {
     expect(Object.keys(rw).sort()).toEqual(Object.keys(en).sort());
+    expect(Object.keys(fr).sort()).toEqual(Object.keys(en).sort());
   });
 
   it("has no empty or whitespace-only values", () => {
@@ -19,6 +20,9 @@ describe("i18n", () => {
     }
     for (const [key, value] of Object.entries(rw)) {
       expect(value.trim(), `rw.${key}`).not.toBe("");
+    }
+    for (const [key, value] of Object.entries(fr)) {
+      expect(value.trim(), `fr.${key}`).not.toBe("");
     }
   });
 
@@ -73,8 +77,7 @@ describe("i18n", () => {
 
   it("resolves language and falls back safely", () => {
     expect(strings("rw").save).toBe(rw.save);
-    // @ts-expect-error unknown language falls back to English
-    expect(strings("fr").save).toBe(en.save);
+    expect(strings("fr").save).toBe(fr.save);
   });
 });
 

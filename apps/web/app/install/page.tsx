@@ -4,6 +4,8 @@ import { QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 const INSTALL_PAGE_ENV = process.env.NEXT_PUBLIC_INSTALL_PAGE_URL;
+const APK_URL_ENV = process.env.NEXT_PUBLIC_INSTALL_APK_URL;
+const EXPO_GO_URL_ENV = process.env.NEXT_PUBLIC_EXPO_GO_URL;
 const API_BASE_ENV = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 /**
@@ -25,9 +27,21 @@ function resolveApiBase(): string | null {
   return API_BASE_ENV ?? null;
 }
 
+function publicUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function InstallPage() {
   const installUrl = resolveInstallUrl();
   const apiBase = resolveApiBase();
+  const apkUrl = publicUrl(APK_URL_ENV);
+  const expoGoUrl = publicUrl(EXPO_GO_URL_ENV);
   const isLocalApi =
     !!apiBase && /^(https?:\/\/)(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)/.test(apiBase);
 
@@ -68,6 +82,24 @@ export default function InstallPage() {
             The install page opens in the browser.
           </p>
           <p className="mt-2 break-all text-xs font-semibold text-forest-deep">{installUrl}</p>
+          <div className="mt-4 flex w-full flex-wrap justify-center gap-2">
+            {apkUrl ? (
+              <a className="btn btn-primary" href={apkUrl} target="_blank" rel="noreferrer">
+                Download Android APK
+              </a>
+            ) : null}
+            {expoGoUrl ? (
+              <a className="btn" href={expoGoUrl} target="_blank" rel="noreferrer">
+                Open in Expo Go
+              </a>
+            ) : null}
+          </div>
+          {!apkUrl && !expoGoUrl ? (
+            <p className="mt-3 max-w-sm text-[11px] leading-relaxed text-amber-700">
+              The page is online, but no public APK or Expo Go link is configured yet.
+              Set <code>NEXT_PUBLIC_INSTALL_APK_URL</code> in Vercel after the build finishes.
+            </p>
+          ) : null}
         </section>
 
         <section className="card px-4 py-4">
@@ -87,8 +119,9 @@ export default function InstallPage() {
             ))}
           </ol>
           <p className="mt-4 border-t border-forest/5 pt-3 text-[11px] leading-relaxed text-slate-500">
-            No APK configured yet? Install Expo Go from the Play Store, then open this
-            link inside it to run the app immediately.
+            {expoGoUrl
+              ? "Expo Go is available for a quick demo. For field testing, use the hosted APK."
+              : "For a shareable install, publish the APK URL as NEXT_PUBLIC_INSTALL_APK_URL in Vercel."}
           </p>
         </section>
       </div>

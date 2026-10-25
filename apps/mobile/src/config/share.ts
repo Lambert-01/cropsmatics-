@@ -27,6 +27,9 @@ function resolve(name: string): string | null {
 /** Web landing page that carries the QR code + install instructions. */
 export const installPageUrl = resolve("INSTALL_PAGE_URL");
 
+/** Optional stable APK URL shown after an approved build is published. */
+export const apkUrl = resolve("INSTALL_APK_URL");
+
 /**
  * URL the QR code on the share screen encodes.
  *

@@ -89,13 +89,13 @@ html.dark {
   --c-slate-100: 18 30 25;
   --c-slate-200: 28 44 38;
   --c-slate-300: 45 66 58;
-  --c-slate-400: 90 112 104;
-  --c-slate-500: 130 150 143;
-  --c-slate-600: 165 182 176;
-  --c-slate-700: 197 210 205;
-  --c-slate-800: 220 230 226;
-  --c-slate-900: 240 246 243;
-  --c-slate-950: 250 252 251;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 165 180 173;
+  --c-slate-600: 203 213 225;
+  --c-slate-700: 226 232 240;
+  --c-slate-800: 241 245 249;
+  --c-slate-900: 248 250 252;
+  --c-slate-950: 255 255 255;
 }
 
 body {
@@ -175,6 +175,42 @@ html.dark .bg-white\/60 {
    keep their saturated green in dark mode. */
 html.dark .text-white {
   color: #ffffff;
+}
+
+/* Feature panels also use direct Tailwind slate utilities. Keep those panels
+   readable in dark mode, and reserve yellow for attention and unavailable
+   values rather than letting muted text disappear into the background. */
+html.dark [class~="text-slate-900"],
+html.dark [class~="text-slate-800"],
+html.dark [class~="text-slate-700"] {
+  color: #f1f5f9 !important;
+}
+html.dark [class~="text-slate-600"] {
+  color: #cbd5e1 !important;
+}
+html.dark [class~="text-slate-500"],
+html.dark [class~="text-slate-400"] {
+  color: #a5b4b0 !important;
+}
+html.dark [class~="text-slate-300"] {
+  color: #dbe7e2 !important;
+}
+html.dark [class~="bg-slate-50"],
+html.dark [class~="bg-slate-100"] {
+  background-color: #132d24 !important;
+}
+html.dark [class~="border-slate-200"],
+html.dark [class~="border-slate-300"] {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html.dark select,
+html.dark textarea,
+html.dark input {
+  color-scheme: dark;
+}
+html.dark [class~="text-amber-700"],
+html.dark [class~="text-amber-800"] {
+  color: #facc15 !important;
 }
 
 /* ---------------------------------------------------------------------------

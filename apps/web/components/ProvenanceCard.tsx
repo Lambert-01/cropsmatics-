@@ -7,9 +7,8 @@ import type { Provenance } from "@/types";
 /**
  * The provenance of one analytical result.
  *
- * Collapses — but never disappears — when the reader has turned off "show
- * sources by default": source id, period, method, benchmark and limitations are
- * all one click away rather than gone.
+ * Starts compact on every page: source id, period, method, benchmark and
+ * limitations stay one click away without crowding the analytical view.
  */
 export function ProvenanceCard({
   provenance,

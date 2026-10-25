@@ -166,7 +166,7 @@ export function DashboardHeader({ onOpenNav }: { onOpenNav: () => void }) {
             aria-label="Language"
             className="flex overflow-hidden rounded-lg border border-forest/15 bg-white text-xs"
           >
-            {(["en", "rw"] as const).map((code) => (
+            {(["en", "rw", "fr"] as const).map((code) => (
               <button
                 key={code}
                 type="button"

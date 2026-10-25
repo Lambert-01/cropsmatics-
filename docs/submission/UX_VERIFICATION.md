@@ -28,9 +28,10 @@ A passing component test is **not** a browser pass, and a mobile-web screenshot 
 The latest follow-up observed the ordinary Planning calculation at 1440x900,
 1920x1080, 768x1024 and 390x844 without horizontal overflow or uncaught page
 errors. Desktop Python CSV download, outdated-result warning and a full
-three-step plan-link restoration passed. All four Dashboard source disclosures
-were expanded after requests settled at each size; document width matched the
-viewport. This repairs the earlier 1624 px overflow at a 1440 px viewport.
+three-step plan-link restoration passed. Dashboard provenance disclosures now
+start collapsed at each size and open only when requested; the source text wraps
+without widening the viewport. This repairs the earlier 1624 px overflow at a
+1440 px viewport.
 
 These are sampled local browser checks against the production web build with
 requests redirected to the local file-mode API, not production verification,
@@ -77,7 +78,7 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 | Route | Viewport | Language | State | Task | Expected | Observed | Status |
 |---|---|---|---|---|---|---|---|
 | `/dashboard` | 1440×900 | EN | normal | read headline + map | latest district snapshot named; history separate | rendered route and populated dashboard pass | PASS (automated) |
-| `/dashboard` | all four required sizes | EN | all four sources expanded | confirm no horizontal overflow | document fits viewport | widths 1440/1920/768/390 match viewport | PASS (sample) |
+| `/dashboard` | all four required sizes | EN | provenance collapsed, then one panel opened | confirm no horizontal overflow | document fits viewport | compact default and reachable disclosure control | PASS (sample) |
 | `/interventions` | 1440×900 | EN | Nyagatare maize 2026B | inspect eligibility | "no yield shortfall" for productivity support | rendered route and populated eligibility state pass | PASS (automated) |
 | `/yield-intelligence` | 1440×900 | EN | forecast withheld | build a projection | projection calculated and labelled "Your assumptions" | ordinary carry-forward calculation and CSV download | PASS (sample) |
 | `/yield-intelligence` | 390×844 | EN | narrow | planning form usable | controls reachable, no overlap | ordinary carry-forward calculated; no document overflow | PASS (sample) |
@@ -85,11 +86,11 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 | `/reports` | 1440×900 | EN | district selected | download | export honours the selected scope | — | NOT RUN |
 | `/data-explorer` | 1440×900 | EN | multi-period dataset | filter + export | full filtered result downloads, not just the page | — | NOT RUN |
 | `/transparency` | 1440×900 | EN | warnings present | quality register | warnings discoverable, not hidden | rendered route and automated WCAG scan pass | PASS (automated) |
-| `/settings` | 1440×900 | EN | toggle sources | effect observable | disclosure expands/collapses | — | NOT RUN |
+| `/settings` | 1440×900 | EN | data and sources note | disclosure behavior explained | each panel opens on request | — | NOT RUN |
 | `/install` | 390×844 | EN | fresh visitor | download APK | real approved artifact | local APK exists; approved shareable artifact not verified | BLOCKED (signed artifact) |
 | any | 768×1024 | RW | — | Kinyarwanda review | native-approved wording | — | BLOCKED (no reviewer) |
 
-Cross-cutting checks still outstanding: page-level overflow with sources expanded,
+Cross-cutting checks still outstanding: page-level overflow with multiple sources expanded,
 menu/drawer focus order, chart resizing, filter propagation, deep links, table
 pagination, downloaded file contents, and keyboard-only journeys.
 

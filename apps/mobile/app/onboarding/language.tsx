@@ -18,6 +18,7 @@ export default function LanguageScreen() {
   const description: Record<string, string> = {
     en: "Explore official agricultural data in English.",
     rw: "Reba amakuru y'ubuhinzi yemewe mu Kinyarwanda.",
+    fr: "Explorez les données agricoles officielles en français.",
   };
 
   return (

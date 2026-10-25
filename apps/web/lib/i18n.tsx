@@ -3,12 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-export type Lang = "en" | "rw";
+export type Lang = "en" | "rw" | "fr";
 
 /**
- * Minimal shell i18n. It covers navigation and chrome labels; Kinyarwanda
- * strings are working translations and need native review before release.
- * Analytical content (source names, methods) stays in English by design.
+ * Minimal shell i18n. It covers navigation and chrome labels. Analytical
+ * source names and methods stay in their published language by design.
  */
 export const DICT: Record<Lang, Record<string, string>> = {
   en: {
@@ -69,6 +68,35 @@ export const DICT: Record<Lang, Record<string, string>> = {
     "header.scope": "Urwego",
     "header.clearScope": "Siba urwego",
   },
+  fr: {
+    "nav.overview": "Vue d'ensemble",
+    "nav.crops": "Cultures",
+    "nav.productivity": "Productivité",
+    "nav.yield-intelligence": "Intelligence des rendements",
+    "nav.interventions": "Interventions",
+    "nav.post-harvest": "Après-récolte",
+    "nav.storage": "Stockage et agrégation",
+    "nav.markets": "Marchés",
+    "nav.maps": "Cartes",
+    "nav.reports": "Rapports",
+    "nav.data-explorer": "Explorateur de données",
+    "nav.transparency": "Données et modèles",
+    "nav.assistant": "Assistant IA",
+    "nav.settings": "Paramètres",
+    "nav.install": "Obtenir l'application",
+    "group.Intelligence": "Intelligence",
+    "group.Operations": "Opérations",
+    "group.Geography & data": "Géographie et données",
+    "group.Workspace": "Espace de travail",
+    "search.placeholder": "Rechercher des cultures, districts, jeux de données…",
+    "search.results": "Résultats de recherche",
+    "search.noResults": "Aucun résultat",
+    "search.kind.crop": "Culture",
+    "search.kind.district": "District",
+    "search.kind.dataset": "Jeu de données",
+    "header.scope": "Périmètre",
+    "header.clearScope": "Effacer le périmètre",
+  },
 };
 
 interface LanguageContextValue {
@@ -88,7 +116,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem("cropmatics-lang");
-    if (stored === "rw" || stored === "en") setLangState(stored);
+    if (stored === "rw" || stored === "fr" || stored === "en") {
+      setLangState(stored);
+      document.documentElement.lang = stored;
+    }
   }, []);
 
   const setLang = useCallback((next: Lang) => {

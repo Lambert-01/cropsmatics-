@@ -47,8 +47,8 @@ export function CardBody({ children, className }: { children: ReactNode; classNa
 /**
  * Source note under a figure or table.
  *
- * Delegates to `SourceDisclosure`, so the reader's "show sources by default"
- * preference is honoured in one place for every chart and table that uses it.
+ * Delegates to `SourceDisclosure`, so every chart and table starts compact while
+ * keeping its source details reachable from one consistent control.
  */
 export function SourceNote({ children }: { children: ReactNode }) {
   return <SourceDisclosure>{children}</SourceDisclosure>;

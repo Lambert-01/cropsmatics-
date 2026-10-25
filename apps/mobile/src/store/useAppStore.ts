@@ -78,7 +78,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         AsyncStorage.getItem(SETTINGS_KEY),
       ]);
       set({
-        language: language === "rw" ? "rw" : "en",
+        language: language === "rw" || language === "fr" ? language : "en",
         onboardingComplete: onboarding === "true",
         settings: settings
           ? { ...DEFAULT_SETTINGS, ...(JSON.parse(settings) as Partial<AppearanceSettings>) }

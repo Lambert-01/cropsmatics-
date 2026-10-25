@@ -449,26 +449,13 @@ export function SettingsView() {
       <Card>
         <CardHeader
           title="Data and sources"
-          subtitle="How much provenance is shown next to each figure."
+          subtitle="Open the details only when you need to inspect a figure."
         />
         <CardBody>
-          <SettingRow
-            id="show-sources"
-            title="Show sources by default"
-            description="Expands the source, method, benchmark and limitations under each figure. Turning this off collapses them to a single control — the provenance is never hidden entirely."
-            control={
-              <Switch
-                id="show-sources"
-                label="Show sources by default"
-                checked={preferences.showSources}
-                onChange={(v) => setPreference("showSources", v)}
-              />
-            }
-          />
           <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
             <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
-            Availability, coverage and provenance are always reachable from the Data &amp; Models
-            workspace, regardless of this setting.
+            Source, period, method and limitations are available from the compact
+            disclosure under every figure.
           </p>
         </CardBody>
       </Card>
