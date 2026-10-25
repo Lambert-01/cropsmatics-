@@ -294,12 +294,16 @@ Field Operations is hidden unless `EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS=true`.
 
 ### Shareable APK install link
 
-After an EAS `release-apk` build completes, copy its HTTPS artifact URL into
-the Vercel Production environment variable:
+For the current public demo, use the approved GitHub Release APK URL in the
+Vercel Production environment variable:
 
 ```text
-NEXT_PUBLIC_INSTALL_APK_URL=https://expo.dev/artifacts/eas/<artifact>.apk
+NEXT_PUBLIC_INSTALL_APK_URL=https://github.com/Lambert-01/cropsmatics-/releases/download/mobile-demo-2026-10-25/cropmatics-rwanda-demo.apk
 ```
+
+If a later signed EAS build is approved for sharing, its HTTPS artifact URL
+may replace this value after verification. Do not leave an expired artifact
+URL on the install page.
 
 The web install page then exposes the stable same-origin download URL:
 

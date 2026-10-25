@@ -139,9 +139,9 @@ bash scripts/build-apk.sh \
 ```
 
 The helper validates the local `git` and `eas` executables before submitting.
-EAS returns the artifact link when the build completes. Copy that HTTPS `.apk`
-URL into Vercel as the production value of `NEXT_PUBLIC_INSTALL_APK_URL`, then
-redeploy. The stable download URL is:
+For the current demo, the verified APK is published in the GitHub Release
+`mobile-demo-2026-10-25`. Set that release URL as the production value of
+`NEXT_PUBLIC_INSTALL_APK_URL`, then redeploy. The stable download URL is:
 
 ```text
 https://cropsmatics-web.vercel.app/install/apk

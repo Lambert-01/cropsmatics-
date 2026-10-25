@@ -7,7 +7,6 @@ import { useLanguage } from "@/lib/i18n";
 
 const INSTALL_PAGE_ENV = process.env.NEXT_PUBLIC_INSTALL_PAGE_URL;
 const APK_URL_ENV = process.env.NEXT_PUBLIC_INSTALL_APK_URL;
-const EXPO_GO_URL_ENV = process.env.NEXT_PUBLIC_EXPO_GO_URL;
 const API_BASE_ENV = process.env.NEXT_PUBLIC_API_BASE_URL;
 const APK_DOWNLOAD_PATH = "/install/apk";
 
@@ -45,9 +44,8 @@ export default function InstallPage() {
   const installUrl = resolveInstallUrl();
   const apiBase = resolveApiBase();
   const configuredApkUrl = publicUrl(APK_URL_ENV);
-  // Share one same-origin URL. The route redirects to the current EAS artifact.
+  // Share one same-origin URL. The route redirects to the configured public release.
   const apkUrl = configuredApkUrl ? APK_DOWNLOAD_PATH : null;
-  const expoGoUrl = publicUrl(EXPO_GO_URL_ENV);
   const isLocalApi =
     !!apiBase && /^(https?:\/\/)(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)/.test(apiBase);
 
@@ -97,13 +95,8 @@ export default function InstallPage() {
                 {t("install.download")}
               </a>
             ) : null}
-            {expoGoUrl ? (
-              <a className="btn" href={expoGoUrl} target="_blank" rel="noreferrer">
-                {t("install.openExpo")}
-              </a>
-            ) : null}
           </div>
-          {!apkUrl && !expoGoUrl ? (
+          {!apkUrl ? (
             <p className="mt-3 max-w-sm text-[11px] leading-relaxed text-amber-700">
               {t("install.noLink")} Set <code>NEXT_PUBLIC_INSTALL_APK_URL</code> in Vercel.
             </p>
@@ -123,9 +116,7 @@ export default function InstallPage() {
             ))}
           </ol>
           <p className="mt-4 border-t border-forest/5 pt-3 text-[11px] leading-relaxed text-slate-500">
-            {expoGoUrl
-              ? t("install.expoHint")
-              : t("install.noApk")}
+            {configuredApkUrl ? t("install.releaseHint") : t("install.noApk")}
           </p>
         </section>
       </div>
