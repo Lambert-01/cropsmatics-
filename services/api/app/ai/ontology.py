@@ -173,6 +173,16 @@ OPERATION_TERMS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     ),
 }
 
+# Natural questions often place the crop and a qualifier between the ranking
+# word and ``yield`` (for example, "highest observed maize yield"). Keep this
+# separate from the generic ranking vocabulary so those questions do not fall
+# through to the productivity-gap ranking.
+_YIELD_RANKING_RE = re.compile(
+    r"\b(?:highest|top|best|lowest|worst|largest|maximum|minimum)\b"
+    r"(?:\s+[a-z0-9'-]+){0,5}\s+yield(?:s|ing)?\b",
+    re.IGNORECASE,
+)
+
 #: Comparison savings: words that signal two things are being set against each
 #: other even without the word "compare".
 COMPARISON_CONNECTORS: tuple[str, ...] = _words(
@@ -228,6 +238,9 @@ def detect_operations(text: str) -> list[str]:
 
     for operation, (english, kinyarwanda) in OPERATION_TERMS.items():
         if operation == "crop_comparison":
+            continue
+        if operation == "yield_ranking" and _YIELD_RANKING_RE.search(lowered):
+            found.append(operation)
             continue
         if _mentions(lowered, english) or _mentions(lowered, kinyarwanda):
             found.append(operation)
