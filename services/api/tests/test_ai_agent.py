@@ -21,6 +21,7 @@ import pytest
 from app.ai import agent, tool_registry
 from app.ai.evidence import EvidenceBundle, EvidenceItem, EvidenceKind
 from app.ai.grounded import GroundedAnswer
+from app.ai.prompt_context import MAX_INITIAL_ITEMS
 from app.ai.providers.base import ChatResponse, ToolCall
 from app.ai.providers.remote import RemoteConfig
 from app.ai.schemas import AIRequest, RoutedRequest
@@ -339,5 +340,5 @@ def test_model_facing_evidence_is_bounded_but_server_bundle_is_complete():
 
     assert len(bundle.items) == 90
     assert evidence["items_available"] == 90
-    assert len(evidence["items"]) == agent._MAX_INITIAL_ITEMS
+    assert len(evidence["items"]) == MAX_INITIAL_ITEMS
     assert len(json.dumps(messages, ensure_ascii=False)) < 20_000
