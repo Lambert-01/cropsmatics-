@@ -26,15 +26,32 @@ export function DistrictChangePanel({ filters }: { filters: DashboardFilters }) 
   const [fromCode, setFromCode] = useState<string>("");
   const [toCode, setToCode] = useState<string>("");
 
-  // Default to the two latest published periods once the catalogue resolves,
-  // and repair a selection if the catalogue changes underneath it.
+  const selectedPeriod = filters.period;
+
+  // Default to the selected release and the immediately preceding published
+  // release. With the history scope, use the two latest releases. Opening on
+  // 2022A -> 2022B made a current productivity selection look unrelated to the
+  // rest of the page.
   useEffect(() => {
     if (codes.length === 0) return;
-    setFromCode((current) => (current && codes.includes(current) ? current : codes[0] ?? ""));
-    setToCode((current) =>
-      current && codes.includes(current) ? current : codes[1] ?? codes[0] ?? "",
+    const selectedIndex = selectedPeriod ? codes.indexOf(selectedPeriod) : -1;
+    const toIndex = selectedIndex >= 0 ? selectedIndex : codes.length - 1;
+    const fromIndex = Math.max(0, toIndex - 1);
+    setFromCode((current) =>
+      selectedPeriod
+        ? codes[fromIndex] ?? ""
+        : current && codes.includes(current)
+          ? current
+          : codes[fromIndex] ?? "",
     );
-  }, [codes]);
+    setToCode((current) =>
+      selectedPeriod
+        ? codes[toIndex] ?? ""
+        : current && codes.includes(current)
+          ? current
+          : codes[toIndex] ?? "",
+    );
+  }, [codes, selectedPeriod]);
 
   const enabled = codes.length >= 2;
   const from = useProductivityAtPeriod(filters, fromCode || undefined, enabled);

@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
 import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
@@ -46,12 +47,25 @@ import { useFilters } from "@/services/hooks/useFilters";
  * associations - neither of which answers the district question - sit under
  * "Evidence & methods" rather than ahead of it.
  */
+type ProductivityView = "comparison" | "practice" | "change" | "evidence";
+
+const PRODUCTIVITY_VIEWS = [
+  { id: "comparison", label: "Comparison" },
+  { id: "practice", label: "Practice" },
+  { id: "change", label: "Change over time" },
+  { id: "evidence", label: "Evidence" },
+] as const;
+
 export default function ProductivityPage() {
   const { filters, setFilters } = useFilters();
+  const [view, setView] = useState<ProductivityView>("comparison");
   const overview = useOverview(filters);
   const districtMode = overview.data?.coverage_level === "district";
   const productivity = useProductivity(filters, districtMode);
-  const factors = useFactors(filters, districtMode && Boolean(filters.crop));
+  const factors = useFactors(
+    filters,
+    districtMode && Boolean(filters.crop) && view === "evidence",
+  );
   const trends = useTrends(filters.crop, filters.compare);
   const inputs = useInputAdoption();
   // District-scoped practice indicators. The full panel is 9,468 rows, so the
@@ -60,7 +74,7 @@ export default function ProductivityPage() {
   const practiceIndicators = usePracticeIndicators({
     district: filters.district ?? undefined,
     limit: 500,
-    enabled: Boolean(filters.district),
+    enabled: Boolean(filters.district) && view === "practice",
   });
   const benchmarkStrategy =
     productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
@@ -141,6 +155,13 @@ export default function ProductivityPage() {
 
       {districtMode && cropSelected ? (
         <>
+          <Tabs
+            items={PRODUCTIVITY_VIEWS.map((item) => ({ ...item }))}
+            active={view}
+            onChange={(next) => setView(next as ProductivityView)}
+            ariaLabel="Productivity analysis views"
+          />
+
           {/* The workspace: the map and the ranking answer the same question, so
               they sit side by side and share one selection. */}
           <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
@@ -160,57 +181,41 @@ export default function ProductivityPage() {
             />
           </div>
 
-          {/* Two answers to "who is furthest below, and by how much" - a switch
-              would be equivalent, but both fit one row and share one scale. */}
-          <div className="grid gap-5 xl:grid-cols-2">
-            <GapRankedBars
-              rows={productivity.data?.rows ?? []}
-              isLoading={productivity.isLoading}
-              period={productivity.data?.period}
-              benchmark={benchmarkStrategy}
-            />
-            <GapDumbbell
-              rows={productivity.data?.rows ?? []}
-              isLoading={productivity.isLoading}
-              period={productivity.data?.period}
-              benchmark={benchmarkStrategy}
-            />
-          </div>
-
-          {/* Two-period change answers "who moved?", which is a different
-              question from "who is below benchmark" and needs its own frame. */}
-          <DistrictChangePanel filters={filters} />
-
-          {/* Adoption and practice indicators: district-grained, and a single
-              release. They sat inside the Overview's "detailed analysis" hash
-              before; here they are one of the page's own answers. */}
-          <PracticeIndicatorsPanel
-            data={practiceIndicators.data}
-            district={filters.district}
-            isLoading={practiceIndicators.isLoading}
-            isFetching={practiceIndicators.isFetching}
-            hasError={practiceIndicators.isError}
-            errorMessage={(practiceIndicators.error as Error)?.message}
-            onRetry={() => practiceIndicators.refetch()}
-          />
-
-          {/* Evidence & methods: model diagnostics and factor associations are
-              not the district answer, so they never precede it. Associations are
-              explicitly non-causal and the factor table is a single release. */}
-          <details className="card group px-4 py-3">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-slate-700 marker:content-none">
-              <span>
-                Evidence &amp; methods
-                <span className="ml-1.5 font-normal text-slate-400">
-                  measures that move together, model performance, full matrix
-                </span>
-              </span>
-              <ChevronDown
-                className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
-                aria-hidden="true"
+          {view === "comparison" ? (
+            /* Two answers to "who is furthest below, and by how much" share one
+               scope and one visual section. */
+            <div className="grid gap-5 xl:grid-cols-2">
+              <GapRankedBars
+                rows={productivity.data?.rows ?? []}
+                isLoading={productivity.isLoading}
+                period={productivity.data?.period}
+                benchmark={benchmarkStrategy}
               />
-            </summary>
-            <div className="mt-4 space-y-5">
+              <GapDumbbell
+                rows={productivity.data?.rows ?? []}
+                isLoading={productivity.isLoading}
+                period={productivity.data?.period}
+                benchmark={benchmarkStrategy}
+              />
+            </div>
+          ) : null}
+
+          {view === "practice" ? (
+            <PracticeIndicatorsPanel
+              data={practiceIndicators.data}
+              district={filters.district}
+              isLoading={practiceIndicators.isLoading}
+              isFetching={practiceIndicators.isFetching}
+              hasError={practiceIndicators.isError}
+              errorMessage={(practiceIndicators.error as Error)?.message}
+              onRetry={() => practiceIndicators.refetch()}
+            />
+          ) : null}
+
+          {view === "change" ? <DistrictChangePanel filters={filters} /> : null}
+
+          {view === "evidence" ? (
+            <div className="space-y-5">
               <FactorAssociationChart
                 data={factors.data}
                 isLoading={factors.isLoading}
@@ -218,10 +223,11 @@ export default function ProductivityPage() {
               />
               <ModelPerformancePanel />
               <GapAdvancedMatrix filters={filters} districtMode={districtMode} />
+              {productivity.data ? (
+                <ProvenanceCard provenance={productivity.data.provenance} />
+              ) : null}
             </div>
-          </details>
-
-          {productivity.data ? <ProvenanceCard provenance={productivity.data.provenance} /> : null}
+          ) : null}
         </>
       ) : null}
     </div>

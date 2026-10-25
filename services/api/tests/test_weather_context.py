@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import httpx
+
 from app.services import weather_service
 
 
@@ -22,6 +24,33 @@ def _payload() -> dict:
             "wind_speed_10m_max": [12, 14, 10],
             "weather_code": [3, 61, 1],
         },
+    }
+
+
+def _met_no_payload() -> dict:
+    def point(date: str, temperature: float, rain: float) -> dict:
+        return {
+            "time": f"{date}T10:00:00Z",
+            "data": {
+                "instant": {
+                    "details": {
+                        "air_temperature": temperature,
+                        "relative_humidity": 70,
+                        "wind_speed": 2,
+                    }
+                },
+                "next_1_hours": {"details": {"precipitation_amount": rain}},
+            },
+        }
+
+    return {
+        "properties": {
+            "timeseries": [
+                point("2026-10-24", 20, 1),
+                point("2026-10-25", 22, 2),
+                point("2026-10-26", 21, 0),
+            ]
+        }
     }
 
 
@@ -64,6 +93,27 @@ def test_weather_context_accepts_coordinates(client, monkeypatch):
     assert response.status_code == 200
     assert response.json()["location"]["resolution"] == "coordinates"
     assert response.json()["location"]["district"] is None
+
+
+def test_weather_context_falls_back_to_met_norway(client, monkeypatch):
+    weather_service.clear_cache()
+
+    def request(url, *, params, headers=None):
+        if url == weather_service.OPEN_METEO_URL:
+            raise httpx.HTTPError("Open-Meteo rate limited")
+        return _met_no_payload()
+
+    monkeypatch.setattr(weather_service, "_request_json", request)
+
+    response = client.get("/api/v1/context/weather?district_code=Gakenke")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "MET Norway"
+    assert body["provenance"]["source_id"] == "MET_NO_LOCATIONFORECAST"
+    assert body["current"]["temperature_c"] == 20
+    assert body["current"]["wind_speed_kmh"] == 7.2
+    assert len(body["daily"]) == 3
 
 
 def test_weather_context_requires_a_location(client):

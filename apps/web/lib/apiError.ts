@@ -60,6 +60,7 @@ export function describeApiFailure(
   status: number | null,
   body: ApiErrorBody | null,
   statusText = "",
+  path = "",
 ): { message: string; retryable: boolean } {
   const code = (body?.code ?? "").trim();
 
@@ -72,6 +73,13 @@ export function describeApiFailure(
   }
 
   if (status === 503) {
+    if (path.endsWith("/context/weather")) {
+      return {
+        message:
+          "Weather context is temporarily unavailable because the external provider is rate-limited. The crop analytics remain unchanged; try again shortly.",
+        retryable: true,
+      };
+    }
     if (code === "DATASET_OUT_OF_SYNC") {
       return {
         message:

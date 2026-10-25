@@ -145,7 +145,7 @@ async function request(
  */
 async function failure(path: string, res: Response): Promise<ApiFailure> {
   const body = await readErrorBody(res);
-  const described = describeApiFailure(res.status, body, res.statusText);
+  const described = describeApiFailure(res.status, body, res.statusText, path);
   return new ApiFailure({
     path,
     status: res.status,

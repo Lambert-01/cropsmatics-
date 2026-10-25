@@ -44,6 +44,11 @@ export function useWeatherContext(districtCode?: string) {
     queryFn: () => api.weatherContext(districtCode as string),
     staleTime: 10 * 60 * 1000,
     enabled: Boolean(districtCode),
+    // A provider rate limit is not fixed by sending the same request three
+    // more times. The API has its own fallback and cooldown; keep Retry for an
+    // explicit user action so one dashboard selection cannot amplify a 429.
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 

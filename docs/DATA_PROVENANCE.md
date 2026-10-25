@@ -73,13 +73,16 @@ outputs.
 ## External weather context
 
 `GET /api/v1/context/weather?district_code=RW-KG-GAS` requests a three-day
-Open-Meteo forecast at an approximate centroid derived from the checked-in Rwanda
-district GeoJSON. The response carries the provider and limitations in its
-provenance block. Weather is operational context only: it is not an NISR
-statistic, is not joined into official yield calculations, and is not presented
-as a validated yield forecast. Responses are cached in the API process for ten
-minutes to reduce provider traffic. The public provider is documented at
-`https://open-meteo.com/`.
+forecast at an approximate centroid derived from the checked-in Rwanda district
+GeoJSON. Open-Meteo is the primary provider; MET Norway Locationforecast is a
+rate-limit fallback and the response names the provider actually used. The
+response carries the provider and limitations in its provenance block. Weather
+is operational context only: it is not an NISR statistic, is not joined into
+official yield calculations, and is not presented as a validated yield forecast.
+Successful responses are cached in the API process for ten minutes and failed
+provider attempts have a short cooldown to avoid amplifying rate limits. The
+providers are documented at `https://open-meteo.com/` and
+`https://api.met.no/weatherapi/locationforecast/2.0/documentation`.
 
 ## Licensing / redistribution
 

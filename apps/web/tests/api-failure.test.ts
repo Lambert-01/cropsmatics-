@@ -48,6 +48,19 @@ describe("describeApiFailure", () => {
     expect(message).toMatch(/service problem/i);
   });
 
+  it("names the external provider when weather context is rate-limited", () => {
+    const { message, retryable } = describeApiFailure(
+      503,
+      { detail: "External weather context is temporarily unavailable." },
+      "Service Unavailable",
+      "/context/weather",
+    );
+    expect(retryable).toBe(true);
+    expect(message).toMatch(/weather context/i);
+    expect(message).toMatch(/external provider/i);
+    expect(message).not.toMatch(/analytics service failed/i);
+  });
+
   it("reports an unreachable service without inventing a value", () => {
     const { message, retryable } = describeApiFailure(null, null);
     expect(retryable).toBe(true);
