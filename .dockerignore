@@ -21,7 +21,15 @@ ml/reports
 ml/artifacts
 ml/notebooks
 
+# The API resolves district weather coordinates from the checked-in Rwanda
+# boundary file. Keep the rest of the web application out of the API image,
+# but allow this small runtime GIS asset through.
 apps
+!apps/
+!apps/web/
+!apps/web/public/
+!apps/web/public/geodata/
+!apps/web/public/geodata/rwanda_districts.geojson
 VISUAL IMAGE
 .DS_Store
 **/.DS_Store

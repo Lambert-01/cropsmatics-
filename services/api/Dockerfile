@@ -35,6 +35,10 @@ COPY scripts /app/scripts
 COPY data/raw /app/data/raw
 COPY data/dictionaries /app/data/dictionaries
 COPY data/source_registry /app/data/source_registry
+# Weather context resolves district centroids from the canonical boundary file.
+# Copy only this web asset; the rest of the frontend is intentionally excluded
+# from the API image by .dockerignore.
+COPY apps/web/public/geodata /app/apps/web/public/geodata
 
 # --- Build the processed analytical tables ---------------------------------
 # Fails the build if validation fails, so a broken image is never published.

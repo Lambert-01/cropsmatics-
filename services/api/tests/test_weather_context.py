@@ -42,6 +42,19 @@ def test_weather_context_resolves_canonical_district(client, monkeypatch):
     assert "not an official NISR statistic" in body["note"]
 
 
+def test_weather_context_resolves_gakenke_by_name(client, monkeypatch):
+    weather_service.clear_cache()
+    monkeypatch.setattr(weather_service, "_fetch", lambda latitude, longitude: _payload())
+
+    response = client.get("/api/v1/context/weather?district_code=Gakenke")
+
+    assert response.status_code == 200
+    location = response.json()["location"]
+    assert location["district_code"] == "RW-NO-GAK"
+    assert location["district"] == "Gakenke"
+    assert location["province"] == "Northern"
+
+
 def test_weather_context_accepts_coordinates(client, monkeypatch):
     weather_service.clear_cache()
     monkeypatch.setattr(weather_service, "_fetch", lambda latitude, longitude: _payload())
