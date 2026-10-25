@@ -126,9 +126,11 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
     return RemoteConfig(
         enabled=flag("AI_ENABLED", False),
         provider=str(env.get("AI_PROVIDER") or "openai_compatible"),
-        model=_first(env, "AI_MODEL", "OPENAI_MODEL") or "",
-        base_url=_rstrip(_first(env, "AI_BASE_URL", "OPENAI_BASE_URL")) or None,
-        api_key=_first(env, "AI_API_KEY", "OPENAI_API_KEY") or None,
+        model=_first(env, "AI_MODEL", "GROQ_MODEL", "OPENAI_MODEL") or "",
+        base_url=_rstrip(
+            _first(env, "AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
+        ) or None,
+        api_key=_first(env, "AI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY") or None,
         timeout_seconds=number("AI_TIMEOUT_SECONDS", 20.0),
         max_output_tokens=integer("AI_MAX_OUTPUT_TOKENS", 700),
         max_tool_calls=integer("AI_MAX_TOOL_CALLS", 6),
@@ -141,10 +143,11 @@ def _first(env: dict[str, str], *names: str) -> str:
     """The first non-empty value among ``names``.
 
     Precedence, highest first: the platform's own ``AI_*`` names, then the
-    ``OPENAI_*`` aliases. That order is deliberate and documented in
-    ``.env.example``: a deployment that sets both must have a predictable winner,
-    and the platform-specific name wins because it is the one the platform writes
-    and reads back. An alias alone is still enough to configure a provider.
+    ``GROQ_*`` and ``OPENAI_*`` aliases. That order is deliberate and documented
+    in ``.env.example``: a deployment that sets more than one must have a
+    predictable winner, and the platform-specific name wins because it is the one
+    the platform writes and reads back. An alias alone is still enough to supply
+    a value, but ``AI_ENABLED=true`` is still required to activate the provider.
     """
     for name in names:
         value = str(env.get(name) or "").strip()

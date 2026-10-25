@@ -26,7 +26,23 @@ AI_MODEL=<model available to your account>
 AI_API_KEY=<backend secret>
 ```
 
-Never put the provider key in NEXT_PUBLIC_* or EXPO_PUBLIC_* variables. AI_* names take precedence; OPENAI_MODEL, OPENAI_BASE_URL and OPENAI_API_KEY fill empty values. Keep the key out of chat, logs, screenshots and commits.
+Never put the provider key in NEXT_PUBLIC_* or EXPO_PUBLIC_* variables. AI_* names take precedence; GROQ_MODEL, GROQ_BASE_URL and GROQ_API_KEY, then OPENAI_MODEL, OPENAI_BASE_URL and OPENAI_API_KEY fill empty values. Keep the key out of chat, logs, screenshots and commits.
+
+Groq is supported through its OpenAI-compatible API. On Render, either use the
+canonical names above or configure these aliases:
+
+```text
+AI_ENABLED=true
+AI_PROVIDER=openai_compatible
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+GROQ_API_KEY=<replacement Groq secret>
+```
+
+The key must be stored as a Render secret environment variable. It is never sent
+to the browser or mobile app. The deterministic grounded assistant remains the
+fallback if Groq is unavailable, and the numeric and claim guards still validate
+every model-written answer against retrieved Cropmatics evidence.
 
 AI_PROVIDER=openai_compatible retains the chat-completions contract. The Responses path uses request-local native output and function_call_output items, retaining call IDs and encrypted reasoning context. It does not store conversation state on the shared provider object, and remote storage is disabled. Optional sampling settings are omitted for Responses to avoid imposing unsupported temperature options.
 

@@ -68,6 +68,22 @@ def test_openai_aliases_alone_configure_the_provider():
     assert config.base_url == "https://api.openai.com/v1"
 
 
+def test_groq_aliases_configure_the_openai_compatible_provider():
+    config = load_config(
+        {
+            "AI_ENABLED": "true",
+            "GROQ_MODEL": "llama-3.3-70b-versatile",
+            "GROQ_BASE_URL": "https://api.groq.com/openai/v1/",
+            "GROQ_API_KEY": "gsk-test",
+        }
+    )
+    assert config.configured is True
+    assert config.provider == "openai_compatible"
+    assert config.model == "llama-3.3-70b-versatile"
+    assert config.base_url == "https://api.groq.com/openai/v1"
+    assert config.api_key == "gsk-test"
+
+
 def test_an_alias_fills_only_what_the_platform_names_leave_empty():
     config = load_config(
         {
