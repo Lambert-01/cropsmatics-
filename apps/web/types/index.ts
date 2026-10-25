@@ -501,7 +501,7 @@ export interface AssistantResponse {
   /** Additive engine metadata; older responses may omit it. */
   structured?: AssistantStructured;
   conversation_id?: string | null;
-  answer_mode?: "deterministic" | "llm";
+  answer_mode?: "deterministic" | "llm" | "conversational";
   warnings?: string[];
   citations?: string[];
   evidence_count?: number;

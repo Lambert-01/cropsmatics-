@@ -58,6 +58,7 @@ METRIC_LABELS: dict[str, str] = {
 }
 
 INTENT_TITLES: dict[str, str] = {
+    "greeting": "Cropmatics Assistant",
     "district_crop_gap": "District crop productivity",
     "crop_national_context": "National crop context",
     "district_context": "District overview",
@@ -357,6 +358,12 @@ def _key_findings(routed: RoutedRequest, reference: GroundedAnswer) -> list[str]
 
 def _suggested_followups(routed: RoutedRequest) -> list[str]:
     """Questions that the platform can actually ground, given the entities."""
+    if routed.intent == "greeting":
+        return [
+            "Which districts have the largest maize productivity gaps?",
+            "Which periods are covered?",
+            "Which crops have the highest post-harvest loss shares?",
+        ]
     crops = routed.crops or ([routed.crop] if routed.crop else [])
     district = routed.districts[0] if routed.districts else routed.district
     questions: list[str] = []

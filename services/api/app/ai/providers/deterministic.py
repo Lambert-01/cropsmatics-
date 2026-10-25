@@ -48,7 +48,7 @@ class DeterministicProvider:
             answer=reference.answer,
             grounded=reference.grounded,
             intent=reference.intent,
-            mode=self.name,
+            mode=reference.answer_mode,
             # The deterministic answer is composed from the evidence, so every
             # item it used is a citation. Bounded so a large bundle cannot bloat
             # the response.

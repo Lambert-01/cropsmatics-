@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Send, ShieldAlert, UserRound } from "lucide-react";
+import { Bot, CheckCircle2, Send, ShieldAlert, UserRound } from "lucide-react";
 import { useState } from "react";
 
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -18,6 +18,7 @@ interface Turn {
   evidence?: Record<string, unknown>;
   structured?: AssistantStructured;
   warnings?: string[];
+  answerMode?: AssistantResponse["answer_mode"];
 }
 
 const EXAMPLES = [
@@ -63,6 +64,7 @@ export default function AssistantPage() {
           evidence: res.evidence,
           structured: res.structured,
           warnings: res.warnings,
+          answerMode: res.answer_mode,
         },
       ]);
     } catch (e) {
@@ -81,14 +83,14 @@ export default function AssistantPage() {
     <div className="space-y-5">
       <PageHeading
         title="AI Assistant"
-        subtitle="Answers are grounded in API results and cite their source. The assistant never invents numbers."
+        subtitle="Ask in plain language. Cropmatics answers from published evidence and explains what is missing."
       />
 
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
         <Card className="flex min-h-[32rem] flex-col">
           <CardHeader
-            title="Grounded Q&A"
-            subtitle="Retrieval over the analytics layer — not a generative guess"
+            title="Cropmatics Assistant"
+            subtitle="A conversational layer over the verified analytics"
           />
 
           <div className="thin-scroll flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -122,6 +124,19 @@ export default function AssistantPage() {
                         : "border border-forest/10 bg-white text-slate-700",
                     )}
                   >
+                    {turn.role === "assistant" ? (
+                      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
+                        {turn.answerMode === "conversational" ? (
+                          <span className="text-primary">Assistant</span>
+                        ) : turn.grounded ? (
+                          <span className="flex items-center gap-1 text-success">
+                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Verified answer
+                          </span>
+                        ) : (
+                          <span className="text-amber">Data unavailable</span>
+                        )}
+                      </div>
+                    ) : null}
                     <p className="whitespace-pre-wrap">{turn.text}</p>
 
                     {turn.role === "assistant" && turn.structured ? (
@@ -154,7 +169,7 @@ export default function AssistantPage() {
                         ))
                       : null}
 
-                    {turn.role === "assistant" && turn.grounded === false ? (
+                    {turn.role === "assistant" && turn.grounded === false && turn.answerMode !== "conversational" ? (
                       <p className="mt-2 flex items-center gap-1 text-[11px] text-amber">
                         <ShieldAlert className="h-3 w-3" aria-hidden="true" /> Not grounded — answer
                         withheld rather than guessed.
@@ -175,7 +190,7 @@ export default function AssistantPage() {
           </div>
 
           <form
-            className="flex items-end gap-2 border-t border-forest/10 p-3"
+            className="border-t border-forest/10 p-3"
             onSubmit={(e) => {
               e.preventDefault();
               ask(question);
@@ -184,17 +199,32 @@ export default function AssistantPage() {
             <label htmlFor="assistant-input" className="sr-only">
               Ask a question
             </label>
-            <textarea
-              id="assistant-input"
-              rows={1}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="e.g. Why is maize yield low in Gasabo?"
-              className="input max-h-32 min-h-[2.5rem] flex-1 resize-none"
-            />
-            <button type="submit" className="btn btn-primary" disabled={assistant.isPending}>
-              <Send className="h-4 w-4" /> Ask
-            </button>
+            <div className="relative">
+              <textarea
+                id="assistant-input"
+                rows={1}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    ask(question);
+                  }
+                }}
+                placeholder="Ask about crops, districts, gaps or trends"
+                aria-keyshortcuts="Enter"
+                className="input min-h-[2.75rem] w-full resize-none pr-12"
+              />
+              <button
+                type="submit"
+                className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg bg-primary text-white transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={assistant.isPending || !question.trim()}
+                aria-label="Send question"
+                title="Send question"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
           </form>
         </Card>
 

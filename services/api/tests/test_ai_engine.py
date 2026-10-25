@@ -104,6 +104,15 @@ def test_a_question_the_data_cannot_ground_is_refused_by_the_engine(client):
     assert body["validation"]["numeric"]["ok"] is True
 
 
+def test_greeting_is_conversational_without_data_claims(client):
+    body = _ask(client, "helloo")
+    assert body["grounded"] is True
+    assert body["intent"] == "greeting"
+    assert body["answer_mode"] == "conversational"
+    assert body["evidence_count"] == 0
+    assert "Cropmatics Assistant" in body["answer"]
+
+
 def test_the_guard_still_inspects_answers_that_contain_figures(client):
     _require_data(client)
     body = _ask(client, "Why is maize yield low in Gisagara?")

@@ -243,6 +243,12 @@ def test_metadata_questions_are_grounded(client):
     assert methodology["grounded"] is True
 
 
+def test_greetings_use_a_conversational_intent():
+    assert plan(AIRequest(question="helloo")).intent == "greeting"
+    assert plan(AIRequest(question="Good morning, Cropmatics")).intent == "greeting"
+    assert plan(AIRequest(question="hello which districts have the largest gaps?")).intent != "greeting"
+
+
 def test_kinyarwanda_comparison_is_understood(client):
     _require_data(client)
     body = _ask(client, "Gereranya ibigori n'ibishyimbo mu Rwanda")

@@ -53,6 +53,7 @@ OPERATION_TO_INTENT: dict[str, str] = {
 
 #: Intents the planner can return. A client can branch on any of them.
 INTENTS: tuple[str, ...] = (
+    "greeting",
     "district_crop_gap",
     "crop_national_context",
     "district_context",
@@ -127,6 +128,21 @@ _FOLLOWUP_MARKERS: tuple[str, ...] = (
     "there",
     "that one",
 )
+
+# Small talk is handled locally so a greeting feels human without asking the
+# model to invent an agricultural answer or sending an unnecessary provider
+# request. The full match prevents "hello, which districts..." from bypassing
+# analytical routing.
+_GREETING_RE = re.compile(
+    r"^\s*(?:h+i+|h+e+y+|h+e+l+o+|good\s+(?:morning|afternoon|evening)|"
+    r"how\s+are\s+you|thanks?|thank\s+you)"
+    r"(?:[\s,]+(?:there|cropmatics|assistant|team))?[!?.,\s]*$",
+    re.IGNORECASE,
+)
+
+
+def _is_greeting(text: str) -> bool:
+    return bool(_GREETING_RE.fullmatch(text or ""))
 
 
 class QueryPlan(BaseModel):
@@ -262,6 +278,9 @@ def primary_intent(plan: QueryPlan) -> str:
     def has(op: str) -> bool:
         return op in plan.operations
 
+    if has("greeting"):
+        return "greeting"
+
     # The publication gate is a statement about the platform. It is checked
     # before any crop/district reading so "is there a published maize forecast?"
     # answers the gate question rather than a nearby productivity one.
@@ -348,6 +367,15 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
     detected = language.detect(question)
     depth = _detect_depth(question)
     audience = _detect_audience(question)
+
+    if _is_greeting(question):
+        return QueryPlan(
+            language=detected,
+            operations=["greeting"],
+            depth=depth,
+            audience=audience,
+            page=context.page if context else None,
+        )
 
     # An out-of-scope topic is refused before entities are resolved, so a price
     # or weather question is never answered with a neighbouring production figure.

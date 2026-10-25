@@ -56,6 +56,7 @@ class GroundedAnswer:
         "period",
         "coverage",
         "limitations",
+        "answer_mode",
     )
 
     def __init__(
@@ -69,6 +70,7 @@ class GroundedAnswer:
         period: str | None = None,
         coverage: str | None = None,
         limitations: list[str] | None = None,
+        answer_mode: str = "deterministic",
     ) -> None:
         self.answer = answer
         self.grounded = grounded
@@ -78,6 +80,7 @@ class GroundedAnswer:
         self.period = period
         self.coverage = coverage
         self.limitations = list(limitations or [])
+        self.answer_mode = answer_mode
 
 
 def _limitations(*extra: str) -> list[str]:
@@ -95,6 +98,24 @@ def _unsupported(intent: str, **evidence: object) -> GroundedAnswer:
         intent=intent,
         evidence=dict(evidence),
         limitations=_limitations("question could not be grounded in the published data"),
+    )
+
+
+def greeting() -> GroundedAnswer:
+    """Respond to small talk without pretending it is an observation."""
+    return GroundedAnswer(
+        answer=(
+            "Hello! I’m the Cropmatics Assistant. I can help you explore Rwanda’s "
+            "published crop productivity, district gaps, trends, practices, "
+            "post-harvest use and data coverage. What would you like to investigate?"
+        ),
+        # This is a validated conversational response, not an agricultural claim.
+        grounded=True,
+        intent="greeting",
+        evidence={},
+        source="Cropmatics Assistant",
+        coverage="conversational",
+        answer_mode="conversational",
     )
 
 
@@ -1253,6 +1274,8 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
 
 def answer(routed: RoutedRequest) -> GroundedAnswer:
     """Produce the deterministic grounded answer for a routed request."""
+    if routed.intent == "greeting":
+        return greeting()
     if routed.intent == "district_crop_gap" and routed.district and routed.crop:
         return district_crop_gap(routed.district, routed.crop, routed.requested_period)
     if routed.intent == "crop_national_context" and routed.crop:

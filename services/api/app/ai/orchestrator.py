@@ -53,6 +53,11 @@ async def _ask_provider(provider, request, routed, bundle, reference) -> Provide
     *same* bundle, so whether the model wrote freely or selected its own tools,
     an unsupported figure is rejected identically.
     """
+    # Greetings are conversational UX, not analytical requests. Keep them local
+    # even when a remote provider is configured so an empty evidence bundle can
+    # never invite the model to improvise facts.
+    if routed.intent == "greeting":
+        return await fallback_provider().generate(request, routed, bundle, reference)
     if _agent_available(provider):
         return await agent.run(
             provider,
