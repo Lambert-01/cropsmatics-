@@ -34,7 +34,7 @@ canonical names above or configure these aliases:
 ```text
 AI_ENABLED=true
 AI_PROVIDER=openai_compatible
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_API_KEY=<replacement Groq secret>
 ```
