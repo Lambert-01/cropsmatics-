@@ -68,6 +68,17 @@ def _district(routed: RoutedRequest) -> dict | None:
     return {"district": routed.district, "period_code": routed.requested_period}
 
 
+def _districts(routed: RoutedRequest) -> dict | None:
+    districts = [district for district in routed.districts if district]
+    if len(districts) < 2:
+        return None
+    return {
+        "districts": districts[:4],
+        "crop": routed.crop,
+        "period_code": routed.requested_period,
+    }
+
+
 def _indicators(routed: RoutedRequest) -> dict | None:
     return {"indicator_ids": routed.indicator_ids} if routed.indicator_ids else None
 
@@ -122,6 +133,7 @@ HANDLERS: dict[str, callable] = {
     "get_crop_trend": _trend,
     "get_crop_context": _period_crop,
     "get_district_context": _district,
+    "get_district_comparison": _districts,
     "get_postharvest_profile": _crop,
     "get_national_indicator": _indicators,
     "get_source_metadata": _no_params,

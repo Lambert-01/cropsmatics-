@@ -106,6 +106,12 @@ def test_plan_resolves_a_district_ranking():
     assert resolved.crops == ["Maize"]
 
 
+def test_plan_resolves_two_named_districts_as_a_comparison():
+    resolved = plan(AIRequest(question="Compare Ngoma and Gatsibo"))
+    assert resolved.intent == "district_comparison"
+    assert resolved.districts == ["Ngoma", "Gatsibo"]
+
+
 def test_plan_resolves_a_practice_association_question():
     resolved = plan(AIRequest(question="Which practices are associated with maize yield?"))
     assert resolved.intent == "practice_associations"
@@ -193,6 +199,7 @@ def test_new_intents_are_advertised(client):
     advertised = set(client.get("/api/v1/assistant/suggestions").json()["intents"])
     for intent in (
         "crop_comparison",
+        "district_comparison",
         "period_comparison",
         "district_ranking",
         "crop_trend",

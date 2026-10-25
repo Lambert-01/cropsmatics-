@@ -127,6 +127,15 @@ def test_deep_depth_adds_interpretation_and_methodology(client):
     assert deep["figures"]
 
 
+def test_district_comparison_is_structured_and_formats_production(client):
+    _require_data(client)
+    structured = _ask(client, "Compare Ngoma and Gatsibo", depth="deep")["structured"]
+    assert structured["intent"] == "district_comparison"
+    assert structured["comparison"]["districts"]
+    assert structured["key_findings"]
+    assert all(".0" not in line or "kg/ha" in line for line in structured["key_findings"])
+
+
 # --- audience changes presentation, not evidence ------------------------------
 
 

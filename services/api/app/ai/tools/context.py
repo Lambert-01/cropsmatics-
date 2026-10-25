@@ -11,6 +11,7 @@ import pandas as pd
 
 from app.ai.evidence import EvidenceItem, EvidenceKind
 from app.ai.grounded import indicator_aggregate
+from app.ai.tools import productivity as productivity_tools
 from app.repositories import dataset_repository as repo
 from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import (
@@ -170,6 +171,40 @@ def district_context(*, district: str, period_code: str | None = None) -> list[E
                     note=f"{label}; 2025 Season B district practice survey",
                 )
             )
+    return items
+
+
+def district_comparison(
+    *,
+    districts: list[str],
+    crop: str | None = None,
+    period_code: str | None = None,
+) -> list[EvidenceItem]:
+    """Retrieve the same published view for each named district.
+
+    Without a crop this is deliberately a side-by-side district overview. With a
+    crop, the productivity tools add the comparable observed yield, benchmark and
+    gap for each district. The caller never receives a cross-crop average.
+    """
+    selected = [district for district in districts if district][:4]
+    if len(selected) < 2:
+        return []
+
+    items: list[EvidenceItem] = []
+    for district in selected:
+        if crop:
+            items.extend(
+                productivity_tools.observations(
+                    period_code=period_code, crop=crop, district=district
+                )
+            )
+            items.extend(
+                productivity_tools.yield_gap(
+                    period_code=period_code, crop=crop, district=district
+                )
+            )
+        else:
+            items.extend(district_context(district=district, period_code=period_code))
     return items
 
 

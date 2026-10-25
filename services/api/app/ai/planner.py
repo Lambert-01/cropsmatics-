@@ -57,6 +57,7 @@ INTENTS: tuple[str, ...] = (
     "district_crop_gap",
     "crop_national_context",
     "district_context",
+    "district_comparison",
     "national_indicator",
     "crop_comparison",
     "period_comparison",
@@ -287,6 +288,11 @@ def primary_intent(plan: QueryPlan) -> str:
     if has("forecast_status"):
         return "forecast_status"
 
+    # The entity resolver has already proved when multiple districts were named.
+    # Treat that as a comparison instead of silently answering for the first one.
+    if len(plan.districts) >= 2 and len(plan.crops) < 2:
+        return "district_comparison"
+
     # A comparison of two or more named crops is the most specific reading and the
     # old router would have wrongly returned a single-crop context.
     if has("crop_comparison") and len(plan.crops) >= 2:
@@ -455,6 +461,8 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
     # comparison operation is left untouched.
     if len(crops) >= 2 and "crop_comparison" not in operations:
         operations = [*operations, "crop_comparison"]
+    if len(districts) >= 2 and "district_comparison" not in operations:
+        operations = [*operations, "district_comparison"]
 
     period_code, comparison_period, wants_comparison = _resolve_period(
         question, context, inherited_period

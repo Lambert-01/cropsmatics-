@@ -62,6 +62,18 @@ def test_district_only_question_returns_district_context(client):
     assert answer["evidence"]["district"] == "Musanze"
 
 
+def test_two_district_question_compares_both_districts(client):
+    answer = ask(client, "Compare Ngoma and Gatsibo")
+    assert answer["grounded"] is True
+    assert answer["intent"] == "district_comparison"
+    assert [row["district"] for row in answer["evidence"]["districts"]] == [
+        "Ngoma",
+        "Gatsibo",
+    ]
+    assert "Ngoma" in answer["answer"]
+    assert "Gatsibo" in answer["answer"]
+
+
 def test_national_indicator_question_is_grounded(client):
     answer = ask(client, "How many farmers use irrigation?")
     assert answer["grounded"] is True

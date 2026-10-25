@@ -286,6 +286,7 @@ function StructuredDetails({
   const sources = structured.sources ?? [];
   const followups = structured.suggested_followups ?? [];
   const limitations = structured.limitations ?? [];
+  const primarySources = sources.slice(0, 2);
 
   return (
     <div className="mt-2 space-y-2.5 text-[11px]">
@@ -321,11 +322,16 @@ function StructuredDetails({
       ) : null}
 
       {limitations.length ? (
-        <ul className="ml-4 list-disc space-y-0.5 text-slate-500">
-          {limitations.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
+        <details className="rounded-lg border border-forest/10 p-2">
+          <summary className="cursor-pointer font-semibold text-forest">
+            Data notes ({limitations.length})
+          </summary>
+          <ul className="mt-1 ml-4 list-disc space-y-0.5 text-slate-500">
+            {limitations.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       {methodology.length ? (
@@ -340,10 +346,26 @@ function StructuredDetails({
       ) : null}
 
       {sources.length ? (
-        <p className="text-slate-500">
-          <span className="font-semibold text-forest">Sources: </span>
-          {sources.map((s) => (s.name ? `${s.name} (${s.source_id})` : s.source_id)).join(", ")}
-        </p>
+        <details className="rounded-lg border border-forest/10 p-2">
+          <summary className="cursor-pointer font-semibold text-forest">
+            Sources ({sources.length})
+          </summary>
+          <p className="mt-1 text-slate-500">
+            {primarySources
+              .map((s) => (s.name ? `${s.name} (${s.source_id})` : s.source_id))
+              .join(", ")}
+            {sources.length > primarySources.length ? " …" : ""}
+          </p>
+          {sources.length > primarySources.length ? (
+            <ul className="mt-1 ml-4 list-disc space-y-0.5 text-slate-500">
+              {sources.slice(2).map((s) => (
+                <li key={s.source_id}>
+                  {s.name ? `${s.name} (${s.source_id})` : s.source_id}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </details>
       ) : null}
 
       {followups.length ? (

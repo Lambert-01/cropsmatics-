@@ -472,6 +472,116 @@ def district_context(district: str, period_code: str | None = None) -> GroundedA
     )
 
 
+def district_comparison(
+    districts: list[str], crop: str | None = None, period_code: str | None = None
+) -> GroundedAnswer:
+    """Compare named districts without inventing a cross-crop statistic.
+
+    A district-only request gets two concise overviews. A crop-qualified request
+    gets the comparable crop-specific yield and gap for every district.
+    """
+    selected = [district for district in districts if district][:4]
+    if len(selected) < 2:
+        return _unsupported("district_comparison", districts=selected, crop=crop)
+
+    if crop:
+        answers = [district_crop_gap(district, crop, period_code) for district in selected]
+        if not all(item.grounded for item in answers):
+            return _unsupported(
+                "district_comparison", districts=selected, crop=crop, period_code=period_code
+            )
+        rows = [
+            {
+                "district": district,
+                "observed_yield_kg_ha": answer.evidence.get("observed_yield_kg_ha"),
+                "benchmark_yield_kg_ha": answer.evidence.get("benchmark_yield_kg_ha"),
+                "gap_index": answer.evidence.get("gap_index"),
+            }
+            for district, answer in zip(selected, answers, strict=True)
+        ]
+        period = answers[0].period
+        period_label = mobile_service.format_period(period) or "the selected period"
+        summary = "; ".join(
+            f"{row['district']}: {row['observed_yield_kg_ha']:,.0f} kg/ha observed, "
+            f"{row['gap_index']:.1f}% gap"
+            for row in rows
+        )
+        answer = (
+            f"{crop} comparison for {period_label}: {summary}. "
+            "The benchmark is the same national crop median for both districts; "
+            "a positive gap means yield is below that benchmark."
+        )
+        return GroundedAnswer(
+            answer=answer,
+            grounded=True,
+            intent="district_comparison",
+            evidence={
+                "districts": rows,
+                "crop": crop,
+                "period": period,
+                "benchmark_strategy": "national_crop_median",
+            },
+            source=", ".join(dict.fromkeys(item.source for item in answers if item.source)),
+            period=period,
+            coverage="district",
+            limitations=_limitations(
+                "district-specific crop observations, not farm-level evidence",
+                "gap index is relative to the same national crop median",
+                "associations are not proof of causes",
+            ),
+        )
+
+    answers = [district_context(district, period_code) for district in selected]
+    if not all(item.grounded for item in answers):
+        return _unsupported(
+            "district_comparison", districts=selected, period_code=period_code
+        )
+
+    rows = []
+    for district, item in zip(selected, answers, strict=True):
+        top = (item.evidence.get("largest_production_crops") or [None])[0]
+        rows.append(
+            {
+                "district": district,
+                "n_crops_with_data": item.evidence.get("n_crops_with_data"),
+                "largest_production_crop": top,
+                "practice_adoption_pct": item.evidence.get("practice_adoption_pct", {}),
+            }
+        )
+
+    period = answers[0].period
+    period_label = mobile_service.format_period(period) or "the latest period"
+    parts = []
+    for row in rows:
+        top = row["largest_production_crop"]
+        sentence = f"{row['district']} has {row['n_crops_with_data']} crops with published data"
+        if top and top.get("production_mt") is not None:
+            sentence += (
+                f"; {top['crop']} is its largest reported crop by production "
+                f"({top['production_mt']:,.0f} metric tonnes)"
+            )
+        parts.append(sentence)
+    answer = (
+        f"District overview for {period_label}: " + ". ".join(parts) + ". "
+        "This is a side-by-side overview, not a cross-crop yield ranking. "
+        "Choose a crop to compare observed yield and productivity gap directly."
+    )
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="district_comparison",
+        evidence={"districts": rows, "period": period},
+        source=", ".join(dict.fromkeys(item.source for item in answers if item.source)),
+        period=period,
+        coverage="district",
+        limitations=_limitations(
+            "district aggregates only; practice adoption is a share of farmers, not of area",
+            "no cross-crop average yield is computed because crops have different natural scales",
+            "choose one crop for a like-for-like yield comparison",
+        ),
+    )
+
+
 def indicator_aggregate(spec: dict) -> dict | None:
     """National distribution of one indicator, from its published district rows.
 
@@ -1231,6 +1341,24 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
             {"label": "crops with published data", "value": evidence.get("n_crops_with_data"),
              "unit": "crops"}
         )
+    elif intent == "district_comparison":
+        for row in evidence.get("districts", [])[:4]:
+            if row.get("observed_yield_kg_ha") is not None:
+                figures.append(
+                    {
+                        "label": f"{row.get('district')} observed yield",
+                        "value": row.get("observed_yield_kg_ha"),
+                        "unit": "kg/ha",
+                    }
+                )
+            elif row.get("n_crops_with_data") is not None:
+                figures.append(
+                    {
+                        "label": f"{row.get('district')} crops with published data",
+                        "value": row.get("n_crops_with_data"),
+                        "unit": "crops",
+                    }
+                )
     elif intent == "crop_comparison":
         for crop, values in (evidence.get("values") or {}).items():
             if values.get("production_mt") is not None:
@@ -1282,6 +1410,10 @@ def answer(routed: RoutedRequest) -> GroundedAnswer:
         return crop_context(routed.crop, routed.requested_period)
     if routed.intent == "district_context" and routed.district:
         return district_context(routed.district, routed.requested_period)
+    if routed.intent == "district_comparison" and routed.districts:
+        return district_comparison(
+            routed.districts, routed.crop, routed.requested_period
+        )
     if routed.intent == "national_indicator" and routed.indicator_ids:
         return national_indicator(routed.indicator_ids)
     if routed.intent == "crop_comparison" and routed.crops:

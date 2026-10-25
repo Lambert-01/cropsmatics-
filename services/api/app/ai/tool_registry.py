@@ -54,6 +54,14 @@ class DistrictParams(_StrictParams):
     period_code: str | None = None
 
 
+class DistrictComparisonParams(_StrictParams):
+    """Two to four districts compared in one published period."""
+
+    districts: list[str] = Field(min_length=2, max_length=4)
+    crop: str | None = Field(None, max_length=80)
+    period_code: str | None = None
+
+
 class TrendParams(_StrictParams):
     crop: str = Field(min_length=1, max_length=80)
     district: str | None = None
@@ -172,6 +180,15 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
             fn=context_tools.district_context,
         ),
         ToolSpec(
+            name="get_district_comparison",
+            description=(
+                "Side-by-side published context for two to four districts. With a crop, "
+                "returns that crop's observed yield, benchmark and gap for each district."
+            ),
+            params_model=DistrictComparisonParams,
+            fn=context_tools.district_comparison,
+        ),
+        ToolSpec(
             name="get_postharvest_profile",
             description="National post-harvest use shares for one crop.",
             params_model=CropParams,
@@ -273,6 +290,7 @@ INTENT_TOOLS: dict[str, tuple[str, ...]] = {
     ),
     "crop_national_context": ("get_crop_context", "get_postharvest_profile", "get_crop_trend"),
     "district_context": ("get_district_context",),
+    "district_comparison": ("get_district_comparison",),
     "national_indicator": ("get_national_indicator",),
     "crop_comparison": ("get_crop_comparison",),
     "period_comparison": ("get_period_change", "get_crop_context"),

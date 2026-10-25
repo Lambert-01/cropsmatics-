@@ -62,6 +62,7 @@ INTENT_TITLES: dict[str, str] = {
     "district_crop_gap": "District crop productivity",
     "crop_national_context": "National crop context",
     "district_context": "District overview",
+    "district_comparison": "District comparison",
     "national_indicator": "National indicator",
     "crop_comparison": "Crop comparison",
     "period_comparison": "Same-season change",
@@ -110,6 +111,10 @@ INTENT_METHODOLOGY: dict[str, tuple[str, ...]] = {
     ),
     "national_indicator": (
         "value is an unweighted mean of the published district rows, reported with its observation count",
+    ),
+    "district_comparison": (
+        "districts are compared side by side; no cross-crop yield average is computed",
+        "when a crop is selected, yield and gap are compared against the same national crop median",
     ),
     "data_coverage": (
         "only periods present in the processed tables are listed",
@@ -352,7 +357,29 @@ def _key_findings(routed: RoutedRequest, reference: GroundedAnswer) -> list[str]
             findings.append(f"{factor.get('label')}: {factor.get('interpretation')}")
     elif intent == "district_context":
         for item in (evidence.get("largest_production_crops") or [])[:3]:
-            findings.append(f"{item.get('crop')}: {item.get('production_mt')}")
+            production = item.get("production_mt")
+            if production is not None:
+                findings.append(f"{item.get('crop')}: {production:,.0f} metric tonnes")
+    elif intent == "district_comparison":
+        for item in (evidence.get("districts") or [])[:4]:
+            if item.get("observed_yield_kg_ha") is not None:
+                gap = item.get("gap_index")
+                gap_text = f", {gap:.1f}% gap" if gap is not None else ""
+                findings.append(
+                    f"{item.get('district')}: {item.get('observed_yield_kg_ha'):,.0f} kg/ha observed"
+                    f"{gap_text}"
+                )
+            else:
+                top = item.get("largest_production_crop") or {}
+                production = top.get("production_mt")
+                detail = (
+                    f"; {top.get('crop')} {production:,.0f} metric tonnes"
+                    if production is not None
+                    else ""
+                )
+                findings.append(
+                    f"{item.get('district')}: {item.get('n_crops_with_data')} crops with data{detail}"
+                )
     return findings
 
 
@@ -379,7 +406,13 @@ def _suggested_followups(routed: RoutedRequest) -> list[str]:
         questions.append(f"How is {crop} used after harvest?")
     if district:
         questions.append(f"Tell me about {district}")
-    questions.append("Which periods are covered?")
+    if routed.intent == "district_comparison" and len(routed.districts) >= 2:
+        questions = [
+            f"Compare {routed.districts[0]} and {routed.districts[1]} for maize",
+            "Which periods are covered?",
+        ]
+    elif "Which periods are covered?" not in questions:
+        questions.append("Which periods are covered?")
     return questions[:5]
 
 
@@ -486,6 +519,8 @@ def build(
             structured.comparison = {"changes": reference.evidence.get("changes", {})}
         elif reference.intent == "district_ranking":
             structured.comparison = {"ranking": reference.evidence.get("ranking", [])}
+        elif reference.intent == "district_comparison":
+            structured.comparison = {"districts": reference.evidence.get("districts", [])}
         if reference.intent == "crop_trend":
             structured.trend = {
                 "periods": reference.evidence.get("periods", []),
