@@ -1,7 +1,7 @@
 {
   "package": "Cropmatics Real Data Pack 2024-2026",
   "created": "2026-09-25",
-  "original_uploaded_workbook_included": false,
+  "original_uploaded_workbook_included": true,
   "original_uploaded_workbook_path": "data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx",
   "synthetic_records_included": false,
   "files": [
@@ -14,7 +14,8 @@
     "07_national_input_practice_trends_2024_2026.csv",
     "08_verified_cold_chain_context_2026.csv",
     "09_source_registry.csv",
-    "Cropmatics_Core_Real_Data_2024_2026.xlsx",
     "README_DATA.md"
-  ]
+  ],
+  "derived_convenience_workbook_included": false,
+  "derived_convenience_workbook_note": "The compiled workbook was removed; the listed CSVs and the original NISR workbook are the authoritative retained inputs."
 }

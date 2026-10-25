@@ -6,29 +6,27 @@ This directory contains the authoritative data inputs, dictionaries and generate
 
 ```text
 data/
-├── raw/                         # IMMUTABLE official/source inputs
+├── raw/                         # IMMUTABLE official/source inputs and extracts
 │   ├── nisr/
 │   │   └── sas/                 # 2022–2026 NISR releases: workbooks/ and tables/
 │   ├── external/
 │   │   └── minagri/             # Verified MINAGRI post-harvest/storage context
 │   ├── markets/                 # Provider drop-folder; currently no verified observations
-│   └── cropmatics_real_data_2024_2026/  # 2025B derived pack
+│   └── cropmatics_real_data_2024_2026/  # verified 2025B compatibility pack
 ├── dictionaries/                # Crop/geography/code mappings and variable contracts
 ├── source_registry/             # Dataset provenance and access terms
 ├── interim/                     # Regenerable pipeline intermediates (gitignored)
 ├── processed/                   # Regenerable canonical analytical tables (gitignored)
-├── external/                    # Future third-party derived/open inputs (gitignored)
-└── dev_fixtures/
-    └── synthetic/               # Clearly labelled TEST/DEMO data only
+└── external/                    # Future third-party derived/open inputs (gitignored)
 ```
 
 ## What is authoritative
 
 1. **Official raw inputs live under `data/raw/` and are immutable.** Never edit these files in place. Corrections, normalisation and mappings belong in `scripts/data/` and write to `interim/` or `processed/`.
 2. **`data/raw/nisr/sas/` is the multi-season statistical source layer.** It contains published 2022A–2026B extracts plus year/release `workbooks/` folders. The reviewed mapping in `scripts/data/sas_table_map.py` determines which sheets are ingested. Owner-supplied XLSX files are untracked; the tracked CSV extractions and manifest are the Docker inputs.
-3. **`data/raw/cropmatics_real_data_2024_2026/` remains as a curated official-source pack and provenance bridge.** Its derived CSVs are active source inputs. The distinct curated 2025B original was moved unchanged to `data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
+3. **`data/raw/cropmatics_real_data_2024_2026/` remains as a verified compatibility pack and provenance bridge.** Its CSVs are derived from the official NISR/MINAGRI source archive and are active source inputs. The compiled convenience workbook was removed because it duplicated those CSVs. The distinct curated 2025B original remains unchanged at `data/raw/nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
 4. **MINAGRI storage/post-harvest inputs under `data/raw/external/minagri/` are retained** because the active pipeline builds the storage infrastructure and cold-chain context from them.
-5. **Synthetic development fixtures are never production statistics.** They stay under `data/dev_fixtures/synthetic/` and must never be loaded into production analytical tables.
+5. **No fabricated dataset is stored under `data/`.** Automated tests use temporary fixtures created inside test runs; those values never enter the production analytical tables.
 
 ## Generated data
 
@@ -91,3 +89,12 @@ Future deletion is allowed only when all of the following are true:
 4. the complete pipeline and tests still pass after removal.
 
 Git history remains the archive for removed superseded derived artefacts.
+
+## Source-only cleanup completed
+
+The repository no longer includes the fabricated demo harvest CSV, its synthetic
+README, or duplicate compiled convenience workbooks. The complete NISR worksheet
+archive, source manifests, real compatibility CSVs, MINAGRI context CSVs,
+dictionaries, and reproducible generated outputs remain available. Unmapped SAS
+worksheets are retained as source evidence even when they do not feed a current
+feature.

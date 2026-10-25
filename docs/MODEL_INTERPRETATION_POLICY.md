@@ -49,5 +49,6 @@ and adjustable; no automated binding decision is made.
 
 ## 8. Synthetic data is labelled
 
-Synthetic fixtures are test-only, isolated under `data/dev_fixtures/`, and marked
-`SYNTHETIC`. They never enter analytical tables or public output.
+Synthetic values are test-only, created in temporary test fixtures, and marked
+`SYNTHETIC` when a test needs them. They never enter analytical tables or public
+output, and no fabricated dataset is stored under `data/`.

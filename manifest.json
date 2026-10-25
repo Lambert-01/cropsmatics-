@@ -14,10 +14,9 @@
     "processed": "data/processed (model-ready tables; regenerable via `make data`)",
     "dictionaries": "data/dictionaries (geography + crop code lists)",
     "source_registry": "data/source_registry",
-    "dev_fixtures": "data/dev_fixtures (SYNTHETIC / TEST ONLY)"
+    "tests": "temporary code-local fixtures only; no fabricated records are stored under data/"
   },
   "official_real_data_included": true,
-  "synthetic_records_included": true,
-  "synthetic_records_location": "data/dev_fixtures/synthetic",
-  "synthetic_records_note": "Fabricated for demo/testing only; never cited as official statistics."
+  "synthetic_records_included": false,
+  "synthetic_records_note": "No fabricated records are included in the data directory."
 }

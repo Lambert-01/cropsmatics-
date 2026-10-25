@@ -38,4 +38,5 @@ Rules enforced by the pipeline:
 - Missing values stay null — never imputed.
 - Every processed row carries provenance (`source_id`, `source_period`,
   `processing_script`, `processing_version`, `is_synthetic`).
-- Synthetic fixtures (`data/dev_fixtures/`) are **never** read here.
+- No fabricated dataset is read here; the pipeline only ingests the immutable
+  raw sources and writes reproducible interim/processed outputs.

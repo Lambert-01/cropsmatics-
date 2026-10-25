@@ -333,6 +333,56 @@ export function FilterChip({
   );
 }
 
+/**
+ * A compact, searchable-filter trigger. Chips work well for two or three
+ * binary choices; a period or district catalogue needs one stable trigger that
+ * opens a searchable sheet instead of spilling across the screen.
+ */
+export function FilterButton({
+  label,
+  value,
+  active,
+  onPress,
+  icon = "options-outline",
+}: {
+  label: string;
+  value: string;
+  active?: boolean;
+  onPress: () => void;
+  icon?: keyof typeof Ionicons.glyphMap;
+}) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
+      accessibilityState={{ selected: Boolean(active) }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.filterButton,
+        active ? styles.filterButtonActive : null,
+        pressed ? { opacity: 0.8 } : null,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={15}
+        color={active ? colors.primary : colors.slate500}
+      />
+      <View style={styles.filterButtonCopy}>
+        <Text numberOfLines={1} style={styles.filterButtonLabel}>
+          {label}
+        </Text>
+        <Text numberOfLines={1} style={styles.filterButtonValue}>
+          {value}
+        </Text>
+      </View>
+      <Ionicons name="chevron-down" size={14} color={colors.slate500} />
+    </Pressable>
+  );
+}
+
 // ---- states ---------------------------------------------------------------
 
 export function EmptyState({
@@ -556,6 +606,32 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.slate700, fontWeight: "600" },
   chipTextSelected: { color: colors.white },
+  filterButton: {
+    minHeight: 52,
+    minWidth: 150,
+    maxWidth: 220,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 11,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  filterButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.mintSoft,
+  },
+  filterButtonCopy: { flex: 1, minWidth: 0, gap: 1 },
+  filterButtonLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    color: colors.slate500,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  filterButtonValue: { fontSize: 13, lineHeight: 17, color: colors.slate700, fontWeight: "700" },
   state: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl, paddingHorizontal: spacing.md },
   offlineBanner: {
     flexDirection: "row",

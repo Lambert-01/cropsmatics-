@@ -68,7 +68,6 @@ INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
 DICTS_DIR = DATA_DIR / "dictionaries"
 REGISTRY_DIR = DATA_DIR / "source_registry"
-FIXTURES_DIR = DATA_DIR / "dev_fixtures"
 
 # --- pipeline identity (recorded in every processed row) -------------------
 PIPELINE_VERSION = "0.2.0"

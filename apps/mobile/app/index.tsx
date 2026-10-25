@@ -29,14 +29,16 @@ import { RwandaMap } from "../src/components/RwandaMap";
 import {
   EmptyState,
   ErrorState,
+  FilterButton,
   FilterChip,
   ListRow,
   LoadingSkeleton,
   OfflineBanner,
   SearchBar,
 } from "../src/components/ui";
+import { SingleSelectSheet } from "../src/components/terminal/SingleSelectSheet";
 import { features } from "../src/config/features";
-import { useAllCrops, useAllDistricts, useNationalBoard } from "../src/hooks/queries";
+import { useAllCrops, useAllDistricts, useNationalBoard, usePeriods } from "../src/hooks/queries";
 import { useNationalInsights } from "../src/hooks/useNationalInsights";
 import { useSavedCrops } from "../src/hooks/useSavedCrops";
 import { strings } from "../src/i18n";
@@ -248,9 +250,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   const home = useQuery({ queryKey: ["mobile-home"], queryFn: homeApi.get });
-  const board = useNationalBoard();
   const crops = useAllCrops();
   const districts = useAllDistricts();
+  const periodsQuery = usePeriods();
   const { insights } = useNationalInsights();
   // Saved crops are a *preference*, kept separate from published observations:
   // they reorder the watchlist, they never change a figure.
@@ -261,8 +263,17 @@ export default function HomeScreen() {
   const [periodView, setPeriodView] = useState<PeriodView>("all");
   const [season, setSeason] = useState<SeasonFilter>("all");
   const [cropFilter, setCropFilter] = useState<string | null>(null);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [districtCode, setDistrictCode] = useState<string | null>(null);
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const [districtSheetOpen, setDistrictSheetOpen] = useState(false);
+  const [cropSheetOpen, setCropSheetOpen] = useState(false);
   // Measured so the Rwanda map never overflows a 320px-wide screen.
   const [mapWidth, setMapWidth] = useState(0);
+
+  // The landing view is intentionally the complete published series. A period
+  // becomes narrow only after the user chooses it from the searchable sheet.
+  const board = useNationalBoard(undefined, { periodCode });
 
   /**
    * Selecting a season also clears the "same season" period view.
@@ -276,31 +287,88 @@ export default function HomeScreen() {
    */
   const selectSeason = useCallback((next: SeasonFilter) => {
     setSeason(next);
+    setPeriodCode(null);
+    setPeriodView("all");
+  }, []);
+
+  const selectPeriod = useCallback((next: string | null) => {
+    setPeriodCode(next);
+    setSeason("all");
     setPeriodView("all");
   }, []);
 
   const canReset =
-    season !== "all" || periodView !== "all" || cropFilter !== null || metric !== DEFAULT_METRIC;
+    season !== "all" ||
+    periodView !== "all" ||
+    cropFilter !== null ||
+    periodCode !== null ||
+    districtCode !== null ||
+    metric !== DEFAULT_METRIC;
 
   /** Back to the canonical default: newest published data, all crops, all seasons. */
   const resetFilters = useCallback(() => {
     setSeason("all");
     setPeriodView("all");
     setCropFilter(null);
+    setPeriodCode(null);
+    setDistrictCode(null);
     setMetric(DEFAULT_METRIC);
   }, []);
 
   const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
   const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
+  const catalogPeriods = useMemo(() => periodsQuery.data?.periods ?? [], [periodsQuery.data]);
+  const periodOptions = useMemo(
+    () => [
+      {
+        id: "__all__",
+        label: t.allPublishedPeriods,
+        hint: `${catalogPeriods.length || periods.length} ${t.period}`,
+      },
+      ...catalogPeriods.map((period) => ({
+        id: period.period_code,
+        label: period.label,
+        hint: `${period.n_districts} ${t.districts}`,
+      })),
+    ],
+    [catalogPeriods, periods.length, t],
+  );
+  const selectedPeriodLabel = periodCode
+    ? catalogPeriods.find((period) => period.period_code === periodCode)?.label ??
+      periodLabels[periodCode] ??
+      periodCode
+    : t.allPublishedPeriods;
+  const districtOptions = useMemo(
+    () =>
+      (districts.data ?? []).map((district) => ({
+        id: district.district_code,
+        label: district.district,
+        hint: district.province,
+      })),
+    [districts.data],
+  );
+  const cropOptions = useMemo(
+    () => [
+      { id: "__all__", label: t.filterAllCrops, hint: t.nationalSeries },
+      ...(crops.data ?? []).map((crop) => ({ id: crop.crop_name, label: crop.crop_name })),
+    ],
+    [crops.data, t],
+  );
+  const selectedDistrict = useMemo(
+    () => (districts.data ?? []).find((district) => district.district_code === districtCode) ?? null,
+    [districtCode, districts.data],
+  );
   const metricUnits = board.data?.metric_units ?? {};
 
-  const refreshing = home.isFetching || board.isFetching || crops.isFetching || districts.isFetching;
+  const refreshing =
+    home.isFetching || board.isFetching || crops.isFetching || districts.isFetching || periodsQuery.isFetching;
   const onRefresh = useCallback(() => {
     void home.refetch();
     void board.refetch();
     void crops.refetch();
     void districts.refetch();
-  }, [home, board, crops, districts]);
+    void periodsQuery.refetch();
+  }, [home, board, crops, districts, periodsQuery]);
 
   const totals = board.data?.national ?? null;
 
@@ -415,12 +483,13 @@ export default function HomeScreen() {
     () =>
       [
         cropFilter ?? t.nationalSeries,
+        periodCode ? selectedPeriodLabel : null,
         season !== "all" ? `${t.seasonWord} ${season}` : null,
         periodView === "same-season" ? t.sameSeasonView : null,
       ]
         .filter(Boolean)
         .join(" \u00b7 "),
-    [cropFilter, season, periodView, t],
+    [cropFilter, periodCode, season, periodView, selectedPeriodLabel, t],
   );
 
   /**
@@ -435,11 +504,12 @@ export default function HomeScreen() {
     () =>
       [
         cropFilter ?? t.scopeNational,
+        periodCode ? selectedPeriodLabel : null,
         season !== "all" ? `${t.seasonWord} ${season}` : null,
       ]
         .filter(Boolean)
         .join(" \u00b7 "),
-    [cropFilter, season, t],
+    [cropFilter, periodCode, season, selectedPeriodLabel, t],
   );
 
   /** The metric's own label, for the empty state's sentence. */
@@ -529,10 +599,20 @@ export default function HomeScreen() {
   }, [board.data, topCrop, t]);
 
   const gapLayer = useQuery({
-    queryKey: ["home-gap", topCrop],
-    queryFn: () => mapsApi.districtMetrics({ metric: "gap", crop: topCrop as string }),
+    queryKey: ["home-gap", topCrop, periodCode],
+    queryFn: () =>
+      mapsApi.districtMetrics({
+        metric: "gap",
+        crop: topCrop as string,
+        periodCode: periodCode ?? undefined,
+      }),
     enabled: Boolean(topCrop),
   });
+
+  const selectedDistrictRow = useMemo(
+    () => gapLayer.data?.districts?.find((row) => row.district_code === districtCode) ?? null,
+    [districtCode, gapLayer.data],
+  );
 
   const districtView = useMemo(() => {
     const scale = scaleForLayer("gap");
@@ -569,11 +649,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={["top"]} style={{ flex: 1, backgroundColor: colors.primary }}>
       <AppHeader
-        context={
-          (home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""])
-            ? `${home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]} \u00b7 ${t.nationalSeries}`
-            : null
-        }
+        context={`${selectedPeriodLabel} \u00b7 ${t.nationalSeries}`}
       />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -635,11 +711,11 @@ export default function HomeScreen() {
                   <Ionicons name="leaf" size={11} color={colors.white} />
                   <Text style={styles.heroBadgeSolidText}>{t.homeEyebrow.toUpperCase()}</Text>
                 </LinearGradient>
-                {(home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]) ? (
+                {selectedPeriodLabel ? (
                   <View style={styles.heroBadgeGlass}>
                     <Ionicons name="calendar-outline" size={11} color={colors.white} />
                     <Text style={styles.heroBadgeGlassText}>
-                      {home.data?.latest_period_label ?? periodLabels[periods.at(-1) ?? ""]}
+                      {selectedPeriodLabel}
                     </Text>
                   </View>
                 ) : null}
@@ -668,18 +744,27 @@ export default function HomeScreen() {
               contentContainerStyle={styles.filterStrip}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.contextChip}>
-                <LinearGradient
-                  colors={gradient.brand}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-                <Ionicons name="calendar-outline" size={12} color={colors.white} />
-                <Text numberOfLines={1} style={styles.contextChipText}>
-                  {home.data?.latest_period_label ?? t.latestData}
-                </Text>
-              </View>
+              <FilterButton
+                label={t.selectPeriod}
+                value={selectedPeriodLabel}
+                active={periodCode !== null}
+                icon="calendar-outline"
+                onPress={() => setPeriodSheetOpen(true)}
+              />
+              <FilterButton
+                label={t.districts}
+                value={selectedDistrict?.district ?? t.districts}
+                active={districtCode !== null}
+                icon="location-outline"
+                onPress={() => setDistrictSheetOpen(true)}
+              />
+              <FilterButton
+                label={t.selectCrop}
+                value={cropFilter ?? t.filterAllCrops}
+                active={cropFilter !== null}
+                icon="leaf-outline"
+                onPress={() => setCropSheetOpen(true)}
+              />
 
               <FilterChip
                 label={t.seasonAll}
@@ -717,20 +802,6 @@ export default function HomeScreen() {
                 </>
               ) : null}
 
-              <FilterChip
-                label={t.filterAllCrops}
-                selected={cropFilter === null}
-                onPress={() => setCropFilter(null)}
-              />
-              {(board.data?.crops ?? []).map((item) => (
-                <FilterChip
-                  key={item.crop}
-                  label={item.crop}
-                  selected={cropFilter === item.crop}
-                  onPress={() => setCropFilter(item.crop)}
-                />
-              ))}
-
               {/* Always reachable once anything is off its default, so the
                   user is never stranded in an empty selection. */}
               {canReset ? (
@@ -746,6 +817,59 @@ export default function HomeScreen() {
                 </Pressable>
               ) : null}
             </ScrollView>
+
+            <SingleSelectSheet
+              visible={periodSheetOpen}
+              title={t.selectPeriod}
+              subtitle={t.allPublishedPeriods}
+              searchPlaceholder={t.selectPeriod}
+              options={periodOptions}
+              selected={periodCode ?? "__all__"}
+              onApply={(next) => {
+                selectPeriod(next && next !== "__all__" ? next : null);
+                setPeriodSheetOpen(false);
+              }}
+              onCancel={() => setPeriodSheetOpen(false)}
+            />
+            <SingleSelectSheet
+              visible={districtSheetOpen}
+              title={t.districts}
+              subtitle={t.searchDistricts}
+              searchPlaceholder={t.searchDistricts}
+              options={districtOptions}
+              selected={districtCode}
+              onApply={(next) => {
+                setDistrictCode(next);
+                setDistrictSheetOpen(false);
+              }}
+              onCancel={() => setDistrictSheetOpen(false)}
+            />
+            <SingleSelectSheet
+              visible={cropSheetOpen}
+              title={t.selectCrop}
+              subtitle={t.nationalSeries}
+              searchPlaceholder={t.searchCrops}
+              options={cropOptions}
+              selected={cropFilter ?? "__all__"}
+              onApply={(next) => {
+                setCropFilter(next && next !== "__all__" ? next : null);
+                setCropSheetOpen(false);
+              }}
+              onCancel={() => setCropSheetOpen(false)}
+            />
+
+            {selectedDistrict && districtCode ? (
+              <ListRow
+                title={selectedDistrict.district}
+                subtitle={
+                  selectedDistrictRow?.value !== null && selectedDistrictRow?.value !== undefined
+                    ? `${t.metricGap}: ${formatValue(selectedDistrictRow.value)}% · ${selectedPeriodLabel}`
+                    : `${selectedDistrict.province ?? t.districts} · ${t.noPublishedPeriod}`
+                }
+                icon="location"
+                onPress={() => router.push((`/explore/district/${districtCode}`) as never)}
+              />
+            ) : null}
 
             {/* The pulse follows the crop and season filters, so its caption
                 names them. These are national figures, never district ones. */}
@@ -980,8 +1104,11 @@ export default function HomeScreen() {
                       width={mapWidth || 280}
                       height={190}
                       values={districtView.values}
-                      selected={null}
-                      onSelect={(code) => router.push((`/explore/district/${code}`) as never)}
+                      selected={districtCode}
+                      onSelect={(code) => {
+                        setDistrictCode(code);
+                        router.push((`/explore/district/${code}`) as never);
+                      }}
                     />
                   </View>
                   <Text style={typography.micro}>

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { TimeSeriesChart } from "../../src/components/charts";
 import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
@@ -12,12 +12,15 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  FilterButton,
+  FilterChip,
   ListRow,
   LoadingSkeleton,
   SectionHeader,
   SourceCard,
 } from "../../src/components/ui";
-import { useNationalBoard } from "../../src/hooks/queries";
+import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
+import { useAllCrops, useNationalBoard, usePeriods } from "../../src/hooks/queries";
 import { strings, type Strings } from "../../src/i18n";
 import type { NationalBoardCrop } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
@@ -86,14 +89,44 @@ export default function AnalyzeScreen() {
   const language = useAppStore((s) => s.language);
   const t = strings(language);
   const [metric, setMetric] = useState<BoardMetric>("production_mt");
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [cropFilter, setCropFilter] = useState<string | null>(null);
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const [cropSheetOpen, setCropSheetOpen] = useState(false);
 
-  const board = useNationalBoard();
+  const crops = useAllCrops();
+  const periodsQuery = usePeriods();
+  const board = useNationalBoard(cropFilter ? [cropFilter] : undefined, { periodCode });
 
   // Memoised because they are dependencies of the memos below: reading them off
   // `board.data` inline would mint a new array every render and recompute the
   // trend and the ranking for nothing.
   const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
   const periodLabels = useMemo(() => board.data?.period_labels ?? {}, [board.data]);
+  const catalogPeriods = useMemo(() => periodsQuery.data?.periods ?? [], [periodsQuery.data]);
+  const periodOptions = useMemo(
+    () => [
+      { id: "__all__", label: t.allPublishedPeriods, hint: `${catalogPeriods.length || periods.length} ${t.period}` },
+      ...catalogPeriods.map((period) => ({
+        id: period.period_code,
+        label: period.label,
+        hint: `${period.n_districts} ${t.districts}`,
+      })),
+    ],
+    [catalogPeriods, periods.length, t],
+  );
+  const cropOptions = useMemo(
+    () => [
+      { id: "__all__", label: t.filterAllCrops, hint: t.nationalSeries },
+      ...(crops.data ?? []).map((crop) => ({ id: crop.crop_name, label: crop.crop_name })),
+    ],
+    [crops.data, t],
+  );
+  const selectedPeriodLabel = periodCode
+    ? catalogPeriods.find((period) => period.period_code === periodCode)?.label ??
+      periodLabels[periodCode] ??
+      periodCode
+    : t.allPublishedPeriods;
   const unit = board.data?.metric_units?.[metric] ?? null;
   const national = board.data?.national ?? null;
 
@@ -147,6 +180,74 @@ export default function AnalyzeScreen() {
     <ScreenLayout active="analyze">
       <SectionHeader title={t.analyze} subtitle={t.cropBoardSubtitle} />
 
+      <View style={styles.filterGrid}>
+        <FilterButton
+          label={t.selectPeriod}
+          value={selectedPeriodLabel}
+          active={periodCode !== null}
+          icon="calendar-outline"
+          onPress={() => setPeriodSheetOpen(true)}
+        />
+        <FilterButton
+          label={t.selectCrop}
+          value={cropFilter ?? t.filterAllCrops}
+          active={cropFilter !== null}
+          icon="leaf-outline"
+          onPress={() => setCropSheetOpen(true)}
+        />
+      </View>
+      {periodCode || cropFilter ? (
+        <View style={styles.filterSummary}>
+          <FilterChip
+            label={`${selectedPeriodLabel}${cropFilter ? ` · ${cropFilter}` : ""}`}
+            selected
+            onPress={() => {
+              setPeriodCode(null);
+              setCropFilter(null);
+            }}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.resetFilters}
+            onPress={() => {
+              setPeriodCode(null);
+              setCropFilter(null);
+            }}
+            hitSlop={8}
+            style={styles.reset}
+          >
+            <Ionicons name="refresh-outline" size={14} color={colors.primaryStrong} />
+            <Text style={styles.resetText}>{t.resetFilters}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <SingleSelectSheet
+        visible={periodSheetOpen}
+        title={t.selectPeriod}
+        subtitle={t.allPublishedPeriods}
+        searchPlaceholder={t.selectPeriod}
+        options={periodOptions}
+        selected={periodCode ?? "__all__"}
+        onApply={(next) => {
+          setPeriodCode(next && next !== "__all__" ? next : null);
+          setPeriodSheetOpen(false);
+        }}
+        onCancel={() => setPeriodSheetOpen(false)}
+      />
+      <SingleSelectSheet
+        visible={cropSheetOpen}
+        title={t.selectCrop}
+        subtitle={t.nationalSeries}
+        searchPlaceholder={t.searchCrops}
+        options={cropOptions}
+        selected={cropFilter ?? "__all__"}
+        onApply={(next) => {
+          setCropFilter(next && next !== "__all__" ? next : null);
+          setCropSheetOpen(false);
+        }}
+        onCancel={() => setCropSheetOpen(false)}
+      />
+
       {board.isError ? (
         <ErrorState message={t.errorGeneric} onRetry={() => void board.refetch()} />
       ) : loading ? (
@@ -166,20 +267,24 @@ export default function AnalyzeScreen() {
           <Card>
             <View style={styles.contextRow}>
               <View style={{ flex: 1 }}>
-                <Text style={typography.micro}>{t.latestPublished}</Text>
+                <Text style={typography.micro}>{periodCode ? t.selectPeriod : t.publishedCoverage}</Text>
                 <Text style={typography.h2}>
-                  {periodLabels[periods[periods.length - 1]] ?? periods[periods.length - 1]}
+                  {periodCode
+                    ? selectedPeriodLabel
+                    : t.allPublishedPeriods}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={typography.micro}>{t.publishedCoverage}</Text>
+                <Text style={typography.micro}>{t.periodRangeLabel}</Text>
                 <Text style={typography.h2}>
-                  {`${periods[0]}–${periods[periods.length - 1]}`}
+                  {periodCode
+                    ? `${periods[0] ?? periodCode}`
+                    : `${periods[0]}–${periods[periods.length - 1]}`}
                 </Text>
               </View>
             </View>
             <Text style={typography.caption}>
-              {`${t.nationalSeries} · ${periods.length} ${t.allPublishedPeriods.toLowerCase()}`}
+              {`${cropFilter ?? t.nationalSeries} · ${periods.length} ${t.allPublishedPeriods.toLowerCase()}`}
             </Text>
           </Card>
 
@@ -221,7 +326,7 @@ export default function AnalyzeScreen() {
           {ranking.length ? (
             <DataSection
               title={t.topCrops}
-              subtitle={`${metricLabel} · ${t.latestPublished}`}
+              subtitle={`${metricLabel} · ${selectedPeriodLabel}`}
             >
               {ranking.map((row) => (
                 <ListRow
@@ -306,4 +411,16 @@ const makeStyles = (colors: Palette) =>
       gap: 2,
       minWidth: 96,
     },
+    filterGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    filterSummary: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    reset: {
+      minHeight: 40,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 10,
+      backgroundColor: colors.mintSoft,
+    },
+    resetText: { color: colors.primaryStrong, fontSize: 12, fontWeight: "700" },
   });

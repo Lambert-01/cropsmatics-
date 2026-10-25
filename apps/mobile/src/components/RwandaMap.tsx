@@ -150,6 +150,8 @@ export function RwandaMap({
                   // The outline thickens with the zoom so a selected district stays
                   // legible, and thins in screen terms as it shrinks back.
                   strokeWidth={(isSelected ? 2 : 1) / applied.scale}
+                accessible={Boolean(onSelect)}
+                accessibilityLabel={`${shape.name} district${isSelected ? ", selected" : ""}`}
                   onPress={onSelect ? () => onSelect(shape.code, shape.name) : undefined}
                 />
               );

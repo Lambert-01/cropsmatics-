@@ -1,11 +1,16 @@
-# Cropmatics Real Data Pack (2024-2026)
+# Cropmatics Verified Compatibility Pack (2024-2026)
 
-This package contains **real NISR/MINAGRI-derived data only** for the analytical layers.
+This package contains **real NISR/MINAGRI-derived CSVs only** for compatibility
+with the existing analytical pipeline. These are source-derived extracts, not a
+replacement for the original NISR workbooks in the SAS archive.
 The original official NISR 2025 Season B workbook is retained unchanged at
 `../nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0_curated_official.xlsx`.
 It is distinct from the separately supplied
 `../nisr/sas/2025/season_b/workbooks/Tables_2025_Season_B_0.xlsx`; neither is
 silently substituted for the 2025 annual workbook used by the active pipeline.
+
+The former compiled `Cropmatics_Core_Real_Data_2024_2026.xlsx` was removed because
+it duplicated the CSVs below and was not an original public NISR workbook.
 
 ## Recommended files for the project
 

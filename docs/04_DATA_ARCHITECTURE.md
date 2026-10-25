@@ -10,7 +10,7 @@ data/
 │   │   └── workbooks/*.xlsx        original SAS workbooks
 │   └── cropmatics_real_data_2024_2026/
 │       ├── 01..09_*.csv            2025B official-derived extracts
-│       └── Cropmatics_Core_*.xlsx   combined workbook
+│       └── README_DATA.md          compatibility-pack provenance
 ├── external/            third-party open data (rainfall, soil, OSM) — not yet populated
 ├── interim/             intermediate transforms (regenerable)
 │   ├── legacy_official_derived/    superseded extracts (provenance only)
@@ -27,7 +27,7 @@ data/
 │   └── training_district_crop.csv          ← primary analytical table
 ├── dictionaries/        canonical geography + crop code lists
 ├── source_registry/     where data comes from + access terms
-└── dev_fixtures/        SYNTHETIC / TEST ONLY
+└── (no fabricated datasets) test values live in temporary test fixtures
 ```
 
 ## Flow

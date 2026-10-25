@@ -13,7 +13,7 @@ Each processed row carries:
 | `source_period` | period, e.g. `2025-B` |
 | `processing_script` | script that produced the row |
 | `processing_version` | pipeline version (see `scripts/data/common.py`) |
-| `is_synthetic` | `false` for all real data; `true` only in dev fixtures |
+| `is_synthetic` | `false` for all canonical application data; synthetic values are confined to temporary test fixtures |
 
 Analytical/model records additionally carry `model_version` (e.g.
 `rule-based-risk-0.1.0`).

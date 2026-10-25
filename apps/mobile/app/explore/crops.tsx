@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { CropBoardRow, type BoardMetric } from "../../src/components/CropBoardRow";
 import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
-import { EmptyState, ErrorState, FilterChip, ListRow, LoadingSkeleton, SearchBar } from "../../src/components/ui";
-import { useAllCrops, useNationalBoard } from "../../src/hooks/queries";
+import { EmptyState, ErrorState, FilterButton, FilterChip, ListRow, LoadingSkeleton, SearchBar } from "../../src/components/ui";
+import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
+import { useAllCrops, useNationalBoard, usePeriods } from "../../src/hooks/queries";
 import { useSavedCrops } from "../../src/hooks/useSavedCrops";
 import { strings } from "../../src/i18n";
 import type { NationalBoardCrop } from "../../src/types";
@@ -16,12 +17,6 @@ import { spacing } from "../../src/theme";
 import type { Palette } from "../../src/theme";
 import { useThemedStyles, useTheme } from "../../src/theme/theme-context";
 import { computeMovers } from "../../src/utils/movers";
-import {
-  availableSeasons,
-  availableYears,
-  reconcileScope,
-  scopeLabel,
-} from "../../src/utils/periodScope";
 import { slugifyEntity } from "../../src/utils/slug";
 
 /** Row height the skeleton must match, so the list does not jump when it lands. */
@@ -39,17 +34,18 @@ export default function CropsScreen() {
   const [category, setCategory] = useState<string>("all");
   const [scope, setScope] = useState<"all" | "saved">("all");
   const [metric, setMetric] = useState<BoardMetric>("production_mt");
-  // Published-period scope. `periods` is the axis the board returned, so the
-  // controls below can only offer years and seasons the release actually has.
-  const [year, setYear] = useState<number | null>(null);
-  const [season, setSeason] = useState<string | null>(null);
+  const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
 
   const crops = useAllCrops();
+  const periodsQuery = usePeriods();
   // One request for the whole board: the series are already aligned to a shared
   // period axis and the same-season change is computed by the service. The
-  // year/season scope is applied by the server, so a filtered board is filtered
-  // data rather than a filtered label.
-  const board = useNationalBoard(undefined, { year, season });
+  // exact period scope is applied by the server, so a filtered board is filtered
+  // data rather than a filtered label. The default is deliberately the complete
+  // published axis, not the latest release.
+  const board = useNationalBoard(undefined, { periodCode });
   const { savedCodes, toggle } = useSavedCrops();
 
   const byName = useMemo(() => {
@@ -61,26 +57,40 @@ export default function CropsScreen() {
   // Memoised because the scope controls below derive from it: reading it off
   // `board.data` inline would mint a new array each render and re-run them.
   const periods = useMemo(() => board.data?.periods ?? [], [board.data]);
-  const years = useMemo(() => availableYears(periods), [periods]);
-  const seasons = useMemo(() => availableSeasons(periods, year), [periods, year]);
-  const scopeName = scopeLabel({ year, season });
-
-  /**
-   * Applying a year can invalidate the season (2024 has only Season B). The
-   * scope is reconciled against the axis the server returned, so a stale season
-   * is cleared instead of requesting a period that does not exist.
-   */
-  const changeYear = (next: number | null) => {
-    const reconciled = reconcileScope({ year: next, season }, periods);
-    setYear(reconciled.year);
-    setSeason(reconciled.season);
-  };
+  const catalogPeriods = useMemo(() => periodsQuery.data?.periods ?? [], [periodsQuery.data]);
+  const periodOptions = useMemo(
+    () => [
+      {
+        id: "__all__",
+        label: t.allPublishedPeriods,
+        hint: `${catalogPeriods.length || periods.length} ${t.period}`,
+      },
+      ...catalogPeriods.map((period) => ({
+        id: period.period_code,
+        label: period.label,
+        hint: `${period.n_districts} ${t.districts}`,
+      })),
+    ],
+    [catalogPeriods, periods.length, t],
+  );
+  const selectedPeriodLabel = periodCode
+    ? catalogPeriods.find((period) => period.period_code === periodCode)?.label ??
+      board.data?.period_labels?.[periodCode] ??
+      periodCode
+    : t.allPublishedPeriods;
 
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const crop of crops.data ?? []) if (crop.category) set.add(crop.category);
     return Array.from(set).sort();
   }, [crops.data]);
+  const categoryOptions = useMemo(
+    () => [
+      { id: "__all__", label: t.allCategories, hint: `${categories.length} ${t.allCategories.toLowerCase()}` },
+      ...categories.map((item) => ({ id: item, label: item })),
+    ],
+    [categories, t],
+  );
 
   const savedCount = useMemo(
     () => (crops.data ?? []).filter((crop) => savedCodes[crop.crop_code]).length,
@@ -134,7 +144,7 @@ export default function CropsScreen() {
       {/* Controls stay compact: the board is the content. */}
       <SearchBar value={query} onChangeText={setQuery} placeholder={t.searchCrops} />
 
-      <View style={styles.scopeRow}>
+        <View style={styles.scopeRow}>
         <FilterChip label={t.filterAll} selected={scope === "all"} onPress={() => setScope("all")} />
         <FilterChip
           label={savedCount ? `${t.filterSaved} · ${savedCount}` : t.filterSaved}
@@ -143,65 +153,49 @@ export default function CropsScreen() {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        keyboardShouldPersistTaps="handled"
-      >
-        <FilterChip label={t.allCategories} selected={category === "all"} onPress={() => setCategory("all")} />
-        {categories.map((item) => (
-          <FilterChip
-            key={item}
-            label={item}
-            selected={category === item}
-            onPress={() => setCategory(item)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* Published-period scope. A year resolves to its own seasons server-side. */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
-        <FilterChip
-          label={t.filterAll}
-          selected={year === null}
-          onPress={() => changeYear(null)}
+      <View style={styles.filterGrid}>
+        <FilterButton
+          label={t.selectPeriod}
+          value={selectedPeriodLabel}
+          active={periodCode !== null}
+          icon="calendar-outline"
+          onPress={() => setPeriodSheetOpen(true)}
         />
-        {years.map((item) => (
-          <FilterChip
-            key={item}
-            label={String(item)}
-            selected={year === item}
-            onPress={() => changeYear(item)}
-          />
-        ))}
-      </ScrollView>
+        <FilterButton
+          label={t.allCategories}
+          value={category === "all" ? t.allCategories : category}
+          active={category !== "all"}
+          icon="layers-outline"
+          onPress={() => setCategorySheetOpen(true)}
+        />
+      </View>
 
-      {year !== null && seasons.length ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
-        >
-          <FilterChip
-            label={String(year)}
-            selected={season === null}
-            onPress={() => setSeason(null)}
-          />
-          {seasons.map((item) => (
-            <FilterChip
-              key={item}
-              label={`${year} ${item}`}
-              selected={season === item}
-              onPress={() => setSeason(item)}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
+      <SingleSelectSheet
+        visible={periodSheetOpen}
+        title={t.selectPeriod}
+        subtitle={t.allPublishedPeriods}
+        searchPlaceholder={t.selectPeriod}
+        options={periodOptions}
+        selected={periodCode ?? "__all__"}
+        onApply={(next) => {
+          setPeriodCode(next && next !== "__all__" ? next : null);
+          setPeriodSheetOpen(false);
+        }}
+        onCancel={() => setPeriodSheetOpen(false)}
+      />
+      <SingleSelectSheet
+        visible={categorySheetOpen}
+        title={t.allCategories}
+        subtitle={`${categories.length} ${t.allCategories.toLowerCase()}`}
+        searchPlaceholder={t.searchCrops}
+        options={categoryOptions}
+        selected={category === "all" ? "__all__" : category}
+        onApply={(next) => {
+          setCategory(next && next !== "__all__" ? next : "all");
+          setCategorySheetOpen(false);
+        }}
+        onCancel={() => setCategorySheetOpen(false)}
+      />
 
       <MetricSelector
         label={t.selectIndicator}
@@ -246,7 +240,7 @@ export default function CropsScreen() {
         <>
           <View style={styles.countRow}>
             <Text style={typography.micro}>
-              {`${rows.length} ${t.crops} · ${scopeName || t.nationalSeries}`}
+              {`${rows.length} ${t.crops} · ${selectedPeriodLabel}`}
             </Text>
             <Text style={typography.micro}>
               {periods.length ? `${periods[0]}–${periods[periods.length - 1]}` : ""}
@@ -254,7 +248,7 @@ export default function CropsScreen() {
           </View>
           {/* A single pinned period has no same-season predecessor to compare
               with, so say so instead of leaving the row blank. */}
-          {year !== null && season !== null ? (
+          {periodCode ? (
             <Text style={typography.caption}>{t.noComparableChange}</Text>
           ) : null}
           <View>
@@ -307,6 +301,7 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
   chips: { flexDirection: "row", gap: spacing.sm, alignItems: "center", paddingRight: spacing.md },
   scopeRow: { flexDirection: "row", gap: spacing.sm },
+  filterGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   star: { width: 34, minHeight: 44, alignItems: "center", justifyContent: "center" },
   countRow: {
     flexDirection: "row",
