@@ -121,7 +121,10 @@ case "$ROOT" in
       echo "rsync is required to stage an EAS build from a whitespace-suffixed checkout."
       exit 1
     }
-    STAGE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cropmatics-eas.XXXXXX")"
+    # macOS exposes /var as a symlink to /private/var. EAS uses Node's
+    # realpath-resolved paths while its ignore walker receives the path we
+    # provide, so canonicalize the temporary root before invoking EAS.
+    STAGE_ROOT="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/cropmatics-eas.XXXXXX")" && pwd -P)"
     echo "==> EAS staging path: $STAGE_ROOT"
     rsync -a \
       --exclude 'node_modules' \
