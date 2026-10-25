@@ -166,6 +166,39 @@ def district_ranking(
     ]
 
 
+def district_yield_ranking(
+    *, period_code: str | None = None, crop: str, limit: int = 30
+) -> list[EvidenceItem]:
+    """Districts ranked by their observed yield, highest first."""
+    frame = _selection(period_code, crop)
+    if frame.empty:
+        return []
+    frame = frame.dropna(subset=["yield_kg_ha"]).sort_values(
+        ["yield_kg_ha", "district"], ascending=[False, True]
+    )
+    frame = frame.head(limit)
+
+    resolved = frame_period_code(frame) or period_code
+    source_id = frame_source_id(frame)
+    return [
+        EvidenceItem(
+            evidence_id=f"yield_rank:{row['district']}:{resolved}",
+            kind=EvidenceKind.DERIVED,
+            metric="district_rank_by_yield",
+            value=round(float(row["yield_kg_ha"]), 4),
+            unit="kg/ha",
+            period_code=resolved,
+            geography_level="district",
+            district=str(row["district"]),
+            crop=crop,
+            source_id=source_id,
+            method="rank by observed yield, descending",
+            note=f"observed yield rank {index + 1}",
+        )
+        for index, (_, row) in enumerate(frame.iterrows())
+    ]
+
+
 def yield_distribution(*, period_code: str | None = None, crop: str) -> list[EvidenceItem]:
     """How many districts fall into each documented yield-gap band."""
     frame = _district_frame(period_code, crop)

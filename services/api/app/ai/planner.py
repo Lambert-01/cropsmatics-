@@ -37,6 +37,7 @@ from app.services import period_service
 OPERATION_TO_INTENT: dict[str, str] = {
     "crop_comparison": "crop_comparison",
     "district_comparison": "district_ranking",
+    "yield_ranking": "district_yield_ranking",
     "period_comparison": "period_comparison",
     "trend": "crop_trend",
     "ranking": "district_ranking",
@@ -62,6 +63,7 @@ INTENTS: tuple[str, ...] = (
     "crop_comparison",
     "period_comparison",
     "district_ranking",
+    "district_yield_ranking",
     "crop_trend",
     "practice_associations",
     "postharvest_analysis",
@@ -316,6 +318,8 @@ def primary_intent(plan: QueryPlan) -> str:
 
     # A crop question that explicitly asks for a ranking or a trend, which the old
     # router answered with a single latest value.
+    if plan.crops and has("yield_ranking"):
+        return "district_yield_ranking"
     if plan.crops and has("ranking"):
         return "district_ranking"
     if plan.crops and has("practice_associations"):

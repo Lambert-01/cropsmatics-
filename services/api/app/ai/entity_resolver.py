@@ -96,6 +96,12 @@ def crop_vocabulary() -> dict[str, str]:
 
     vocabulary: dict[str, str] = {name.lower(): name for name in names}
 
+    # Accept the common conversational plural "maizes" while preserving the
+    # canonical published crop name. Other crops already have their published
+    # plural forms (for example, Beans), so this alias is intentionally narrow.
+    if "maize" in vocabulary:
+        vocabulary.setdefault("maizes", vocabulary["maize"])
+
     if "kinyarwanda_name" in frame.columns:
         for _, row in frame.iterrows():
             local = row.get("kinyarwanda_name")

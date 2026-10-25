@@ -129,6 +129,7 @@ HANDLERS: dict[str, callable] = {
     "get_productivity_observations": _period_crop_district,
     "get_yield_gap": _period_crop_district,
     "get_district_ranking": _period_crop_rank,
+    "get_district_yield_ranking": _period_crop_rank,
     "get_yield_distribution": _period_crop,
     "get_crop_trend": _trend,
     "get_crop_context": _period_crop,

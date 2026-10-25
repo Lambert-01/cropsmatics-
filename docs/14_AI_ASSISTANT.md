@@ -14,6 +14,11 @@ The current pipeline is route -> deterministic reference -> typed evidence -> op
 
 A failed guard returns the deterministic answer and records which guard failed and why in `validation`. This fallback also depends on correct analytical inputs. The guards are not proof of semantic accuracy: known attribution bypasses remain; vocabulary coverage is limited; and a credentialed provider has not been evaluated here. The evaluation set and limitations are documented in [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).
 
+Ranking questions are kept distinct: `get_district_ranking` answers productivity
+shortfall using the gap index, while `get_district_yield_ranking` answers which
+districts have the highest observed crop yield in kg/ha. An above-benchmark or
+high-yield district is never described as a productivity-shortfall priority.
+
 ## Provider Configuration
 
 Configure only in the backend's protected environment:

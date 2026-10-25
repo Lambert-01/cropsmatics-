@@ -150,6 +150,12 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
             fn=productivity_tools.district_ranking,
         ),
         ToolSpec(
+            name="get_district_yield_ranking",
+            description="Districts ranked by observed yield, highest first, for one crop and period.",
+            params_model=RankingParams,
+            fn=productivity_tools.district_yield_ranking,
+        ),
+        ToolSpec(
             name="get_yield_distribution",
             description="How many districts fall into each documented yield-gap band.",
             params_model=PeriodCropParams,
@@ -295,6 +301,7 @@ INTENT_TOOLS: dict[str, tuple[str, ...]] = {
     "crop_comparison": ("get_crop_comparison",),
     "period_comparison": ("get_period_change", "get_crop_context"),
     "district_ranking": ("get_district_ranking", "get_yield_gap"),
+    "district_yield_ranking": ("get_district_yield_ranking",),
     "crop_trend": ("get_crop_trend",),
     "practice_associations": ("get_factor_associations", "get_productivity_observations"),
     "postharvest_analysis": ("get_postharvest_profile",),

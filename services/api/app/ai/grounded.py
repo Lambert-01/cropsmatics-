@@ -906,6 +906,62 @@ def district_ranking(
     )
 
 
+def district_yield_ranking(
+    crop: str, period_code: str | None = None, limit: int = 5
+) -> GroundedAnswer:
+    """Districts with the highest observed yield for one crop."""
+    filters = AnalyticsFilters(period_code=period_code, crop=crop)
+    try:
+        frame = valid_yield(apply_filters(productivity_frame(filters), filters))
+    except Exception:
+        return _unsupported("district_yield_ranking", crop=crop, period_code=period_code)
+    if frame.empty:
+        return _unsupported("district_yield_ranking", crop=crop, period_code=period_code)
+
+    ranked = frame.dropna(subset=["yield_kg_ha"]).sort_values(
+        ["yield_kg_ha", "district"], ascending=[False, True]
+    ).head(limit)
+    if ranked.empty:
+        return _unsupported("district_yield_ranking", crop=crop, period_code=period_code)
+
+    resolved = frame_period_code(ranked) or period_code
+    label = period_service.label(resolved) if resolved else "the latest period"
+    entries = [
+        f"{row['district']} ({row['yield_kg_ha']:,.0f} kg/ha)"
+        for _, row in ranked.iterrows()
+    ]
+    answer = (
+        f"For {crop} in {label}, the five districts with the highest observed yields are "
+        + _list_phrase(entries)
+        + ". This is an observed-yield ranking, not a productivity-gap or causal ranking."
+    )
+
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="district_yield_ranking",
+        evidence={
+            "crop": crop,
+            "period_code": resolved,
+            "ranking": [
+                {
+                    "district": str(row["district"]),
+                    "yield_kg_ha": round(float(row["yield_kg_ha"]), 2),
+                    "rank": index + 1,
+                }
+                for index, (_, row) in enumerate(ranked.iterrows())
+            ],
+        },
+        source=frame_source_id(ranked) or "NISR_SAS_2025B_DISTRICT_CROP",
+        period=resolved,
+        coverage="district",
+        limitations=_limitations(
+            "districts are ranked by observed yield in kg/ha, not by productivity gap",
+            "an observed ranking does not establish why yields differ or what would improve them",
+        ),
+    )
+
+
 def crop_trend(crop: str, district: str | None = None, period_code: str | None = None) -> GroundedAnswer:
     """One crop across every published period."""
     try:
@@ -1382,6 +1438,12 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
                 {"label": f"{item.get('district')} gap index", "value": item.get("gap_index"),
                  "unit": "%"}
             )
+    elif intent == "district_yield_ranking":
+        for item in evidence.get("ranking", [])[:3]:
+            figures.append(
+                {"label": f"{item.get('district')} observed yield", "value": item.get("yield_kg_ha"),
+                 "unit": "kg/ha"}
+            )
     elif intent == "crop_trend":
         if evidence.get("latest_yield_kg_ha") is not None:
             figures.append(
@@ -1422,6 +1484,8 @@ def answer(routed: RoutedRequest) -> GroundedAnswer:
         return period_comparison(routed.crop, routed.requested_period, routed.district)
     if routed.intent == "district_ranking" and routed.crop:
         return district_ranking(routed.crop, routed.requested_period)
+    if routed.intent == "district_yield_ranking" and routed.crop:
+        return district_yield_ranking(routed.crop, routed.requested_period)
     if routed.intent == "crop_trend" and routed.crop:
         return crop_trend(routed.crop, routed.district, routed.requested_period)
     if routed.intent == "practice_associations" and routed.crop:

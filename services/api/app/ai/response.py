@@ -47,6 +47,7 @@ METRIC_LABELS: dict[str, str] = {
     "benchmark_yield_kg_ha": "National crop median yield",
     "gap_index": "Productivity gap index",
     "district_rank_by_gap_index": "Productivity gap rank",
+    "district_rank_by_yield": "Observed yield rank",
     "n_crops_with_data": "Crops with published data",
     "sold_pct": "Sold",
     "own_consumption_pct": "Household consumption",
@@ -67,6 +68,7 @@ INTENT_TITLES: dict[str, str] = {
     "crop_comparison": "Crop comparison",
     "period_comparison": "Same-season change",
     "district_ranking": "District ranking",
+    "district_yield_ranking": "Highest observed yields",
     "crop_trend": "Crop trend",
     "practice_associations": "Practice associations",
     "postharvest_analysis": "Post-harvest use",
@@ -87,6 +89,10 @@ INTENT_METHODOLOGY: dict[str, tuple[str, ...]] = {
     "district_ranking": (
         "districts are ranked by gap index, descending",
         "gap index is relative to the national crop median for the period",
+    ),
+    "district_yield_ranking": (
+        "districts are ranked by observed yield in kg/ha, descending",
+        "this ranking is separate from the productivity gap ranking",
     ),
     "crop_comparison": (
         "production and harvested area are published national totals, never a sum of district rows",
@@ -342,6 +348,11 @@ def _key_findings(routed: RoutedRequest, reference: GroundedAnswer) -> list[str]
     if intent == "district_ranking":
         for item in (evidence.get("ranking") or [])[:3]:
             findings.append(f"{item.get('district')}: gap index {item.get('gap_index')}")
+    elif intent == "district_yield_ranking":
+        for item in (evidence.get("ranking") or [])[:3]:
+            findings.append(
+                f"{item.get('district')}: {item.get('yield_kg_ha'):,.0f} kg/ha observed yield"
+            )
     elif intent == "crop_comparison":
         for crop, values in (evidence.get("values") or {}).items():
             if values.get("production_mt") is not None:
@@ -409,6 +420,12 @@ def _suggested_followups(routed: RoutedRequest) -> list[str]:
     if routed.intent == "district_comparison" and len(routed.districts) >= 2:
         questions = [
             f"Compare {routed.districts[0]} and {routed.districts[1]} for maize",
+            "Which periods are covered?",
+        ]
+    elif routed.intent == "district_yield_ranking" and crop:
+        questions = [
+            f"Which districts have the largest {crop} productivity gaps?",
+            f"Show the {crop} yield trend over time",
             "Which periods are covered?",
         ]
     elif "Which periods are covered?" not in questions:

@@ -106,6 +106,12 @@ def test_plan_resolves_a_district_ranking():
     assert resolved.crops == ["Maize"]
 
 
+def test_plan_separates_highest_observed_yield_from_gap_ranking():
+    resolved = plan(AIRequest(question="best 5 district in yielding maizes"))
+    assert resolved.intent == "district_yield_ranking"
+    assert resolved.crops == ["Maize"]
+
+
 def test_plan_resolves_two_named_districts_as_a_comparison():
     resolved = plan(AIRequest(question="Compare Ngoma and Gatsibo"))
     assert resolved.intent == "district_comparison"
@@ -202,6 +208,7 @@ def test_new_intents_are_advertised(client):
         "district_comparison",
         "period_comparison",
         "district_ranking",
+        "district_yield_ranking",
         "crop_trend",
         "practice_associations",
         "postharvest_analysis",
@@ -227,6 +234,16 @@ def test_district_ranking_is_grounded_and_guard_clean(client):
     assert body["grounded"] is True
     assert body["intent"] == "district_ranking"
     assert body["validation"]["numeric"]["ok"] is True, body["validation"]["numeric"]
+
+
+def test_highest_yield_ranking_is_grounded_and_uses_yield_not_gap(client):
+    _require_data(client)
+    body = _ask(client, "best 5 district in yielding maizes")
+    assert body["grounded"] is True
+    assert body["intent"] == "district_yield_ranking"
+    assert body["validation"]["numeric"]["ok"] is True, body["validation"]["numeric"]
+    assert "gap index" not in body["answer"].lower()
+    assert "kg/ha" in body["answer"]
 
 
 def test_practice_association_is_grounded(client):

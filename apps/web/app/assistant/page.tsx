@@ -128,6 +128,10 @@ export default function AssistantPage() {
                       <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide">
                         {turn.answerMode === "conversational" ? (
                           <span className="text-primary">Assistant</span>
+                        ) : turn.answerMode === "llm" ? (
+                          <span className="flex items-center gap-1 text-primary">
+                            <Bot className="h-3 w-3" aria-hidden="true" /> AI-assisted · verified
+                          </span>
                         ) : turn.grounded ? (
                           <span className="flex items-center gap-1 text-success">
                             <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Verified answer

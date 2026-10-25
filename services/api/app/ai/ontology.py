@@ -66,6 +66,22 @@ OPERATION_TERMS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         _words("trend", "trends", "over time", "history", "historical", "series"),
         _words("amateka", "igihe"),
     ),
+    "yield_ranking": (
+        _words(
+            "highest yield",
+            "highest yields",
+            "best yield",
+            "best yields",
+            "best yielding",
+            "yielding",
+            "highest-yield",
+            "top yield",
+            "top yielding",
+            "yielding districts",
+            "yield per hectare",
+        ),
+        _words("umusaruro mwinshi", "umusaruro wa mbere"),
+    ),
     "ranking": (
         _words(
             "rank",
