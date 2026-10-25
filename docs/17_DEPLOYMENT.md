@@ -291,3 +291,24 @@ release build that is explicitly configured with a loopback host logs the
 misconfiguration loudly at startup (`app/services/api/client.ts`).
 
 Field Operations is hidden unless `EXPO_PUBLIC_ENABLE_FIELD_OPERATIONS=true`.
+
+### Shareable APK install link
+
+After an EAS `release-apk` build completes, copy its HTTPS artifact URL into
+the Vercel Production environment variable:
+
+```text
+NEXT_PUBLIC_INSTALL_APK_URL=https://expo.dev/artifacts/eas/<artifact>.apk
+```
+
+The web install page then exposes the stable same-origin download URL:
+
+```text
+https://cropsmatics-web.vercel.app/install/apk
+```
+
+`/install/apk` validates the configured URL and redirects with an APK filename
+for download. A browser cannot silently install an Android package; the user
+must open the downloaded file and approve Android's installation prompt. If the
+variable is missing or malformed, the route returns a clear `503` instead of a
+broken or misleading download button.

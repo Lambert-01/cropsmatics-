@@ -9,6 +9,7 @@ const INSTALL_PAGE_ENV = process.env.NEXT_PUBLIC_INSTALL_PAGE_URL;
 const APK_URL_ENV = process.env.NEXT_PUBLIC_INSTALL_APK_URL;
 const EXPO_GO_URL_ENV = process.env.NEXT_PUBLIC_EXPO_GO_URL;
 const API_BASE_ENV = process.env.NEXT_PUBLIC_API_BASE_URL;
+const APK_DOWNLOAD_PATH = "/install/apk";
 
 /**
  * Resolve the URL that the QR code should encode.
@@ -43,7 +44,9 @@ export default function InstallPage() {
   const { t } = useLanguage();
   const installUrl = resolveInstallUrl();
   const apiBase = resolveApiBase();
-  const apkUrl = publicUrl(APK_URL_ENV);
+  const configuredApkUrl = publicUrl(APK_URL_ENV);
+  // Share one same-origin URL. The route redirects to the current EAS artifact.
+  const apkUrl = configuredApkUrl ? APK_DOWNLOAD_PATH : null;
   const expoGoUrl = publicUrl(EXPO_GO_URL_ENV);
   const isLocalApi =
     !!apiBase && /^(https?:\/\/)(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)/.test(apiBase);
@@ -85,7 +88,12 @@ export default function InstallPage() {
           <p className="mt-2 break-all text-xs font-semibold text-forest-deep">{installUrl}</p>
           <div className="mt-4 flex w-full flex-wrap justify-center gap-2">
             {apkUrl ? (
-              <a className="btn btn-primary" href={apkUrl} target="_blank" rel="noreferrer">
+              <a
+                className="btn btn-primary"
+                href={apkUrl}
+                download="cropmatics-rwanda.apk"
+                aria-label={`${t("install.download")} (${configuredApkUrl})`}
+              >
                 {t("install.download")}
               </a>
             ) : null}

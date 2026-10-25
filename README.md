@@ -125,16 +125,31 @@ EXPO_PUBLIC_API_BASE_URL=https://cropsmatics-api.onrender.com/api/v1 npx expo st
 ```
 
 To submit a shareable Android APK build with the hosted backend configured in
-the existing `release-apk` profile:
+the existing `release-apk` profile, run the repository helper from the
+repository root. Do not run `eas build` directly inside `apps/mobile`: this
+checkout has a historical trailing space in its folder name, so the helper
+stages the mobile project at a clean temporary path and avoids EAS's
+`spawn git ENOENT` and `path.relative()` failures:
 
 ```bash
-bash scripts/build_mobile_apk.sh release-apk \
-  --api "https://cropsmatics-api.onrender.com/api/v1"
+bash scripts/build-apk.sh \
+  --profile release-apk \
+  --api "https://cropsmatics-api.onrender.com/api/v1" \
+  --web "https://cropsmatics-web.vercel.app/install"
 ```
 
-The helper validates the mobile lockfile, TypeScript, lint, tests, Expo config,
-and the local `git` executable before submitting. EAS returns the artifact link
-when the build completes. A successful build still needs physical-device
+The helper validates the local `git` and `eas` executables before submitting.
+EAS returns the artifact link when the build completes. Copy that HTTPS `.apk`
+URL into Vercel as the production value of `NEXT_PUBLIC_INSTALL_APK_URL`, then
+redeploy. The stable download URL is:
+
+```text
+https://cropsmatics-web.vercel.app/install/apk
+```
+
+Android still requires the user to open the downloaded APK and approve the
+installation; a browser cannot silently install an APK. A successful build
+still needs physical-device
 verification. Do not use the local-backend development profile for an APK
 intended for remote users. See
 [deployment](docs/17_DEPLOYMENT.md) for build configuration.

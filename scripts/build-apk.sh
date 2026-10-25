@@ -7,6 +7,7 @@
 #   ./scripts/build-apk.sh --api URL    # API = an explicit URL (e.g. deployed API)
 #   ./scripts/build-apk.sh --web URL    # install landing page URL (QR target)
 #   ./scripts/build-apk.sh --apk URL    # optional stable APK URL shown in the app
+#   ./scripts/build-apk.sh --profile release-apk
 #
 # Requirements: an Expo account (free) and `eas-cli` (npm i -g eas-cli, then
 # `eas login`). The first build takes ~10-20 minutes; EAS hosts the .apk at a
@@ -27,11 +28,18 @@ if ! git --version >/dev/null 2>&1; then
   echo "git is present but cannot run. Install/enable Xcode Command Line Tools, then rerun this script."
   exit 1
 fi
+GIT_BIN="$(command -v git)"
+EAS_BIN="$(command -v eas || true)"
+if [ -z "$EAS_BIN" ]; then
+  echo "eas-cli not found. Install it with:  npm i -g eas-cli"
+  echo "Then log in with:                    eas login"
+  exit 1
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MOBILE_DIR="$ROOT/apps/mobile"
 
-PROFILE="preview"
+PROFILE="${EAS_PROFILE:-release-apk}"
 API_URL=""
 WEB_URL=""
 APK_URL=""
@@ -41,7 +49,8 @@ while [ $# -gt 0 ]; do
     --api) API_URL="$2"; shift 2 ;;
     --web) WEB_URL="$2"; shift 2 ;;
     --apk) APK_URL="$2"; shift 2 ;;
-    *) echo "unknown option: $1 (use --api URL and/or --web URL)"; exit 1 ;;
+    --profile) PROFILE="$2"; shift 2 ;;
+    *) echo "unknown option: $1 (use --profile NAME, --api URL and/or --web URL)"; exit 1 ;;
   esac
 done
 
@@ -74,14 +83,9 @@ esac
 echo "==> API base URL   : $API_FINAL"
 echo "==> Install page   : $WEB_FINAL"
 echo "==> EAS profile    : $PROFILE"
-echo "==> Git            : $(git --version)"
+echo "==> Git            : $GIT_BIN ($(git --version))"
+echo "==> EAS            : $EAS_BIN"
 echo
-
-if ! command -v eas >/dev/null 2>&1; then
-  echo "eas-cli not found. Install it with:  npm i -g eas-cli"
-  echo "Then log in with:                    eas login"
-  exit 1
-fi
 
 # ---- bake build-time env ----------------------------------------------------
 # eas-cli reads apps/mobile/.env* at build time and Expo inlines EXPO_PUBLIC_*
@@ -127,12 +131,12 @@ case "$ROOT" in
       "$MOBILE_DIR/" "$STAGE_ROOT/"
     cd "$STAGE_ROOT"
     npm ci --ignore-scripts
-    EAS_NO_VCS=1 EAS_PROJECT_ROOT="$STAGE_ROOT" \
-      eas build --platform android --profile "$PROFILE" --non-interactive
+    EAS_NO_VCS=1 EAS_PROJECT_ROOT="$STAGE_ROOT" PATH="$(dirname "$GIT_BIN"):$PATH" \
+      "$EAS_BIN" build --platform android --profile "$PROFILE" --non-interactive
     ;;
   *)
     cd "$MOBILE_DIR"
-    eas build --platform android --profile "$PROFILE" --non-interactive
+    PATH="$(dirname "$GIT_BIN"):$PATH" "$EAS_BIN" build --platform android --profile "$PROFILE" --non-interactive
     ;;
 esac
 
@@ -143,6 +147,7 @@ Build submitted. When it finishes (10-20 min) EAS shows a public link to the
 APK. Share that link — or the /install page below, which carries the QR code:
 
   Install page : $WEB_FINAL
+  APK redirect : ${WEB_FINAL%/install}/install/apk
   API base URL : $API_FINAL
 
 Present the /install page on the big screen: its QR is what people scan.
