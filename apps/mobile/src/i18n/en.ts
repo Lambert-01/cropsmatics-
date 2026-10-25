@@ -734,7 +734,7 @@ export const en = {
   methodologyAskBody:
     "Every answer is composed from retrieved, validated values. The assistant cannot invent a figure, and it refuses questions the published statistics cannot support.",
   methodologyNoClaimNote:
-    "No market prices, weather forecasts, pest forecasts, credit scoring or facility capacities are claimed unless a verified integrated dataset exists.",
+    "No official market prices, pest forecasts, credit scoring or facility capacities are claimed. Open-Meteo weather is shown only as external context, not as a yield prediction.",
 
   // ---- More ----------------------------------------------------------------
   moreGroupExploreData: "Explore data",

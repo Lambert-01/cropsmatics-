@@ -37,6 +37,16 @@ export function useOverview(filters: DashboardFilters) {
   });
 }
 
+/** Short-range external weather context for a selected district. */
+export function useWeatherContext(districtCode?: string) {
+  return useQuery({
+    queryKey: ["weather-context", districtCode ?? ""],
+    queryFn: () => api.weatherContext(districtCode as string),
+    staleTime: 10 * 60 * 1000,
+    enabled: Boolean(districtCode),
+  });
+}
+
 export function useProductivity(filters: DashboardFilters, enabled = true) {
   return useQuery({
     queryKey: ["productivity", scopeKey(filters)],

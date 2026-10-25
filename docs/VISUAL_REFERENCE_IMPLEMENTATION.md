@@ -165,6 +165,6 @@ before any network call.
 |---|---|
 | Facility-level storage map with real capacities | No source publishes capacities or coordinates |
 | Live market prices on `/markets` and mobile | No connected price feed (MINAGRI e-Soko is the intended target; terms review pending) |
-| Rainfall/forecast widgets | CHIRPS ingestion is specified but not yet implemented, and no weather forecast provider is connected |
+| Rainfall/forecast widgets | Open-Meteo short-range weather context is now connected through `GET /api/v1/context/weather`; CHIRPS historical ingestion remains separate and is not yet implemented |
 | `/yield-intelligence` behind a real model card | Model pipeline not validated for prediction display |
 | Pixel comparison against the 8 references | Requires a human reviewer to confirm the image-to-screen mapping above |

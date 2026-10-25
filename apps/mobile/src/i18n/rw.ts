@@ -720,7 +720,7 @@ export const rw: Strings = {
   methodologyAskBody:
     "Every answer is composed from retrieved, validated values. The assistant cannot invent a figure, and it refuses questions the published statistics cannot support.",
   methodologyNoClaimNote:
-    "No market prices, weather forecasts, pest forecasts, credit scoring or facility capacities are claimed unless a verified integrated dataset exists.",
+    "Nta biciro by'isoko byemewe, iteganyagihe ry'udukoko, amanota y'inguzanyo cyangwa ubushobozi bw'ububiko byemezwa. Amakuru y'ikirere ya Open-Meteo agaragazwa gusa nk'inyongera yo gufasha igenamigambi, ntabwo ari ubuhanuzi bw'umusaruro.",
 
   // ---- More ----------------------------------------------------------------
   moreGroupExploreData: "Shakisha amakuru",

@@ -9,6 +9,7 @@ from app.api.v1 import (
     assistant,
     auth,
     canonical,
+    context,
     crops,
     dashboard,
     data,
@@ -40,6 +41,7 @@ api_router.include_router(inquiries.router)
 api_router.include_router(auth.router)
 api_router.include_router(geography.router)
 api_router.include_router(crops.router)
+api_router.include_router(context.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(analytics.router)
 api_router.include_router(productivity.router)

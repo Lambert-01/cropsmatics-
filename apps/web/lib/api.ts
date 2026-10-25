@@ -50,6 +50,7 @@ import type {
   SourcesResponse,
   StorageInfrastructureResponse,
   TrendResponse,
+  WeatherContextResponse,
 } from "@/types";
 
 /**
@@ -341,6 +342,11 @@ export const api = {
   /** The published period dimension, derived from the data (never hard-coded). */
   periods: () => get<PeriodsResponse>("/meta/periods"),
   sources: () => get<SourcesResponse>("/meta/sources"),
+  weatherContext: (districtCode: string) =>
+    get<WeatherContextResponse>(
+      "/context/weather",
+      `district_code=${encodeURIComponent(districtCode)}`,
+    ),
   models: () => get<ModelsResponse>("/meta/models"),
   dataVersion: () => get<DataVersionResponse>("/meta/data-version"),
   readiness: () => get<ReadinessResponse>("/health/readiness"),

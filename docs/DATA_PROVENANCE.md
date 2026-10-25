@@ -38,6 +38,7 @@ access_type, license_or_terms, raw_file, processing_script, notes
 | `NISR_SAS_2024_2026_NATIONAL_INPUT_TRENDS` | national input/practice trends | `07_national_input_practice_trends_2024_2026.csv` |
 | `MINAGRI_ACES_COLDCHAIN_2026` | cold-chain district context | `08_verified_cold_chain_context_2026.csv` |
 | `MOBILE_OPERATIONAL` | app-captured operational data | runtime only |
+| `OPEN_METEO_FORECAST` | short-range weather context for a selected district | external API at runtime |
 
 The 2025B derived CSVs live under `data/raw/cropmatics_real_data_2024_2026/`.
 The distinct original NISR workbook is retained at
@@ -68,6 +69,17 @@ Multi-period SAS worksheet extracts and owner-supplied workbooks are also under
 
 All transforms are deterministic; rerunning `make data` reproduces identical
 outputs.
+
+## External weather context
+
+`GET /api/v1/context/weather?district_code=RW-KG-GAS` requests a three-day
+Open-Meteo forecast at an approximate centroid derived from the checked-in Rwanda
+district GeoJSON. The response carries the provider and limitations in its
+provenance block. Weather is operational context only: it is not an NISR
+statistic, is not joined into official yield calculations, and is not presented
+as a validated yield forecast. Responses are cached in the API process for ten
+minutes to reduce provider traffic. The public provider is documented at
+`https://open-meteo.com/`.
 
 ## Licensing / redistribution
 

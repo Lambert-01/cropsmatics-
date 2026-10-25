@@ -20,12 +20,14 @@ import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
+import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import {
   useCanonicalTrend,
   useInputAdoption,
   useOverview,
   usePriorities,
+  useWeatherContext,
 } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
@@ -65,6 +67,7 @@ export default function DashboardPage() {
   // The national adoption trend stays on the landing page: it is a national
   // context series (not district estimates) and does not need a district.
   const inputAdoption = useInputAdoption();
+  const weather = useWeatherContext(filters.district);
 
   return (
     <div className="space-y-5">
@@ -153,18 +156,26 @@ export default function DashboardPage() {
                 setFilters({ district: filters.district === district ? undefined : district })
               }
             />
-            {overview.data ? (
-              <InsightPanel
-                kpis={
-                  overview.data.primary_kpis.length
-                    ? overview.data.primary_kpis
-                    : overview.data.kpis
-                }
-                priorities={priorities.data?.rows ?? []}
-                period={overview.data.period}
-                coverageLevel={overview.data.coverage_level}
+            <div className="space-y-5">
+              {overview.data ? (
+                <InsightPanel
+                  kpis={
+                    overview.data.primary_kpis.length
+                      ? overview.data.primary_kpis
+                      : overview.data.kpis
+                  }
+                  priorities={priorities.data?.rows ?? []}
+                  period={overview.data.period}
+                  coverageLevel={overview.data.coverage_level}
+                />
+              ) : null}
+              <WeatherContextCard
+                data={weather.data}
+                isLoading={weather.isLoading}
+                error={weather.error as Error | null}
+                onRetry={() => weather.refetch()}
               />
-            ) : null}
+            </div>
           </div>
 
           {/* Screenful 2: the canonical trend and the ranked comparison. */}

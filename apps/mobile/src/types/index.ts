@@ -770,3 +770,40 @@ export interface DataSource {
   url: string | null;
   limitations: string[] | null;
 }
+
+export interface WeatherContextResponse {
+  available: boolean;
+  location: {
+    district_code?: string | null;
+    district?: string | null;
+    province?: string | null;
+    latitude: number;
+    longitude: number;
+    resolution: string;
+  };
+  current: {
+    observed_at?: string | null;
+    temperature_c?: number | null;
+    relative_humidity_pct?: number | null;
+    precipitation_mm?: number | null;
+    wind_speed_kmh?: number | null;
+    weather_code?: number | null;
+  };
+  daily: Array<{
+    date: string;
+    temperature_max_c?: number | null;
+    temperature_min_c?: number | null;
+    precipitation_sum_mm?: number | null;
+    precipitation_probability_pct?: number | null;
+    wind_speed_max_kmh?: number | null;
+    weather_code?: number | null;
+  }>;
+  provider: string;
+  provider_url: string;
+  note: string;
+  provenance: {
+    source_id?: string | null;
+    method?: string | null;
+    limitations?: string[];
+  };
+}

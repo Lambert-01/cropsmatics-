@@ -42,7 +42,7 @@ export default function AboutScreen() {
         <Text style={typography.h3}>{t.aboutAIUsage}</Text>
         <Text style={typography.body}>
           Ask Cropmatics is an explanation layer over verified data. It does not generate numbers and does not make
-          market, weather or credit predictions.
+          market or credit predictions; weather is shown only as external context.
         </Text>
       </Card>
     </ScreenLayout>
