@@ -262,11 +262,12 @@ export function useWeightedPriorityMap(filters: DashboardFilters) {
   });
 }
 
-export function useTrends(crop?: string, compare?: string) {
+export function useTrends(crop?: string, compare?: string, enabled = true) {
   return useQuery({
     queryKey: ["trends", crop ?? "national", compare ?? ""],
     queryFn: () => api.trends(crop, compare),
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 
@@ -276,7 +277,7 @@ export function useTrends(crop?: string, compare?: string) {
  * Keyed on the crop and district only: the axis is every published period, so
  * changing the selected release does not re-key or tear down the chart.
  */
-export function useCanonicalTrend(crop?: string, district?: string) {
+export function useCanonicalTrend(crop?: string, district?: string, enabled = true) {
   return useQuery({
     queryKey: ["canonical-trend", crop ?? "national", district ?? ""],
     queryFn: () => api.canonicalTrend(crop, district),
@@ -284,6 +285,7 @@ export function useCanonicalTrend(crop?: string, district?: string) {
     // real chart with a blank/skeleton during the request.
     placeholderData: keepPreviousData,
     staleTime: FIVE_MIN,
+    enabled,
   });
 }
 

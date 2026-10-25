@@ -66,7 +66,7 @@ export default function ProductivityPage() {
     filters,
     districtMode && Boolean(filters.crop) && view === "evidence",
   );
-  const trends = useTrends(filters.crop, filters.compare);
+  const trends = useTrends(filters.crop, filters.compare, !districtMode);
   const inputs = useInputAdoption();
   // District-scoped practice indicators. The full panel is 9,468 rows, so the
   // request waits for a district and pages one district's ~306 rows; an
@@ -97,7 +97,7 @@ export default function ProductivityPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2 px-1">
-        <CompareCropsControl />
+        {overview.data && !districtMode ? <CompareCropsControl /> : null}
         <CropEntryPoint crop={filters.crop} />
       </div>
 
@@ -130,9 +130,6 @@ export default function ProductivityPage() {
             yield scales, so a cross-crop average is not a productivity figure. Pick a crop and this
             page reports its gaps, its district ranking and the practices associated with it.
           </p>
-          <div className="mt-3">
-            <CompareCropsControl />
-          </div>
         </div>
       ) : null}
 

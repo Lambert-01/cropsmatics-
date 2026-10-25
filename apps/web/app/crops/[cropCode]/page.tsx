@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
-import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
 import { PageHero } from "@/components/layout/PageHero";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { DataBadge } from "@/components/ui/DataBadge";
@@ -151,7 +150,6 @@ export default function CropIntelligencePage() {
         >
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> All crops
         </Link>
-        <CompareCropsControl />
       </div>
 
       <Card>

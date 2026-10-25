@@ -23,18 +23,33 @@ export function CompareCropsControl() {
   const { filters, setFilters } = useFilters();
   const { data: crops } = useCrops();
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string[]>([]);
 
   const selected = useMemo(
     () => (filters.compare ? filters.compare.split(",").filter(Boolean) : []),
     [filters.compare],
   );
 
-  const toggle = (name: string) => {
-    const next = selected.includes(name)
-      ? selected.filter((c) => c !== name)
-      : selected.length >= MAX_COMPARE
-        ? selected
-        : [...selected, name];
+  const toggleDraft = (name: string) => {
+    setDraft((current) => {
+      if (current.includes(name)) return current.filter((crop) => crop !== name);
+      return current.length >= MAX_COMPARE ? current : [...current, name];
+    });
+  };
+
+  const toggleOpen = () => {
+    if (!open) setDraft(selected);
+    setOpen((value) => !value);
+  };
+
+  const apply = () => {
+    if (draft.length < MIN_COMPARE) return;
+    setFilters({ compare: draft.join(",") });
+    setOpen(false);
+  };
+
+  const removeApplied = (name: string) => {
+    const next = selected.filter((crop) => crop !== name);
     setFilters({ compare: next.length >= MIN_COMPARE ? next.join(",") : undefined });
   };
 
@@ -42,7 +57,7 @@ export function CompareCropsControl() {
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-expanded={open}
         aria-haspopup="dialog"
         className={cn(
@@ -70,7 +85,7 @@ export function CompareCropsControl() {
               <button
                 type="button"
                 aria-label={`Remove ${c} from comparison`}
-                onClick={() => toggle(c)}
+                onClick={() => removeApplied(c)}
                 className="rounded-full p-0.5 hover:bg-primary/10"
               >
                 <X className="h-2.5 w-2.5" />
@@ -93,8 +108,8 @@ export function CompareCropsControl() {
           </p>
           <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">
             {(crops ?? []).map((c) => {
-              const checked = selected.includes(c.crop_name);
-              const disabled = !checked && selected.length >= MAX_COMPARE;
+              const checked = draft.includes(c.crop_name);
+              const disabled = !checked && draft.length >= MAX_COMPARE;
               return (
                 <label
                   key={c.crop_code}
@@ -107,17 +122,17 @@ export function CompareCropsControl() {
                     type="checkbox"
                     checked={checked}
                     disabled={disabled}
-                    onChange={() => toggle(c.crop_name)}
+                    onChange={() => toggleDraft(c.crop_name)}
                   />
                   <span className="text-slate-700">{c.crop_name}</span>
                 </label>
               );
             })}
           </div>
-          {selected.length >= MIN_COMPARE ? (
+          {draft.length >= MIN_COMPARE ? (
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={apply}
               className="btn btn-primary mt-2 w-full py-1 text-xs"
             >
               Apply comparison

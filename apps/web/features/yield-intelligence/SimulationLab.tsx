@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, FlaskConical, Info, Loader2, Play, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, FlaskConical, Info, Loader2, Play, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
@@ -470,38 +470,47 @@ function ModelScenarioPanel({
 }) {
   return (
     <Card className="border-dashed">
-      <CardHeader
-        title="Model-based scenario"
-        subtitle="Feature scenario from a fitted model — separate from the analysis above"
-        action={
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            {mode.available ? "Available" : "Not available"}
+      <details>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-forest-deep">Model-based scenario</span>
+            <span className="mt-0.5 block text-xs text-slate-500">
+              Open only when you need model validation details
+            </span>
           </span>
-        }
-      />
-      <div className="flex items-start gap-2 px-4 pb-3 pt-3 text-[11px] text-slate-500">
-        {mode.available ? (
-          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
-        ) : (
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden="true" />
-        )}
-        <span>
-          {mode.reason}
-          {mode.model_name ? (
-            <>
-              {" "}
-              Registered model: <strong>{mode.model_name}</strong>
-              {mode.model_version ? ` (${mode.model_version})` : ""}.
-            </>
-          ) : null}
-        </span>
-      </div>
-      <SourceNote>
-        A model-based scenario reports a fitted model&apos;s output, never a guaranteed intervention
-        outcome. It stays disabled until a validated yield model card exists in{" "}
-        <code>ml/reports</code>, because an unreliable model presented as an intervention effect is
-        worse than no model at all.
-      </SourceNote>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              {mode.available ? "Available" : "Not available"}
+            </span>
+            <ChevronDown className="h-4 w-4 text-slate-400" aria-hidden="true" />
+          </span>
+        </summary>
+        <div className="border-t border-forest/5">
+          <div className="flex items-start gap-2 px-4 pb-3 pt-3 text-[11px] text-slate-500">
+            {mode.available ? (
+              <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+            ) : (
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden="true" />
+            )}
+            <span>
+              {mode.reason}
+              {mode.model_name ? (
+                <>
+                  {" "}
+                  Registered model: <strong>{mode.model_name}</strong>
+                  {mode.model_version ? ` (${mode.model_version})` : ""}.
+                </>
+              ) : null}
+            </span>
+          </div>
+          <SourceNote>
+            A model-based scenario reports a fitted model&apos;s output, never a guaranteed intervention
+            outcome. It stays disabled until a validated yield model card exists in{" "}
+            <code>ml/reports</code>, because an unreliable model presented as an intervention effect is
+            worse than no model at all.
+          </SourceNote>
+        </div>
+      </details>
     </Card>
   );
 }
