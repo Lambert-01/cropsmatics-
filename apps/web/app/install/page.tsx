@@ -3,6 +3,8 @@
 import { QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
+import { useLanguage } from "@/lib/i18n";
+
 const INSTALL_PAGE_ENV = process.env.NEXT_PUBLIC_INSTALL_PAGE_URL;
 const APK_URL_ENV = process.env.NEXT_PUBLIC_INSTALL_APK_URL;
 const EXPO_GO_URL_ENV = process.env.NEXT_PUBLIC_EXPO_GO_URL;
@@ -38,6 +40,7 @@ function publicUrl(value: string | undefined): string | null {
 }
 
 export default function InstallPage() {
+  const { t } = useLanguage();
   const installUrl = resolveInstallUrl();
   const apiBase = resolveApiBase();
   const apkUrl = publicUrl(APK_URL_ENV);
@@ -50,11 +53,10 @@ export default function InstallPage() {
       <header className="page-hero relative isolate flex min-h-28 items-center overflow-hidden px-4 py-5 sm:px-6">
         <div className="relative z-10 max-w-[46rem]">
           <h1 className="text-2xl font-semibold text-forest-deep sm:text-[28px]">
-            Install the Cropmatics app
+            {t("install.title")}
           </h1>
           <p className="mt-1 text-xs text-slate-700 sm:text-sm">
-            Scan the QR code or open this page on your phone to get the offline-first
-            field app — harvest registration, storage context and risk insights.
+            {t("install.subtitle")}
           </p>
         </div>
         <p className="relative z-10 ml-auto hidden shrink-0 text-right text-[11px] font-medium leading-relaxed text-white lg:block">
@@ -66,7 +68,7 @@ export default function InstallPage() {
         <section className="card flex flex-col items-center px-4 py-6 text-center">
           <div className="flex items-center gap-2 self-start text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             <QrCode className="h-4 w-4" aria-hidden="true" />
-            Scan to install
+            {t("install.scan")}
           </div>
           <div className="mt-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-forest/10">
             <QRCodeSVG
@@ -78,38 +80,32 @@ export default function InstallPage() {
             />
           </div>
           <p className="mt-4 max-w-sm text-xs leading-relaxed text-slate-600">
-            Open the camera app on your Android phone and point it at this code.
-            The install page opens in the browser.
+            {t("install.scanHint")} {installUrl}
           </p>
           <p className="mt-2 break-all text-xs font-semibold text-forest-deep">{installUrl}</p>
           <div className="mt-4 flex w-full flex-wrap justify-center gap-2">
             {apkUrl ? (
               <a className="btn btn-primary" href={apkUrl} target="_blank" rel="noreferrer">
-                Download Android APK
+                {t("install.download")}
               </a>
             ) : null}
             {expoGoUrl ? (
               <a className="btn" href={expoGoUrl} target="_blank" rel="noreferrer">
-                Open in Expo Go
+                {t("install.openExpo")}
               </a>
             ) : null}
           </div>
           {!apkUrl && !expoGoUrl ? (
             <p className="mt-3 max-w-sm text-[11px] leading-relaxed text-amber-700">
-              The page is online, but no public APK or Expo Go link is configured yet.
-              Set <code>NEXT_PUBLIC_INSTALL_APK_URL</code> in Vercel after the build finishes.
+              {t("install.noLink")} Set <code>NEXT_PUBLIC_INSTALL_APK_URL</code> in Vercel.
             </p>
           ) : null}
         </section>
 
         <section className="card px-4 py-4">
-          <h2 className="card-title">Install steps</h2>
+          <h2 className="card-title">{t("install.steps")}</h2>
           <ol className="mt-3 space-y-3">
-            {[
-              "Open this page on your phone (scan the code, or send yourself the link).",
-              "Download the Cropmatics APK and allow installing from that source when Android asks.",
-              "Open the app — your records stay on the device until you sync.",
-            ].map((step, index) => (
+            {[t("install.step1"), t("install.step2"), t("install.step3")].map((step, index) => (
               <li key={step} className="flex gap-3">
                 <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-forest/10 text-xs font-bold text-forest-deep">
                   {index + 1}
@@ -120,22 +116,22 @@ export default function InstallPage() {
           </ol>
           <p className="mt-4 border-t border-forest/5 pt-3 text-[11px] leading-relaxed text-slate-500">
             {expoGoUrl
-              ? "Expo Go is available for a quick demo. For field testing, use the hosted APK."
-              : "For a shareable install, publish the APK URL as NEXT_PUBLIC_INSTALL_APK_URL in Vercel."}
+              ? t("install.expoHint")
+              : t("install.noApk")}
           </p>
         </section>
       </div>
 
       <section className="card px-4 py-4">
-        <h2 className="card-title">Which data will the app reach?</h2>
+        <h2 className="card-title">{t("install.apiTitle")}</h2>
         <p className="mt-2 text-sm text-slate-700">
-          <span className="font-semibold">API:</span>{" "}
+          <span className="font-semibold">{t("install.api")}:</span>{" "}
           <span className="break-all font-mono text-xs">{apiBase ?? "not configured"}</span>
         </p>
         <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
           {isLocalApi
-            ? "This build talks to a demo machine on the local network — install while you are on the same Wi-Fi."
-            : "This build talks to the public Cropmatics API and works on any internet connection."}
+            ? t("install.localApi")
+            : t("install.publicApi")}
         </p>
       </section>
     </div>
