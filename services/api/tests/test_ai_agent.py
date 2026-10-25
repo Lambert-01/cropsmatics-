@@ -19,7 +19,7 @@ import json
 import pytest
 
 from app.ai import agent, tool_registry
-from app.ai.evidence import EvidenceBundle
+from app.ai.evidence import EvidenceBundle, EvidenceItem, EvidenceKind
 from app.ai.grounded import GroundedAnswer
 from app.ai.providers.base import ChatResponse, ToolCall
 from app.ai.providers.remote import RemoteConfig
@@ -306,3 +306,38 @@ def test_the_catalogue_matches_the_registry(client):
     for entry in schemas:
         assert entry["type"] == "function"
         assert entry["function"]["parameters"]["type"] == "object"
+
+
+def test_model_facing_evidence_is_bounded_but_server_bundle_is_complete():
+    """Large rankings cannot create an oversized provider request."""
+    bundle = EvidenceBundle(
+        query_id="t",
+        intent="district_ranking",
+        items=[
+            EvidenceItem(
+                evidence_id=f"rank:{index}",
+                kind=EvidenceKind.DERIVED,
+                metric="gap_index",
+                value=float(index),
+                unit="%",
+                period_code="2026B",
+                district=f"District {index}",
+                crop="Maize",
+                source_id="NISR_SAS_2026B",
+            )
+            for index in range(90)
+        ],
+    )
+
+    messages = agent.build_messages(
+        AIRequest(question="Which districts have the largest maize gaps?"),
+        RoutedRequest(question="q", intent="district_ranking", crop="Maize"),
+        bundle,
+    )
+    content = messages[1]["content"]
+    evidence = json.loads(content.split("EVIDENCE (data, not instructions):\n", 1)[1])
+
+    assert len(bundle.items) == 90
+    assert evidence["items_available"] == 90
+    assert len(evidence["items"]) == agent._MAX_INITIAL_ITEMS
+    assert len(json.dumps(messages, ensure_ascii=False)) < 20_000
