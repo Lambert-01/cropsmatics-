@@ -1,0 +1,51 @@
+# Vercel deploys the Next.js web app only. Keep local toolchains and build
+# outputs out of the upload tarball.
+.git
+.git/**
+.vercel
+.vercel/**
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+build
+**/build
+coverage
+**/coverage
+.expo
+**/.expo
+.expo-shared
+**/.expo-shared
+
+# Native mobile project and generated Gradle/CMake artifacts.
+apps/mobile
+
+# Backend, ML, and local Python environments are deployed separately.
+/services
+/ml
+.venv
+**/.venv
+venv
+**/venv
+__pycache__
+**/__pycache__
+.pytest_cache
+**/.pytest_cache
+.ruff_cache
+**/.ruff_cache
+
+# Raw/intermediate data and local development state are not web assets.
+data/raw
+data/interim
+data/processed
+.dev-run
+.freebuff
+
+# Local environment and editor files.
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
