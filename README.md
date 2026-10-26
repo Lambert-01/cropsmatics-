@@ -10,7 +10,6 @@ productivity, investigate intervention priorities and plan harvest logistics.
 [API documentation](https://cropsmatics-api.onrender.com/docs) |
 [Documentation](DOCUMENTATION_INDEX.md) |
 [Current status](docs/CURRENT_STATUS.md) |
-[Remaining implementation brief](docs/REMAINING_BUILD_PROMPT.md) |
 [NISR submission alignment](docs/submission/NISR_WEBINAR_ALIGNMENT.md)
 
 ## What You Can Do
@@ -26,9 +25,10 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
 **Status:** release-candidate code, not a completed production certification.
-The latest dashboard refetch fix is deployed from `main` at `2ef8219`; the
-production API smoke test passed after canonical database synchronization. The
-latest changes repair
+The repository currently ends at `1054fa2`. Production deployment status must
+be checked against the deployed commit in Render and Vercel before submission;
+the current-status document separates repository evidence from live-environment
+evidence. The latest changes repair
 authenticated operational ownership, AI crop/period claim binding, peer
 benchmark headlines, transactional mobile sync state and the dataset explorer's
 JSON/CSV filter contract. Remaining limitations are documented in [current

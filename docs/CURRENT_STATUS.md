@@ -1,17 +1,17 @@
 # Current Status
 
-Reviewed: **2026-10-24**, latest working-tree changes after the mobile and
+Reviewed: **2026-10-26**, latest working-tree changes after the mobile and
 submission-readiness pass.
 Working branch: `main`.
 
 **Verdict: this is a strong release candidate, but not yet a fully verified
-submission.** The latest dashboard refetch fix is on `main` at `2ef8219`.
-Render is live on that revision, Vercel reports a successful deployment, and
-readiness plus representative analytics smoke tests returned `200`. The
-canonical database release is serving again. Remaining work is UX/device/demo
-evidence rather than the earlier ownership, claim-binding, benchmark-KPI,
-sync-state or dataset-contract defects. The remaining task is specified in
-[REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).
+submission.** The repository currently ends at `1054fa2`. Production
+deployment status must be checked against the deployed commit in Render and
+Vercel before submission; this document separates repository evidence from
+live-environment evidence. Remaining work is UX/device/demo evidence rather
+than the earlier ownership, claim-binding, benchmark-KPI, sync-state or
+dataset-contract defects. The remaining verification work is listed below and
+in [UX verification](submission/UX_VERIFICATION.md).
 
 ## Confirmed Improvements
 
@@ -113,7 +113,7 @@ Fresh checks against this increment:
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | Render is live on `main` commit `2ef8219`; readiness, dashboard overview, input adoption, canonical trend and scoped Maize district metrics all returned 200 in the final smoke check. |
+| Live Render deployment | Historical smoke check for Render `main` commit `2ef8219`; readiness, dashboard overview, input adoption, canonical trend and scoped Maize district metrics returned 200. This does not verify the current repository head `1054fa2`. |
 
 Focused checks in this pass:
 
@@ -146,9 +146,8 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The latest dashboard fix is fast-forwarded onto `main`, and the final GitHub,
-Render and representative API checks passed for `2ef8219`. Future code changes
-must repeat the same deployed-SHA and production smoke checks.
+The repository currently ends at `1054fa2`. Future code changes must repeat
+the deployed-SHA and production smoke checks before they are described as live.
 
 Local debug and release APK files exist and were built against the hosted API.
 The Gradle release variant currently uses the debug keystore, so it is suitable

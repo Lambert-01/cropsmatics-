@@ -77,3 +77,5 @@ data/**/*.tmp
 
 # ---- Misc ----
 *.log
+.vercel
+.env*

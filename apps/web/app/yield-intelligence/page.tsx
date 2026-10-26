@@ -349,17 +349,33 @@ export default function YieldIntelligencePage() {
               {/* The user-controlled projection, kept visually and verbally separate
                   from the validated-forecast status above: it answers what would
                   follow from stated assumptions, never what will happen. */}
-              <ManualProjectionWorkspace filters={filters} />
+              <details className="border-y border-forest/10">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold text-forest-deep outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                  <span>Build a manual planning projection</span>
+                  <span className="text-xs font-normal text-slate-500">Optional · your assumptions</span>
+                </summary>
+                <div className="pb-1 pt-2">
+                  <ManualProjectionWorkspace filters={filters} />
+                </div>
+              </details>
 
               {/* Period and benchmark assumptions, compared against the current
                   selection. */}
-              <SimulationLab
-                crop={crop}
-                periodCode={periodCode}
-                province={filters.province}
-                district={filters.district}
-                benchmark={filters.benchmark}
-              />
+              <details className="border-b border-forest/10">
+                <summary className="flex cursor-pointer items-center justify-between gap-3 py-3 text-sm font-semibold text-forest-deep outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                  <span>Compare analytical scenarios</span>
+                  <span className="text-xs font-normal text-slate-500">Optional · published data only</span>
+                </summary>
+                <div className="pb-1 pt-2">
+                  <SimulationLab
+                    crop={crop}
+                    periodCode={periodCode}
+                    province={filters.province}
+                    district={filters.district}
+                    benchmark={filters.benchmark}
+                  />
+                </div>
+              </details>
 
               <Card className="space-y-2 p-4 text-xs text-slate-600">
                 <p>

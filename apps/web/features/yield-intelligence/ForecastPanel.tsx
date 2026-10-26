@@ -36,11 +36,24 @@ export function ForecastPanel({ filters = {} }: { filters?: DashboardFilters }) 
       {data.targets.length ? (
         <Card>
           <CardHeader title="Forecast outlook" subtitle="Model estimates, not observed harvests or promised gains." />
-          <ul className="divide-y divide-forest/5">
-            {data.targets.map((target) => (
-              <ForecastTargetRow key={target.target_id ?? target.label} target={target} allowed={published} />
-            ))}
-          </ul>
+          {published ? (
+            <ul className="divide-y divide-forest/5">
+              {data.targets.map((target) => (
+                <ForecastTargetRow key={target.target_id ?? target.label} target={target} allowed={published} />
+              ))}
+            </ul>
+          ) : (
+            <details className="border-t border-forest/5">
+              <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-forest outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                Show validation checks ({data.targets.length})
+              </summary>
+              <ul className="divide-y divide-forest/5">
+                {data.targets.map((target) => (
+                  <ForecastTargetRow key={target.target_id ?? target.label} target={target} allowed={published} />
+                ))}
+              </ul>
+            </details>
+          )}
         </Card>
       ) : null}
       <details className="border-t border-forest/10 pt-3 text-xs text-slate-600">

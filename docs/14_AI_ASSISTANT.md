@@ -106,4 +106,4 @@ pnpm exec playwright test --config playwright.forecast.config.ts
 
 That configuration uses installed Chrome, local test ports 3107/8007 and generated local data. It is not a production or Expo-device test.
 
-See [CURRENT_STATUS.md](CURRENT_STATUS.md), [MODEL_INTERPRETATION_POLICY.md](MODEL_INTERPRETATION_POLICY.md) and [REMAINING_BUILD_PROMPT.md](REMAINING_BUILD_PROMPT.md).
+See [CURRENT_STATUS.md](CURRENT_STATUS.md), [MODEL_INTERPRETATION_POLICY.md](MODEL_INTERPRETATION_POLICY.md) and [submission/AI_EVALUATION.md](submission/AI_EVALUATION.md).

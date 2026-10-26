@@ -1,8 +1,8 @@
 # Documentation
 
 Start with the [README](README.md). For the latest implementation state use
-[Current Status](docs/CURRENT_STATUS.md); for the next engineering task use
-[Remaining Build Prompt](docs/REMAINING_BUILD_PROMPT.md).
+[Current Status](docs/CURRENT_STATUS.md). Submission-focused evidence is grouped
+under [Submission And Review](#submission-and-review).
 
 ## Product And Architecture
 
@@ -18,7 +18,6 @@ Start with the [README](README.md). For the latest implementation state use
 - [Web data-to-UI matrix](docs/DATA_TO_UI_MATRIX.md)
 - [Mobile data-to-UI matrix](docs/MOBILE_DATA_TO_UI_MATRIX.md)
 - [Mobile information architecture](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
-- [Visual references and review limitations](docs/VISUAL_REFERENCE_IMPLEMENTATION.md)
 
 ## Data And Methods
 
@@ -41,7 +40,6 @@ Start with the [README](README.md). For the latest implementation state use
 - [Testing](docs/16_TESTING.md)
 - [Deployment](docs/17_DEPLOYMENT.md)
 - [Release checklist](docs/PRODUCTION_READINESS.md)
-- [Incident runbook](docs/19_PRODUCTION_INCIDENT_RUNBOOK.md)
 - [Security and privacy](docs/15_SECURITY_PRIVACY.md)
 - [Scripts](scripts/README.md)
 - [Infrastructure](infra/README.md)
@@ -59,7 +57,7 @@ Start with the [README](README.md). For the latest implementation state use
 - [NISR webinar submission alignment](docs/submission/NISR_WEBINAR_ALIGNMENT.md)
 - [Data rights](DATA_LICENSE_AND_PROVENANCE.md)
 
-Historical session reports, stale project trees and generated audit inventories
-were removed from the active documentation. Their original contents remain in
-Git history. Architecture documents describe contracts and intent; use Current
-Status and current test evidence before treating a feature as release-ready.
+Internal planning prompts, team notes, visual-review logs and incident runbooks
+are not part of the active submission documentation. Architecture documents
+describe maintained contracts; use Current Status and current test evidence
+before treating a feature as release-ready.

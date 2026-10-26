@@ -29,9 +29,9 @@ not a dated list of assumed passes.
 - [ ] Keep unavailable forecasts, prices and capacities explicitly unavailable.
 
 Do not point integration tests or destructive migrations at production. Read
-[deployment](17_DEPLOYMENT.md), [database authority](P0_DATABASE_AUTHORITY.md) and
-the [incident runbook](19_PRODUCTION_INCIDENT_RUNBOOK.md) before operating on
-deployed services. A green build does not certify data methodology or UX.
+[deployment](17_DEPLOYMENT.md), [database authority](P0_DATABASE_AUTHORITY.md)
+and [Current Status](CURRENT_STATUS.md) before operating on deployed services.
+A green build does not certify data methodology or UX.
 
 Latest evidence (2026-10-24): the local Playwright suite passed 16/16 rendered
 dashboard/forecast checks at desktop and mobile-web sizes. The populated-data
