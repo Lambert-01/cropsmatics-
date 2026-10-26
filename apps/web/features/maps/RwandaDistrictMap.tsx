@@ -172,10 +172,24 @@ export function RwandaDistrictMap({
           onToggleFacilities={setShowFacilities}
           cropSelected={Boolean(data?.crop)}
         />
-        <p className="mt-2 text-[11px] text-slate-500">
-          {METRIC_SEMANTICS[metric].note}. Hatched districts have a yield gap of at least{" "}
-          {SHORTFALL_GAP}% against this crop&apos;s benchmark (yield-shortfall overlay).
-        </p>
+        <details className="mt-2 text-[11px] text-slate-500">
+          <summary className="cursor-pointer font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            Layer notes
+          </summary>
+          <p className="mt-1">
+            {METRIC_SEMANTICS[metric].note}. Hatched districts have a yield gap of at least{" "}
+            {SHORTFALL_GAP}% against this crop&apos;s benchmark (yield-shortfall overlay).
+          </p>
+          {data?.components_unavailable?.length ? (
+            <p className="mt-1 leading-relaxed">
+              <span className="font-semibold text-amber-800">Not in this score:</span>{" "}
+              {unavailableSummary(data.components_unavailable)}
+              {data.available_period
+                ? ` ${periodLabel(data.available_period)} carries them — select that period to include them.`
+                : ""}
+            </p>
+          ) : null}
+        </details>
       </div>
 
       {blocked ? (
@@ -185,18 +199,6 @@ export function RwandaDistrictMap({
             hint={blockedHint}
           />
         </div>
-      ) : null}
-
-      {data?.components_unavailable?.length ? (
-        <p className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
-          <span className="rounded-sm bg-amber/10 px-1.5 py-0.5 font-semibold text-amber-800">
-            Not in this score
-          </span>{" "}
-          {unavailableSummary(data.components_unavailable)}
-          {data.available_period
-            ? ` ${periodLabel(data.available_period)} carries them — select that period to include them.`
-            : ""}
-        </p>
       ) : null}
 
       <div

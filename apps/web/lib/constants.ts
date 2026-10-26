@@ -7,7 +7,7 @@ export const MAP_METRICS = [
   { id: "production", label: "Production" },
   { id: "harvested_area", label: "Harvested area" },
   { id: "gap", label: "Productivity gap" },
-  { id: "yield", label: "Yield (needs a crop)" },
+  { id: "yield", label: "Yield" },
   { id: "priority", label: "Intervention priority" },
   { id: "input_adoption", label: "Input adoption" },
   { id: "irrigation", label: "Irrigation" },

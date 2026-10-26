@@ -453,6 +453,16 @@ export function AnalyticsFilterBar({
   }, [filters, periods]);
 
   const coverageBadgeText = coverageLabel ?? null;
+  const advancedFiltersActive = Boolean(
+    filters.province ||
+      filters.district ||
+      (filters.benchmark && filters.benchmark !== "national_crop_median"),
+  );
+  const [advancedOpen, setAdvancedOpen] = useState(advancedFiltersActive);
+
+  useEffect(() => {
+    if (advancedFiltersActive) setAdvancedOpen(true);
+  }, [advancedFiltersActive]);
 
   /**
    * `view` is writable but is deliberately not a `SupportedFilter`: a page never
@@ -467,9 +477,13 @@ export function AnalyticsFilterBar({
   /* ------------------------------------------------------------- */
   /* Filter controls — shared between desktop bar and mobile drawer */
   /* ------------------------------------------------------------- */
-  const controls = (idsPrefix: string) => (
+  const controls = (
+    idsPrefix: string,
+    includeAdvanced = true,
+    includeCore = true,
+  ) => (
     <>
-      {has("year") || has("season") ? (
+      {includeCore && (has("year") || has("season")) ? (
         <SearchableSelect
           label="Period"
           value={selectedPeriod ?? ""}
@@ -496,7 +510,7 @@ export function AnalyticsFilterBar({
         />
       ) : null}
 
-      {has("crop") ? (
+      {includeCore && has("crop") ? (
         <SearchableSelect
           label="Crop"
           value={filters.crop ?? ""}
@@ -507,7 +521,7 @@ export function AnalyticsFilterBar({
         />
       ) : null}
 
-      {has("province") ? (
+      {includeAdvanced && has("province") ? (
         <FilterSelect
           label="Province"
           value={filters.province ?? ""}
@@ -520,7 +534,7 @@ export function AnalyticsFilterBar({
         />
       ) : null}
 
-      {has("district") ? (
+      {includeAdvanced && has("district") ? (
         <SearchableSelect
           label="District"
           value={filters.district ?? ""}
@@ -531,7 +545,7 @@ export function AnalyticsFilterBar({
         />
       ) : null}
 
-      {has("benchmark") ? (
+      {includeAdvanced && has("benchmark") ? (
         <FilterSelect
           label="Benchmark"
           value={filters.benchmark ?? "national_crop_median"}
@@ -551,7 +565,8 @@ export function AnalyticsFilterBar({
     </>
   );
 
-  const controlsNode = controls("d");
+  const coreControlsNode = controls("d", false, true);
+  const advancedControlsNode = controls("d", true, false);
 
   return (
     <section aria-label="Analytics filters" className={cn("space-y-2", className)}>
@@ -566,9 +581,26 @@ export function AnalyticsFilterBar({
         />
       ) : null}
       {/* Desktop / tablet bar */}
-      <div className="card hidden items-end gap-3 px-4 py-3 md:flex">
-        {controlsNode}
-        <div className="ml-auto flex shrink-0 items-center gap-2 pb-0.5">
+      <div className="card hidden px-4 py-3 md:block">
+        <div className="flex items-end gap-3">
+          {coreControlsNode}
+          {has("province") || has("district") || has("benchmark") ? (
+            <button
+              type="button"
+              className="btn mb-0.5 shrink-0 text-xs"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((open) => !open)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+              {advancedOpen ? "Hide filters" : "More filters"}
+              {advancedFiltersActive ? (
+                <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
+                  active
+                </span>
+              ) : null}
+            </button>
+          ) : null}
+          <div className="ml-auto flex shrink-0 items-center gap-2 pb-0.5">
           {activeCount > 0 || defaultsMuted ? (
             <button
               type="button"
@@ -584,7 +616,13 @@ export function AnalyticsFilterBar({
               {coverageBadgeText}
             </span>
           ) : null}
+          </div>
         </div>
+        {advancedOpen && (has("province") || has("district") || has("benchmark")) ? (
+          <div className="mt-3 grid gap-3 border-t border-forest/10 pt-3 md:grid-cols-3">
+            {advancedControlsNode}
+          </div>
+        ) : null}
       </div>
 
       {/* Mobile: Filter button + drawer */}
