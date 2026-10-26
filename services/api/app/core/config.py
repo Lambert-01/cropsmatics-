@@ -77,6 +77,14 @@ class Settings(BaseSettings):
     # Optional override; when unset the mode is derived from `environment` below.
     canonical_data_mode: str | None = None
 
+    # --- grounded assistant protection -------------------------------------
+    # These limits are process-local by default. A multi-instance deployment
+    # should point the same limiter seam at Redis for a global quota.
+    ai_rate_limit_requests: int = 60
+    ai_rate_limit_window_seconds: int = 60
+    ai_rate_limit_max_keys: int = 10_000
+    ai_trust_proxy_headers: bool = False
+
     @field_validator("database_url")
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:

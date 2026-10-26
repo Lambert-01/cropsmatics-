@@ -105,8 +105,8 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
   const shownFilters = FILTER_ORDER.filter((f) => supportedFilters.includes(f));
 
   const total = query.data?.count ?? 0;
-  const allColumns = query.data?.columns ?? [];
-  const rows = query.data?.rows ?? [];
+  const allColumns = useMemo(() => query.data?.columns ?? [], [query.data?.columns]);
+  const rows = useMemo(() => query.data?.rows ?? [], [query.data?.rows]);
 
   // Provenance columns are hidden by default but stay reachable via the toggle.
   const visibleColumns = useMemo(

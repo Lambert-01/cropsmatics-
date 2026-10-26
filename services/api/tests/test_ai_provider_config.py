@@ -25,11 +25,13 @@ import json
 
 import pytest
 
+from app.ai.providers.gemini import GeminiProvider
 from app.ai.providers.remote import (
     RemoteConfig,
     RemoteProvider,
     _to_responses_tool,
     load_config,
+    load_gemini_config,
 )
 
 # --- configuration and aliases ----------------------------------------------
@@ -68,7 +70,7 @@ def test_openai_aliases_alone_configure_the_provider():
     assert config.base_url == "https://api.openai.com/v1"
 
 
-def test_groq_aliases_configure_the_openai_compatible_provider():
+def test_groq_aliases_configure_the_groq_provider():
     config = load_config(
         {
             "AI_ENABLED": "true",
@@ -78,10 +80,28 @@ def test_groq_aliases_configure_the_openai_compatible_provider():
         }
     )
     assert config.configured is True
-    assert config.provider == "openai_compatible"
+    assert config.provider == "groq"
     assert config.model == "llama-3.3-70b-versatile"
     assert config.base_url == "https://api.groq.com/openai/v1"
     assert config.api_key == "gsk-test"
+
+
+def test_gemini_is_an_explicit_secondary_provider():
+    config = load_gemini_config(
+        {
+            "GEMINI_ENABLED": "true",
+            "GEMINI_MODEL": "gemini-test",
+            "GEMINI_API_KEY": "gemini-secret",
+        }
+    )
+    assert config.provider == "gemini"
+    assert config.configured is True
+    assert config.base_url == "https://generativelanguage.googleapis.com/v1beta"
+    assert config.model == "gemini-test"
+
+
+def test_gemini_is_disabled_by_default():
+    assert not load_gemini_config({}).configured
 
 
 def test_an_alias_fills_only_what_the_platform_names_leave_empty():
@@ -150,8 +170,10 @@ def test_responses_tool_translation_drops_nothing_it_cannot_name():
 
 
 class _StubResponse:
-    def __init__(self, body: dict):
+    def __init__(self, body: dict, *, status_code: int = 200, headers: dict | None = None):
         self._body = body
+        self.status_code = status_code
+        self.headers = headers or {}
 
     def raise_for_status(self) -> None:
         return None
@@ -173,8 +195,10 @@ class _StubClient:
     async def __aexit__(self, *exc):
         return False
 
-    async def post(self, url, *, json=None, headers=None):
-        self.requests.append({"url": url, "json": json, "headers": headers})
+    async def post(self, url, *, json=None, headers=None, params=None):
+        self.requests.append(
+            {"url": url, "json": json, "headers": headers, "params": params}
+        )
         return _StubResponse(self._body)
 
 
@@ -200,6 +224,88 @@ async def test_chat_path_posts_to_chat_completions(monkeypatch):
     assert client.requests[0]["json"]["messages"]
     assert reply.content == "Answered."
     assert reply.tool_calls == []
+
+
+@pytest.mark.asyncio
+async def test_gemini_path_translates_messages_and_function_calls(monkeypatch):
+    client = _StubClient(
+        {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"functionCall": {"name": "get_crop_trend", "args": {"crop": "Maize"}}}
+                        ]
+                    }
+                }
+            ]
+        }
+    )
+    monkeypatch.setattr(_httpx(), "AsyncClient", lambda **kw: client)
+
+    config = RemoteConfig(
+        enabled=True,
+        provider="gemini",
+        model="gemini-test",
+        base_url="https://generativelanguage.googleapis.com/v1beta",
+        api_key="gemini-test-key",
+    )
+    reply = await GeminiProvider(config).chat(
+        [
+            {"role": "system", "content": "Use evidence only."},
+            {"role": "user", "content": "What is the maize trend?"},
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_crop_trend",
+                    "description": "Published trend",
+                    "parameters": {"type": "object"},
+                },
+            }
+        ],
+    )
+
+    request = client.requests[0]
+    assert request["url"].endswith("/models/gemini-test:generateContent")
+    assert request["params"] == {"key": "gemini-test-key"}
+    assert request["json"]["systemInstruction"]["parts"]
+    assert request["json"]["contents"][0]["role"] == "user"
+    assert request["json"]["tools"][0]["function_declarations"][0]["name"] == "get_crop_trend"
+    assert reply.tool_calls[0].name == "get_crop_trend"
+    assert json.loads(reply.tool_calls[0].arguments) == {"crop": "Maize"}
+
+
+@pytest.mark.asyncio
+async def test_transient_provider_failure_is_retried_with_a_bounded_budget(monkeypatch):
+    class SequenceClient(_StubClient):
+        def __init__(self):
+            super().__init__({})
+            self.responses = [
+                _StubResponse({}, status_code=503),
+                _StubResponse({"choices": [{"message": {"content": "Recovered."}}]}),
+            ]
+
+        async def post(self, url, *, json=None, headers=None, params=None):
+            self.requests.append({"url": url, "json": json, "headers": headers, "params": params})
+            return self.responses.pop(0)
+
+    client = SequenceClient()
+    monkeypatch.setattr(_httpx(), "AsyncClient", lambda **kw: client)
+    provider = RemoteProvider(
+        RemoteConfig(
+            **{
+                **_configured("openai_compatible").__dict__,
+                "retry_attempts": 1,
+                "retry_backoff_seconds": 0.05,
+            }
+        )
+    )
+
+    reply = await provider.chat([{"role": "user", "content": "q"}])
+    assert len(client.requests) == 2
+    assert reply.content == "Recovered."
 
 
 @pytest.mark.asyncio
@@ -308,8 +414,8 @@ async def test_responses_agent_replays_native_calls_reasoning_and_outputs(monkey
     ]
 
     class SequenceClient(_StubClient):
-        async def post(self, url, *, json=None, headers=None):
-            self.requests.append({"url": url, "json": json})
+        async def post(self, url, *, json=None, headers=None, params=None):
+            self.requests.append({"url": url, "json": json, "params": params})
             return _StubResponse({"output": native} if len(self.requests) == 1 else {
                 "output": [{"type": "message", "role": "assistant",
                             "content": [{"type": "output_text", "text": "No published forecast."}]}],

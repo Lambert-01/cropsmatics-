@@ -275,9 +275,33 @@ These report counts and versions only; no operational data needs to be printed.
 
 `AI_ENABLED=false` is a supported production state. Cropmatics answers every
 supported question with the deterministic grounded assistant, and the numeric and
-citation guards apply in both modes. Enabling a provider (`AI_PROVIDER`,
-`AI_MODEL`, `AI_BASE_URL`, `AI_API_KEY`) only upgrades the wording of an answer
-that the evidence already supports.
+citation guards apply in both modes. Enabling Groq (`AI_PROVIDER=groq`) upgrades
+the wording only after the evidence has been retrieved. An optional Gemini
+provider is a secondary attempt, never a source of facts. Both providers are
+bounded by timeout, retry, output-token and per-client rate-limit settings.
+
+Recommended Render configuration:
+
+```text
+AI_ENABLED=true
+AI_PROVIDER=groq
+AI_MODEL=llama-3.1-8b-instant
+AI_BASE_URL=https://api.groq.com/openai/v1
+GROQ_API_KEY=<new rotated secret>
+GEMINI_ENABLED=false
+AI_RETRY_ATTEMPTS=2
+AI_RETRY_BACKOFF_SECONDS=0.25
+AI_RATE_LIMIT_REQUESTS=60
+AI_RATE_LIMIT_WINDOW_SECONDS=60
+AI_RATE_LIMIT_MAX_KEYS=10000
+AI_TRUST_PROXY_HEADERS=false
+```
+
+To enable the optional secondary, add `GEMINI_ENABLED=true` and
+`GEMINI_API_KEY=<backend secret>`. Use a model currently available to the
+provider project; model names and quota are provider-account settings, not
+Cropmatics data. The API exposes only safe provider status metadata and never
+returns a key.
 
 Provider credentials are backend-only. They must not be exposed through
 `NEXT_PUBLIC_*` or `EXPO_PUBLIC_*`.

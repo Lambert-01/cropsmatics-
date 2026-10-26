@@ -38,3 +38,13 @@ def client():
 
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(autouse=True)
+def reset_assistant_rate_limit():
+    """Keep the session client from sharing quota across unrelated tests."""
+    from app.ai.rate_limit import reset_rate_limiter
+
+    reset_rate_limiter()
+    yield
+    reset_rate_limiter()

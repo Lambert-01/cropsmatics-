@@ -16,6 +16,7 @@ change.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from collections.abc import AsyncIterator
@@ -82,6 +83,10 @@ class RemoteConfig:
     agent_enabled: bool = True
     #: Hard bound on model turns in the agent loop, independent of the tool budget.
     max_agent_steps: int = 8
+    #: Number of bounded retries for transient provider failures (not auth errors).
+    retry_attempts: int = 2
+    #: Initial delay for transient retries. The request path caps the total delay.
+    retry_backoff_seconds: float = 0.25
 
     @property
     def configured(self) -> bool:
@@ -99,6 +104,7 @@ class RemoteConfig:
             "max_tool_calls": self.max_tool_calls,
             "agent_enabled": self.agent_enabled,
             "max_agent_steps": self.max_agent_steps,
+            "retry_attempts": self.retry_attempts,
         }
 
 
@@ -124,19 +130,86 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
         except (TypeError, ValueError):
             return default
 
+    provider = str(env.get("AI_PROVIDER") or "").strip().lower()
+    if not provider:
+        provider = "groq" if _first(env, "GROQ_API_KEY", "GROQ_MODEL") else "openai_compatible"
+
+    if provider == "groq":
+        default_model = "llama-3.1-8b-instant"
+        default_base = "https://api.groq.com/openai/v1"
+        model_names = ("AI_MODEL", "GROQ_MODEL", "OPENAI_MODEL")
+        base_names = ("AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
+        key_names = ("AI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY")
+    elif provider == "gemini":
+        default_model = "gemini-3.5-flash-lite"
+        default_base = "https://generativelanguage.googleapis.com/v1beta"
+        model_names = ("AI_MODEL", "GEMINI_MODEL")
+        base_names = ("AI_BASE_URL", "GEMINI_BASE_URL")
+        key_names = ("AI_API_KEY", "GEMINI_API_KEY")
+    else:
+        default_model = ""
+        default_base = ""
+        model_names = ("AI_MODEL", "GROQ_MODEL", "OPENAI_MODEL")
+        base_names = ("AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
+        key_names = ("AI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY")
+
     return RemoteConfig(
         enabled=flag("AI_ENABLED", False),
-        provider=str(env.get("AI_PROVIDER") or "openai_compatible"),
-        model=_first(env, "AI_MODEL", "GROQ_MODEL", "OPENAI_MODEL") or "",
-        base_url=_rstrip(
-            _first(env, "AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
-        ) or None,
-        api_key=_first(env, "AI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY") or None,
+        provider=provider,
+        model=_first(env, *model_names) or default_model,
+        base_url=_rstrip(_first(env, *base_names) or default_base) or None,
+        api_key=_first(env, *key_names) or None,
         timeout_seconds=number("AI_TIMEOUT_SECONDS", 20.0),
         max_output_tokens=integer("AI_MAX_OUTPUT_TOKENS", 700),
         max_tool_calls=integer("AI_MAX_TOOL_CALLS", 6),
         agent_enabled=flag("AI_AGENT_ENABLED", True),
         max_agent_steps=integer("AI_MAX_AGENT_STEPS", 8),
+        retry_attempts=max(0, min(integer("AI_RETRY_ATTEMPTS", 2), 3)),
+        retry_backoff_seconds=max(0.05, min(number("AI_RETRY_BACKOFF_SECONDS", 0.25), 2.0)),
+    )
+
+
+def load_gemini_config(environ: dict[str, str] | None = None) -> RemoteConfig:
+    """Load the optional Gemini fallback without enabling it implicitly.
+
+    Gemini is a secondary provider by design. It must be explicitly enabled so
+    adding a key to a deployment cannot unexpectedly send user questions to a
+    second vendor or consume that project's quota.
+    """
+    env = os.environ if environ is None else environ
+
+    def flag(name: str, default: bool = False) -> bool:
+        raw = str(env.get(name, "")).strip().lower()
+        return default if not raw else raw in ("1", "true", "yes", "on")
+
+    def number(name: str, default: float) -> float:
+        try:
+            return float(env.get(name) or default)
+        except (TypeError, ValueError):
+            return default
+
+    def integer(name: str, default: int) -> int:
+        try:
+            return int(float(env.get(name) or default))
+        except (TypeError, ValueError):
+            return default
+
+    return RemoteConfig(
+        enabled=flag("GEMINI_ENABLED", False),
+        provider="gemini",
+        model=_first(env, "GEMINI_MODEL") or "gemini-3.5-flash-lite",
+        base_url=_rstrip(
+            _first(env, "GEMINI_BASE_URL")
+            or "https://generativelanguage.googleapis.com/v1beta"
+        ),
+        api_key=_first(env, "GEMINI_API_KEY") or None,
+        timeout_seconds=number("AI_TIMEOUT_SECONDS", 20.0),
+        max_output_tokens=integer("AI_MAX_OUTPUT_TOKENS", 700),
+        max_tool_calls=integer("AI_MAX_TOOL_CALLS", 6),
+        agent_enabled=flag("AI_AGENT_ENABLED", True),
+        max_agent_steps=integer("AI_MAX_AGENT_STEPS", 8),
+        retry_attempts=max(0, min(integer("AI_RETRY_ATTEMPTS", 2), 3)),
+        retry_backoff_seconds=max(0.05, min(number("AI_RETRY_BACKOFF_SECONDS", 0.25), 2.0)),
     )
 
 
@@ -287,6 +360,78 @@ class RemoteProvider:
             citations=[item.evidence_id for item in bundle.items][:50],
         )
 
+    async def _post_json(
+        self,
+        url: str,
+        payload: dict,
+        *,
+        headers: dict[str, str],
+        params: dict[str, str] | None = None,
+    ) -> dict:
+        """POST JSON with bounded transient retries and safe error handling.
+
+        Provider response bodies are deliberately not copied into exceptions or
+        logs: vendors sometimes echo prompts, and prompts can contain sensitive
+        user text. Authentication failures are not retried; quota, timeout and
+        transient server failures get at most the configured small retry budget.
+        """
+        import httpx
+
+        attempts = self.config.retry_attempts + 1
+        last_error = "provider request failed"
+        async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
+            for attempt in range(attempts):
+                try:
+                    response = await client.post(
+                        url, json=payload, headers=headers, params=params
+                    )
+                    status_code = int(getattr(response, "status_code", 200))
+                    if status_code >= 400:
+                        retryable = status_code in {408, 425, 429} or status_code >= 500
+                        if retryable and attempt + 1 < attempts:
+                            retry_after = _retry_after(response)
+                            await asyncio.sleep(
+                                min(
+                                    retry_after
+                                    if retry_after is not None
+                                    else self.config.retry_backoff_seconds * (2**attempt),
+                                    2.0,
+                                )
+                            )
+                            continue
+                        response.raise_for_status()
+                    body = response.json()
+                    if not isinstance(body, dict):
+                        raise ProviderUnavailable("provider returned an invalid JSON object")
+                    return body
+                except ProviderUnavailable:
+                    raise
+                except httpx.TimeoutException as exc:
+                    last_error = "provider request timed out"
+                    if attempt + 1 < attempts:
+                        await asyncio.sleep(
+                            min(self.config.retry_backoff_seconds * (2**attempt), 2.0)
+                        )
+                        continue
+                    raise ProviderUnavailable(last_error, retryable=True) from exc
+                except httpx.HTTPStatusError as exc:
+                    status_code = getattr(exc.response, "status_code", None)
+                    retryable = bool(status_code in {408, 425, 429} or (status_code or 0) >= 500)
+                    raise ProviderUnavailable(
+                        "provider rejected the request",
+                        retryable=retryable,
+                        status_code=status_code,
+                    ) from exc
+                except httpx.RequestError as exc:
+                    last_error = "provider network request failed"
+                    if attempt + 1 < attempts:
+                        await asyncio.sleep(
+                            min(self.config.retry_backoff_seconds * (2**attempt), 2.0)
+                        )
+                        continue
+                    raise ProviderUnavailable(last_error, retryable=True) from exc
+        raise ProviderUnavailable(last_error, retryable=True)
+
     async def chat(
         self,
         messages: list[dict],
@@ -304,8 +449,6 @@ class RemoteProvider:
             raise ProviderUnavailable(
                 "AI provider is not configured; the deterministic provider answers instead"
             )
-
-        import httpx
 
         if self.config.provider == "openai_responses":
             return await self._chat_responses(messages, tools=tools, max_tokens=max_tokens)
@@ -325,12 +468,9 @@ class RemoteProvider:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-            response = await client.post(
-                f"{self.config.base_url}/chat/completions", json=payload, headers=headers
-            )
-            response.raise_for_status()
-            body = response.json()
+        body = await self._post_json(
+            f"{self.config.base_url}/chat/completions", payload, headers=headers
+        )
 
         choices = body.get("choices") or []
         if not choices:
@@ -378,8 +518,6 @@ class RemoteProvider:
         As with the chat path, this only *parses* the model's reply. No tool is
         executed here, so a hostile or malformed response cannot reach a service.
         """
-        import httpx
-
         payload: dict = {
             "model": self.config.model,
             "input": _responses_input(messages),
@@ -396,12 +534,9 @@ class RemoteProvider:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
-            response = await client.post(
-                f"{self.config.base_url}/responses", json=payload, headers=headers
-            )
-            response.raise_for_status()
-            body = response.json()
+        body = await self._post_json(
+            f"{self.config.base_url}/responses", payload, headers=headers
+        )
 
         text_parts: list[str] = []
         calls: list[ToolCall] = []
@@ -457,3 +592,22 @@ class RemoteProvider:
         """
         outcome = await self.generate(request, routed, bundle, reference)
         yield outcome.answer
+
+
+class GroqProvider(RemoteProvider):
+    """Groq's OpenAI-compatible chat API.
+
+    Keeping this as a named adapter makes health output and fallback telemetry
+    explicit while reusing the already-tested tool-calling wire format.
+    """
+
+    name = "groq"
+
+
+def _retry_after(response) -> float | None:
+    """Read a small Retry-After value without trusting an unbounded header."""
+    try:
+        value = float((getattr(response, "headers", {}) or {}).get("retry-after", ""))
+    except (TypeError, ValueError):
+        return None
+    return max(0.0, min(value, 2.0))

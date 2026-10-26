@@ -31,7 +31,7 @@ export function DistrictExplorer({ filters }: { filters: DashboardFilters }) {
   const map = useMapMetrics(filters, metric, true);
   const [selected, setSelected] = useState<string>("");
 
-  const rows = priorities.data?.rows ?? [];
+  const rows = useMemo(() => priorities.data?.rows ?? [], [priorities.data?.rows]);
 
   const districts = useMemo(() => {
     const seen: string[] = [];

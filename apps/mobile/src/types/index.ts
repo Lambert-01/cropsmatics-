@@ -789,7 +789,7 @@ export interface WeatherContextResponse {
     wind_speed_kmh?: number | null;
     weather_code?: number | null;
   };
-  daily: Array<{
+  daily: {
     date: string;
     temperature_max_c?: number | null;
     temperature_min_c?: number | null;
@@ -797,7 +797,7 @@ export interface WeatherContextResponse {
     precipitation_probability_pct?: number | null;
     wind_speed_max_kmh?: number | null;
     weather_code?: number | null;
-  }>;
+  }[];
   provider: string;
   provider_url: string;
   note: string;

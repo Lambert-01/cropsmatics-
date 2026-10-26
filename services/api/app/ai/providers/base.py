@@ -20,6 +20,17 @@ from app.ai.schemas import AIRequest, ProviderOutcome, RoutedRequest
 class ProviderUnavailable(RuntimeError):
     """Raised when a provider is selected but not configured or reachable."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = True,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+        self.status_code = status_code
+
 
 @dataclass(frozen=True)
 class ToolCall:

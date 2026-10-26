@@ -37,6 +37,11 @@ from app.ai.schemas import AIRequest, ProviderOutcome, RoutedRequest
 
 logger = logging.getLogger(__name__)
 
+# Compatibility alias for evidence-focused tests and internal tooling. The
+# serializer remains owned by prompt_context so all provider adapters share one
+# provenance shape.
+_item_payload = item_payload
+
 #: Appended to the remote provider's system prompt when the agent is active.
 #: The tool-use contract is stated here rather than in the provider so a
 #: prose-only provider never sees it.

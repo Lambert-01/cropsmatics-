@@ -388,6 +388,42 @@ def test_a_provider_that_returns_nothing_useful_is_rejected(client, monkeypatch)
     assert body["answer_mode"] == "deterministic"
 
 
+def test_validated_provider_answer_can_be_returned_in_requested_language(client, monkeypatch):
+    _require_data(client)
+
+    class LanguageProvider:
+        name = "groq"
+        requires_network = True
+
+        def available(self):
+            return True
+
+        async def generate(self, request, routed, bundle, reference):
+            from app.ai.schemas import ProviderOutcome
+
+            return ProviderOutcome(
+                # The numeric/claim guards still validate this text; the real
+                # provider is instructed to produce this prose in Kinyarwanda.
+                answer=reference.answer,
+                grounded=True,
+                intent=reference.intent,
+                mode="llm",
+                citations=[item.evidence_id for item in bundle.items],
+            )
+
+    import app.ai.orchestrator as orchestrator
+
+    monkeypatch.setattr(orchestrator, "get_provider", lambda: LanguageProvider())
+    response = client.post(
+        QUERY,
+        json={"question": "Tell me about Musanze", "language": "rw"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["answer_mode"] == "llm"
+    assert body["translation_status"] == "PROVIDER_GENERATED"
+
+
 # --- streaming -----------------------------------------------------------------
 
 

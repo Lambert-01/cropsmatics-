@@ -174,7 +174,7 @@ export function RwandaDistrictMap({
         />
         <p className="mt-2 text-[11px] text-slate-500">
           {METRIC_SEMANTICS[metric].note}. Hatched districts have a yield gap of at least{" "}
-          {SHORTFALL_GAP}% against this crop's benchmark (yield-shortfall overlay).
+          {SHORTFALL_GAP}% against this crop&apos;s benchmark (yield-shortfall overlay).
         </p>
       </div>
 

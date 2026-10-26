@@ -21,14 +21,23 @@ high-yield district is never described as a productivity-shortfall priority.
 
 ## Provider Configuration
 
-Configure only in the backend's protected environment:
+Configure only in the backend's protected environment. Groq is the primary
+provider; Gemini is an optional secondary used only after a Groq failure or a
+grounding-validation rejection:
 
 ```dotenv
 AI_ENABLED=true
-AI_PROVIDER=openai_responses
-AI_BASE_URL=https://api.openai.com/v1
-AI_MODEL=<model available to your account>
+AI_PROVIDER=groq
+AI_MODEL=llama-3.1-8b-instant
+AI_BASE_URL=https://api.groq.com/openai/v1
 AI_API_KEY=<backend secret>
+GEMINI_ENABLED=false
+GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_API_KEY=<optional backend secret>
+AI_RETRY_ATTEMPTS=2
+AI_RETRY_BACKOFF_SECONDS=0.25
+AI_RATE_LIMIT_REQUESTS=60
+AI_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 Never put the provider key in NEXT_PUBLIC_* or EXPO_PUBLIC_* variables. AI_* names take precedence; GROQ_MODEL, GROQ_BASE_URL and GROQ_API_KEY, then OPENAI_MODEL, OPENAI_BASE_URL and OPENAI_API_KEY fill empty values. Keep the key out of chat, logs, screenshots and commits.
@@ -38,8 +47,8 @@ canonical names above or configure these aliases:
 
 ```text
 AI_ENABLED=true
-AI_PROVIDER=openai_compatible
-GROQ_MODEL=openai/gpt-oss-120b
+AI_PROVIDER=groq
+GROQ_MODEL=llama-3.1-8b-instant
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_API_KEY=<replacement Groq secret>
 ```
@@ -49,7 +58,13 @@ to the browser or mobile app. The deterministic grounded assistant remains the
 fallback if Groq is unavailable, and the numeric and claim guards still validate
 every model-written answer against retrieved Cropmatics evidence.
 
-AI_PROVIDER=openai_compatible retains the chat-completions contract. The Responses path uses request-local native output and function_call_output items, retaining call IDs and encrypted reasoning context. It does not store conversation state on the shared provider object, and remote storage is disabled. Optional sampling settings are omitted for Responses to avoid imposing unsupported temperature options.
+AI_PROVIDER=openai_compatible retains the chat-completions contract. The
+existing Responses path remains available with `AI_PROVIDER=openai_responses`.
+Gemini uses its native `generateContent` contract but receives the same
+allow-listed read-only tools and the same evidence validation after the agent
+loop. Provider bodies, prompts, keys and raw user questions are not logged.
+Rate limits retain only a keyed digest in process memory; they do not retain raw
+IP addresses, bearer tokens or question text.
 
 See [official function calling documentation](https://developers.openai.com/api/docs/guides/function-calling).
 
@@ -63,10 +78,11 @@ The assistant can explain a published modelled estimate or why a target is withh
 
 ## Verification And Limits
 
-Run provider/parser and scoped evidence tests with:
+Run provider/parser, retry/fallback, rate-limit and scoped evidence tests with:
 
 ```bash
 .venv/bin/python -m pytest services/api/tests/test_ai_provider_config.py \
+  services/api/tests/test_ai_rate_limit.py \
   services/api/tests/test_ai_forecast.py services/api/tests/test_forecast_scope.py
 ```
 

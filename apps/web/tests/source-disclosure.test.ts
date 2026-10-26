@@ -10,7 +10,7 @@ const LONG_SOURCE_ID = Array.from(
 ).join(",");
 
 function render(children: string): string {
-  return renderToStaticMarkup(createElement(SourceDisclosure, { children }));
+  return renderToStaticMarkup(createElement(SourceDisclosure, null, children));
 }
 
 describe("SourceDisclosure", () => {

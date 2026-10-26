@@ -27,7 +27,8 @@ import uuid
 from app.ai import agent, evidence_builder, grounded, intent_router, output_validator, response
 from app.ai.conversation import STORE, ConversationState
 from app.ai.planner import QueryPlan
-from app.ai.providers import fallback_provider, get_provider
+from app.ai.providers import fallback_provider, get_provider, load_gemini_config
+from app.ai.providers.gemini import GeminiProvider
 from app.ai.schemas import AIRequest, AIResult, ProviderOutcome, RoutedRequest
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,68 @@ async def _ask_provider(provider, request, routed, bundle, reference) -> Provide
             max_tool_calls=provider.config.max_tool_calls,
         )
     return await provider.generate(request, routed, bundle, reference)
+
+
+def _provider_candidates() -> list:
+    """Primary provider, optional Gemini secondary, deterministic last."""
+    primary = get_provider()
+    candidates = []
+    if primary.name != "deterministic":
+        candidates.append(primary)
+    secondary = GeminiProvider(load_gemini_config())
+    if secondary.available() and all(item.name != secondary.name for item in candidates):
+        candidates.append(secondary)
+    candidates.append(fallback_provider())
+    return candidates
+
+
+async def _validated_provider_answer(request, routed, bundle, reference):
+    """Try configured providers in order and validate every generated answer."""
+    failures: list[str] = []
+    last_validation = None
+    for provider in _provider_candidates():
+        if provider.name == "deterministic":
+            outcome = await provider.generate(request, routed, bundle, reference)
+            validated = output_validator.validate(outcome, bundle, reference)
+            validated.validation["provider_attempts"] = [*failures, provider.name]
+            if failures:
+                validated.validation["used_fallback"] = True
+                if last_validation is not None:
+                    for key in ("numeric", "claims", "citations"):
+                        if key in last_validation.validation:
+                            validated.validation[key] = last_validation.validation[key]
+                    validated.validation["fallback_reason"] = last_validation.validation.get(
+                        "fallback_reason", "provider answer was rejected"
+                    )
+                else:
+                    validated.validation["fallback_reason"] = "provider unavailable"
+            return validated, bool(failures)
+
+        try:
+            outcome = await _ask_provider(provider, request, routed, bundle, reference)
+        except Exception:
+            # Keep provider errors out of logs: vendor exceptions can contain
+            # request URLs or echoed user content. The client receives only the
+            # deterministic result and safe validation metadata.
+            logger.warning("provider %s failed; trying the next provider", provider.name)
+            failures.append(provider.name)
+            continue
+
+        validated = output_validator.validate(outcome, bundle, reference)
+        validated.validation["provider_attempts"] = [*failures, provider.name]
+        if not validated.validation.get("used_fallback"):
+            return validated, bool(failures)
+        # The answer was safely rejected. Give the optional secondary a chance,
+        # but never allow the rejected prose to become evidence for it.
+        failures.append(provider.name)
+        last_validation = validated
+
+    if last_validation is not None:
+        last_validation.validation["provider_attempts"] = [*failures, "deterministic"]
+        return last_validation, bool(failures)
+    fallback = await fallback_provider().generate(request, routed, bundle, reference)
+    validated = output_validator.validate(fallback, bundle, reference)
+    return validated, bool(failures)
 
 
 def _resolved_context(routed: RoutedRequest) -> dict:
@@ -185,22 +248,10 @@ async def answer(request: AIRequest) -> AIResult:
     bundle = evidence_builder.build(routed, query_id=query_id)
     bundle.limitations = list(reference.limitations)
 
-    provider = get_provider()
-    provider_failed = False
-    try:
-        outcome: ProviderOutcome = await _ask_provider(
-            provider, request, routed, bundle, reference
-        )
-    except Exception:
-        # A provider that is unreachable, slow, misconfigured or malformed must
-        # never break the product. Degrade to the deterministic answer.
-        logger.warning("provider %s failed; using fallback", provider.name, exc_info=True)
-        provider_failed = True
-        outcome = await fallback_provider().generate(request, routed, bundle, reference)
-
-    validated = output_validator.validate(outcome, bundle, reference)
-    if provider_failed:
-        validated.validation["provider_failed"] = True
+    validated, provider_failed = await _validated_provider_answer(
+        request, routed, bundle, reference
+    )
+    validated.validation["provider_failed"] = provider_failed
 
     result = _result(
         query_id=query_id,
@@ -254,16 +305,10 @@ async def stream_answer(request: AIRequest):
         },
     )
 
-    provider = get_provider()
-    provider_failed = False
-    try:
-        outcome = await _ask_provider(provider, request, routed, bundle, reference)
-    except Exception:
-        logger.warning("provider %s failed during stream; using fallback", provider.name)
-        provider_failed = True
-        outcome = await fallback_provider().generate(request, routed, bundle, reference)
-
-    validated = output_validator.validate(outcome, bundle, reference)
+    validated, provider_failed = await _validated_provider_answer(
+        request, routed, bundle, reference
+    )
+    validated.validation["provider_failed"] = provider_failed
 
     # Emitted whole so the guard has seen the entire text before any of it is
     # displayed; a rejected answer is therefore never partially shown.

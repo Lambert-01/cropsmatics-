@@ -179,7 +179,8 @@ OPERATION_TERMS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 # through to the productivity-gap ranking.
 _YIELD_RANKING_RE = re.compile(
     r"\b(?:highest|top|best|lowest|worst|largest|maximum|minimum)\b"
-    r"(?:\s+[a-z0-9'-]+){0,5}\s+yield(?:s|ing)?\b",
+    r"(?:\s+[a-z0-9'-]+){0,5}\s+yield(?:s|ing)?\b"
+    r"(?!\s*(?:gap|gaps|shortfall|deficit)\b)",
     re.IGNORECASE,
 )
 

@@ -169,7 +169,7 @@ export function GapRankedBars({
         {unpublished > 0
           ? `, ${unpublished} with no published gap index for this selection`
           : ""}
-        . Observed yield, benchmark and gap index are the panel's own published columns — the gap is
+        . Observed yield, benchmark and gap index are the panel&apos;s own published columns — the gap is
         never recomputed here. Gap index is measured against the selected benchmark strategy, so
         changing that strategy changes this ranking.
       </SourceNote>

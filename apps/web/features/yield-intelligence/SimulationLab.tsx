@@ -136,7 +136,10 @@ export function SimulationLab({
   const districts = useDistricts();
   const scenario = useScenario();
 
-  const availablePeriods = periods.data?.periods?.map((p) => p.period_code) ?? [];
+  const availablePeriods = useMemo(
+    () => periods.data?.periods?.map((p) => p.period_code) ?? [],
+    [periods.data?.periods],
+  );
   const defaultPeriod = useMemo(
     () => previousPeriod(availablePeriods, periodCode),
     [availablePeriods, periodCode],

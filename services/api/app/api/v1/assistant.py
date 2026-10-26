@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -29,6 +29,7 @@ from app.ai.conversation import STORE
 from app.ai.intent_router import INTENTS
 from app.ai.orchestrator import answer as engine_answer
 from app.ai.orchestrator import stream_answer as engine_stream
+from app.ai.rate_limit import AssistantRateLimitExceeded, check_request
 from app.ai.schemas import AIContext, AIRequest
 from app.services import assistant_language, mobile_service
 
@@ -130,12 +131,25 @@ def suggestions(limit: int = 6) -> dict:
 
 
 @router.post("/query", response_model=QueryOut)
-async def query(payload: QueryIn) -> QueryOut:
+async def query(payload: QueryIn, request: Request) -> QueryOut:
     """Answer a question strictly from validated Cropmatics data.
 
     Intent resolution, evidence retrieval and numeric computation happen once; the
     requested language only changes the rendered prose (never the evidence).
     """
+    try:
+        check_request(request)
+    except AssistantRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "ASSISTANT_RATE_LIMITED",
+                "message": "Too many assistant requests. Please try again shortly.",
+                "retry_after_seconds": exc.retry_after,
+            },
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
+
     result = await engine_answer(
         AIRequest(
             question=payload.question,
@@ -148,11 +162,18 @@ async def query(payload: QueryIn) -> QueryOut:
     )
 
     language = assistant_language.normalize_language(payload.language)
-    rendered, translation_status = assistant_language.render(
-        answer_en=result.answer,
-        grounded=result.grounded,
-        language=language,
-    )
+    if language != "en" and result.answer_mode == "llm" and result.grounded:
+        # The provider was explicitly instructed to answer in the requested
+        # language. Keep deterministic answers on the reviewed-template path,
+        # but do not discard a validated provider answer before the language
+        # guard below has checked it against the same evidence bundle.
+        rendered, translation_status = result.answer, "PROVIDER_GENERATED"
+    else:
+        rendered, translation_status = assistant_language.render(
+            answer_en=result.answer,
+            grounded=result.grounded,
+            language=language,
+        )
 
     # A translated rendering is checked too - for the figures and for the claims
     # around them. Templates preserve numbers and unit symbols, but if a template
@@ -233,7 +254,7 @@ def delete_conversation(conversation_id: str) -> dict:
 
 
 @router.post("/stream")
-async def stream(payload: QueryIn) -> StreamingResponse:
+async def stream(payload: QueryIn, request: Request) -> StreamingResponse:
     """Server-sent events for the same answer.
 
     Optional: ``/query`` remains the contract. Progress events describe what the
@@ -241,6 +262,19 @@ async def stream(payload: QueryIn) -> StreamingResponse:
     whole validated answer is emitted as a single token event so a rejected answer
     is never partially displayed. No internal reasoning is exposed.
     """
+
+    try:
+        check_request(request)
+    except AssistantRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "ASSISTANT_RATE_LIMITED",
+                "message": "Too many assistant requests. Please try again shortly.",
+                "retry_after_seconds": exc.retry_after,
+            },
+            headers={"Retry-After": str(exc.retry_after)},
+        ) from exc
 
     async def generator():
         request = AIRequest(
