@@ -291,8 +291,8 @@ export const api = {
     return get<PostharvestHistoryResponse>("/analytics/postharvest-history", query.toString());
   },
   /**
-   * Multi-period practice / irrigation / water-source / erosion observations
-   * (2024A-2026B).
+   * Multi-period practice / irrigation / water-source / erosion and district
+   * fertilizer-source observations. Coverage is domain-specific.
    *
    * The district is requested rather than filtered here: one district's five
    * domains are ~306 rows, while the whole panel is 9,468 - far past the

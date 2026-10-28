@@ -182,7 +182,7 @@ export default function ReportsPage() {
   const districtEntry = (districts ?? []).find((d) => d.district === district);
 
   return (
-    <div className="space-y-5">
+    <div className="reports-workspace space-y-5">
       <PageHeading
         title="Reports"
         subtitle="Build a clear, traceable brief from the same official data used across Cropmatics."

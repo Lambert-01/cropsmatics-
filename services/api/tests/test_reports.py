@@ -95,6 +95,28 @@ def test_branded_pdf_export_is_available(client):
     )
     assert res.content.startswith(b"%PDF")
     assert b"Cropmatics" in res.content
+    assert b"/Subtype /Image" in res.content
+
+
+def test_context_reports_expose_water_and_fertilizer_source(client):
+    water = client.get(
+        "/api/v1/reports/water-source.csv?period_code=2026B&district=Bugesera"
+    )
+    fertilizer = client.get(
+        "/api/v1/reports/fertilizer-source.csv?period_code=2025B&format=json"
+    )
+    access = client.get(
+        "/api/v1/reports/fertilizer-access.csv?period_code=2022A&district=Bugesera"
+    )
+    if any(response.status_code == 503 for response in (water, fertilizer, access)):
+        pytest.skip("processed tables not built")
+    assert water.status_code == 200
+    assert "rainwater_source_pct" in water.text
+    assert fertilizer.status_code == 200
+    assert fertilizer.json()["count"] > 0
+    assert "fertilizer_name" in fertilizer.json()["rows"][0]
+    assert access.status_code == 200
+    assert "fertilizer_source" in access.text
 
 
 def test_unpublished_period_is_rejected_not_answered(client):

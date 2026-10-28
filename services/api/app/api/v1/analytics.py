@@ -526,7 +526,7 @@ def practice_indicators(
         None,
         description=(
             "practice | irrigation | water_source | erosion_control | "
-            "erosion_severity; omit for every domain"
+            "erosion_severity | fertilizer_source_district; omit for every domain"
         ),
     ),
 ) -> dict:
@@ -536,7 +536,8 @@ def practice_indicators(
     ingested with lineage but had no processed dataset behind them. Unlike the
     legacy single-release ``/analytics/irrigation`` and ``/analytics/erosion``,
     which stay exactly as they are, this one carries the real period dimension
-    (2024A-2026B) and reports per-indicator availability.
+    (with domain-specific availability across the published calendar) and reports
+    per-indicator availability.
     """
     result = analytics_service.practice_indicator_history(f, domain)
     source_ids = sorted(
@@ -560,9 +561,14 @@ def practice_indicators(
             ),
             limitations=[
                 (
-                    f"published periods: {periods[0]}-{periods[-1]}"
+                    f"published periods in this selection: {periods[0]}-{periods[-1]}"
                     if periods
                     else "no periods are available in this deployment"
+                ),
+                (
+                    "core practice, irrigation, water-source and erosion domains "
+                    "cover 2024A-2026B; district fertilizer-source shares cover "
+                    "2022A-2026B"
                 ),
                 (
                     "the legacy single-release district extracts served by "

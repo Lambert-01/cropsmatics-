@@ -86,6 +86,22 @@ LONG_COLUMNS: tuple[str, ...] = (
 _PERIOD_SCOPE = ("period", "crop", "province", "district")
 
 
+def _practice_context_frame(domain: str, f: AnalyticsFilters) -> pd.DataFrame:
+    """Return one reviewed non-crop context domain at its published grain."""
+    frame = repo.agricultural_practice_observation()
+    frame = frame[
+        (frame["domain"].astype(str) == domain)
+        & (frame["geography_level"].astype(str).str.upper() == "DISTRICT")
+    ]
+    return apply_filters(frame, f)
+
+
+def _fertilizer_source_frame(f: AnalyticsFilters) -> pd.DataFrame:
+    """National fertilizer type/source shares, filtered only by period."""
+    frame = repo.fertilizer_source()
+    return apply_filters(frame, f)
+
+
 def _csv_response(df: pd.DataFrame, filename: str) -> StreamingResponse:
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
@@ -456,6 +472,57 @@ CATALOG: tuple[dict, ...] = (
         ),
     },
     {
+        "key": "water-source",
+        "title": "Water source by district",
+        "description": (
+            "Published shares of plots by rainwater, water treatment, underground, "
+            "lake/streams and water catchment source."
+        ),
+        "group": "Agricultural context",
+        "endpoint": "/reports/water-source.csv",
+        "filename": "water_source_by_district.csv",
+        "formats": ["csv", "json", "pdf"],
+        "scope": ["period", "province", "district"],
+        "coverage_note": (
+            "District-level plot shares published for 2024A-2026B. This is water "
+            "source context, not crop-specific irrigation performance."
+        ),
+    },
+    {
+        "key": "fertilizer-source",
+        "title": "Fertilizer source by type",
+        "description": (
+            "National share of each reported inorganic fertilizer type supplied by "
+            "government, agro-dealers, NGOs/companies, markets, cooperatives or other sources."
+        ),
+        "group": "Agricultural context",
+        "endpoint": "/reports/fertilizer-source.csv",
+        "filename": "fertilizer_source_by_type.csv",
+        "formats": ["csv", "json", "pdf"],
+        "scope": ["period"],
+        "coverage_note": (
+            "National fertilizer-product context for 2022A-2026B. It does not measure "
+            "quantity, price, availability, effectiveness or yield impact."
+        ),
+    },
+    {
+        "key": "fertilizer-access",
+        "title": "Fertilizer source by district",
+        "description": (
+            "Published district shares of farmers reporting where inorganic fertilizer "
+            "was sourced."
+        ),
+        "group": "Agricultural context",
+        "endpoint": "/reports/fertilizer-access.csv",
+        "filename": "fertilizer_source_by_district.csv",
+        "formats": ["csv", "json", "pdf"],
+        "scope": ["period", "province", "district"],
+        "coverage_note": (
+            "District farmer shares published for 2022A-2026B. This is reported source "
+            "context and must not be read as fertilizer volume or causal yield evidence."
+        ),
+    },
+    {
         "key": "data-coverage",
         "title": "Data coverage matrix",
         "description": (
@@ -533,6 +600,12 @@ def _pdf_frame(report_key: str, f: AnalyticsFilters) -> pd.DataFrame:
         return pd.DataFrame(result["rows"])
     if report_key == "post-harvest":
         return pd.DataFrame(postharvest_service.summary()["crops"])
+    if report_key == "water-source":
+        return _practice_context_frame("water_source", f)
+    if report_key == "fertilizer-source":
+        return _fertilizer_source_frame(f)
+    if report_key == "fertilizer-access":
+        return _practice_context_frame("fertilizer_source_district", f)
     if report_key == "data-coverage":
         return repo.data_coverage()
     if report_key == "sources":
@@ -767,6 +840,38 @@ def productivity_gap_csv(
 def post_harvest_csv() -> StreamingResponse:
     result = postharvest_service.summary()
     return _csv_response(pd.DataFrame(result["crops"]), "post_harvest_use.csv")
+
+
+@router.get("/water-source.csv")
+def water_source_export(
+    f: AnalyticsFilters = Depends(analytics_filters),
+    fmt: str = Query("csv", alias="format", pattern="^(csv|json)$"),
+):
+    return _report_response(
+        _practice_context_frame("water_source", f), "water_source_by_district.csv", fmt
+    )
+
+
+@router.get("/fertilizer-source.csv")
+def fertilizer_source_export(
+    f: AnalyticsFilters = Depends(analytics_filters),
+    fmt: str = Query("csv", alias="format", pattern="^(csv|json)$"),
+):
+    return _report_response(
+        _fertilizer_source_frame(f), "fertilizer_source_by_type.csv", fmt
+    )
+
+
+@router.get("/fertilizer-access.csv")
+def fertilizer_access_export(
+    f: AnalyticsFilters = Depends(analytics_filters),
+    fmt: str = Query("csv", alias="format", pattern="^(csv|json)$"),
+):
+    return _report_response(
+        _practice_context_frame("fertilizer_source_district", f),
+        "fertilizer_source_by_district.csv",
+        fmt,
+    )
 
 
 @router.get("/dataset/{key}.csv")

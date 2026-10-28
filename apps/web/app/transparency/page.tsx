@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Database, ShieldCheck } from "lucide-react";
+import { ArrowRight, Database, GitBranch, ShieldCheck, Workflow } from "lucide-react";
 import { useMemo } from "react";
 
 import { Card, CardHeader } from "@/components/ui/Card";
@@ -10,30 +11,57 @@ import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { coverageLimitations, type CoverageDetailRow } from "@/lib/coverage";
 import { benchmarkLabel, periodLabel } from "@/lib/format";
-import { useCoverage, useDataVersion, useModels, useSources } from "@/services/hooks/useReference";
+import {
+  useCoverage,
+  useDataVersion,
+  useDatasets,
+  useModels,
+  useSources,
+} from "@/services/hooks/useReference";
+
+const HIDDEN_FROM_DATA_MODELS = new Set(["market_price_observation"]);
 
 const AI_USAGE = [
-  "Assistive tooling was used for code scaffolding and documentation; all data-derived values come from the Python pipeline.",
-  "The AI Assistant answers only by retrieving API results and cites the source id and period it used.",
-  "The assistant is forbidden from inventing yield, production, price, capacity, loss or accuracy values.",
+  "Python computes data-derived values; the assistant retrieves validated API results.",
+  "Answers include the source, period, unit and limitations when evidence is available.",
+  "No yield, production, price, capacity, loss or model-accuracy value is invented.",
 ];
 
-/**
- * Limitations that do not depend on the coverage matrix.
- *
- * The coverage statement itself is generated from `/meta/data-coverage` at
- * render time, because a hand-written version of it went stale: it claimed
- * district data existed only for one season while eight were published.
- */
 const STATIC_LIMITATIONS = [
-  "All results describe associations and priorities for investigation, not causal effects.",
+  "Results describe associations and priorities for investigation, not causal effects.",
   "Storage capacity is not verified in any public facility source used here.",
-  "Benchmark choice materially changes the productivity gap; the strategy is always reported.",
+  "Benchmark choice changes the productivity gap and is reported with each result.",
 ];
+
+function DatasetLinks({ datasets }: { datasets: { key: string; label: string }[] }) {
+  if (!datasets.length) {
+    return <p className="text-xs text-slate-500">No served datasets are available in this build.</p>;
+  }
+
+  return (
+    <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+      {datasets.map((dataset) => (
+        <li key={dataset.key}>
+          <Link
+            href={`/data-explorer?dataset=${encodeURIComponent(dataset.key)}`}
+            className="group flex items-center justify-between gap-2 text-sm text-forest-deep hover:text-primary"
+          >
+            <span className="truncate">{dataset.label}</span>
+            <ArrowRight
+              className="h-3.5 w-3.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-primary"
+              aria-hidden="true"
+            />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function TransparencyPage() {
   const coverage = useCoverage();
   const sources = useSources();
+  const datasets = useDatasets();
   const models = useModels();
   const dataVersion = useDataVersion();
   const algorithms = useQuery({ queryKey: ["algorithms"], queryFn: api.algorithms });
@@ -46,325 +74,293 @@ export default function TransparencyPage() {
     [coverage.data],
   );
 
+  const servedDatasets = useMemo(
+    () =>
+      (datasets.data?.datasets ?? []).filter((dataset) => !HIDDEN_FROM_DATA_MODELS.has(dataset.key)),
+    [datasets.data],
+  );
+  const currentDatasets = servedDatasets.filter((dataset) => dataset.group === "current");
+  const supportingDatasets = servedDatasets.filter((dataset) => dataset.group !== "current");
+  const periodCount = new Set(
+    (coverage.data?.details ?? []).map((detail) => String(detail.period)),
+  ).size;
+
   return (
-    <div className="space-y-5">
+    <div className="transparency-workspace space-y-5">
       <PageHeading
         title="Data & Models"
-        subtitle="What Cropmatics uses, how it is computed, and what it does not claim."
+        subtitle="The evidence behind Cropmatics, in a short path from source to decision."
+        action={
+          <Link href="/data-explorer" className="btn text-xs">
+            <Database className="h-3.5 w-3.5" aria-hidden="true" /> Explore tables
+          </Link>
+        }
       />
 
-      {/* Data sources */}
-      <Card className="overflow-hidden">
-        <CardHeader
-          title="Data sources"
-          subtitle="Official statistics are kept separate from voluntary operational app data"
-        />
-        {sources.isLoading ? (
-          <div className="p-4">
-            <TableSkeleton rows={5} />
-          </div>
-        ) : sources.error ? (
-          <div className="p-4">
-            <ErrorState
-              message={(sources.error as Error).message}
-              onRetry={() => sources.refetch()}
-            />
-          </div>
-        ) : (sources.data?.sources ?? []).length === 0 ? (
-          <div className="p-4">
-            <EmptyState title="No registered sources." hint="Run the data pipeline to build the registry." />
-          </div>
-        ) : (
-          <div
-            className="thin-scroll mt-3 max-h-[22rem] overflow-auto"
-            tabIndex={0}
-            role="region"
-            aria-label="Registered data sources"
-          >
-            <table className="table-base">
-              <thead>
-                <tr>
-                  <th>Dataset</th>
-                  <th>Owner</th>
-                  <th>Type</th>
-                  <th>Coverage</th>
-                  <th>Use</th>
-                  <th>Access</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(sources.data?.sources ?? []).map((s) => (
-                  <tr key={s.dataset}>
-                    <td className="font-medium text-slate-700">{s.dataset}</td>
-                    <td>{s.owner ?? "NISR / MINAGRI"}</td>
-                    <td>{s.type ?? "official aggregate"}</td>
-                    <td>{s.coverage ?? "—"}</td>
-                    <td className="max-w-[22rem] text-xs text-slate-600">{s.use ?? "—"}</td>
-                    <td className="text-xs">
-                      {s.url ? (
-                        <a href={s.url} target="_blank" rel="noreferrer" className="text-primary">
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Evidence summary">
+        <div className="transparency-stat">
+          <p className="transparency-stat-label">Official sources</p>
+          <p className="transparency-stat-value">{sources.data?.sources.length ?? "—"}</p>
+          <p className="transparency-stat-note">Registered provenance records</p>
+        </div>
+        <div className="transparency-stat">
+          <p className="transparency-stat-label">Published periods</p>
+          <p className="transparency-stat-value">{periodCount || "—"}</p>
+          <p className="transparency-stat-note">Only periods present in processed tables</p>
+        </div>
+        <div className="transparency-stat">
+          <p className="transparency-stat-label">Served datasets</p>
+          <p className="transparency-stat-value">{servedDatasets.length || "—"}</p>
+          <p className="transparency-stat-note">Open the full table in Data Explorer</p>
+        </div>
+        <div className="transparency-stat">
+          <p className="transparency-stat-label">Pipeline</p>
+          <p className="transparency-stat-value capitalize">
+            {dataVersion.data?.validation?.status ?? "—"}
+          </p>
+          <p className="transparency-stat-note">
+            {dataVersion.data ? `${dataVersion.data.validation?.errors ?? 0} errors` : "Build status"}
+          </p>
+        </div>
+      </section>
 
-      {/* Coverage */}
-      <Card className="overflow-hidden">
+      <Card>
         <CardHeader
-          title="Data coverage"
-          subtitle="Which dataset covers which period, and at which geographic level"
+          title="How a number reaches the screen"
+          subtitle="Every analytical value follows the same traceable path."
         />
-        {coverage.isLoading ? (
-          <div className="p-4">
-            <TableSkeleton rows={5} />
-          </div>
-        ) : coverage.error ? (
-          <div className="p-4">
-            <ErrorState
-              message={(coverage.error as Error).message}
-              onRetry={() => coverage.refetch()}
-            />
-          </div>
-        ) : (
-          <div className="px-4 pb-4 pt-3">
-            <ul className="mb-3 space-y-1 text-xs text-slate-600">
-              {(coverage.data?.notes ?? []).map((n) => (
-                <li key={n}>• {n}</li>
-              ))}
-            </ul>
-            <div
-              className="thin-scroll max-h-[26rem] overflow-auto"
-              tabIndex={0}
-              role="region"
-              aria-label="Data coverage details"
-            >
-              <table className="table-base">
-                <thead>
-                  <tr>
-                    <th>Dataset</th>
-                    <th>Period</th>
-                    <th>Level</th>
-                    <th className="text-right">Districts</th>
-                    <th className="text-right">Crops</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(coverage.data?.details ?? []).map((d, i) => (
-                    <tr key={i}>
-                      <td className="text-slate-700">{String(d.dataset)}</td>
-                      <td>{periodLabel(String(d.period))}</td>
-                      <td>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                            d.coverage_level === "district"
-                              ? "bg-success/10 text-green-800"
-                              : "bg-slate-500/10 text-slate-600"
-                          }`}
-                        >
-                          {String(d.coverage_level)}
-                        </span>
-                      </td>
-                      <td className="text-right">{String(d.n_districts)}</td>
-                      <td className="text-right">{String(d.n_crops)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="grid gap-3 px-4 pb-4 pt-3 md:grid-cols-3">
+          <div className="transparency-step">
+            <Database className="h-4 w-4 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold text-forest-deep">1. Official inputs</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                NISR and documented public context are retained with their release and table.
+              </p>
             </div>
           </div>
-        )}
+          <div className="transparency-step">
+            <Workflow className="h-4 w-4 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold text-forest-deep">2. Python processing</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                Validation, aggregation, benchmarks and coverage rules run in the data services.
+              </p>
+            </div>
+          </div>
+          <div className="transparency-step">
+            <GitBranch className="h-4 w-4 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold text-forest-deep">3. Served evidence</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                FastAPI returns units, period, source and limitations for the web and mobile apps.
+              </p>
+            </div>
+          </div>
+        </div>
       </Card>
 
-      {/* Data quality + pipeline build identity */}
-      <Card className="overflow-hidden">
+      <Card>
         <CardHeader
-          title="Data pipeline and quality"
-          subtitle="The exact build serving this API, and every warning it raised"
+          title="Datasets used by Cropmatics"
+          subtitle="Only served evidence is listed here; detailed rows and original SAS sheets remain in Data Explorer."
+          action={
+            <Link href="/data-explorer" className="text-xs font-semibold text-primary hover:underline">
+              Open explorer
+            </Link>
+          }
         />
         <div className="px-4 pb-4 pt-3">
-          {dataVersion.isLoading ? (
+          {datasets.isLoading ? (
             <TableSkeleton rows={3} />
-          ) : dataVersion.error ? (
-            <ErrorState
-              message={(dataVersion.error as Error).message}
-              onRetry={() => dataVersion.refetch()}
-            />
-          ) : !dataVersion.data?.available ? (
-            <EmptyState
-              title="No data manifest is present."
-              hint="Run the data pipeline (make data) to generate the manifest and validation report."
-            />
+          ) : datasets.error ? (
+            <ErrorState message={(datasets.error as Error).message} onRetry={() => datasets.refetch()} />
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span
-                  className={`rounded-full px-2 py-0.5 font-medium ${
-                    dataVersion.data.validation?.status === "passed"
-                      ? "bg-success/10 text-green-800"
-                      : "bg-danger/10 text-danger"
-                  }`}
-                >
-                  pipeline {dataVersion.data.validation?.status ?? "unknown"}
-                </span>
-                <span className="chip">pipeline v{dataVersion.data.pipeline_version ?? "—"}</span>
-                <span className="chip">
-                  build {(dataVersion.data.git_sha ?? "unknown").slice(0, 8)}
-                </span>
-                <span className="chip">
-                  {dataVersion.data.build_timestamp
-                    ? new Date(dataVersion.data.build_timestamp).toLocaleString()
-                    : "unknown build time"}
-                </span>
-                <span className="chip">
-                  errors <strong>{dataVersion.data.validation?.errors ?? 0}</strong>
-                </span>
-                <span className="chip">
-                  warnings <strong>{dataVersion.data.validation?.warnings ?? 0}</strong>
-                </span>
-                <span className="chip">{dataVersion.data.dataset_count} datasets built</span>
+              <div className="space-y-2">
+                <p className="transparency-kicker">Current multi-period evidence</p>
+                <DatasetLinks datasets={currentDatasets} />
               </div>
-
-              <p className="mt-3 text-xs leading-relaxed text-slate-600">
-                Warnings are published, not suppressed. Two of them are expected and are never
-                &quot;cleaned&quot; away: 49 district/crop rows report no cultivated area because the crop
-                was not grown in that district, and 62 rows report a harvested area slightly above
-                the cultivated area. Official raw values are left exactly as published; the
-                discrepancies are categorised into rounding tolerance, review and severe in
-                <code className="ml-1">data/interim/area_consistency_report.csv</code>.
-              </p>
-
-              {(dataVersion.data.validation?.issues ?? []).length > 0 ? (
-                <div
-                  className="thin-scroll mt-3 max-h-[20rem] overflow-auto"
-                  tabIndex={0}
-                  role="region"
-                  aria-label="Data quality issues"
-                >
-                  <table className="table-base">
-                    <thead>
-                      <tr>
-                        <th>Level</th>
-                        <th>Dataset</th>
-                        <th>Finding</th>
-                        <th className="text-right">Count</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(dataVersion.data.validation?.issues ?? []).map((i, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                                i.level === "error"
-                                  ? "bg-danger/10 text-danger"
-                                  : i.level === "warn"
-                                    ? "bg-amber/10 text-amber-800"
-                                    : "bg-slate-500/10 text-slate-600"
-                              }`}
-                            >
-                              {i.level}
-                            </span>
-                          </td>
-                          <td className="text-xs text-slate-600">{i.dataset}</td>
-                          <td className="text-xs text-slate-700">{i.message}</td>
-                          <td className="text-right tabular-nums">{i.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <details className="transparency-details mt-4">
+                <summary>Supporting, archive and reference tables ({supportingDatasets.length})</summary>
+                <div className="mt-3 border-t border-forest/10 pt-3">
+                  <DatasetLinks datasets={supportingDatasets} />
                 </div>
-              ) : null}
+              </details>
+              <p className="mt-4 border-t border-forest/10 pt-3 text-xs leading-relaxed text-slate-500">
+                Market prices are intentionally not shown as a served dataset because no attributable
+                market-price source is registered. No mock or fabricated application dataset is used.
+              </p>
             </>
           )}
         </div>
       </Card>
 
-      {/* Algorithms + benchmark strategies */}
+      <Card className="overflow-hidden">
+        <CardHeader
+          title="Source registry"
+          subtitle="Publisher, coverage and intended use for every registered source."
+        />
+        <details className="transparency-details mx-4 mb-4 mt-3">
+          <summary>Show full source registry</summary>
+          {sources.isLoading ? (
+            <div className="pt-3">
+              <TableSkeleton rows={5} />
+            </div>
+          ) : sources.error ? (
+            <div className="pt-3">
+              <ErrorState message={(sources.error as Error).message} onRetry={() => sources.refetch()} />
+            </div>
+          ) : (sources.data?.sources ?? []).length === 0 ? (
+            <div className="pt-3">
+              <EmptyState title="No registered sources." hint="Run the data pipeline to build the registry." />
+            </div>
+          ) : (
+            <div className="thin-scroll mt-3 max-h-[22rem] overflow-auto" tabIndex={0} role="region" aria-label="Registered data sources">
+              <table className="table-base">
+                <thead>
+                  <tr><th>Dataset</th><th>Owner</th><th>Type</th><th>Coverage</th><th>Use</th><th>Access</th></tr>
+                </thead>
+                <tbody>
+                  {(sources.data?.sources ?? []).map((source) => (
+                    <tr key={source.dataset}>
+                      <td className="font-medium text-slate-700">{source.dataset}</td>
+                      <td>{source.owner ?? "NISR / MINAGRI"}</td>
+                      <td>{source.type ?? "official aggregate"}</td>
+                      <td>{source.coverage ?? "—"}</td>
+                      <td className="max-w-[22rem] text-xs text-slate-600">{source.use ?? "—"}</td>
+                      <td className="text-xs">
+                        {source.url ? <a href={source.url} target="_blank" rel="noreferrer" className="text-primary">Open</a> : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </details>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <CardHeader
+          title="Coverage and quality"
+          subtitle="Coverage is domain-specific; missing periods are shown as unavailable, not filled."
+        />
+        <div className="px-4 pb-4 pt-3">
+          {coverage.isLoading || dataVersion.isLoading ? (
+            <TableSkeleton rows={4} />
+          ) : coverage.error ? (
+            <ErrorState message={(coverage.error as Error).message} onRetry={() => coverage.refetch()} />
+          ) : dataVersion.error ? (
+            <ErrorState message={(dataVersion.error as Error).message} onRetry={() => dataVersion.refetch()} />
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="status-chip status-chip-success">pipeline {dataVersion.data?.validation?.status ?? "unknown"}</span>
+                <span className="chip">{dataVersion.data?.dataset_count ?? "—"} pipeline outputs</span>
+                <span className="chip">{dataVersion.data?.validation?.warnings ?? 0} warnings</span>
+                <span className="chip">{dataVersion.data?.validation?.errors ?? 0} errors</span>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                Official raw values are preserved. Validation warnings remain visible in the build
+                manifest and are not silently corrected in the application.
+              </p>
+              <details className="transparency-details mt-4">
+                <summary>Show coverage matrix and quality findings</summary>
+                <div className="mt-3 space-y-4 border-t border-forest/10 pt-3">
+                  <ul className="space-y-1 text-xs text-slate-600">
+                    {(coverage.data?.notes ?? []).map((note) => <li key={note}>• {note}</li>)}
+                  </ul>
+                  <div className="thin-scroll max-h-[26rem] overflow-auto" tabIndex={0} role="region" aria-label="Data coverage details">
+                    <table className="table-base">
+                      <thead><tr><th>Dataset</th><th>Period</th><th>Level</th><th className="text-right">Districts</th><th className="text-right">Crops</th></tr></thead>
+                      <tbody>
+                        {(coverage.data?.details ?? []).map((detail, index) => (
+                          <tr key={index}>
+                            <td className="text-slate-700">{String(detail.dataset)}</td>
+                            <td>{periodLabel(String(detail.period))}</td>
+                            <td><span className={`status-chip ${detail.coverage_level === "district" ? "status-chip-success" : "status-chip-muted"}`}>{String(detail.coverage_level)}</span></td>
+                            <td className="text-right">{String(detail.n_districts)}</td>
+                            <td className="text-right">{String(detail.n_crops)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {(dataVersion.data?.validation?.issues ?? []).length > 0 ? (
+                    <div className="thin-scroll max-h-[20rem] overflow-auto" tabIndex={0} role="region" aria-label="Data quality issues">
+                      <table className="table-base">
+                        <thead><tr><th>Level</th><th>Dataset</th><th>Finding</th><th className="text-right">Count</th></tr></thead>
+                        <tbody>
+                          {(dataVersion.data?.validation?.issues ?? []).map((issue, index) => (
+                            <tr key={index}>
+                              <td><span className={`status-chip ${issue.level === "error" ? "status-chip-danger" : issue.level === "warn" ? "status-chip-warning" : "status-chip-muted"}`}>{issue.level}</span></td>
+                              <td className="text-xs text-slate-600">{issue.dataset}</td>
+                              <td className="text-xs text-slate-700">{issue.message}</td>
+                              <td className="text-right tabular-nums">{issue.count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            </>
+          )}
+        </div>
+      </Card>
+
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Algorithms" subtitle="Benchmark strategies and priority weighting" />
+          <CardHeader title="Methods and planning rules" subtitle="The short version of what the analytics mean." />
           <div className="px-4 pb-4 pt-3 text-sm text-slate-700">
-            {algorithms.isLoading ? (
-              <TableSkeleton rows={3} />
-            ) : algorithms.error ? (
-              <ErrorState
-                message={(algorithms.error as Error).message}
-                onRetry={() => algorithms.refetch()}
-              />
+            {algorithms.isLoading ? <TableSkeleton rows={3} /> : algorithms.error ? (
+              <ErrorState message={(algorithms.error as Error).message} onRetry={() => algorithms.refetch()} />
             ) : algorithms.data ? (
               <>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Benchmark strategies
-                </p>
-                <ul className="mt-1 space-y-1 text-xs">
-                  {algorithms.data.benchmark_strategies.map((b) => (
-                    <li key={b.id} className="flex justify-between gap-3">
-                      <span>{benchmarkLabel(b.id)}</span>
-                      <code className="text-[10px] text-slate-400">{b.id}</code>
-                    </li>
+                <p className="transparency-kicker">Benchmarks</p>
+                <ul className="mt-2 space-y-1 text-xs">
+                  {algorithms.data.benchmark_strategies.map((benchmark) => (
+                    <li key={benchmark.id} className="flex justify-between gap-3"><span>{benchmarkLabel(benchmark.id)}</span><code className="text-[10px] text-slate-400">{benchmark.id}</code></li>
                   ))}
                 </ul>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Priority weights (default)
-                </p>
-                <ul className="mt-1 space-y-1 text-xs">
-                  {Object.entries(algorithms.data.priority_weights).map(([k, v]) => (
-                    <li key={k} className="flex justify-between">
-                      <span>{k}</span>
-                      <span className="tabular-nums text-slate-500">{v}</span>
-                    </li>
-                  ))}
+                <p className="transparency-kicker mt-4">Default priority weights</p>
+                <ul className="mt-2 space-y-1 text-xs">
+                  {Object.entries(algorithms.data.priority_weights).map(([key, value]) => <li key={key} className="flex justify-between"><span>{key}</span><span className="tabular-nums text-slate-500">{value}</span></li>)}
                 </ul>
-                <p className="mt-3 text-[11px] text-slate-500">
-                  High-gap threshold: {algorithms.data.high_gap_threshold_pct}%.
-                </p>
+                <p className="mt-3 text-[11px] text-slate-500">High-gap threshold: {algorithms.data.high_gap_threshold_pct}%.</p>
               </>
             ) : null}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Documented proxies" subtitle="Where official data are unavailable" />
-          <ul className="px-4 pb-4 pt-3 ml-4 list-disc space-y-1 text-xs text-slate-600">
-            {(algorithms.data?.proxies ?? []).map((p) => (
-              <li key={p}>{p}</li>
-            ))}
+          <CardHeader title="Documented proxies" subtitle="Used only where verified measurements are unavailable." />
+          <ul className="ml-4 list-disc space-y-2 px-4 pb-4 pt-3 text-xs leading-relaxed text-slate-600">
+            {(algorithms.data?.proxies ?? []).map((proxy) => <li key={proxy}>{proxy}</li>)}
           </ul>
         </Card>
       </div>
 
-      {/* Models */}
       <Card>
-        <CardHeader title="Model versions" subtitle="Metrics are reported only for real artifacts" />
+        <CardHeader title="Model status" subtitle="Metrics appear only when a real validated artifact is registered." />
         <div className="px-4 pb-4 pt-3">
-          {models.isLoading ? (
-            <TableSkeleton rows={2} />
-          ) : models.error ? (
+          {models.isLoading ? <TableSkeleton rows={2} /> : models.error ? (
             <ErrorState message={(models.error as Error).message} onRetry={() => models.refetch()} />
           ) : (models.data?.models ?? []).length === 0 ? (
-            <EmptyState title="No model artifact is present." hint="Run `make ml` to train the baseline." />
+            <EmptyState title="No validated model artifact is present." hint="Forecasts remain unavailable until a model passes chronological validation." />
           ) : (
             <ul className="space-y-2 text-sm">
-              {(models.data?.models ?? []).map((m) => (
-                <li key={m.name} className="rounded-lg border border-forest/10 p-3">
+              {(models.data?.models ?? []).map((model) => (
+                <li key={model.name} className="transparency-model-row">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span className="font-medium text-forest">{m.name}</span>
-                    <span className="ml-auto text-xs text-slate-500">{m.status}</span>
+                    <span className="font-medium text-forest">{model.name}</span>
+                    <span className="ml-auto text-xs text-slate-500">{model.status}</span>
                   </div>
                   <p className="mt-1 text-xs text-slate-600">
-                    {m.status === "available"
-                      ? `MAE ${m.mae ?? "—"} · RMSE ${m.rmse ?? "—"} · R² ${m.r2 ?? "—"} · ${m.validation_method ?? ""}`
-                      : m.note}
+                    {model.status === "available" ? `MAE ${model.mae ?? "—"} · RMSE ${model.rmse ?? "—"} · R² ${model.r2 ?? "—"} · ${model.validation_method ?? ""}` : model.note}
                   </p>
                 </li>
               ))}
@@ -373,27 +369,21 @@ export default function TransparencyPage() {
         </div>
       </Card>
 
-      {/* Limitations + AI usage */}
       <div className="grid gap-5 xl:grid-cols-2">
         <Card>
-          <CardHeader title="Limitations" subtitle="Stated plainly, not buried" />
-          <ul className="px-4 pb-4 pt-3 ml-4 list-disc space-y-1 text-sm text-slate-700">
-            {limitations.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
+          <CardHeader title="Limitations" subtitle="Important boundaries for interpretation." />
+          <ul className="ml-4 list-disc space-y-2 px-4 pb-4 pt-3 text-xs leading-relaxed text-slate-600">
+            {limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
           </ul>
         </Card>
         <Card>
-          <CardHeader title="AI usage disclosure" subtitle="How AI is used, and how it is bounded" />
-          <ul className="px-4 pb-4 pt-3 ml-4 list-disc space-y-1 text-sm text-slate-700">
-            {AI_USAGE.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
+          <CardHeader title="AI use" subtitle="Assistive, grounded and separate from the official data pipeline." />
+          <ul className="ml-4 list-disc space-y-2 px-4 pb-4 pt-3 text-xs leading-relaxed text-slate-600">
+            {AI_USAGE.map((statement) => <li key={statement}>{statement}</li>)}
           </ul>
           <p className="flex items-start gap-2 border-t border-forest/5 px-4 py-3 text-[11px] text-slate-500">
             <Database className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Official NISR/MINAGRI statistics and voluntary app data are stored and reported
-            separately, and never merged at respondent level.
+            Official statistics and voluntary mobile records remain separate.
           </p>
         </Card>
       </div>

@@ -279,6 +279,45 @@ WATER_SOURCE_TABLES: tuple[TableSpec, ...] = (
     TableSpec("SAS_2026B", "Table 31", "2026B", "water_source", unit="percent"),
 )
 
+# --- inorganic-fertilizer source --------------------------------------------
+# These releases contain two related but different tables. The district table
+# measures the share of fertilizer users by supply channel; the type table
+# measures those channels separately for each fertilizer product at national
+# level. They remain separate because neither table is crop-yield evidence.
+FERTILIZER_DISTRICT_SOURCE_TABLES: tuple[TableSpec, ...] = (
+    TableSpec("SAS_2022_ANNUAL", "Table 44", "2022A", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2022_ANNUAL", "Table 45", "2022B", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2022_ANNUAL", "Table 46", "2022C", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 47", "2023A", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 48", "2023B", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 49", "2023C", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 46", "2024A", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 47", "2024B", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 48", "2024C", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 49", "2025A", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 50", "2025B", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 51", "2025C", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2026A", "Table 26", "2026A", "fertilizer_source_district", unit="percent"),
+    TableSpec("SAS_2026B", "Table 24", "2026B", "fertilizer_source_district", unit="percent"),
+)
+
+FERTILIZER_TYPE_SOURCE_TABLES: tuple[TableSpec, ...] = (
+    TableSpec("SAS_2022_ANNUAL", "Table 47", "2022A", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2022_ANNUAL", "Table 48", "2022B", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2022_ANNUAL", "Table 49", "2022C", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 50", "2023A", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 51", "2023B", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2023_ANNUAL", "Table 52", "2023C", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 49", "2024A", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 50", "2024B", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2024_ANNUAL", "Table 51", "2024C", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 52", "2025A", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 53", "2025B", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2025_ANNUAL", "Table 54", "2025C", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2026A", "Table 27", "2026A", "fertilizer_source_type", unit="percent"),
+    TableSpec("SAS_2026B", "Table 25", "2026B", "fertilizer_source_type", unit="percent"),
+)
+
 # --- anti-erosion activities (district percentages, multi-response) ----------
 EROSION_CONTROL_TABLES: tuple[TableSpec, ...] = (
     TableSpec("SAS_2024_ANNUAL", "Table 70", "2024A", "erosion_control", unit="percent"),
@@ -310,6 +349,8 @@ ALL_TABLES: tuple[TableSpec, ...] = (
     *PRACTICE_TABLES,
     *IRRIGATION_TABLES,
     *WATER_SOURCE_TABLES,
+    *FERTILIZER_DISTRICT_SOURCE_TABLES,
+    *FERTILIZER_TYPE_SOURCE_TABLES,
     *EROSION_CONTROL_TABLES,
     *EROSION_SEVERITY_TABLES,
 )
@@ -320,6 +361,8 @@ DOMAINS: tuple[str, ...] = (
     "practice",
     "irrigation",
     "water_source",
+    "fertilizer_source_district",
+    "fertilizer_source_type",
     "erosion_control",
     "erosion_severity",
 )
@@ -339,6 +382,15 @@ METRICS_BY_DOMAIN: dict[str, tuple[str, ...]] = {
         "underground_source_pct",
         "lake_stream_source_pct",
         "water_catchment_source_pct",
+    ),
+    "fertilizer_source_district": (
+        "government_fertilizer_source_pct",
+        "agro_dealers_fertilizer_source_pct",
+        "ngos_companies_fertilizer_source_pct",
+        "market_fertilizer_source_pct",
+        "agriculture_cooperative_fertilizer_source_pct",
+        "other_fertilizer_source_pct",
+        "fertilizer_source_total_pct",
     ),
     "erosion_control": (
         "ditches_pct",

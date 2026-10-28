@@ -35,6 +35,11 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "agricultural_practice_observation",
         "",
     ),
+    "fertilizer_source": (
+        "Fertilizer Source by Type (national)",
+        "fertilizer_source",
+        "",
+    ),
     "postharvest_use_multi_period": (
         "Post-Harvest Use & Loss (multi-period)",
         "postharvest_use_multi_period",
@@ -144,6 +149,15 @@ FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
         "indicator_code",
         "source_id",
     ),
+    "fertilizer_source": (
+        "period_code",
+        "year",
+        "season",
+        "geography_level",
+        "fertilizer_name",
+        "source_channel",
+        "source_id",
+    ),
     "postharvest_use_multi_period": (
         "period_code",
         "year",
@@ -210,6 +224,8 @@ DATASET_JSON_PARAMS: frozenset[str] = frozenset(
         "use",
         "status",
         "commodity_name_raw",
+        "fertilizer_name",
+        "source_channel",
         "sort_by",
         "sort_dir",
     }
@@ -239,6 +255,7 @@ GROUP_LABELS: dict[str, str] = {
 DATASET_GROUPS: dict[str, str] = {
     "crop_productivity": GROUP_CURRENT,
     "agricultural_practice_observation": GROUP_CURRENT,
+    "fertilizer_source": GROUP_CURRENT,
     "postharvest_use_multi_period": GROUP_CURRENT,
     "national_crop_trends": GROUP_CURRENT,
     "national_input_trends": GROUP_CURRENT,
@@ -345,7 +362,11 @@ def _resolved_meta(key: str, label: str, source_id: str, df: pd.DataFrame) -> tu
             sources = sorted({str(value) for value in df["source_id"].dropna() if str(value)})
             if sources:
                 source_id = ",".join(sources)
-    elif key in ("agricultural_practice_observation", "postharvest_use_multi_period"):
+    elif key in (
+        "agricultural_practice_observation",
+        "fertilizer_source",
+        "postharvest_use_multi_period",
+    ):
         # The printed range and provenance come from the loaded frame, so a new
         # release shows up without a hand-edited literal in this file.
         if "period_code" in df.columns:

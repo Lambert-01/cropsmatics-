@@ -10,6 +10,7 @@ converts the published wide layouts into normalized long frames:
 * ``sas_irrigation_water_long.csv`` technique mix + water source by district
 * ``sas_erosion_long.csv``        control techniques + severity bands
 * ``sas_postharvest_long.csv``    production use shares by crop x period
+* ``sas_fertilizer_source_long.csv`` national fertilizer type x supply channel
 
 Nothing is imputed: blank cells (including the workbook's ``-`` marker) stay
 null, and district rows that NISR left blank stay blank. Aggregate rows
@@ -481,6 +482,105 @@ def parse_district_indicator_tables(
     return pd.DataFrame(rows_out)
 
 
+def _fertilizer_source_indicator(
+    col: int, grid: pd.DataFrame, layout: _Layout
+) -> str | None:
+    """Normalize a published fertilizer supply-channel column.
+
+    The labels vary between releases (``Agro-deal``, ``Agro dealers``,
+    ``NGOs/Companies``), but they describe the same reviewed channels. The raw
+    label remains in the table lineage; this code is only the stable API key.
+    """
+    label = _clean_label(grid.iat[layout.header_idx, col]).lower()
+    collapsed = re.sub(r"[^a-z]+", " ", label).strip()
+    if "government" in collapsed:
+        return "government_fertilizer_source_pct"
+    if "agro" in collapsed:
+        return "agro_dealers_fertilizer_source_pct"
+    if "ngo" in collapsed or "company" in collapsed:
+        return "ngos_companies_fertilizer_source_pct"
+    if "market" in collapsed:
+        return "market_fertilizer_source_pct"
+    if "cooperative" in collapsed:
+        return "agriculture_cooperative_fertilizer_source_pct"
+    if collapsed.startswith("other"):
+        return "other_fertilizer_source_pct"
+    if collapsed == "total":
+        return "fertilizer_source_total_pct"
+    return None
+
+
+def parse_fertilizer_source_by_type() -> pd.DataFrame:
+    """Parse national fertilizer-product source shares as long observations.
+
+    This is intentionally not merged into district productivity or practice
+    scores. It answers a different question: where did each reported inorganic
+    fertilizer type come from nationally in a published season?
+    """
+    rows_out: list[dict] = []
+    for spec in tmap.FERTILIZER_TYPE_SOURCE_TABLES:
+        grid, kind = read_table(spec)
+        layout = _resolve_layout(grid)
+        year, season = split_period(spec.period_code)
+        title = _find_title(grid, layout)
+        channels: dict[int, str] = {}
+        total_col: int | None = None
+        for col in range(layout.label_col + 1, grid.shape[1]):
+            indicator = _fertilizer_source_indicator(col, grid, layout)
+            if indicator == "fertilizer_source_total_pct":
+                total_col = col
+            elif indicator:
+                channels[col] = indicator.removesuffix("_fertilizer_source_pct")
+
+        for row_idx in range(layout.header_idx + 1, len(grid)):
+            raw_name = grid.iat[row_idx, layout.label_col]
+            fertilizer_raw = _clean_label(raw_name)
+            if not fertilizer_raw or fertilizer_raw.lower().startswith("source:"):
+                continue
+            if fertilizer_raw.lower() in {"fertilizer name", "fertiliser name"}:
+                continue
+            values = {col: _num(grid.iat[row_idx, col]) for col in channels}
+            if not any(value is not None for value in values.values()):
+                continue
+            reported_total = (
+                _num(grid.iat[row_idx, total_col]) if total_col is not None else None
+            )
+            source_sum = round(sum(value for value in values.values() if value is not None), 6)
+            sum_check = (
+                None
+                if reported_total is None
+                else abs(source_sum - reported_total) <= 0.25
+            )
+            for col, channel in channels.items():
+                rows_out.append(
+                    {
+                        "period_code": spec.period_code,
+                        "year": year,
+                        "season": season,
+                        "geography_level": "NATIONAL",
+                        "district": "",
+                        "district_code": "RW",
+                        "province": "",
+                        "fertilizer_name_raw": fertilizer_raw,
+                        "fertilizer_name": fertilizer_raw.rstrip(" ;,"),
+                        "source_channel": channel,
+                        "share_pct": values[col],
+                        "reported_total_pct": reported_total,
+                        "source_sum_pct": source_sum,
+                        "source_sum_check": sum_check,
+                        "unit": spec.unit,
+                        "source_id": _source_id(spec.release),
+                        "source_release": spec.release,
+                        "source_sheet": spec.sheet,
+                        "source_title_raw": title,
+                        "source_row": row_idx + 1,
+                        "source_kind": kind,
+                        "period_override_reason": spec.period_override_reason,
+                    }
+                )
+    return pd.DataFrame(rows_out)
+
+
 def _practice_indicator(col: int, grid: pd.DataFrame, layout: _Layout) -> str | None:
     """Indicator for the practice tables.
 
@@ -856,6 +956,14 @@ def main() -> int:
     )
     log("parsing irrigation + water-source tables...")
     irrigation = parse_irrigation_water(districts)
+    log("parsing district fertilizer-source tables...")
+    fertilizer_district = parse_district_indicator_tables(
+        tmap.FERTILIZER_DISTRICT_SOURCE_TABLES,
+        districts,
+        _fertilizer_source_indicator,
+    )
+    log("parsing national fertilizer-source-by-type tables...")
+    fertilizer_type = parse_fertilizer_source_by_type()
     log("parsing erosion tables...")
     erosion = parse_erosion(districts)
     log("parsing post-harvest use tables...")
@@ -869,9 +977,10 @@ def main() -> int:
     INTERIM_DIR.mkdir(parents=True, exist_ok=True)
     productivity.to_csv(INTERIM_DIR / "sas_productivity_long.csv", index=False)
     practices.to_csv(INTERIM_DIR / "sas_practices_long.csv", index=False)
-    combined_dw = pd.concat([irrigation, erosion], ignore_index=True)
+    combined_dw = pd.concat([irrigation, erosion, fertilizer_district], ignore_index=True)
     combined_dw.to_csv(INTERIM_DIR / "sas_district_indicators_long.csv", index=False)
     postharvest.to_csv(INTERIM_DIR / "sas_postharvest_long.csv", index=False)
+    fertilizer_type.to_csv(INTERIM_DIR / "sas_fertilizer_source_long.csv", index=False)
 
     log(
         f"productivity long: {len(productivity)} rows "
@@ -882,8 +991,16 @@ def main() -> int:
         f"practices long: {len(practices)} rows "
         f"({practices['indicator_code'].nunique()} indicators)"
     )
-    log(f"district indicators long (irrigation/water/erosion): {len(combined_dw)} rows")
+    log(
+        "district indicators long "
+        f"(irrigation/water/erosion/fertilizer-source): {len(combined_dw)} rows"
+    )
     log(f"postharvest long: {len(postharvest)} rows ({postharvest['period_code'].nunique()} periods)")
+    log(
+        f"fertilizer source by type: {len(fertilizer_type)} rows "
+        f"({fertilizer_type['period_code'].nunique()} periods, "
+        f"{fertilizer_type['fertilizer_name'].nunique()} fertilizer types)"
+    )
     log("done")
     return 0
 

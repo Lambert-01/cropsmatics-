@@ -7,7 +7,7 @@ no processed dataset surfaced them, so they were honestly reported as
 ``mapped_not_exposed``. These tests pin the properties that make the exposure
 real rather than claimed:
 
-* the period dimension is the published one, per indicator;
+* the period dimension is the published one, per indicator and domain;
 * every row is traceable back to a workbook, sheet and row;
 * nothing is imputed - published nulls stay null;
 * the sheet inventory can no longer report a mapped sheet as unexposed;
@@ -31,8 +31,16 @@ from scripts.tests.conftest import require
 PRACTICE_FILE = PROCESSED_FILES["agricultural_practices"]
 POSTHARVEST_FILE = PROCESSED_FILES["crop_postharvest_use_multi"]
 
-# The eight seasons the 2024-2026 workbooks publish. 2026C does not exist.
-PUBLISHED_PERIODS = [
+# The district practice observation table includes fertilizer-source tables from
+# the 2022 and 2023 annual workbooks. 2026C does not exist.
+PRACTICE_PERIODS = [
+    "2022A", "2022B", "2022C",
+    "2023A", "2023B", "2023C",
+    "2024A", "2024B", "2024C",
+    "2025A", "2025B", "2025C",
+    "2026A", "2026B",
+]
+POSTHARVEST_PERIODS = [
     "2024A", "2024B", "2024C",
     "2025A", "2025B", "2025C",
     "2026A", "2026B",
@@ -44,6 +52,7 @@ OWNED_DOMAINS = {
     "water_source",
     "erosion_control",
     "erosion_severity",
+    "fertilizer_source_district",
 }
 
 
@@ -61,7 +70,7 @@ def postharvest() -> pd.DataFrame:
 
 
 def test_practice_observation_covers_the_published_periods(practice):
-    assert sorted(practice["period_code"].unique()) == PUBLISHED_PERIODS
+    assert sorted(practice["period_code"].unique()) == PRACTICE_PERIODS
     assert practice["unit"].unique().tolist() == ["percent"]
 
 
@@ -141,7 +150,7 @@ def test_practice_observation_is_deterministic():
 
 
 def test_postharvest_history_covers_the_published_periods(postharvest):
-    assert sorted(postharvest["period_code"].unique()) == PUBLISHED_PERIODS
+    assert sorted(postharvest["period_code"].unique()) == POSTHARVEST_PERIODS
     assert postharvest["unit"].unique().tolist() == ["percent"]
     assert postharvest["indicator_code"].nunique() == 11
 
@@ -194,7 +203,15 @@ def test_every_mapped_sas_sheet_is_now_exposed():
     )
     assert not (inventory["ingestion_stage"] == "mapped_not_exposed").any()
     # And the domains the audit listed as ingested-but-not-exposed are all used.
-    for domain in ("practice", "irrigation", "water_source", "erosion_control", "postharvest"):
+    for domain in (
+        "practice",
+        "irrigation",
+        "water_source",
+        "erosion_control",
+        "erosion_severity",
+        "fertilizer_source_district",
+        "postharvest",
+    ):
         rows = inventory[inventory["indicator_group"] == domain]
         assert not rows.empty, domain
         assert set(rows["ingestion_stage"]) <= {"used", "duplicate"}, domain

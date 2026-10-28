@@ -6,7 +6,7 @@ the 78 SAS sheets which were previously mapped and ingested with full lineage bu
 had no processed dataset behind them. These tests pin the properties that make
 the exposure trustworthy:
 
-* the published period dimension is real (2024A-2026B), not a relabelled 2025B;
+* the published period dimension is real and domain-specific, not a relabelled 2025B;
 * a period with no rows is explained, never silently empty;
 * a published null is never turned into a zero;
 * an unknown domain is reported, not a 500;
@@ -21,6 +21,7 @@ PRACTICE_DOMAINS = {
     "water_source",
     "erosion_control",
     "erosion_severity",
+    "fertilizer_source_district",
 }
 
 
@@ -36,10 +37,16 @@ def test_practice_indicators_are_exposed_with_a_real_period_dimension(client):
     assert set(body["domains"]) == PRACTICE_DOMAINS
 
     periods = body["periods"]
-    # The interim ingest covers the eight published 2024-2026 seasons. The
-    # regression this guards against is the legacy single-release exposure,
-    # where this list was exactly ["2025B"].
+    # Fertilizer-source district tables extend the all-domain response to the
+    # 2022-2026 published calendar. Individual indicator availability below
+    # still reports the narrower range for water/irrigation/erosion domains.
     assert periods == [
+        "2022A",
+        "2022B",
+        "2022C",
+        "2023A",
+        "2023B",
+        "2023C",
         "2024A",
         "2024B",
         "2024C",
@@ -102,7 +109,7 @@ def test_period_without_practice_rows_explains_its_coverage(client):
     Returning an unexplained empty page would read as "nothing was measured",
     which is a different claim from "this domain is not published that early".
     """
-    body = _practice(client, period_code="2022A")
+    body = _practice(client, period_code="2022A", domain="water_source")
     assert body["available"] is True
     assert body["observations"] == []
     assert body["note"]

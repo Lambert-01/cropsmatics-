@@ -1247,7 +1247,7 @@ def _availability(df: pd.DataFrame, group_keys: list[str]) -> list[dict]:
 
 
 def practice_indicator_history(f: AnalyticsFilters, domain: str | None = None) -> dict:
-    """Multi-period district practice/irrigation/erosion observations (2024A-2026B).
+    """Multi-period district context observations with domain-specific coverage.
 
     Honest by construction: the returned ``periods``, ``domains`` and
     ``indicators`` describe what the processed table actually carries, while
@@ -1290,7 +1290,7 @@ def practice_indicator_history(f: AnalyticsFilters, domain: str | None = None) -
     note = None
     if f.period_code and f.period_code not in periods:
         note = (
-            f"the practice/irrigation/erosion domain is published for "
+            f"the selected {domain or 'indicator'} domain is published for "
             f"{', '.join(periods)}; {f.period_code} therefore has no rows"
         )
 

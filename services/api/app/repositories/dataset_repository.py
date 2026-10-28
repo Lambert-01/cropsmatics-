@@ -398,7 +398,7 @@ def postharvest_use() -> pd.DataFrame:
 
 
 def agricultural_practice_observation() -> pd.DataFrame:
-    """Multi-period district practice/irrigation/erosion observations (2024A-2026B).
+    """Multi-period district context observations with domain-specific coverage.
 
     Long form: one row per period x geography x domain x indicator, carrying the
     published unit and the full source lineage (workbook, sheet, row). This is
@@ -412,6 +412,11 @@ def agricultural_practice_observation() -> pd.DataFrame:
     row at all, never a zero).
     """
     return _load("agricultural_practice_observation.csv")
+
+
+def fertilizer_source() -> pd.DataFrame:
+    """National fertilizer type x supply-channel shares with source lineage."""
+    return _load("fertilizer_source.csv")
 
 
 def postharvest_use_multi_period() -> pd.DataFrame:

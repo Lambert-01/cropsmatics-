@@ -155,6 +155,27 @@ body {
   html.dark .responsive-table .rt-sticky-col {
     @apply bg-surface;
   }
+
+/* Reports contains dense provenance and scorecard tables. Keep their ink
+   explicit so nested utility classes cannot leave dark text on a dark surface. */
+html.dark .reports-workspace .table-base,
+html.dark .reports-workspace .table-base tbody {
+  color: #e2e8f0;
+}
+html.dark .reports-workspace .table-base thead th {
+  color: #d1fae5 !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+html.dark .reports-workspace .table-base tbody td,
+html.dark .reports-workspace .table-base tbody td.text-slate-700,
+html.dark .reports-workspace .table-base tbody td.text-slate-600 {
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+html.dark .reports-workspace .table-base tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.025);
+}
 }
 
 /* Solid translucent white panels re-theme to a translucent surface; the low-alpha
@@ -484,4 +505,120 @@ html[data-compact-tables="true"] .table-base tbody td,
 html[data-compact-tables="true"] .responsive-table .rt-td {
   padding-top: 0.25rem;
   padding-bottom: 0.3rem;
+}
+
+/* Data & Models is intentionally compact: the headline evidence stays visible,
+   while long registries and quality tables open only when requested. */
+.transparency-stat {
+  min-width: 0;
+  border: 1px solid rgb(var(--c-forest) / 0.1);
+  border-radius: 0.75rem;
+  background: rgb(var(--c-surface));
+  padding: 0.85rem 1rem;
+}
+.transparency-stat-label,
+.transparency-kicker {
+  color: rgb(var(--c-slate-500));
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.transparency-stat-value {
+  margin-top: 0.25rem;
+  color: rgb(var(--c-forest-deep));
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.transparency-stat-note {
+  margin-top: 0.3rem;
+  color: rgb(var(--c-slate-500));
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.status-chip-success {
+  background: rgb(var(--c-success) / 0.12);
+  color: rgb(22 101 52);
+}
+.status-chip-warning {
+  background: rgb(var(--c-amber) / 0.14);
+  color: rgb(146 64 14);
+}
+.status-chip-danger {
+  background: rgb(var(--c-danger) / 0.12);
+  color: rgb(185 28 28);
+}
+.status-chip-muted {
+  background: rgb(var(--c-slate-500) / 0.12);
+  color: rgb(var(--c-slate-500));
+}
+.transparency-step {
+  display: flex;
+  gap: 0.65rem;
+  border-left: 2px solid rgb(var(--c-primary) / 0.35);
+  padding: 0.15rem 0 0.15rem 0.75rem;
+}
+.transparency-details {
+  border-top: 1px solid rgb(var(--c-forest) / 0.1);
+  padding-top: 0.75rem;
+}
+.transparency-details summary {
+  cursor: pointer;
+  color: rgb(var(--c-primary));
+  font-size: 0.75rem;
+  font-weight: 700;
+  outline: none;
+}
+.transparency-details summary:focus-visible {
+  border-radius: 0.25rem;
+  box-shadow: 0 0 0 2px rgb(var(--c-primary) / 0.35);
+}
+.transparency-model-row {
+  border: 1px solid rgb(var(--c-forest) / 0.1);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+html.dark .transparency-stat,
+html.dark .transparency-model-row {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgb(var(--c-surface));
+}
+html.dark .transparency-stat-value,
+html.dark .transparency-step p,
+html.dark .transparency-model-row .text-forest {
+  color: #f8fafc;
+}
+html.dark .status-chip-success {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+}
+html.dark .status-chip-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+}
+html.dark .status-chip-danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+html.dark .status-chip-muted {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+}
+html.dark .transparency-workspace .text-slate-700,
+html.dark .transparency-workspace .text-slate-600 {
+  color: #cbd5e1;
+}
+html.dark .transparency-details {
+  border-color: rgba(255, 255, 255, 0.12);
 }

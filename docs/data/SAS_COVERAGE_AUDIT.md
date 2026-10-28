@@ -1,7 +1,7 @@
 # SAS Coverage Audit — 2022 through 2026 Season B
 
-**Generated:** 2026-10-28 from the data-build checkout (`09e82e0`); the current
-functional/data-build revision is `4eb1847` and the processed data identity is unchanged.
+**Generated:** 2026-10-29 from the current data-build checkout; the inventory and
+processed outputs were regenerated after exposing fertilizer-source tables.
 **Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `services/api/.venv/bin/python -m scripts.data.inventory_sas_workbooks` after `make install-api`)
 **Scope:** current local source archive and regenerated sheet inventory
 
@@ -41,23 +41,23 @@ The redundant `(1)` copy was removed; the unsuffixed file is unchanged.
 
 | Disposition | Sheets | Meaning |
 |---|---:|---|
-| `used` | 134 | Mapped **and** powering a published processed dataset (`crop_productivity.csv` or `agricultural_practice_observation.csv` or `crop_postharvest_use_multi_period.csv`) |
+| `used` | 162 | Mapped **and** powering a published processed dataset (`crop_productivity.csv`, `agricultural_practice_observation.csv`, `fertilizer_source.csv` or `crop_postharvest_use_multi_period.csv`) |
 | `mapped_not_exposed` | 0 | *(none left)* Mapped and ingested to `data/interim` with full lineage, but no processed dataset surfaces the domain yet |
-| `not_yet_mapped` | 304 | Sheets the reviewed mapping does not cover, including both 2025B originals |
+| `not_yet_mapped` | 276 | Sheets the reviewed mapping does not cover, including both 2025B originals |
 | `metadata` | 2 | Table-of-contents sheets (`List of tables` in 2022, `Contents` in 2025) |
 
 Per workbook:
 
 | File | used | mapped_not_exposed | not_yet_mapped | metadata |
 |---|---:|---:|---:|---:|
-| SAS 2022 | 12 | 0 | 55 | 1 |
-| SAS 2023 | 12 | 0 | 67 | 0 |
-| SAS 2024 annual | 42 | 0 | 37 | 0 |
-| SAS 2025 annual | 42 | 0 | 37 | 1 |
+| SAS 2022 | 18 | 0 | 49 | 1 |
+| SAS 2023 | 18 | 0 | 61 | 0 |
+| SAS 2024 annual | 48 | 0 | 31 | 0 |
+| SAS 2025 annual | 48 | 0 | 31 | 1 |
 | 2025 Season B | 0 | 0 | 33 | 0 |
 | 2025 Season B curated original | 0 | 0 | 33 | 0 |
-| 2026 Season A | 13 | 0 | 22 | 0 |
-| 2026 Season B | 13 | 0 | 20 | 0 |
+| 2026 Season A | 15 | 0 | 20 | 0 |
+| 2026 Season B | 15 | 0 | 18 | 0 |
 
 > The previously reported "110 used / 227 extracted" count described the
 > 2024–2026 extracted sheets only, and it counted a sheet as used when it was
@@ -67,10 +67,10 @@ Per workbook:
 > 33 unreviewed sheets to the current archive.
 >
 > **Every mapped sheet is now exposed.** The practice, irrigation, water-source,
-> erosion-control, erosion-severity and post-harvest domains were materialized by
+> erosion-control, erosion-severity, fertilizer-source and post-harvest domains were materialized by
 > `scripts/data/build_agricultural_practice_observation.py` and
 > `scripts/data/build_crop_postharvest_multi_period.py`, which is why
-> `used` rose from 56 to 134 and `mapped_not_exposed` fell from 78 to 0. The two
+> `used` rose from 56 to 162 and `mapped_not_exposed` stayed at 0. The two
 > output filenames were already the declared contract in
 > `inventory_sas_workbooks.DOMAIN_OUTPUTS` and `common.PROCESSED_FILES`, so the
 > classifier flipped them to `used` on its own - the stage is never hand-edited.
@@ -153,21 +153,26 @@ forecast trainer exclude a row.
 * **The canonical panel now genuinely covers 2022A–2026B** — 14 published
   periods, each with all four productivity metrics, all districts, and per-row
   lineage naming the workbook, sheet, row and release.
-* **Practices, irrigation, water source, erosion and post-harvest are now
-  exposed, multi-period.** `agricultural_practice_observation.csv` (9,468 rows:
-  8 periods × 30 districts × 28 indicators across five domains) and
+* **Practices, irrigation, water source, erosion, fertilizer source and
+  post-harvest are now exposed with their reviewed grains.**
+  `agricultural_practice_observation.csv` (12,475 rows across 14 periods,
+  including district fertilizer-source shares in 2022-2026) and
+  `fertilizer_source.csv` (1,481 national fertilizer-type/source observations
+  across 14 periods) and
   `crop_postharvest_use_multi_period.csv` (1,573 rows: 8 periods × 17 crops × 11
-  indicators) carry the real period dimension. The 2025B legacy wide files
+  indicators) carry the real period dimension. Core practice, irrigation, water
+  and erosion domains are published for 2024A-2026B; fertilizer-source domains
+  extend the context layer to 2022A-2026B. The 2025B legacy wide files
   (`district_productivity_factors.csv`, `irrigation_water.csv`,
   `erosion_control.csv`, `crop_postharvest_use.csv`) are deliberately left in
   place and unchanged: existing clients read them, and they are single-period by
   construction. Both generations are described in `data_coverage.csv`, so per
   dataset the period coverage is explicit rather than assumed.
-* **The multi-period indicator domains cover 2024A–2026B, not 2022A–2026B.**
-  The 2022 and 2023 annual workbooks are only mapped for productivity, so no
-  practice/erosion/post-harvest observation exists for those six periods. The
-  API reports this per indicator (and explains it when a selected period has no
-  rows) rather than letting a period selector imply coverage that is not there.
+* **Indicator coverage is domain-specific.** Core practice, irrigation, water
+  source, erosion and post-harvest observations cover 2024A-2026B. Fertilizer
+  source tables also exist for 2022A-2023C, so those periods are exposed only for
+  the fertilizer-source domains. The API reports availability per indicator
+  rather than letting a period selector imply universal coverage.
 * **2026C does not exist** and is rejected by `normalize_period`; the period
   dimension lists exactly what NISR has published.
 * **The annual release is the serving authority for 2025B.** The two standalone
@@ -187,7 +192,7 @@ forecast trainer exclude a row.
    comparison and change-control checklist in `SAS_SOURCE_PRECEDENCE.md` before
    promoting a standalone workbook.
 2. ~~Materialize the multi-period practice/irrigation/erosion/post-harvest
-   domains into processed datasets.~~ **Done**: `used` is now 134 and
+   domains into processed datasets.~~ **Done**: `used` is now 162 and
    `mapped_not_exposed` is 0. The pipeline order in `scripts/data/run_all.py`
    builds them, `data_coverage.csv` describes their periods, and
    `scripts/tests/test_indicator_exposure.py` fails if a mapped sheet ever loses
@@ -200,7 +205,7 @@ forecast trainer exclude a row.
    The web/mobile period selectors still need to read that availability.
 4. Forecast work must exclude the 89 `review`-flagged rows from training, or
    include them only in a documented sensitivity run.
-5. Review the remaining 304 `not_yet_mapped` sheets as future scope. The two
+5. Review the remaining 276 `not_yet_mapped` sheets as future scope. The two
    standalone 2025B originals are already classified as archive-only; promote
    either one only under `SAS_SOURCE_PRECEDENCE.md` change control.
 

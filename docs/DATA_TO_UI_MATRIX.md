@@ -64,6 +64,9 @@ maintained coverage register.
 | Risk classification | 05 | `postharvest_service.summary` | `GET /analytics/post-harvest` | `features/postharvest/RiskClassificationTable` |
 | Facility status table | 08 | `facility_service.context` | `GET /facilities/context` | `features/storage/FacilityStatus` |
 | Optimization demo | user scenario only | `optimization.storage_allocation` | `POST /optimization/storage-allocation` | `features/storage/OptimizationDemo` |
+| District water-source report | `agricultural_practice_observation` (`water_source` domain) | `analytics_service.practice_indicator_history` | `GET /reports/water-source.csv` or `.json` | `app/reports/page.tsx` |
+| Fertilizer source by type | `fertilizer_source.csv` | `dataset_service.fertilizer_source` | `GET /reports/fertilizer-source.csv` or `.json` | `app/reports/page.tsx`, Data Explorer |
+| District fertilizer access | `agricultural_practice_observation` (`fertilizer_source_district` domain) | `analytics_service.practice_indicator_history` | `GET /reports/fertilizer-access.csv` or `.json` | `app/reports/page.tsx` |
 | Report exports | processed | reports services | `GET /reports/*.csv` | `app/reports/page.tsx` |
 | Data explorer tables | all processed | `dataset_service.fetch` | `GET /meta/dataset/{key}` | `features/data-explorer/DataTable` |
 | Data coverage matrix | C | `meta_service.coverage` | `GET /meta/data-coverage` | `app/transparency/page.tsx` |
