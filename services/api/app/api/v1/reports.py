@@ -730,6 +730,12 @@ def dataset_csv(
     farmer_scale: str | None = None,
     row_scope: str | None = None,
     source_id: str | None = None,
+    dataset: str | None = None,
+    period: str | None = None,
+    coverage_level: str | None = None,
+    use: str | None = None,
+    status_value: str | None = Query(None, alias="status"),
+    commodity_name_raw: str | None = None,
     sort_by: str | None = None,
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> StreamingResponse:
@@ -762,6 +768,12 @@ def dataset_csv(
             "farmer_scale": farmer_scale,
             "row_scope": row_scope,
             "source_id": source_id,
+            "dataset": dataset,
+            "period": period,
+            "coverage_level": coverage_level,
+            "use": use,
+            "status": status_value,
+            "commodity_name_raw": commodity_name_raw,
         },
     )
     try:

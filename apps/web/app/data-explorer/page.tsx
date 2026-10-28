@@ -8,7 +8,6 @@ import { PageHeading } from "@/components/ui/PageHeading";
 import { ErrorState, TableSkeleton } from "@/components/ui/States";
 import { DataTable } from "@/features/data-explorer/DataTable";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/cn";
 
 export default function DataExplorerPage() {
   const { data, isLoading, error, refetch } = useQuery({
@@ -47,7 +46,6 @@ export default function DataExplorerPage() {
     null;
   const activeLabel = datasets.find((d) => d.key === activeKey)?.label ?? "";
   const activeDataset = datasets.find((d) => d.key === activeKey) ?? null;
-  const activeGroup = activeDataset?.group ?? grouped[0]?.key ?? null;
 
   function select(key: string) {
     setSelected(key);
@@ -69,63 +67,70 @@ export default function DataExplorerPage() {
         <TableSkeleton rows={6} />
       ) : (
         <>
-          <div className="card space-y-3 p-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                Browse by evidence group
-              </p>
-              <p className="mt-1 text-xs text-slate-600">
-                Current releases lead. Archive tables, programme context and reference dictionaries
-                remain available without becoming primary navigation tabs.
-              </p>
+          <div className="card space-y-4 p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Dataset library
+                </p>
+                <h2 className="mt-1 text-lg font-semibold tracking-tight text-forest-deep">
+                  All processed evidence tables
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
+                  Browse the real multi-period SAS panels, legacy release extracts, official program
+                  context and reference dictionaries used by Cropmatics. Choose a table below; its
+                  exact filters and provenance appear with the rows.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[430px]">
+                <div className="rounded-lg border border-forest/10 bg-white px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tables</p>
+                  <p className="mt-1 text-lg font-semibold text-forest-deep">{datasets.length}</p>
+                </div>
+                {grouped.slice(0, 3).map((group) => (
+                  <div key={group.key} className="rounded-lg border border-forest/10 bg-white px-3 py-2">
+                    <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      {group.label}
+                    </p>
+                    <p className="mt-1 text-lg font-semibold text-forest-deep">{group.datasets.length}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Dataset groups">
-              {grouped.map((group) => (
-                <button
-                  key={group.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeGroup === group.key}
-                  onClick={() => select(group.datasets[0]?.key ?? "")}
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                    activeGroup === group.key
-                      ? "bg-primary text-white"
-                      : "border border-forest/15 bg-white text-slate-600 hover:bg-forest/5",
-                  )}
-                >
-                  {group.label} ({group.datasets.length})
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Datasets in active group">
-              {(grouped.find((group) => group.key === activeGroup)?.datasets ?? []).map((d) => (
-              <button
-                key={d.key}
-                type="button"
-                role="tab"
-                aria-selected={activeKey === d.key}
-                onClick={() => select(d.key)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                  activeKey === d.key
-                    ? "bg-primary text-white"
-                    : "border border-forest/15 bg-white text-slate-600 hover:bg-forest/5",
-                )}
+
+            <label className="block max-w-3xl">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Select a dataset
+              </span>
+              <select
+                className="input w-full"
+                value={activeKey ?? ""}
+                onChange={(event) => select(event.target.value)}
+                aria-label="Select a dataset"
               >
-                {d.label}
-              </button>
-              ))}
-            </div>
+                {grouped.map((group) => (
+                  <optgroup key={group.key} label={`${group.label} · ${group.datasets.length} tables`}>
+                    {group.datasets.map((dataset) => (
+                      <option key={dataset.key} value={dataset.key}>
+                        {dataset.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+
             {activeDataset ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-forest/10 pt-3 text-[11px] text-slate-500">
+              <div className="grid gap-2 border-t border-forest/10 pt-3 text-[11px] text-slate-600 sm:grid-cols-[auto_1fr]">
+                <span className="font-semibold text-forest-deep">Source</span>
+                <span className="break-words">{activeDataset.source_id || "Resolved from the processed table"}</span>
+                <span className="font-semibold text-forest-deep">Available filters</span>
                 <span>
-                  <strong className="font-semibold text-forest-deep">Source:</strong>{" "}
-                  {activeDataset.source_id || "resolved from the processed table"}
-                </span>
-                <span>
-                  <strong className="font-semibold text-forest-deep">Accepted filters:</strong>{" "}
-                  {activeDataset.filters.length ? activeDataset.filters.join(", ") : "none"}
+                  {activeDataset.filters.length
+                    ? activeDataset.filters
+                        .map((filter) => filter.replace(/_/g, " "))
+                        .join(" · ")
+                    : "None — browse or search the rows"}
                 </span>
               </div>
             ) : null}

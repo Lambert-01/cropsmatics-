@@ -9,7 +9,7 @@ import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
 import { api } from "@/lib/api";
 import { apiUrl } from "@/lib/apiUrl";
-import { fmtNumber } from "@/lib/format";
+import { fmtNumber, periodLabel } from "@/lib/format";
 
 const PROVENANCE_COLUMNS = new Set([
   "source_id",
@@ -35,6 +35,28 @@ const FILTER_ORDER = [
   "domain",
   "indicator_code",
 ] as const;
+
+const FILTER_LABELS: Record<string, string> = {
+  period_code: "Period",
+  year: "Year",
+  season: "Season",
+  crop: "Crop",
+  province: "Province",
+  district: "District",
+  domain: "Domain",
+  indicator_code: "Indicator",
+};
+
+const FILTER_ALL_LABELS: Record<string, string> = {
+  period_code: "All periods",
+  year: "All years",
+  season: "All seasons",
+  crop: "All crops",
+  province: "All provinces",
+  district: "All districts",
+  domain: "All domains",
+  indicator_code: "All indicators",
+};
 
 /** What the catalog still loading would have offered before indicator/domain. */
 const FALLBACK_FILTERS: readonly string[] = ["year", "season", "crop", "province", "district"];
@@ -102,7 +124,15 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
   const catalog = useQuery({ queryKey: ["datasets"], queryFn: api.datasets });
   const supportedFilters =
     catalog.data?.datasets.find((d) => d.key === datasetKey)?.filters ?? FALLBACK_FILTERS;
-  const shownFilters = FILTER_ORDER.filter((f) => supportedFilters.includes(f));
+  const shownFilters = useMemo(() => {
+    const filters = FILTER_ORDER.filter((f) => supportedFilters.includes(f));
+    // A period selector is clearer than three controls that express the same
+    // value. Legacy single-release tables without period_code still expose
+    // year and season when those columns are genuinely present.
+    return filters.includes("period_code")
+      ? filters.filter((f) => f !== "year" && f !== "season")
+      : filters;
+  }, [supportedFilters]);
 
   const total = query.data?.count ?? 0;
   const allColumns = useMemo(() => query.data?.columns ?? [], [query.data?.columns]);
@@ -121,7 +151,7 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
 
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + pageSize, total);
-  const hasFilters = applied || Object.values(filters).some(Boolean) || sortBy;
+  const hasFilters = Boolean(search || applied || Object.values(filters).some(Boolean) || sortBy);
 
   // One URL for the download, built from exactly the scope the table shows.
   const csvHref = datasetCsvHref(datasetKey, applied, filters, sortBy, sortDir);
@@ -144,59 +174,74 @@ export function DataTable({ datasetKey, label }: { datasetKey: string; label: st
     <Card className="overflow-hidden">
       <CardHeader title={label} subtitle={`Processed dataset · ${total} matching rows`} />
 
-      {/* Filter row */}
-      <div className="flex flex-wrap items-end gap-2 px-4 pb-2 pt-3">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            className="input w-52 pl-8"
-            placeholder="Search rows… (Enter)"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setApplied(search);
-                setOffset(0);
-              }
-            }}
-            aria-label="Search dataset rows"
-          />
+      {/* Search remains explicit because it is free text; exact dimensions use
+          automatic selects populated by the backend's complete vocabulary. */}
+      <div className="space-y-3 border-b border-forest/10 px-4 pb-3 pt-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block min-w-0 flex-1 sm:min-w-64">
+            <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Search rows
+            </span>
+            <span className="relative block">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                className="input w-full pl-8"
+                placeholder="Search all columns, then press Enter"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setApplied(search);
+                    setOffset(0);
+                  }
+                }}
+                aria-label="Search dataset rows"
+              />
+            </span>
+          </label>
+          {hasFilters ? (
+            <button type="button" className="btn" onClick={resetAll}>
+              Reset
+            </button>
+          ) : null}
         </div>
 
-        {shownFilters.map((f) => (
-          <label key={f} className="block">
-            <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              {f.replace(/_/g, " ")}
-            </span>
-            <input
-              className="input w-28"
-              placeholder={f === "period_code" ? "2025B" : f.replace(/_/g, " ")}
-              value={filters[f] ?? ""}
-              onChange={(e) => setFilter(f, e.target.value)}
-              aria-label={`Filter by ${f.replace(/_/g, " ")}`}
-            />
-          </label>
-        ))}
+        {shownFilters.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            {shownFilters.map((f) => {
+              const options = query.data?.filter_options?.[f] ?? [];
+              return (
+                <label key={f} className="block min-w-0">
+                  <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    {FILTER_LABELS[f] ?? f.replace(/_/g, " ")}
+                  </span>
+                  <select
+                    className="input w-full"
+                    value={filters[f] ?? ""}
+                    onChange={(e) => setFilter(f, e.target.value)}
+                    aria-label={`Filter by ${f.replace(/_/g, " ")}`}
+                    disabled={!options.length && query.isLoading}
+                  >
+                    <option value="">{FILTER_ALL_LABELS[f] ?? `All ${f.replace(/_/g, " ")}`}</option>
+                    {options.map((value) => (
+                      <option key={value} value={value}>
+                        {f === "period_code" ? periodLabel(value) : value}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">This dataset has no exact-match dimensions. Use search or browse the rows.</p>
+        )}
+      </div>
 
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            setApplied(search);
-            setOffset(0);
-          }}
-        >
-          Apply
-        </button>
-        {hasFilters ? (
-          <button type="button" className="btn" onClick={resetAll}>
-            Reset
-          </button>
-        ) : null}
-
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
         {/* Column visibility */}
         <details className="relative ml-auto">
           <summary className="btn cursor-pointer list-none select-none">Columns</summary>

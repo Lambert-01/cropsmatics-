@@ -54,6 +54,12 @@ def get_dataset(
     farmer_scale: str | None = Query(None),
     row_scope: str | None = Query(None),
     source_id: str | None = Query(None),
+    dataset: str | None = Query(None),
+    period: str | None = Query(None),
+    coverage_level: str | None = Query(None),
+    use: str | None = Query(None),
+    status_value: str | None = Query(None, alias="status"),
+    commodity_name_raw: str | None = Query(None),
     sort_by: str | None = Query(None, description="any column of the dataset"),
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> DatasetResponse:
@@ -83,6 +89,12 @@ def get_dataset(
             "farmer_scale": farmer_scale,
             "row_scope": row_scope,
             "source_id": source_id,
+            "dataset": dataset,
+            "period": period,
+            "coverage_level": coverage_level,
+            "use": use,
+            "status": status_value,
+            "commodity_name_raw": commodity_name_raw,
         },
     )
     try:

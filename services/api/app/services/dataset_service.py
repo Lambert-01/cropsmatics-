@@ -40,6 +40,11 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "postharvest_use_multi_period",
         "",
     ),
+    "training_district_crop": (
+        "Training Dataset (derived district × crop)",
+        "training_dataset",
+        "NISR_SAS_TRAINING_PANEL",
+    ),
     "district_crop_productivity": (
         "District Crop Productivity (2025B legacy)",
         "productivity_dataset",
@@ -85,6 +90,26 @@ DATASETS: dict[str, tuple[str, str, str]] = {
         "Cold-Chain Network Summary 2026 (MINAGRI-ACES)",
         "cold_chain_network_summary",
         "MINAGRI_ACES_COLDCHAIN_2026_NETWORK",
+    ),
+    "dashboard_overview": (
+        "Dashboard Overview Summary (derived)",
+        "dashboard_overview",
+        "NISR_SAS_DASHBOARD_SUMMARY",
+    ),
+    "data_coverage": (
+        "Data Coverage Register",
+        "data_coverage",
+        "DATA_COVERAGE_REGISTER",
+    ),
+    "data_sources": (
+        "Source Registry",
+        "data_sources",
+        "SOURCE_REGISTRY",
+    ),
+    "market_price_observation": (
+        "Market Price Observations (currently empty)",
+        "market_observations",
+        "NISR_SAS_MARKET_PRICES",
     ),
     "districts": ("District Dictionary", "districts", "REFERENCE_DICTIONARY"),
     "crops": ("Crop Dictionary", "crops", "REFERENCE_DICTIONARY"),
@@ -138,12 +163,22 @@ FILTERABLE_COLUMNS: dict[str, tuple[str, ...]] = {
     "cold_chain_context": ("district",),
     "postharvest_infrastructure": (),
     "cold_chain_network_summary": (),
+    "training_district_crop": ("district", "province", "canonical_crop_name", "year", "season", "source_id"),
+    "dashboard_overview": ("district", "province", "year", "season", "source_id"),
+    "data_coverage": ("dataset", "period", "coverage_level", "source_id"),
+    "data_sources": ("dataset", "use", "status"),
+    "market_price_observation": ("district", "province", "commodity_name_raw", "source_id"),
     "districts": ("province",),
     "crops": (),
 }
 
 # Common aliases accepted from the generic analytics filter vocabulary.
-_COLUMN_ALIASES = {"crop": "canonical_crop_name"}
+_COLUMN_ALIASES = {
+    "crop": "canonical_crop_name",
+    # The source registry calls this field ``status_in_package``; expose a
+    # shorter explorer filter without renaming the processed column.
+    "status": "status_in_package",
+}
 
 # Query params the explorer endpoints declare. FastAPI silently ignores
 # undeclared query parameters, which would let a typo or a dimension the
@@ -169,6 +204,12 @@ DATASET_JSON_PARAMS: frozenset[str] = frozenset(
         "farmer_scale",
         "row_scope",
         "source_id",
+        "dataset",
+        "period",
+        "coverage_level",
+        "use",
+        "status",
+        "commodity_name_raw",
         "sort_by",
         "sort_dir",
     }
@@ -181,14 +222,16 @@ DATASET_CSV_PARAMS: frozenset[str] = DATASET_JSON_PARAMS - {"limit", "offset"}
 # them, and a researcher may need the exact table a published figure came from.
 GROUP_CURRENT = "current"
 GROUP_ARCHIVE = "archive"
+GROUP_DERIVED = "derived"
 GROUP_PROGRAM = "program"
 GROUP_REFERENCE = "reference"
 
-GROUP_ORDER: tuple[str, ...] = (GROUP_CURRENT, GROUP_ARCHIVE, GROUP_PROGRAM, GROUP_REFERENCE)
+GROUP_ORDER: tuple[str, ...] = (GROUP_CURRENT, GROUP_ARCHIVE, GROUP_DERIVED, GROUP_PROGRAM, GROUP_REFERENCE)
 
 GROUP_LABELS: dict[str, str] = {
     GROUP_CURRENT: "Current (multi-period)",
     GROUP_ARCHIVE: "Archive (2025 Season B single release)",
+    GROUP_DERIVED: "Derived and model inputs",
     GROUP_PROGRAM: "Program context",
     GROUP_REFERENCE: "Reference",
 }
@@ -204,9 +247,14 @@ DATASET_GROUPS: dict[str, str] = {
     "irrigation_water": GROUP_ARCHIVE,
     "erosion_control": GROUP_ARCHIVE,
     "crop_postharvest_use": GROUP_ARCHIVE,
+    "training_district_crop": GROUP_DERIVED,
     "cold_chain_context": GROUP_PROGRAM,
     "postharvest_infrastructure": GROUP_PROGRAM,
     "cold_chain_network_summary": GROUP_PROGRAM,
+    "dashboard_overview": GROUP_DERIVED,
+    "data_coverage": GROUP_REFERENCE,
+    "data_sources": GROUP_REFERENCE,
+    "market_price_observation": GROUP_REFERENCE,
     "districts": GROUP_REFERENCE,
     "crops": GROUP_REFERENCE,
 }
@@ -259,10 +307,10 @@ def _accepted_filter_names(key: str) -> list[str]:
 def list_datasets() -> list[dict]:
     """Every whitelisted dataset, current first.
 
-    Grouped rather than flat: the current multi-period tables lead, the legacy
-    2025 Season B extracts follow as an archive, and the reference dictionaries
-    come last. Ordering is stable, so a client never has to hand-maintain a list
-    of tabs as new releases arrive.
+    Grouped rather than flat: current multi-period tables lead, legacy 2025
+    Season B extracts follow as an archive, derived/model-input tables follow
+    those, and reference dictionaries come last. Ordering is stable, so a
+    client never has to hand-maintain a list of tabs as new releases arrive.
     """
     order = {group: index for index, group in enumerate(GROUP_ORDER)}
     rows = [
@@ -319,6 +367,7 @@ def _selected(
     filters: dict[str, str] | None = None,
     sort_by: str | None = None,
     sort_dir: str = "asc",
+    source_frame: pd.DataFrame | None = None,
 ) -> tuple[str, str, pd.DataFrame]:
     """Resolve a whitelisted dataset to a filtered, searched, sorted frame.
 
@@ -330,7 +379,7 @@ def _selected(
     if key not in DATASETS:
         raise KeyError(key)
     label, loader_name, source_id = DATASETS[key]
-    df: pd.DataFrame = getattr(repo, loader_name)()
+    df: pd.DataFrame = source_frame if source_frame is not None else getattr(repo, loader_name)()
     label, source_id = _resolved_meta(key, label, source_id, df)
 
     allowed = FILTERABLE_COLUMNS.get(key, ())
@@ -376,6 +425,40 @@ def _selected(
         df = df.sort_values(by=sort_by, ascending=ascending, na_position="last")
 
     return label, source_id, df
+
+
+def _filter_options(key: str, df: pd.DataFrame) -> dict[str, list[str]]:
+    """Return stable select values from the complete loaded dataset.
+
+    Options must come from the full frame rather than the current paginated
+    response, otherwise valid districts, periods or crops can disappear from
+    the next filter interaction.
+    """
+    options: dict[str, list[str]] = {}
+    for requested in _accepted_filter_names(key):
+        column = _resolve_column(df, requested)
+        if column is None:
+            continue
+        values = sorted(
+            {
+                str(value).strip()
+                for value in df[column].dropna().tolist()
+                if str(value).strip()
+            }
+        )
+        if requested == "year":
+            values.sort(key=lambda value: int(value) if value.isdigit() else value)
+        elif requested == "season":
+            values.sort(key=lambda value: {"A": 0, "B": 1, "C": 2}.get(value.upper(), 99))
+        elif requested == "period_code":
+            values.sort(
+                key=lambda value: (
+                    value[:4],
+                    {"A": 0, "B": 1, "C": 2}.get(value[-1:].upper(), 99),
+                )
+            )
+        options[requested] = values
+    return options
 
 
 def parse_filters(
@@ -430,7 +513,14 @@ def fetch(
     sort_by: str | None = None,
     sort_dir: str = "asc",
 ) -> dict:
-    label, source_id, df = _selected(key, search, filters, sort_by, sort_dir)
+    # Load once and use the same complete frame for filtering and option
+    # discovery. Repository loaders are cached, but avoiding a second copy keeps
+    # large canonical tables cheap when the user changes a select.
+    _, loader_name, _ = DATASETS[key]
+    source_frame = getattr(repo, loader_name)()
+    label, source_id, df = _selected(
+        key, search, filters, sort_by, sort_dir, source_frame=source_frame
+    )
 
     total = int(len(df))
     window = df.iloc[offset : offset + limit].replace({np.nan: None})
@@ -445,6 +535,7 @@ def fetch(
         "limit": limit,
         "sort": {"by": sort_by, "direction": sort_dir} if sort_by else None,
         "filters": {k: v for k, v in (filters or {}).items() if v},
+        "filter_options": _filter_options(key, source_frame),
     }
 
 

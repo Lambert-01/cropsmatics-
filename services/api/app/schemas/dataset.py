@@ -36,3 +36,6 @@ class DatasetResponse(BaseModel):
     # the effective scope. None when the request was unfiltered.
     sort: dict | None = None
     filters: dict | None = None
+    # Complete distinct values for supported exact-match filters. The explorer
+    # uses these to render select controls instead of raw text inputs.
+    filter_options: dict[str, list[str]] = Field(default_factory=dict)

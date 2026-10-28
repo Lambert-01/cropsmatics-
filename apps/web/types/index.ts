@@ -1463,6 +1463,8 @@ export interface DatasetResponse {
   count: number;
   offset: number;
   limit: number;
+  /** Complete distinct values for the dataset's supported exact-match filters. */
+  filter_options?: Record<string, string[]>;
 }
 
 /**

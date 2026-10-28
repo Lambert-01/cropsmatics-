@@ -38,6 +38,18 @@ def test_dataset_accepts_supported_crop_filter(client):
         assert str(row["canonical_crop_name"]).lower() == "maize"
 
 
+def test_dataset_returns_complete_select_options(client):
+    """The explorer can build selects without asking users to type values."""
+    _require_data(client)
+    res = client.get("/api/v1/meta/dataset/district_crop_productivity", params={"limit": 1})
+    assert res.status_code == 200
+    options = res.json()["filter_options"]
+    assert {"year", "season", "crop", "province", "district"} <= set(options)
+    assert options["year"]
+    assert options["season"]
+    assert options["district"]
+
+
 def test_dataset_rejects_unsupported_filter_with_400(client):
     _require_data(client)
     res = client.get(
