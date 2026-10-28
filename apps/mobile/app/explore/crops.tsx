@@ -4,14 +4,14 @@ import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { CropBoardRow, type BoardMetric } from "../../src/components/CropBoardRow";
-import { ChangeIndicator, DataSection, MetricSelector } from "../../src/components/data-view";
+import { ChangeIndicator, DataSection, DataWarning, MetricSelector } from "../../src/components/data-view";
 import { ScreenLayout } from "../../src/components/ScreenLayout";
 import { EmptyState, ErrorState, FilterButton, FilterChip, ListRow, LoadingSkeleton, SearchBar } from "../../src/components/ui";
 import { SingleSelectSheet } from "../../src/components/terminal/SingleSelectSheet";
-import { useAllCrops, useNationalBoard, usePeriods } from "../../src/hooks/queries";
+import { useAllCrops, useAllDistricts, useNationalBoard, usePeriods, usePracticeIndicators } from "../../src/hooks/queries";
 import { useSavedCrops } from "../../src/hooks/useSavedCrops";
 import { strings } from "../../src/i18n";
-import type { NationalBoardCrop } from "../../src/types";
+import type { NationalBoardCrop, PracticeObservation } from "../../src/types";
 import { useAppStore } from "../../src/store/useAppStore";
 import { spacing } from "../../src/theme";
 import type { Palette } from "../../src/theme";
@@ -35,17 +35,25 @@ export default function CropsScreen() {
   const [scope, setScope] = useState<"all" | "saved">("all");
   const [metric, setMetric] = useState<BoardMetric>("production_mt");
   const [periodCode, setPeriodCode] = useState<string | null>(null);
+  const [district, setDistrict] = useState<string | null>(null);
   const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const [districtSheetOpen, setDistrictSheetOpen] = useState(false);
 
   const crops = useAllCrops();
   const periodsQuery = usePeriods();
+  const districtsQuery = useAllDistricts();
   // One request for the whole board: the series are already aligned to a shared
   // period axis and the same-season change is computed by the service. The
   // exact period scope is applied by the server, so a filtered board is filtered
   // data rather than a filtered label. The default is deliberately the complete
   // published axis, not the latest release.
   const board = useNationalBoard(undefined, { periodCode });
+  const practice = usePracticeIndicators({
+    district: district ?? undefined,
+    periodCode: periodCode ?? undefined,
+    enabled: Boolean(district),
+  });
   const { savedCodes, toggle } = useSavedCrops();
 
   const byName = useMemo(() => {
@@ -91,6 +99,13 @@ export default function CropsScreen() {
     ],
     [categories, t],
   );
+  const districtOptions = useMemo(
+    () => [
+      { id: "__all__", label: t.allDistricts, hint: t.nationalSeries },
+      ...(districtsQuery.data ?? []).map((item) => ({ id: item.district, label: item.district })),
+    ],
+    [districtsQuery.data, t],
+  );
 
   const savedCount = useMemo(
     () => (crops.data ?? []).filter((crop) => savedCodes[crop.crop_code]).length,
@@ -107,6 +122,20 @@ export default function CropsScreen() {
       }),
     [crops.data, category, query, scope, savedCodes],
   );
+
+  // A period filter must change the visible observations, not only the label
+  // above them. Rows with no value in the selected release are omitted and the
+  // empty state explains why, instead of showing an unchanged catalogue with
+  // repeated "not published" values.
+  const visibleRows = useMemo(() => {
+    if (!periodCode || !board.data) return rows;
+    const index = board.data.periods.indexOf(periodCode);
+    if (index < 0) return [];
+    return rows.filter((crop) => {
+      const entry = byName.get(crop.crop_name.toLowerCase());
+      return typeof entry?.series?.[metric]?.[index] === "number";
+    });
+  }, [board.data, byName, metric, periodCode, rows]);
 
   // Movers come straight from the board's platform-computed same-season change:
   // the strongest rise and the strongest fall in published production. A crop
@@ -168,6 +197,13 @@ export default function CropsScreen() {
           icon="layers-outline"
           onPress={() => setCategorySheetOpen(true)}
         />
+        <FilterButton
+          label={t.district}
+          value={district ?? t.allDistricts}
+          active={district !== null}
+          icon="location-outline"
+          onPress={() => setDistrictSheetOpen(true)}
+        />
       </View>
 
       <SingleSelectSheet
@@ -182,6 +218,19 @@ export default function CropsScreen() {
           setPeriodSheetOpen(false);
         }}
         onCancel={() => setPeriodSheetOpen(false)}
+      />
+      <SingleSelectSheet
+        visible={districtSheetOpen}
+        title={t.district}
+        subtitle={t.cropDistrictLensSubtitle}
+        searchPlaceholder={t.searchDistricts}
+        options={districtOptions}
+        selected={district ?? "__all__"}
+        onApply={(next) => {
+          setDistrict(next && next !== "__all__" ? next : null);
+          setDistrictSheetOpen(false);
+        }}
+        onCancel={() => setDistrictSheetOpen(false)}
       />
       <SingleSelectSheet
         visible={categorySheetOpen}
@@ -207,6 +256,8 @@ export default function CropsScreen() {
           { id: "yield_mt_ha", label: t.metricYield },
         ]}
       />
+
+      {district ? <DistrictLens district={district} practice={practice} /> : null}
 
       {/* Movers: a compact read of the biggest published changes. */}
       {!loading && metric === PULSE_METRIC && (movers.growing.length || movers.falling.length) ? (
@@ -236,11 +287,11 @@ export default function CropsScreen() {
             <LoadingSkeleton key={key} height={ROW_HEIGHT} />
           ))}
         </View>
-      ) : rows.length ? (
+      ) : visibleRows.length ? (
         <>
           <View style={styles.countRow}>
             <Text style={typography.micro}>
-              {`${rows.length} ${t.crops} · ${selectedPeriodLabel}`}
+              {`${visibleRows.length} ${t.crops} · ${selectedPeriodLabel}`}
             </Text>
             <Text style={typography.micro}>
               {periods.length ? `${periods[0]}–${periods[periods.length - 1]}` : ""}
@@ -252,7 +303,7 @@ export default function CropsScreen() {
             <Text style={typography.caption}>{t.noComparableChange}</Text>
           ) : null}
           <View>
-            {rows.map((crop) => {
+            {visibleRows.map((crop) => {
               const saved = Boolean(savedCodes[crop.crop_code]);
               return (
                 <CropBoardRow
@@ -289,11 +340,55 @@ export default function CropsScreen() {
       ) : (
         <EmptyState
           title={scope === "saved" ? t.savedEmpty : t.noResults}
-          message={t.noDataAvailable}
+          message={periodCode ? t.noPublishedSelection.replace("{metric}", metricLabel).replace("{selection}", selectedPeriodLabel) : t.noDataAvailable}
           icon={scope === "saved" ? "bookmark-outline" : "leaf-outline"}
         />
       )}
     </ScreenLayout>
+  );
+}
+
+function DistrictLens({
+  district,
+  practice,
+}: {
+  district: string;
+  practice: ReturnType<typeof usePracticeIndicators>;
+}) {
+  const { typography } = useTheme();
+  const t = strings(useAppStore((s) => s.language));
+  const observations = useMemo(() => {
+    const latest = new Map<string, PracticeObservation>();
+    for (const row of practice.data?.observations ?? []) {
+      if (row.value !== null && row.value !== undefined) latest.set(row.indicator_code, row);
+    }
+    return Array.from(latest.values()).slice(0, 6);
+  }, [practice.data]);
+
+  return (
+    <DataSection title={`${t.district}: ${district}`} subtitle={t.cropDistrictLensSubtitle}>
+      {practice.isError ? (
+        <ErrorState message={t.errorGeneric} onRetry={() => void practice.refetch()} />
+      ) : practice.isLoading ? (
+        <LoadingSkeleton height={140} />
+      ) : practice.data && !practice.data.available ? (
+        <EmptyState title={practice.data.note ?? t.noDataAvailable} icon="layers-outline" />
+      ) : observations.length ? (
+        <>
+          {observations.map((row) => (
+            <ListRow
+              key={`${row.indicator_code}-${row.period_code}`}
+              title={row.indicator_code.replace(/_/g, " ")}
+              subtitle={`${row.period_code} · ${row.unit ?? "%"}`}
+              right={<Text style={typography.numericSmall}>{`${row.value}${row.unit ? ` ${row.unit}` : ""}`}</Text>}
+            />
+          ))}
+          <DataWarning text={t.cropDistrictLensNote} tone="slate" />
+        </>
+      ) : (
+        <EmptyState title={t.noDataAvailable} icon="layers-outline" />
+      )}
+    </DataSection>
   );
 }
 

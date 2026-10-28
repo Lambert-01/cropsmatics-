@@ -72,7 +72,7 @@ export function DistrictDetailSheet({
           style={{
             ...typography.numericLarge,
             fontSize: 26,
-            color: published ? colors.forestDeep : colors.slate500,
+            color: published ? colors.kpiValue : colors.slate500,
             fontVariant: ["tabular-nums"],
           }}
         >

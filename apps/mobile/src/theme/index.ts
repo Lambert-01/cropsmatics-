@@ -38,6 +38,14 @@ export const colors = {
   positiveSoft: "#E7F7EF",
   negativeSoft: "#FEECEC",
 
+  // Text roles. Numeric values use a dedicated role so a theme change cannot
+  // accidentally inherit a decorative brand colour with insufficient contrast.
+  textPrimary: "#032D23",
+  textSecondary: "#334155",
+  textMuted: "#64748B",
+  kpiValue: "#032D23",
+  onPrimary: "#FFFFFF",
+
   // Data-surface neutrals. A analytical interface separates sections with thin
   // rules rather than lifting every block onto its own card.
   hairline: "#E4EBE7",
@@ -110,6 +118,14 @@ export const darkColors: typeof colors = {
   // Tinted surfaces for semantic badges
   positiveSoft: "#12312A",
   negativeSoft: "#3A1A1A",
+
+  // Text roles stay bright on dark surfaces; KPI figures are intentionally
+  // independent from the light/dark brand wordmark colours above.
+  textPrimary: "#F8FAFC",
+  textSecondary: "#D7E5DE",
+  textMuted: "#A7B8B1",
+  kpiValue: "#F8FAFC",
+  onPrimary: "#FFFFFF",
 
   // Surfaces
   border: "#243A33",
@@ -307,16 +323,16 @@ export function makeTypography(colors: Palette, scale = 1) {
    * silently ignores the preference.
    */
   scale,
-  display: { fontSize: size(28), fontWeight: "700" as const, color: colors.forestDeep },
-  h1: { fontSize: size(24), fontWeight: "700" as const, color: colors.forestDeep },
-  h2: { fontSize: size(18), fontWeight: "700" as const, color: colors.forest },
-  h3: { fontSize: size(16), fontWeight: "600" as const, color: colors.forest },
-  body: { fontSize: size(15), color: colors.slate },
-  bodySmall: { fontSize: size(14), color: colors.slate },
-  caption: { fontSize: size(13), color: colors.muted },
-  micro: { fontSize: size(12), color: colors.muted },
-  metric: { fontSize: size(22), fontWeight: "700" as const, color: colors.forestDeep },
-  label: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate700 },
+  display: { fontSize: size(28), fontWeight: "700" as const, color: colors.textPrimary },
+  h1: { fontSize: size(24), fontWeight: "700" as const, color: colors.textPrimary },
+  h2: { fontSize: size(18), fontWeight: "700" as const, color: colors.textPrimary },
+  h3: { fontSize: size(16), fontWeight: "600" as const, color: colors.textPrimary },
+  body: { fontSize: size(15), color: colors.textSecondary },
+  bodySmall: { fontSize: size(14), color: colors.textSecondary },
+  caption: { fontSize: size(13), color: colors.textMuted },
+  micro: { fontSize: size(12), color: colors.textMuted },
+  metric: { fontSize: size(22), fontWeight: "700" as const, color: colors.kpiValue },
+  label: { fontSize: size(13), fontWeight: "600" as const, color: colors.textSecondary },
 
   // ---- Numeric hierarchy ---------------------------------------------------
   // Tabular figures keep columns of numbers aligned and stop a value from
@@ -324,26 +340,26 @@ export function makeTypography(colors: Palette, scale = 1) {
   numericLarge: {
     fontSize: size(30),
     fontWeight: "700" as const,
-    color: colors.forestDeep,
+    color: colors.kpiValue,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   /** The figure that heads a KPI card: a step below `numericLarge`. */
   numericCard: {
     fontSize: size(24),
     fontWeight: "700" as const,
-    color: colors.forestDeep,
+    color: colors.kpiValue,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numeric: {
     fontSize: size(17),
     fontWeight: "700" as const,
-    color: colors.forestDeep,
+    color: colors.kpiValue,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   numericSmall: {
     fontSize: size(13),
     fontWeight: "600" as const,
-    color: colors.slate700,
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"] as ["tabular-nums"],
   },
   unit: { fontSize: size(13), fontWeight: "600" as const, color: colors.slate500 },

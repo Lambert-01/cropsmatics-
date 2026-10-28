@@ -299,6 +299,17 @@ def test_provider_status_never_leaks_the_credential(monkeypatch):
     assert status["fallback_provider"] == "deterministic"
 
 
+def test_public_assistant_status_is_safe_and_reachable(client, monkeypatch):
+    monkeypatch.delenv("AI_ENABLED", raising=False)
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    response = client.get("/api/v1/assistant/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["fallback_available"] is True
+    assert body["selected"] == "deterministic"
+    assert "api_key" not in body["primary"]
+
+
 def test_a_failing_provider_does_not_break_the_answer(client, monkeypatch):
     _require_data(client)
 

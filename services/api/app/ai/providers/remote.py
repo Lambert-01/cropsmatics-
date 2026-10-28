@@ -141,7 +141,7 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
         base_names = ("AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
         key_names = ("AI_API_KEY", "GROQ_API_KEY", "OPENAI_API_KEY")
     elif provider == "gemini":
-        default_model = "gemini-3.5-flash-lite"
+        default_model = "gemini-2.5-flash"
         default_base = "https://generativelanguage.googleapis.com/v1beta"
         model_names = ("AI_MODEL", "GEMINI_MODEL")
         base_names = ("AI_BASE_URL", "GEMINI_BASE_URL")
@@ -197,7 +197,7 @@ def load_gemini_config(environ: dict[str, str] | None = None) -> RemoteConfig:
     return RemoteConfig(
         enabled=flag("GEMINI_ENABLED", False),
         provider="gemini",
-        model=_first(env, "GEMINI_MODEL") or "gemini-3.5-flash-lite",
+        model=_first(env, "GEMINI_MODEL") or "gemini-2.5-flash",
         base_url=_rstrip(
             _first(env, "GEMINI_BASE_URL")
             or "https://generativelanguage.googleapis.com/v1beta"

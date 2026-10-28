@@ -106,6 +106,20 @@ export default function AskScreen() {
   );
 
   const suggestions = useQuery({ queryKey: ["ask-suggestions"], queryFn: () => askApi.suggestions(6) });
+  const providerStatus = useQuery({
+    queryKey: ["ask-provider-status"],
+    queryFn: askApi.status,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const fallbackSuggestions = [
+    "Which districts have the largest maize productivity gaps?",
+    "Which practices are associated with maize yield?",
+    "Show the maize yield trend over time.",
+  ];
+  const suggestedQuestions = suggestions.data?.questions?.length
+    ? suggestions.data.questions
+    : fallbackSuggestions;
   const stages = askProgressStages(t);
 
   /**
@@ -210,13 +224,26 @@ export default function AskScreen() {
             <Text style={{ ...typography.caption, textAlign: "center" }}>{t.askSubtitle}</Text>
           </View>
 
+          <View style={styles.statusLine} accessibilityLiveRegion="polite">
+            <Ionicons
+              name={providerStatus.data?.primary.available ? "sparkles-outline" : "shield-checkmark-outline"}
+              size={15}
+              color={providerStatus.data?.primary.available ? colors.primary : colors.amber}
+            />
+            <Text style={styles.statusText}>
+              {providerStatus.data?.primary.available
+                ? `AI-assisted · ${providerStatus.data.primary.model ?? providerStatus.data.selected}`
+                : "Grounded data assistant · verified fallback ready"}
+            </Text>
+          </View>
+
           {!turns.length ? (
             suggestions.isLoading ? (
               <LoadingSkeleton height={120} />
             ) : (
               <>
                 <Text style={typography.h3}>{t.askSuggestedQuestions}</Text>
-                {(suggestions.data?.questions ?? []).map((question) => (
+                {suggestedQuestions.map((question) => (
                   <Card key={question} onPress={() => send(question)} accessibilityLabel={question}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
                       <Text style={{ ...typography.body, flex: 1 }}>{question}</Text>
@@ -224,9 +251,6 @@ export default function AskScreen() {
                     </View>
                   </Card>
                 ))}
-                {!suggestions.data?.questions?.length ? (
-                  <EmptyState title={t.noDataAvailable} icon="chatbubble-outline" />
-                ) : null}
               </>
             )
           ) : null}
@@ -486,6 +510,17 @@ function AnswerDetails({
 const makeStyles = (colors: Palette, typography: Typography) =>
   StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+  statusLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.mintSoft,
+  },
+  statusText: { ...typography.micro, color: colors.textSecondary },
   askIcon: {
     width: 56,
     height: 56,
@@ -504,7 +539,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   },
   blockTitle: { ...typography.caption, fontWeight: "700", color: colors.primaryStrong },
   figureRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  figureValue: { fontSize: 14, fontWeight: "700", color: colors.forestDeep },
+  figureValue: { fontSize: 14, fontWeight: "700", color: colors.kpiValue },
   notGrounded: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   failureCard: { gap: spacing.sm, backgroundColor: colors.surface },
   composer: {
@@ -526,7 +561,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
     fontSize: 15,
-    color: colors.slate900,
+    color: colors.textPrimary,
   },
   send: {
     width: 46,

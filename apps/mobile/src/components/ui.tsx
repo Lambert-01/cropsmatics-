@@ -563,7 +563,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     gap: 8,
     paddingHorizontal: spacing.md,
   },
-  primaryButtonText: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  primaryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   secondaryButton: {
     minHeight: 48,
     borderRadius: radius.md,
@@ -605,7 +605,7 @@ const makeStyles = (colors: Palette, typography: Typography) =>
   },
   chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, color: colors.slate700, fontWeight: "600" },
-  chipTextSelected: { color: colors.white },
+  chipTextSelected: { color: colors.onPrimary },
   filterButton: {
     minHeight: 52,
     minWidth: 150,
@@ -662,5 +662,5 @@ const makeStyles = (colors: Palette, typography: Typography) =>
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  infoValue: { fontSize: 15, fontWeight: "700", color: colors.forestDeep },
+  infoValue: { fontSize: 15, fontWeight: "700", color: colors.kpiValue },
 });

@@ -61,7 +61,7 @@ export function MetricReadout({
                 ? colors.primaryStrong
                 : tone === "negative"
                   ? colors.danger
-                  : colors.forestDeep
+                : colors.kpiValue
               : colors.slate500,
           }}
         >

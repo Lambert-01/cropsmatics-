@@ -178,7 +178,7 @@ export default function AnalyzeScreen() {
 
   return (
     <ScreenLayout active="analyze">
-      <SectionHeader title={t.analyze} subtitle={t.cropBoardSubtitle} />
+      <SectionHeader title={t.insightsTitle} subtitle={t.cropBoardSubtitle} />
 
       <View style={styles.filterGrid}>
         <FilterButton
@@ -288,6 +288,15 @@ export default function AnalyzeScreen() {
             </Text>
           </Card>
 
+          <InsightDigest
+            title={t.insightDigestTitle}
+            body={t.insightDigestBody}
+            latest={nationalPoints[nationalPoints.length - 1] ?? null}
+            unit={unit}
+            period={periodLabels[periods[periods.length - 1] ?? ""] ?? periods[periods.length - 1] ?? null}
+            metricLabel={metricLabel}
+          />
+
           <MetricSelector
             label={t.selectIndicator}
             value={metric}
@@ -388,6 +397,40 @@ export default function AnalyzeScreen() {
         </Card>
       ))}
     </ScreenLayout>
+  );
+}
+
+function InsightDigest({
+  title,
+  body,
+  latest,
+  unit,
+  period,
+  metricLabel,
+}: {
+  title: string;
+  body: string;
+  latest: SeriesPoint | null;
+  unit: string | null;
+  period: string | null;
+  metricLabel: string;
+}) {
+  const { colors, typography } = useTheme();
+  return (
+    <Card style={{ gap: spacing.sm, borderLeftWidth: 3, borderLeftColor: colors.primary }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        <Ionicons name="bulb-outline" size={19} color={colors.primary} />
+        <Text style={typography.h3}>{title}</Text>
+      </View>
+      <Text style={typography.caption}>{body}</Text>
+      {latest?.value !== null && latest?.value !== undefined ? (
+        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 5 }}>
+          <Text style={typography.numericCard}>{formatValue(latest.value)}</Text>
+          {unit ? <Text style={typography.unit}>{unit}</Text> : null}
+          <Text style={typography.micro}>{`${metricLabel} · ${period ?? "published period"}`}</Text>
+        </View>
+      ) : null}
+    </Card>
   );
 }
 

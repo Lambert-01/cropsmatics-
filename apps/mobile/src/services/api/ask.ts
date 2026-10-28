@@ -7,6 +7,13 @@ interface SuggestionsResponse {
   note: string;
 }
 
+export interface AssistantProviderStatus {
+  selected: string;
+  fallback_available: boolean;
+  primary: { available: boolean; provider: string; model?: string | null };
+  secondary?: { available: boolean; provider: string; model?: string | null };
+}
+
 export const askApi = {
   query: (payload: AskQuery) =>
     request<AskAnswer>("/assistant/query", {
@@ -15,4 +22,5 @@ export const askApi = {
     }),
   suggestions: (limit = 6) =>
     request<SuggestionsResponse>(`/assistant/suggestions${qs({ limit })}`),
+  status: () => request<AssistantProviderStatus>("/assistant/status"),
 };

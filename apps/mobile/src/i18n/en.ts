@@ -21,6 +21,7 @@ export const en = {
   exploreData: "Explore Data",
   crops: "Crops",
   districts: "Districts",
+  allDistricts: "All districts",
   seasons: "Seasons",
   indicators: "Indicators",
   sources: "Sources",
@@ -188,6 +189,10 @@ export const en = {
   factorsDistrictScope:
     "Estimated across all districts for this crop — not this district alone, which has no cross-district variation to correlate.",
   insightsTitle: "Insights",
+  cropDistrictLensSubtitle: "Published district practices and context for the selected period",
+  cropDistrictLensNote: "These are district survey indicators, not crop-specific causal effects.",
+  insightDigestTitle: "What the published data says",
+  insightDigestBody: "Start with the latest published value, then use the trend and district view to decide what to investigate next.",
   latestInsightTitle: "Latest insight",
   seeAllInsights: "See all insights",
   insightsFeedSubtitle: "Derived from the latest published national data",
@@ -881,7 +886,7 @@ export const en = {
   savedCrops: "Your saved crops",
   popularCrops: "Popular published crops",
   // ---- Bottom navigation ---------------------------------------------------
-  analyze: "Analyze",
+  analyze: "Insights",
   chartsPeriodSwipeHint: "Swipe up or down to move between published periods.",
   chartNoPeriods: "No periods published",
   chartNoDataShort: "No data",

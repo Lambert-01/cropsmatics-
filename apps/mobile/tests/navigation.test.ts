@@ -10,7 +10,7 @@ describe("bottom navigation destinations", () => {
   });
 
   it("maps each destination to a stable, non-accumulating href", () => {
-    expect(tabHref("analyze")).toBe("/explore/analyze");
+    expect(tabHref("analyze")).toBe("/explore/insights");
     expect(tabHref("map")).toBe("/maps");
     expect(tabHref("ask")).toBe("/ask");
     // A tab is always a concrete route, never the current one.
@@ -39,7 +39,7 @@ describe("activeTabForSegments", () => {
     expect(activeTabForSegments(["explore", "district", "[districtCode]"])).toBe("crops");
   });
 
-  it("marks Analyze for the hub and for the comparison workspace", () => {
+  it("marks Insights for the hub and for the comparison workspace", () => {
     expect(activeTabForSegments(["explore", "analyze"])).toBe("analyze");
     expect(activeTabForSegments(["explore", "compare"])).toBe("analyze");
   });

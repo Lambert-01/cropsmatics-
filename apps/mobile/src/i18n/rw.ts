@@ -280,6 +280,7 @@ export const rw: Strings = {
   exploreData: "Shakisha amakuru",
   crops: "Crops",
   districts: "Districts",
+  allDistricts: "Uturere twose",
   seasons: "Ibihe",
   indicators: "Indicators",
   sources: "Inkomoko",
@@ -428,6 +429,10 @@ export const rw: Strings = {
   factorsDistrictScope:
     "Estimated across all districts for this crop — not this district alone, which has no cross-district variation to correlate.",
   insightsTitle: "Ibyagaragaye",
+  cropDistrictLensSubtitle: "Imikorere n'amakuru y'akarere byatangajwe kuri iki gihe",
+  cropDistrictLensNote: "Ibi ni ibipimo by'ubushakashatsi bw'akarere; ntibyemeza ko ari byo bitera umusaruro w'igihingwa.",
+  insightDigestTitle: "Ibyo amakuru yatangajwe agaragaza",
+  insightDigestBody: "Tangira ku gaciro ka nyuma katangajwe, hanyuma ukoreshe imigendekere n'ibipimo by'uturere uhitemo ibyo gukurikirana.",
   latestInsightTitle: "Ibyagaragaye bishya",
   seeAllInsights: "Reba byose",
   // Derived-sentence templates kept in English pending native-speaker review.
@@ -865,7 +870,7 @@ export const rw: Strings = {
   savedCrops: "Ibihingwa wabitse",
   popularCrops: "Ibihingwa bikunze kuboneka",
   // ---- Bottom navigation ---------------------------------------------------
-  analyze: "Sesengura",
+  analyze: "Ibyagaragaye",
   chartsPeriodSwipeHint: "Kurura hejuru cyangwa hasi kugira ngo ujye mu bihe byatangajwe.",
   chartNoPeriods: "Nta bihe byatangajwe",
   chartNoDataShort: "Nta makuru",

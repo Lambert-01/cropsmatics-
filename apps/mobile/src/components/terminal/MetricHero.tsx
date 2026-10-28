@@ -52,7 +52,7 @@ export function MetricHero({
           style={{
             ...(compact ? typography.numericLarge : typography.numericLarge),
             fontSize: compact ? 26 : 34,
-            color: published ? colors.forestDeep : colors.slate500,
+            color: published ? colors.kpiValue : colors.slate500,
             fontVariant: ["tabular-nums"],
           }}
         >

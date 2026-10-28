@@ -92,5 +92,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   section: { gap: spacing.sm },
   headline: { borderLeftWidth: 3, borderLeftColor: colors.amber, padding: spacing.md, gap: spacing.xs },
   target: { gap: spacing.sm },
-  value: { color: colors.forestDeep, fontSize: 24, fontWeight: "700" },
+  value: { color: colors.kpiValue, fontSize: 24, fontWeight: "700" },
 });

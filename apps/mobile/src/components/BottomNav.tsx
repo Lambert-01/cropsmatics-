@@ -15,7 +15,7 @@ import {
 } from "../utils/navigation";
 
 /**
- * Five-destination bottom bar: Home, Crops, Analyze, Map, Ask.
+ * Five-destination bottom bar: Home, Crops, Insights, Map, Ask.
  *
  * The destinations come from `src/utils/navigation`, so the bar, the tests and
  * any future deep-link handling share one definition. Navigation uses

@@ -5,7 +5,7 @@
  * tab bar, the tests and deep-link handling all agree. Kept pure (no Expo Router
  * import) so it is testable in a plain node environment.
  *
- * The five destinations are Home, Crops, Analyze, Map and Ask. "Analyze" is the
+ * The five destinations are Home, Crops, Insights, Map and Ask. "Insights" is the
  * analytical hub; comparing is one of the things you can do there, not the tab
  * itself, so the tab no longer doubles as the comparison screen.
  *
@@ -29,7 +29,7 @@ export interface TabDefinition {
 export const TABS: readonly TabDefinition[] = [
   { id: "home", labelKey: "home", href: "/" },
   { id: "crops", labelKey: "crops", href: "/explore/crops" },
-  { id: "analyze", labelKey: "analyze", href: "/explore/analyze" },
+  { id: "analyze", labelKey: "analyze", href: "/explore/insights" },
   { id: "map", labelKey: "map", href: "/maps" },
   { id: "ask", labelKey: "ask", href: "/ask" },
 ] as const;
@@ -75,7 +75,7 @@ export function activeTabForSegments(segments: readonly string[]): TabId | null 
   if (!root || root === "index") return "home";
   if (root === "explore") {
     // Compare is something you do in Analyze, and the hub itself is Analyze.
-    if (section === "analyze" || section === "compare") return "analyze";
+    if (section === "analyze" || section === "insights" || section === "compare") return "analyze";
     if (section && CROPS_SECTIONS.has(section)) return "crops";
     return null;
   }

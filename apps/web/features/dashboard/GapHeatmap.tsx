@@ -1,10 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { EmptyState, TableSkeleton } from "@/components/ui/States";
-import { legendGradient, makeScale } from "@/features/maps/colors";
 import { fmtNumber } from "@/lib/format";
 import type { HeatmapResponse } from "@/types";
 
@@ -15,115 +22,61 @@ export function GapHeatmap({
   data?: HeatmapResponse;
   isLoading?: boolean;
 }) {
-  const lookup = useMemo(() => {
-    const map = new Map<string, number | null>();
-    (data?.cells ?? []).forEach((c) => map.set(`${c.district}|${c.crop}`, c.value ?? null));
-    return map;
-  }, [data]);
-
-  // Nulls are passed through rather than replaced with 0..1: when the API has no
-  // published gap for the selection, every cell is "no verified data" and the
-  // legend says the range is unpublished instead of drawing an invented span.
-  const scale = useMemo(
-    () =>
-      makeScale(
-        data?.min_value,
-        data?.max_value,
-        "diverging",
-        (data?.cells ?? []).map((c) => c.value),
-      ),
-    [data],
-  );
-
   if (isLoading) return <TableSkeleton rows={8} />;
 
-  const crops = data?.crops ?? [];
-  const districts = data?.districts ?? [];
+  // A ranked bar chart preserves the exact cell values while making the answer
+  // scannable. The former matrix required horizontal scrolling and forced users
+  // to decode colour plus rotated crop labels before finding the largest gaps.
+  const rows = (data?.cells ?? [])
+    .filter((cell) => typeof cell.value === "number" && Number.isFinite(cell.value))
+    .map((cell) => ({
+      label: `${cell.district} · ${cell.crop}`,
+      district: cell.district,
+      crop: cell.crop,
+      value: cell.value as number,
+    }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, 12);
 
   return (
     <Card className="overflow-hidden">
       <CardHeader
-        title="Productivity gap heatmap"
-        subtitle="District × crop median gap index against each crop's benchmark — red is a larger gap, green is at or above benchmark"
+        title="Largest productivity gaps"
+        subtitle="Top district × crop shortfalls against each crop's benchmark"
       />
-      {districts.length === 0 || crops.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="p-4">
           <EmptyState />
         </div>
       ) : (
-        <>
-          <div className="thin-scroll mt-3 overflow-auto">
-            <div
-              className="grid min-w-max gap-0.5"
-              style={{ gridTemplateColumns: `9rem repeat(${crops.length}, 2.4rem)` }}
-            >
-              <div />
-              {crops.map((c) => (
-                <div
-                  key={c}
-                  className="truncate pb-1 text-center text-[10px] font-medium text-slate-500"
-                  style={{ writingMode: "vertical-rl", height: "6.5rem" }}
-                  title={c}
-                >
-                  {c}
-                </div>
-              ))}
-              {districts.map((d) => (
-                <FragmentRow key={d} district={d} crops={crops} lookup={lookup} scale={scale} />
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-3 text-[11px] text-slate-500">
-            <span>{fmtNumber(scale.min, 0)}%</span>
-            <span
-              className="h-2.5 w-40 rounded-full"
-              style={{ background: legendGradient(scale) }}
-              aria-hidden="true"
-            />
-            <span>{fmtNumber(scale.max, 0)}%</span>
-            <span className="ml-2">
-              gap index{scale.min <= 0 && scale.max >= 0 ? " — 0 is the benchmark" : " — every cell sits below the benchmark"}
-            </span>
-          </div>
-        </>
+        <div className="h-[320px] px-2 pt-3">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 20, bottom: 8, left: 10 }}>
+              <CartesianGrid stroke="#EDF3F0" horizontal={false} />
+              <XAxis type="number" tickFormatter={(value: number) => `${fmtNumber(value, 0)}%`} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                width={132}
+                tick={{ fontSize: 10, fill: "#475569" }}
+                tickFormatter={(value: string) => value.length > 22 ? `${value.slice(0, 22)}…` : value}
+              />
+              <Tooltip
+                formatter={(value: unknown) => [
+                  `${fmtNumber(typeof value === "number" ? value : Number(value ?? 0), 1)}%`,
+                  "Gap index",
+                ]}
+                labelFormatter={(label) => label}
+              />
+              <Bar dataKey="value" name="Gap index" fill="#D97706" radius={[0, 4, 4, 0]} maxBarSize={20} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
       <SourceNote>
-        Cells are median district × crop values computed by Python; blank cells have no verified
-        observation for that selection.
+        Values are Python-computed district × crop gap indices. A positive value means the
+        observed yield is below that crop's benchmark; blank observations are omitted.
       </SourceNote>
     </Card>
-  );
-}
-
-function FragmentRow({
-  district,
-  crops,
-  lookup,
-  scale,
-}: {
-  district: string;
-  crops: string[];
-  lookup: Map<string, number | null>;
-  scale: ReturnType<typeof makeScale>;
-}) {
-  return (
-    <>
-      <div className="truncate pr-2 text-xs text-slate-600" title={district}>
-        {district}
-      </div>
-      {crops.map((crop) => {
-        const value = lookup.get(`${district}|${crop}`);
-        return (
-          <div
-            key={`${district}-${crop}`}
-            className="h-8 rounded-sm"
-            style={{ backgroundColor: scale.color(value ?? null) }}
-            title={`${district} · ${crop}: ${
-              value == null ? "no verified data" : `${fmtNumber(value, 1)}%`
-            }`}
-          />
-        );
-      })}
-    </>
   );
 }

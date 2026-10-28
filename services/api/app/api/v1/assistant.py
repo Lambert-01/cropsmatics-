@@ -29,6 +29,7 @@ from app.ai.conversation import STORE
 from app.ai.intent_router import INTENTS
 from app.ai.orchestrator import answer as engine_answer
 from app.ai.orchestrator import stream_answer as engine_stream
+from app.ai.providers import provider_status
 from app.ai.rate_limit import AssistantRateLimitExceeded, check_request
 from app.ai.schemas import AIContext, AIRequest
 from app.services import assistant_language, mobile_service
@@ -128,6 +129,12 @@ def suggestions(limit: int = 6) -> dict:
         "intents": list(INTENTS),
         "note": "generated from real observations so every suggestion is groundable",
     }
+
+
+@router.get("/status")
+async def assistant_status() -> dict:
+    """Return safe provider availability without exposing credentials or errors."""
+    return await provider_status()
 
 
 @router.post("/query", response_model=QueryOut)

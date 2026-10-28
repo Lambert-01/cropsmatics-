@@ -24,6 +24,7 @@ export const fr: Strings = {
   exploreData: "Explorer les données",
   crops: "Cultures",
   districts: "Districts",
+  allDistricts: "Tous les districts",
   seasons: "Saisons",
   indicators: "Indicateurs",
   sources: "Sources",
@@ -130,4 +131,9 @@ export const fr: Strings = {
   shareNotConfigured: "Aucun lien d'installation n'est configuré pour cette version.",
   apiNoteDemo: "Cette version utilise une API de démonstration sur le réseau local. Utilisez-la sur le même Wi-Fi.",
   apiNotePublic: "Cette version utilise l'API publique Cropmatics et fonctionne avec toute connexion Internet.",
+  cropDistrictLensSubtitle: "Pratiques et contexte publiés du district pour la période choisie",
+  cropDistrictLensNote: "Ces indicateurs proviennent d'enquêtes du district et ne prouvent pas une cause pour la culture.",
+  insightDigestTitle: "Ce que montrent les données publiées",
+  insightDigestBody: "Commencez par la dernière valeur publiée, puis utilisez la tendance et la vue par district pour choisir quoi examiner.",
+  analyze: "Insights",
 };

@@ -55,8 +55,9 @@ describe("dark palette", () => {
 
   it("bakes the dark foreground into typography", () => {
     const typography = makeTypography(darkColors);
-    expect(typography.h1.color).toBe(darkColors.forestDeep);
-    expect(typography.body.color).toBe(darkColors.slate);
+    expect(typography.h1.color).toBe(darkColors.textPrimary);
+    expect(typography.body.color).toBe(darkColors.textSecondary);
+    expect(typography.numericCard.color).toBe(darkColors.kpiValue);
     // ...and does not leak light-mode ink.
     expect(typography.h1.color).not.toBe(colors.forestDeep);
   });
