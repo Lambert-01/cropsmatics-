@@ -9,6 +9,8 @@ const INSTALL_PAGE_ENV = process.env.NEXT_PUBLIC_INSTALL_PAGE_URL;
 const APK_URL_ENV = process.env.NEXT_PUBLIC_INSTALL_APK_URL;
 const API_BASE_ENV = process.env.NEXT_PUBLIC_API_BASE_URL;
 const APK_DOWNLOAD_PATH = "/install/apk";
+const APK_URL_FALLBACK =
+  "https://github.com/Lambert-01/cropsmatics-/releases/download/mobile-demo-2026-10-25/cropmatics-rwanda-demo.apk";
 
 /**
  * Resolve the URL that the QR code should encode.
@@ -43,9 +45,12 @@ export default function InstallPage() {
   const { t } = useLanguage();
   const installUrl = resolveInstallUrl();
   const apiBase = resolveApiBase();
-  const configuredApkUrl = publicUrl(APK_URL_ENV);
+  // Keep the page usable if a preview deployment has no Vercel env yet. The
+  // stable GitHub release is a verified binary and can be replaced without
+  // changing the QR/install page URL.
+  const configuredApkUrl = publicUrl(APK_URL_ENV) ?? APK_URL_FALLBACK;
   // Share one same-origin URL. The route redirects to the configured public release.
-  const apkUrl = configuredApkUrl ? APK_DOWNLOAD_PATH : null;
+  const apkUrl = APK_DOWNLOAD_PATH;
   const isLocalApi =
     !!apiBase && /^(https?:\/\/)(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)/.test(apiBase);
 
@@ -85,22 +90,15 @@ export default function InstallPage() {
           </p>
           <p className="mt-2 break-all text-xs font-semibold text-forest-deep">{installUrl}</p>
           <div className="mt-4 flex w-full flex-wrap justify-center gap-2">
-            {apkUrl ? (
-              <a
-                className="btn btn-primary"
-                href={apkUrl}
-                download="cropmatics-rwanda.apk"
-                aria-label={`${t("install.download")} (${configuredApkUrl})`}
-              >
-                {t("install.download")}
-              </a>
-            ) : null}
+            <a
+              className="btn btn-primary"
+              href={apkUrl}
+              download="cropmatics-rwanda.apk"
+              aria-label={`${t("install.download")} (${configuredApkUrl})`}
+            >
+              {t("install.download")}
+            </a>
           </div>
-          {!apkUrl ? (
-            <p className="mt-3 max-w-sm text-[11px] leading-relaxed text-amber-700">
-              {t("install.noLink")} Set <code>NEXT_PUBLIC_INSTALL_APK_URL</code> in Vercel.
-            </p>
-          ) : null}
         </section>
 
         <section className="card px-4 py-4">
@@ -131,6 +129,29 @@ export default function InstallPage() {
           {isLocalApi
             ? t("install.localApi")
             : t("install.publicApi")}
+        </p>
+      </section>
+
+      <section className="card px-4 py-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <h2 className="card-title">{t("install.compatibilityTitle")}</h2>
+            <p className="mt-2 text-sm font-semibold text-forest-deep">
+              {t("install.compatibility")}
+            </p>
+          </div>
+          <div>
+            <h2 className="card-title">{t("install.downloadSource")}</h2>
+            <a
+              href={configuredApkUrl}
+              className="mt-2 block break-all text-xs text-primary underline-offset-2 hover:underline"
+            >
+              {configuredApkUrl}
+            </a>
+          </div>
+        </div>
+        <p className="mt-4 border-t border-forest/5 pt-3 text-[11px] leading-relaxed text-slate-500">
+          {t("install.parseError")}
         </p>
       </section>
     </div>

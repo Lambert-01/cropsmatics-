@@ -54,6 +54,10 @@ export const DICT: Record<Lang, Record<string, string>> = {
     "install.api": "API",
     "install.localApi": "This build uses a local API. Install it while you are on the same Wi-Fi.",
     "install.publicApi": "This build uses the public Cropmatics API and works with any internet connection.",
+    "install.compatibilityTitle": "Android compatibility",
+    "install.compatibility": "Android 7.0 or newer (API 24+)",
+    "install.downloadSource": "Verified APK source",
+    "install.parseError": "If Android says the package cannot be parsed, redownload from this page and check that the phone runs Android 7.0 or newer. The APK must remain a .apk file; do not rename or unzip it.",
   },
   rw: {
     "nav.overview": "Incamake",
@@ -99,6 +103,10 @@ export const DICT: Record<Lang, Record<string, string>> = {
     "install.api": "API",
     "install.localApi": "Iyi verisiyo ikoresha API yo kuri murandasi waho. Yikoreshe uri kuri Wi-Fi imwe.",
     "install.publicApi": "Iyi verisiyo ikoresha API rusange ya Cropmatics kandi ikora kuri interineti.",
+    "install.compatibilityTitle": "Ibyo telefoni igomba kuba yujuje",
+    "install.compatibility": "Android 7.0 cyangwa irenze (API 24+)",
+    "install.downloadSource": "Aho APK yemejwe ikurwa",
+    "install.parseError": "Niba Android ivuze ko package idashobora gusomwa, ongera uyikure kuri uru rupapuro kandi urebe ko telefoni ifite Android 7.0 cyangwa irenze. APK igomba kuguma ari dosiye .apk; ntuyihindure cyangwa ngo uyifungure.",
   },
   fr: {
     "nav.overview": "Vue d'ensemble",
@@ -144,6 +152,10 @@ export const DICT: Record<Lang, Record<string, string>> = {
     "install.api": "API",
     "install.localApi": "Cette version utilise une API locale. Installez-la en étant connecté au même Wi-Fi.",
     "install.publicApi": "Cette version utilise l'API publique Cropmatics et fonctionne avec toute connexion Internet.",
+    "install.compatibilityTitle": "Compatibilité Android",
+    "install.compatibility": "Android 7.0 ou version ultérieure (API 24+)",
+    "install.downloadSource": "Source de l'APK vérifié",
+    "install.parseError": "Si Android indique que le package ne peut pas être analysé, téléchargez à nouveau l'APK depuis cette page et vérifiez que le téléphone utilise Android 7.0 ou une version ultérieure. Le fichier doit rester en .apk; ne le renommez pas et ne le décompressez pas.",
   },
 };
 
