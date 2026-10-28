@@ -320,6 +320,7 @@ class FactorsResponse(BaseModel):
 
 class PostHarvestCrop(BaseModel):
     crop: str
+    canonical_crop_name: str | None = None
     sold_pct: float | None = None
     own_consumption_pct: float | None = None
     stored_pct: float | None = None

@@ -258,6 +258,7 @@ export interface PeriodProductivityResponse {
 
 export interface PostHarvestCrop {
   crop: string;
+  canonical_crop_name?: string | null;
   sold_pct: number | null;
   own_consumption_pct: number | null;
   stored_pct: number | null;

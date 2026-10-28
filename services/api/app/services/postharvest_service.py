@@ -55,7 +55,10 @@ def summary(crop: str | None = None) -> dict:
     df = repo.postharvest_use().replace({np.nan: None})
 
     if crop:
-        mask = df["crop"].astype(str).str.lower() == crop.strip().lower()
+        requested = crop.strip().lower()
+        mask = df["crop"].astype(str).str.lower() == requested
+        if "canonical_crop_name" in df.columns:
+            mask = mask | (df["canonical_crop_name"].astype(str).str.lower() == requested)
         if not mask.any():
             raise KeyError(f"unknown crop: {crop}")
         df = df[mask]
@@ -64,6 +67,11 @@ def summary(crop: str | None = None) -> dict:
     for _, row in df.iterrows():
         crops.append({
             "crop": str(row["crop"]),
+            "canonical_crop_name": (
+                str(row["canonical_crop_name"])
+                if row.get("canonical_crop_name") is not None
+                else str(row["crop"])
+            ),
             "sold_pct": _val(row.get("sold_pct")),
             "own_consumption_pct": _val(row.get("own_consumption_pct")),
             "stored_pct": _val(row.get("stored_pct")),

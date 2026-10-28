@@ -44,6 +44,15 @@ def test_post_harvest_crop_filter_is_case_insensitive(client):
     assert {c["crop"].lower() for c in body["crops"]} == {"maize"}
 
 
+def test_post_harvest_crop_filter_accepts_canonical_crop_name(client):
+    """Canonical productivity names can resolve published source variants."""
+    _require_data(client)
+    res = client.get("/api/v1/analytics/post-harvest", params={"crop": "Banana"})
+    assert res.status_code == 200, res.text
+    assert res.json()["crops"]
+    assert {row["canonical_crop_name"] for row in res.json()["crops"]} == {"Banana"}
+
+
 def test_legacy_postharvest_path_matches_canonical_path(client):
     """Older deployed web bundles can use /postharvest during rollout."""
     _require_data(client)
