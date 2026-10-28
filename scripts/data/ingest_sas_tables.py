@@ -21,6 +21,7 @@ both mean the national aggregate and are normalized to ``total``.
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass
 
@@ -38,6 +39,16 @@ from scripts.data.io_sas import read_table
 
 # Rows that are not districts in the district-keyed tables.
 _NON_DISTRICT_ROWS = {"total", "small scale farmers (ssf)", "large scale farmer (lsf)", "national"}
+
+# The annual 2022 workbook labels its published aggregate rows in several
+# period-bearing forms (for example ``National 2022 A`` and ``National Level
+# 2022``). They are still national totals, but the year-bearing variants also
+# include the previous-year comparison row. Matching the requested period here
+# prevents that comparison row from being loaded as a duplicate aggregate.
+_NATIONAL_PERIOD_LABEL = re.compile(
+    r"^national(?:\s+level)?(?:\s+(\d{4})(?:\s+([abc]))?)?$",
+    re.IGNORECASE,
+)
 
 # Crop columns that double-count their children (kept OUT of the canonical
 # panel; the aggregates live only in the national trends dataset).
@@ -114,6 +125,41 @@ def _clean(value: object) -> str:
 def _clean_label(value: object) -> str:
     """Column/row label normalization: collapse internal whitespace."""
     return " ".join(_clean(value).split())
+
+
+def _aggregate_scope(label: str, period_code: str | None) -> str | None:
+    """Return an aggregate row scope when ``label`` names this release.
+
+    NISR uses ``Total``/``National`` for current aggregates, while the 2022
+    annual tables use labels such as ``National 2022 A`` and
+    ``National Level 2022`` followed by a prior-year comparison. The latter
+    must be period-aware: loading both would create duplicate keys and would
+    mix the comparison row into the current release.
+    """
+    lowered = label.lower()
+    if lowered in _NON_DISTRICT_ROWS:
+        return {
+            "total": "total",
+            "national": "total",
+            "small scale farmers (ssf)": "ssf",
+            "large scale farmer (lsf)": "lsf",
+        }[lowered]
+
+    match = _NATIONAL_PERIOD_LABEL.fullmatch(label)
+    if not match:
+        return None
+    year_text, season = match.groups()
+    if year_text and period_code:
+        target_year, target_season = split_period(period_code)
+        if int(year_text) != target_year:
+            return None
+        if season and season.upper() != target_season:
+            return None
+    elif year_text:
+        # A caller without a target period cannot safely distinguish the
+        # current aggregate from a previous-year comparison row.
+        return None
+    return "total"
 
 
 def _num(value: object) -> float | None:
@@ -281,7 +327,10 @@ def _district_lookup(districts: pd.DataFrame) -> dict[str, str]:
 
 
 def _iter_district_rows(
-    grid: pd.DataFrame, layout: _Layout, known_lower: dict[str, str]
+    grid: pd.DataFrame,
+    layout: _Layout,
+    known_lower: dict[str, str],
+    period_code: str | None = None,
 ) -> tuple[list[tuple[int, str, str]], str]:
     """Yield ``(row_index, raw_label, scope)`` for rows below the header.
 
@@ -309,13 +358,8 @@ def _iter_district_rows(
         if lowered.startswith("source:"):
             source_title = label
             break
-        if lowered in _NON_DISTRICT_ROWS:
-            scope = {
-                "total": "total",
-                "national": "total",
-                "small scale farmers (ssf)": "ssf",
-                "large scale farmer (lsf)": "lsf",
-            }.get(lowered, lowered)
+        scope = _aggregate_scope(label, period_code)
+        if scope:
             rows.append((i, label, scope))
             continue
         if lowered in known_lower:
@@ -371,7 +415,7 @@ def parse_productivity(districts: pd.DataFrame) -> pd.DataFrame:
                 + (f" ({spec.period_override_reason})" if spec.period_override_reason else "")
             )
 
-        rows, _ = _iter_district_rows(grid, layout, known)
+        rows, _ = _iter_district_rows(grid, layout, known, spec.period_code)
         for row_idx, raw_label, scope in rows:
             # Aggregate rows carry a label ("Total", "National", SSF, LSF) in
             # ``row_scope_raw``; ``district`` stays a real district or null so a
@@ -420,7 +464,7 @@ def parse_district_indicator_tables(
         layout = _resolve_layout(grid)
         year, season = split_period(spec.period_code)
         title = _find_title(grid, layout)
-        rows, _ = _iter_district_rows(grid, layout, known)
+        rows, _ = _iter_district_rows(grid, layout, known, spec.period_code)
         for row_idx, raw_label, scope in rows:
             official = known.get(raw_label.lower())
             for col in range(layout.label_col + 1, grid.shape[1]):
@@ -583,7 +627,7 @@ def parse_irrigation_water(districts: pd.DataFrame) -> pd.DataFrame:
             mapping = _irrigation_water_mapping(grid, layout)
             year, season = split_period(spec.period_code)
             title = _find_title(grid, layout)
-            rows, _ = _iter_district_rows(grid, layout, known)
+            rows, _ = _iter_district_rows(grid, layout, known, spec.period_code)
             for row_idx, raw_label, scope in rows:
                 official = known.get(raw_label.lower())
                 for col, indicator in mapping.items():
@@ -621,7 +665,7 @@ def parse_erosion(districts: pd.DataFrame) -> pd.DataFrame:
             year, season = split_period(spec.period_code)
             title = _find_title(grid, layout)
             is_severity = spec.domain == "erosion_severity"
-            rows, _ = _iter_district_rows(grid, layout, known)
+            rows, _ = _iter_district_rows(grid, layout, known, spec.period_code)
             for row_idx, raw_label, scope in rows:
                 official = known.get(raw_label.lower())
                 for col in range(layout.label_col + 1, grid.shape[1]):

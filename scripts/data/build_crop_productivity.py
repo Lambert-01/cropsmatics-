@@ -6,7 +6,7 @@ Input:  ``data/interim/sas_productivity_long.csv`` (written by
 Output: ``data/processed/crop_productivity.csv``, one row per
         period x geography x crop with the four published metrics in columns.
 
-The panel covers every period NISR has published (2024A-2026B). Values are
+The panel covers every period NISR has published (2022A-2026B). Values are
 never imputed: a district that published no figure keeps a null instead of a
 zero, and a crop NISR did not tabulate for a period simply has no row rather
 than a fabricated zero.

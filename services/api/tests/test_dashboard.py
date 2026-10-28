@@ -148,6 +148,29 @@ def test_period_with_district_panel_reports_district_coverage(client):
     assert body["provenance"]["source_id"].startswith("NISR_SAS_2024")
 
 
+@pytest.mark.parametrize("period_code", ["2022A", "2022B", "2023A", "2023B"])
+def test_historical_productivity_filters_return_crops_and_districts(client, period_code):
+    """The historical annual releases are real district productivity data.
+
+    This guards the production symptom where the UI showed zero after selecting
+    2022/2023 because the national aggregate labels in the source workbook were
+    not being parsed, or because the filter accidentally fell back to the
+    legacy 2025B-only table.
+    """
+    _require_data(client)
+    response = client.get(
+        "/api/v1/dashboard/overview",
+        params={"period_code": period_code, "crop": "Maize", "district": "Ngoma"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["coverage_level"] == "district"
+    assert body["n_observations"] == 1
+    assert body["period_code"] == period_code
+    assert next(k for k in body["kpis"] if k["id"] == "total_production")["value"] > 0
+    assert next(k for k in body["kpis"] if k["id"] == "districts")["value"] == 1
+
+
 def test_latest_panel_period_is_served(client):
     _require_data(client)
     body = client.get("/api/v1/dashboard/overview?period_code=2026B").json()

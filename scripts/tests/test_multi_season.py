@@ -218,6 +218,30 @@ def test_panel_values_match_the_published_source_cells(processed_dir):
         )
 
 
+def test_period_bearing_national_labels_keep_2022_production_and_area(processed_dir):
+    """2022 aggregate labels must not drop the national production metrics.
+
+    The 2022 workbook writes the current aggregate as ``National 2022 A/B`` or
+    ``National Level 2022`` and then prints a previous-year comparison row. The
+    parser must keep the current row and ignore the comparison row.
+    """
+    from scripts.data.ingest_sas_tables import _aggregate_scope
+
+    assert _aggregate_scope("National 2022 A", "2022A") == "total"
+    assert _aggregate_scope("National Level 2022", "2022B") == "total"
+    assert _aggregate_scope("National 2021 A", "2022A") is None
+
+    panel = pd.read_csv(require(processed_dir / CROP_PRODUCTIVITY))
+    national = panel[
+        (panel["geography_level"] == "NATIONAL")
+        & (panel["row_scope"] == "total")
+        & panel["period_code"].isin(["2022A", "2022B"])
+    ]
+    assert len(national) == 34
+    for metric in ("harvested_area_ha", "production_mt", "yield_kg_ha"):
+        assert national[metric].notna().all(), metric
+
+
 def _canonical_crop_label(published_label: str) -> str:
     """Published crop label -> canonical crop name (mirrors the reader's map)."""
     from scripts.data.ingest_sas_tables import _CROP_CANONICAL

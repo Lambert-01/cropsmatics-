@@ -81,6 +81,12 @@ Both annual workbooks were read directly to locate their metric blocks; the shee
 positions differ from 2024 and 2025, so each TableSpec was verified against the
 workbook before being added.
 
+The 2022 workbook uses period-bearing aggregate labels such as `National 2022 A`,
+`National 2022 B` and `National Level 2022`, followed by prior-year comparison
+rows. The ingestion parser now matches the current release period before
+classifying these rows as the national `total`, so national production and
+harvested-area values are retained without importing the comparison row.
+
 | Release | cultivated area | harvested area | yield | production |
 |---|---|---|---|---|
 | 2022 annual | Tables 11, 12, 13 (A, B, C) | Tables 14, 15, 16 | Tables 17, 18, 19 | Tables 23, 24, 25 |
