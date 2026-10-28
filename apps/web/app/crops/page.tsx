@@ -72,13 +72,25 @@ export default function CropCataloguePage() {
     if (hydrated) saveSavedCrops(window.localStorage, saved);
   }, [saved, hydrated]);
 
-  const categories = useMemo(() => cropCategories(cropList), [cropList]);
+  const scopedCatalogue = useMemo(() => {
+    // A single-period board is the authoritative coverage scope for this page.
+    // Season C releases publish fewer crops, so do not label the full catalogue
+    // as published when the selected release has no row for a crop.
+    if (!board.data || board.data.periods.length !== 1 || !cropList) return cropList ?? [];
+    const published = new Set(
+      board.data.crops
+        .filter((row) => row.n_published_periods > 0)
+        .map((row) => row.crop.toLowerCase()),
+    );
+    return cropList.filter((crop) => published.has(crop.crop_name.toLowerCase()));
+  }, [board.data, cropList]);
+  const categories = useMemo(() => cropCategories(scopedCatalogue), [scopedCatalogue]);
   const matches = useMemo(() => {
-    const found = filterCrops(cropList, { query, category });
+    const found = filterCrops(scopedCatalogue, { query, category });
     return savedScope ? found.filter((crop) => saved.includes(crop.crop_code)) : found;
-  }, [cropList, query, category, savedScope, saved]);
+  }, [scopedCatalogue, query, category, savedScope, saved]);
   const groups = useMemo(() => groupCropsByCategory(matches), [matches]);
-  const total = cropList?.length ?? 0;
+  const total = scopedCatalogue.length;
   const savedCount = useMemo(
     () => (cropList ?? []).filter((crop) => saved.includes(crop.crop_code)).length,
     [cropList, saved],
