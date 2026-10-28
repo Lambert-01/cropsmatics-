@@ -113,6 +113,14 @@ def test_greeting_is_conversational_without_data_claims(client):
     assert "Cropmatics Assistant" in body["answer"]
 
 
+def test_explicit_observation_uses_exact_metric_contract(client):
+    body = _ask(client, "production of sorghum in Gatsibo")
+    assert body["intent"] == "district_crop_observation"
+    assert body["answer_mode"] == "deterministic"
+    assert "production" in body["answer"].lower()
+    assert "yield" not in body["answer"].lower()
+
+
 def test_the_guard_still_inspects_answers_that_contain_figures(client):
     _require_data(client)
     body = _ask(client, "Why is maize yield low in Gisagara?")

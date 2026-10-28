@@ -57,7 +57,10 @@ async def _ask_provider(provider, request, routed, bundle, reference) -> Provide
     # Greetings are conversational UX, not analytical requests. Keep them local
     # even when a remote provider is configured so an empty evidence bundle can
     # never invite the model to improvise facts.
-    if routed.intent == "greeting":
+    if routed.intent in {"greeting", "district_crop_observation"}:
+        # These are exact deterministic contracts: conversational small talk must
+        # not invoke a provider, and an explicit metric question must not let a
+        # model substitute another metric from the same published row.
         return await fallback_provider().generate(request, routed, bundle, reference)
     if _agent_available(provider):
         return await agent.run(
