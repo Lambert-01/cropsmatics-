@@ -21,7 +21,6 @@ import { DataWarning } from "../../src/components/data-view";
 import {
   Badge,
   Card,
-  EmptyState,
   LoadingSkeleton,
   SecondaryButton,
   SourceCard,

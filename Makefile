@@ -151,6 +151,10 @@ data: ## Run the full data pipeline (validate → normalize → build)
 data-validate: ## Validate raw datasets only
 	$(PYTHON) scripts/data/validate_raw.py
 
+.PHONY: scientific-validation
+scientific-validation: ## Produce the machine-readable and human-readable scientific validation report
+	$(PYTHON) scripts/data/scientific_validation.py
+
 .PHONY: ml
 ml: ## Build training dataset + baseline model metrics
 	$(PY) -m ml.src.pipelines.run_training

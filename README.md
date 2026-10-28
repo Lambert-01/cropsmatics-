@@ -158,6 +158,7 @@ intended for remote users. See
 make lint
 make typecheck
 make test
+make scientific-validation
 pnpm --filter cropmatics-web test
 npm --prefix apps/mobile test
 NEXT_PUBLIC_API_BASE_URL=https://cropsmatics-api.onrender.com/api/v1 pnpm --filter cropmatics-web build

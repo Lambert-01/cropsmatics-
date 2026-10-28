@@ -1,7 +1,8 @@
 # Data Card — Cropmatics Rwanda
 
-**Reviewed:** 2026-10-28. The production readiness check reports the same
-canonical dataset identity as the rebuilt local pipeline.
+**Reviewed:** 2026-10-28. The checked-in panel is the current verified data
+artefact; the release gate requires rebuilding it on the release commit so the
+manifest, code and submitted report share one identity.
 
 A reviewer-facing summary of what data the product uses, what it computes, and
 what it must **not** be used for. Detailed evidence is linked, not reproduced.
@@ -48,9 +49,10 @@ licence are the owner's to declare; this document does not make that declaration
 | Districts with district rows | 30 |
 | Canonical crops | 17 |
 
-**Freshness note.** The local pipeline was rebuilt and an idempotent second build
-reproduced the same content-addressed identity. Render readiness reports the
-same identity and refuses to serve an out-of-sync canonical database.
+**Freshness note.** The pipeline has an idempotent content-addressed rebuild and
+the backend refuses an out-of-sync canonical database. Run `make data` followed
+by `make scientific-validation` on the release commit; the validation report
+must show no code/data identity mismatch before submission.
 
 ## Geographic units, periods and definitions
 

@@ -47,6 +47,13 @@ under [Submission And Review](#submission-and-review).
 
 - [Data card](docs/submission/DATA_CARD.md)
 - [Number traceability and outstanding lineage work](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md)
+- [NISR final excellence audit](docs/audits/NISR_2026_FINAL_EXCELLENCE_AUDIT.md)
+- [Scientific data validation](docs/audits/SCIENTIFIC_DATA_VALIDATION.md)
+- [Mathematical and model verification](docs/audits/MATHEMATICAL_MODEL_VERIFICATION.md)
+- [Web and mobile UX acceptance](docs/audits/WEB_MOBILE_UX_ACCEPTANCE.md)
+- [Production release verification](docs/audits/PRODUCTION_RELEASE_VERIFICATION.md)
+- [NISR judging scorecard](docs/audits/NISR_JUDGING_SCORECARD.md)
+- [Final remaining gaps](docs/audits/FINAL_REMAINING_GAPS.md)
 - [UX verification matrix](docs/submission/UX_VERIFICATION.md)
 - [AI evaluation and known guard limitations](docs/submission/AI_EVALUATION.md)
 - [Kinyarwanda review](docs/KINYARWANDA_REVIEW.md)
