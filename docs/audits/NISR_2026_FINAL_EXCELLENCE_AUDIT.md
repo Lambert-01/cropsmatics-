@@ -1,128 +1,96 @@
-# Cropmatics Rwanda — NISR 2026 Final Excellence Audit
+# Cropmatics Rwanda — Consolidated NISR 2026 Readiness Audit
 
-Team: **DataSprout** (`Lambert` and `Joyeuse`)  
-Track: **Agricultural Productivity**  
-Review branch: `codex/final-excellence-2026`  
-Review base commit: `9c1d01f`  
-Date: 2026-10-28
+**Team:** DataSprout (Lambert and Joyeuse)  
+**Competition:** NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity  
+**Reviewed:** 28 October 2026  
+**Audited feature commit:** `78e760c` on `codex/final-excellence-2026` (based on main `9c1d01f`)  
+**Scope:** Scientific release validation, software and usability evidence, deployment boundaries and competition readiness. This is an internal assessment, **not** an official NISR result.
 
-## 1. Executive verdict
+## Executive decision
 
-Cropmatics is ready for a controlled demonstration and is a strong Track 1
-submission candidate. It is not honestly “100% production-ready” yet: this
-branch still needs deployment identity confirmation, isolated database tests,
-physical Android verification and human Kinyarwanda review. The software/data
-gate passed with 11 checks, 0 failures and 2 explicit unresolved findings.
+**Ready to rehearse and record a controlled web demonstration. Not certified as fully validated production software or a field-proven agricultural intervention system.**
 
-## 2. Actual implemented improvements
+Cropmatics combines official NISR Seasonal Agricultural Survey statistics, district-and-crop productivity comparisons, interpretable intervention-priority scenarios, documented source evidence, a grounded assistant and an Expo mobile app. The defensible problem statement is:
 
-- Added `scripts/data/scientific_validation.py`, a deterministic data and
-  lineage release gate with JSON and Markdown outputs.
-- Added a Make target: `make scientific-validation`.
-- Added regression tests for source inconsistency visibility, natural-key
-  handling and the current panel release gate.
-- Removed an unused mobile Ask-screen import that caused a lint warning.
-- Added the seven audit documents in `docs/audits/`.
-- Preserved the existing grounded AI, forecast withholding, source precedence,
-  intervention eligibility, data coverage and offline architecture.
+> Use official crop-production statistics to identify district productivity shortfalls, compare evidence-supported investigation priorities, and support transparent planning decisions.
 
-## 3. Scientific verification
+Do not claim it delivers validated future yield forecasts, market prices, facility capacities, proven causal yield gains or measured farmer outcomes where no such evidence exists.
 
-The current canonical panel has 6,156 rows across 14 published periods, 30
-districts and 17 canonical crops. It contains no synthetic rows. Workbook,
-sheet, metric-table and source-row lineage are present on every row. The
-annual 2025B release is the serving authority; standalone 2025B workbooks are
-archive-only.
+## Scientific validation
 
-The verified formula policies are:
+New executable check: `scripts/data/scientific_validation.py` through `make scientific-validation`; regression tests in `scripts/tests/test_scientific_validation.py`.
 
-```text
-yield = 1000 * production_mt / harvested_area_ha
-PGI = 100 * (benchmark - observed) / benchmark
-```
+| Local report from the audited branch | Result |
+|---|---:|
+| Passed checks | 11 |
+| Failed checks | 0 |
+| Skipped checks | 0 |
+| Unresolved findings | 2 |
 
-The current source audit reports 4,929 rows within reconciliation tolerance and
-89 material published-yield inconsistencies. Official values are preserved and
-the inconsistencies remain visible as unresolved source findings.
+The two unresolved findings are (1) **89 materially inconsistent official published yield observations** compared with `1000 × production_mt / harvested_area_ha`, and (2) the checked-in processed manifest was generated from a **different code commit**. Rebuilding the dataset on the selected release commit and rerunning the scientific gate is required. The 89 findings are source-quality issues to investigate and disclose, **not values to overwrite**.
 
-## 4. Mathematical and ML assessment
+The documented canonical panel has **6,156 observations, 14 released periods (2022A–2026B), 30 districts and 17 crops**. Check current output rather than treating these as fixed constants. The validator checks natural-key uniqueness, non-negativity, source-release precedence, lineage fields, data dimensions and version identity. It does **not** prove every original workbook cell or every displayed UI number is independently audited.
 
-The API and ML productivity-gap implementations have regression coverage for
-benchmark strategies, direction, missing benchmarks and eligibility. Priority
-scores are non-causal, above-benchmark observations cannot become shortfall
-priorities, and unavailable components are not filled with zero. Forecasts are
-withheld without chronological validation; manual projections remain labelled
-as user assumptions.
+**Equations and interpretation:**
+- `implied_yield_kg_ha = 1000 × production_mt / harvested_area_ha` for reconciliation; published yield remains the source observation
+- `PGI (%) = 100 × (benchmark - observed) / benchmark`, defined for positive benchmark
+- Top-quartile comparable-district benchmarking now uses **median** consistently in the API and ML helper
+- National aggregate yields require a ratio of compatible production and area totals, not a simple cross-crop yield average
+- Missing observations remain missing, not fabricated zeros
+- Priority weights are heuristic decision-support parameters, not estimated causal effects or probabilities
+- User-input planning projections are not validated forecasts or confidence intervals
+- Forecasts remain withheld when chronological backtesting does not pass publication criteria
 
-Details: [`MATHEMATICAL_MODEL_VERIFICATION.md`](MATHEMATICAL_MODEL_VERIFICATION.md).
+Source proof: [SAS coverage audit](../data/SAS_COVERAGE_AUDIT.md) · [Data Card](../submission/DATA_CARD.md) · [Detailed traceability](../submission/DATA_TO_NUMBER_TRACEABILITY.md) · [Model interpretation](../MODEL_INTERPRETATION_POLICY.md) · [Forecast validation](../forecasting/FORECAST_VALIDATION.md).
 
-## 5. UI/UX assessment
+**Traceability boundary:** workbook/sheet/table/source-row metadata are supplied; exact per-metric Excel cell resolution for every multi-table derived figure is still incomplete.
 
-The web application has route-level browser/component evidence, responsive map
-controls, source disclosures and automated serious/critical accessibility
-checks. Native mobile tests remain unverified because a physical device was not
-available in this local run. Kinyarwanda needs fluent human review.
+## Engineering and interface evidence
 
-Details: [`WEB_MOBILE_UX_ACCEPTANCE.md`](WEB_MOBILE_UX_ACCEPTANCE.md).
+The development agent reported: **445 web tests** and **354 mobile tests** passed, plus API, script and ML suites; the prior repository report records **16/16 Playwright checks** and **zero serious/critical automated axe findings** on ten sampled routes. The scientific feature branch itself had no independent GitHub Actions run at audit time; the base `main` commit had passing CI. Do not merge the two claims.
 
-## 6. Production results
+Web dashboards, crop analytics, district maps, intervention rankings, planning calculations, provenance and error states have automated coverage. **Not yet accepted end-to-end:** full rendered browser review, export and share-link behavior under all scopes, keyboard/drawer flows and approval of all important screenshots.
 
-This is a review branch, not a deployed release. The processed manifest is from
-an earlier commit, so a release rebuild is required. Database-backed tests
-remain skipped without an isolated PostGIS database. No production database
-write was performed.
+**Android:** built/available APK and component tests do not replace installation and field testing on a physical phone. Map selection, Compare, Ask, any enabled Field Operations, offline persistence, reconnect and idempotent sync require real-device evidence. Field Operations are feature-flagged off by default; never demonstrate them as enabled without confirming the build.
 
-Details: [`PRODUCTION_RELEASE_VERIFICATION.md`](PRODUCTION_RELEASE_VERIFICATION.md).
+**AI:** deterministic grounded answers and claim-guard tests are supported, but a real credentialed Groq/Gemini response, human-scored answer quality and native Kinyarwanda meaning have not been verified for this branch.
 
-## 7. NISR judging scorecard
+See the maintained [UX verification matrix](../submission/UX_VERIFICATION.md), [AI evaluation](../submission/AI_EVALUATION.md) and [language review](../KINYARWANDA_REVIEW.md).
 
-Current evidence-based readiness: Problem 8.5/10, Data and Methodology
-8.5/10, Technical Innovation 8.0/10, Usability and Design 7.5/10, Tangible
-Practical Impact 6.5/10. These are readiness estimates, not judge results.
+## Release status
 
-Details: [`NISR_JUDGING_SCORECARD.md`](NISR_JUDGING_SCORECARD.md).
+The audited changes are on `codex/final-excellence-2026` and were **not merged to main or deployed** when this audit was generated. Prior `main` deployment evidence must not be used to certify the feature-branch validator or other changes.
 
-## 8. Remaining blockers
+Before promoting a release:
+1. Run `make data && make scientific-validation` on the chosen release commit; retain the JSON output and investigate every failed/unresolved result.
+2. Run database and migration/ownership checks on an **isolated PostGIS database**; never point destructive tests at production.
+3. Verify GitHub Actions, Vercel and Render commit identities and the live canonical dataset version.
+4. Execute read-only production smoke tests and verify actual browser interactions.
+5. Test the exact Android APK on a physical device and obtain needed manual accessibility/Kinyarwanda review.
+6. Verify source-use rights, AI-use disclosure, exact submission attachments and team sign-off.
 
-Release blockers and scientific limitations are listed in
-[`FINAL_REMAINING_GAPS.md`](FINAL_REMAINING_GAPS.md). The most important are
-release-commit/data-version alignment, isolated PostGIS tests, physical
-Android verification and human language review.
+See [Release checklist](../PRODUCTION_READINESS.md), [Current Status](../CURRENT_STATUS.md) and [Submission alignment](../submission/NISR_WEBINAR_ALIGNMENT.md).
 
-## 9. Final demonstration readiness
+## Five NISR criteria — internal readiness estimates
 
-The safest demonstration workflow is:
+| Criterion | Estimated readiness / 10 | Remaining evidence preventing a fully defensible 9–10 |
+|---|---:|---|
+| Problem understanding and relevance | **8.5** | User-tested district decision journey and explicit practical need |
+| Data use and methodology | **8.5** | Rebuild manifest on release commit, review published inconsistencies, finish exact metric lineage |
+| Technical innovation | **8.0** | Demonstrate verified end-to-end deployment and native workflows |
+| Usability and design | **7.5** | Physical device testing, visual review, keyboard checks, translation approval |
+| Tangible practical impact | **6.5** | No independently measured pilot use or field outcomes |
 
-1. Select a published crop and period.
-2. Inspect the district map and crop-specific observed yield.
-3. Compare districts against a named benchmark.
-4. Open associated factors and read the non-causal interpretation.
-5. Open intervention eligibility and inspect components/effective weights.
-6. Run a clearly labelled assumption-based planning scenario.
-7. Open source/provenance details and export the result.
-8. Ask a supported grounded question and show a deterministic fallback if the
-   provider is unavailable.
+These scores are **subjective engineering assessments, not NISR marks**. Coding more features cannot by itself turn impact into 10/10; field use and measured results require real evidence.
 
-Do not demo unavailable forecasts, market prices or unverified storage
-capacity as if they were published facts.
+## Recommended demo
 
-## 10. Changes and Git information
+Show one internally consistent example: choose a published period and crop (for example **Maize, Bugesera, 2026B**), inspect district observed yield and a **named** benchmark, open the productivity gap and its non-causal interpretation, show an intervention priority explanation, calculate a clearly labelled assumption-based scenario and disclose the source and limitations. Rehearse each step on the **live** application first.
 
-Branch: `codex/final-excellence-2026`  
-Starting commit: `9c1d01f`  
-New work: scientific validation command, Make target, validation tests, mobile
-lint cleanup and audit documentation.  
-Recommended verification:
+The webinar-alignment record specifies a **maximum-three-minute submission recording**. Confirm the submission form's video count and file/link requirements before attaching supplemental media.
 
-```bash
-make data
-make scientific-validation
-make test-api test-data test-ml
-pnpm --filter cropmatics-web exec tsc --noEmit --incremental false
-pnpm --filter cropmatics-web test -- --run
-npm --prefix apps/mobile run typecheck
-npm --prefix apps/mobile run test -- --run
-```
+## Remaining scientific limits
 
-The exact pass/skip/device results must be recorded from the release commit;
-skipped database or hardware checks must never be reported as passes.
+The reported **89 yield source inconsistencies** remain disclosed; **exact multi-source cell lineage** remains incomplete; forecasts without adequate evidence remain withheld; absent markets/capacities are not invented; measured field impact is not established. These are honest boundaries, not grounds to fabricate better numbers.
+
+**Bottom line:** excellent progress toward a rigorous, judge-readable release. Close the data-build identity mismatch and device/production acceptance steps rather than generating more duplicate reports.

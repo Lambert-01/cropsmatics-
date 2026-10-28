@@ -1,69 +1,54 @@
-# Documentation
+# Cropmatics Rwanda — Documentation
 
-Start with the [README](README.md). For the latest implementation state use
-[Current Status](docs/CURRENT_STATUS.md). Submission-focused evidence is grouped
-under [Submission And Review](#submission-and-review).
+**Start here:** [README](README.md) · [Web application](https://cropsmatics-web.vercel.app/dashboard) · [GitHub repository](https://github.com/Lambert-01/cropsmatics-)
 
-## Product And Architecture
+Cropmatics is Team DataSprout's entry to NISR 2026 Track 1: Agricultural Productivity. The README is the single project overview. The documents below provide specific supporting evidence rather than competing descriptions of the application.
 
-- [Project overview](docs/01_PROJECT_OVERVIEW.md)
-- [System architecture](README.md#architecture)
-- [Data architecture](docs/DATA_PROVENANCE.md)
-- [Dataset catalog](docs/data/SAS_COVERAGE_AUDIT.md)
-- [Database schema](docs/06_DATABASE_SCHEMA.md)
-- [API architecture](docs/07_API_ARCHITECTURE.md)
-- [Web application](docs/08_WEB_APPLICATION.md)
-- [Mobile application](docs/09_MOBILE_APPLICATION.md)
-- [Web data-to-UI matrix](docs/DATA_TO_UI_MATRIX.md)
-- [Mobile data-to-UI matrix](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
-- [Mobile information architecture](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
+## 1. NISR submission essentials
 
-## Data And Methods
+1. [Submission requirements and evidence](docs/submission/NISR_WEBINAR_ALIGNMENT.md) — repository, deployment, supporting materials, and recording limit
+2. [Data Card](docs/submission/DATA_CARD.md) — sources, periods, dataset coverage, definitions, limitations
+3. [Consolidated NISR readiness audit](docs/audits/NISR_2026_FINAL_EXCELLENCE_AUDIT.md) — scientific checks, model boundaries, UX evidence, release status, estimated scoring, remaining tasks
+4. [AI development disclosure](docs/20_AI_USAGE_DISCLOSURE.md) — how AI tools assisted development
+5. [Data rights and attribution](DATA_LICENSE_AND_PROVENANCE.md) — source-use and redistribution caveats
 
-- [Feature coverage](docs/DATA_TO_UI_MATRIX.md)
-- [SAS worksheet coverage audit](docs/data/SAS_COVERAGE_AUDIT.md)
-- [SAS source precedence](docs/data/SAS_SOURCE_PRECEDENCE.md)
+These five are the recommended reviewer starting points. They do not replace the actual source code, deployed application, demonstration, or official submission form.
+
+## 2. Detailed evidence (open when needed)
+
+- [SAS coverage and source-quality audit](docs/data/SAS_COVERAGE_AUDIT.md)
+- [Source precedence decisions](docs/data/SAS_SOURCE_PRECEDENCE.md)
 - [Data provenance](docs/DATA_PROVENANCE.md)
-- [Production database authority](docs/17_DEPLOYMENT.md)
-- [ML methodology](docs/forecasting/FORECAST_VALIDATION.md)
-- [Intervention engine](docs/13_OPTIMIZATION_ENGINE.md)
-- [Post-harvest risk](docs/MODEL_INTERPRETATION_POLICY.md)
-- [Storage optimization](docs/13_OPTIMIZATION_ENGINE.md)
-- [AI assistant](docs/14_AI_ASSISTANT.md)
+- [Number traceability and limitations](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md)
 - [Forecast validation](docs/forecasting/FORECAST_VALIDATION.md)
-- [Statistical interpretation policy](docs/MODEL_INTERPRETATION_POLICY.md)
+- [Model interpretation policy](docs/MODEL_INTERPRETATION_POLICY.md)
+- [AI answer evaluation](docs/submission/AI_EVALUATION.md)
+- [Web/mobile UX verification matrix](docs/submission/UX_VERIFICATION.md)
+- [Kinyarwanda review status](docs/KINYARWANDA_REVIEW.md)
 
-## Development And Operations
+## 3. Engineering and operations (not required reading for judges)
 
-- [Developer setup](docs/reference/DEVELOPER_SETUP.md)
-- [Testing](docs/16_TESTING.md)
-- [Deployment](docs/17_DEPLOYMENT.md)
-- [Release checklist](docs/PRODUCTION_READINESS.md)
-- [Security and privacy](docs/15_SECURITY_PRIVACY.md)
-- [Scripts](scripts/README.md)
-- [Infrastructure and deployment](docs/17_DEPLOYMENT.md)
+- [Current implementation status](docs/CURRENT_STATUS.md)
+- [Release checklist and production acceptance](docs/PRODUCTION_READINESS.md)
+- [Deployment and database authority](docs/17_DEPLOYMENT.md)
+- [Testing instructions](docs/16_TESTING.md)
+- [API/data-to-UI contract](docs/DATA_TO_UI_MATRIX.md)
+- [Mobile navigation and feature flags](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
+- [AI architecture](docs/14_AI_ASSISTANT.md)
+- [Optimization methodology](docs/13_OPTIMIZATION_ENGINE.md)
+- [Security and privacy principles](docs/15_SECURITY_PRIVACY.md)
+- [Data sources and processing](data/README.md)
+- [Developer scripts](scripts/README.md)
 
-## Submission And Review
+## Scientific validation command
 
-- [Data card](docs/submission/DATA_CARD.md)
-- [Number traceability and outstanding lineage work](docs/submission/DATA_TO_NUMBER_TRACEABILITY.md)
-- [NISR final excellence audit](docs/audits/NISR_2026_FINAL_EXCELLENCE_AUDIT.md)
-- [Scientific data validation](docs/audits/SCIENTIFIC_DATA_VALIDATION.md)
-- [Mathematical and model verification](docs/audits/MATHEMATICAL_MODEL_VERIFICATION.md)
-- [Web and mobile UX acceptance](docs/audits/WEB_MOBILE_UX_ACCEPTANCE.md)
-- [Production release verification](docs/audits/PRODUCTION_RELEASE_VERIFICATION.md)
-- [NISR judging scorecard](docs/audits/NISR_JUDGING_SCORECARD.md)
-- [Final remaining gaps](docs/audits/FINAL_REMAINING_GAPS.md)
-- [UX verification matrix](docs/submission/UX_VERIFICATION.md)
-- [AI evaluation and known guard limitations](docs/submission/AI_EVALUATION.md)
-- [Kinyarwanda review](docs/KINYARWANDA_REVIEW.md)
-- [Demo story](docs/19_DEMO_STORY.md)
-- [AI usage disclosure](docs/20_AI_USAGE_DISCLOSURE.md)
-- [Judging alignment](docs/reference/JUDGING_ALIGNMENT.md)
-- [NISR webinar submission alignment](docs/submission/NISR_WEBINAR_ALIGNMENT.md)
-- [Data rights](DATA_LICENSE_AND_PROVENANCE.md)
+From the repository root, on the chosen release commit:
 
-Internal planning prompts, team notes, visual-review logs and incident runbooks
-are not part of the active submission documentation. Architecture documents
-describe maintained contracts; use Current Status and current test evidence
-before treating a feature as release-ready.
+```bash
+make data
+make scientific-validation
+```
+
+This produces JSON and Markdown reports under `data/interim/`; those generated reports are local release evidence, not seven additional tracked audit documents. Run the same checks on the code/data version intended for submission.
+
+**Documentation policy:** keep the README as the overview, one consolidated submission audit, and authoritative technical/source references. Short outdated page descriptions and duplicate agent-generated audit reports were removed from the active branch. Git history preserves them.
