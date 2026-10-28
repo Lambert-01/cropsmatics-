@@ -35,6 +35,8 @@ from scripts.data.common import (
     release_folder_key,
 )
 
+REPO_ROOT = PROCESSED_DIR.parents[1]
+
 
 def _sha256(path) -> str:
     h = hashlib.sha256()
@@ -46,11 +48,33 @@ def _sha256(path) -> str:
 
 def _git_sha() -> str:
     try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=PROCESSED_DIR.parents[1], stderr=subprocess.DEVNULL
-        ).decode().strip()
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
     except Exception:  # git absent, not a repo, or shallow export
         return "unknown"
+
+
+def _pipeline_source_sha256() -> str:
+    """Hash the deterministic data-build source, independent of Git HEAD.
+
+    ``git_sha`` remains useful provenance, but it is not a stable release
+    identity: committing a docs-only change after a build changes HEAD. The
+    source hash changes only when the data-build code itself changes, so a
+    normal commit after a reproducible build does not create a false dataset
+    mismatch.
+    """
+
+    digest = hashlib.sha256()
+    source_dir = REPO_ROOT / "scripts" / "data"
+    for path in sorted(source_dir.glob("*.py")):
+        digest.update(path.relative_to(REPO_ROOT).as_posix().encode())
+        digest.update(_file_digest(path).encode())
+    return digest.hexdigest()
 
 
 def _row_count(path) -> int:
@@ -84,9 +108,7 @@ def _sas_inputs() -> dict[str, dict]:
     # ``manifest.csv`` records ``csv_file`` as ``<folder>/<table>.csv``; the real
     # extraction lives under the release's ``tables`` directory. The mapping is
     # derived from SAS_RELEASES (the single source of truth) rather than guessed.
-    folder_dirs = {
-        release_folder_key(release): path for release, path in SAS_RELEASES.items()
-    }
+    folder_dirs = {release_folder_key(release): path for release, path in SAS_RELEASES.items()}
 
     by_folder: dict[str, set[str]] = {}
     with SAS_MANIFEST.open(newline="", encoding="utf-8") as fh:
@@ -143,6 +165,7 @@ def main() -> int:
     manifest = {
         "pipeline_version": PIPELINE_VERSION,
         "git_sha": _git_sha(),
+        "pipeline_source_sha256": _pipeline_source_sha256(),
         "build_timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
         "sources": sources,
         # Relevant SAS inputs, so the dataset identity covers the published

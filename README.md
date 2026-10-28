@@ -108,9 +108,9 @@ make dev
 
 The web app runs at `http://localhost:3000` and the API at
 `http://localhost:8000`. Separate commands are `make api` and `make web`.
-`bash scripts/dev.sh status` shows local service status. See
-[developer setup](docs/reference/DEVELOPER_SETUP.md) for environment and database
-options. Never run migrations or loaders against production unintentionally.
+`bash scripts/dev.sh status` shows local service status. The commands above are
+the maintained local setup path; never run migrations or loaders against
+production unintentionally.
 
 ### Mobile With The Hosted API
 

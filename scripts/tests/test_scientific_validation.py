@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from scripts.data.build_manifest import _pipeline_source_sha256
 from scripts.data.scientific_validation import _yield_reconciliation, run_validation, validate_panel
 
 
@@ -78,3 +79,8 @@ def test_current_panel_has_no_software_release_gate_failures() -> None:
     assert report["summary"]["FAIL"] == 0
     assert report["summary"]["PASS"] >= 10
     assert report["summary"]["UNRESOLVED"] >= 1
+
+
+def test_pipeline_source_identity_is_deterministic() -> None:
+    assert _pipeline_source_sha256() == _pipeline_source_sha256()
+    assert len(_pipeline_source_sha256()) == 64

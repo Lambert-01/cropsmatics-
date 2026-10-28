@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.data.build_manifest import _pipeline_source_sha256  # noqa: E402
 from scripts.data.common import (  # noqa: E402
     PIPELINE_VERSION,
     PROCESSED_DIR,
@@ -250,7 +251,7 @@ def validate_panel(
     *,
     inventory_path: Path,
     manifest: dict[str, Any] | None = None,
-    current_sha: str | None = None,
+    current_source_sha: str | None = None,
 ) -> list[Check]:
     """Validate an in-memory canonical panel; kept public for focused tests."""
 
@@ -379,15 +380,25 @@ def validate_panel(
     # This check prevents an old generated data build from being mistaken for
     # the code currently under review. It is unresolved until the pipeline is
     # rebuilt, but it is not a data correctness failure.
-    manifest_sha = (manifest or {}).get("git_sha")
-    if manifest_sha and current_sha and manifest_sha != current_sha:
+    manifest_source_sha = (manifest or {}).get("pipeline_source_sha256")
+    if manifest_source_sha and current_source_sha and manifest_source_sha != current_source_sha:
         checks.append(
             _check(
                 "dataset_code_version_alignment",
                 "UNRESOLVED",
-                "processed manifest was built from a different commit than the code under review",
-                manifest_git_sha=manifest_sha,
-                current_git_sha=current_sha,
+                "processed manifest was built from different data-pipeline source code",
+                manifest_pipeline_source_sha256=manifest_source_sha,
+                current_pipeline_source_sha256=current_source_sha,
+                action="run scripts/data/run_all.py before release",
+            )
+        )
+    elif not manifest_source_sha:
+        checks.append(
+            _check(
+                "dataset_code_version_alignment",
+                "UNRESOLVED",
+                "processed manifest predates the pipeline source content-hash identity",
+                manifest_git_sha=(manifest or {}).get("git_sha", "unknown"),
                 action="run scripts/data/run_all.py before release",
             )
         )
@@ -395,12 +406,10 @@ def validate_panel(
         checks.append(
             _check(
                 "dataset_code_version_alignment",
-                "PASS" if manifest_sha else "SKIP",
-                "processed manifest and code commit match"
-                if manifest_sha
-                else "manifest commit is unavailable",
-                manifest_git_sha=manifest_sha or "unknown",
-                current_git_sha=current_sha or "unknown",
+                "PASS",
+                "processed manifest and data-pipeline source code match",
+                manifest_pipeline_source_sha256=manifest_source_sha,
+                current_pipeline_source_sha256=current_source_sha,
             )
         )
     return checks
@@ -433,7 +442,7 @@ def run_validation(
             frame,
             inventory_path=inventory_path,
             manifest=manifest,
-            current_sha=_git_sha(),
+            current_source_sha=_pipeline_source_sha256(),
         )
         rows = int(len(frame))
 

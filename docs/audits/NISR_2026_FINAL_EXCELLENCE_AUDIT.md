@@ -3,7 +3,8 @@
 **Team:** DataSprout (Lambert and Joyeuse)  
 **Competition:** NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity  
 **Reviewed:** 28 October 2026  
-**Audited feature commit:** `78e760c` on `codex/final-excellence-2026` (based on main `9c1d01f`)  
+**Audited implementation commit:** `78e760c` on `codex/final-excellence-2026` (based on main `9c1d01f`)
+**Integrated into main:** `c761956` (documentation consolidation and release integration)
 **Scope:** Scientific release validation, software and usability evidence, deployment boundaries and competition readiness. This is an internal assessment, **not** an official NISR result.
 
 ## Executive decision
@@ -27,7 +28,7 @@ New executable check: `scripts/data/scientific_validation.py` through `make scie
 | Skipped checks | 0 |
 | Unresolved findings | 2 |
 
-The two unresolved findings are (1) **89 materially inconsistent official published yield observations** compared with `1000 × production_mt / harvested_area_ha`, and (2) the checked-in processed manifest was generated from a **different code commit**. Rebuilding the dataset on the selected release commit and rerunning the scientific gate is required. The 89 findings are source-quality issues to investigate and disclose, **not values to overwrite**.
+The two unresolved findings are (1) **89 materially inconsistent official published yield observations** compared with `1000 × production_mt / harvested_area_ha`, and (2) the checked-in processed manifest predates the deterministic **pipeline-source content hash**. The manifest now records that hash rather than relying on Git HEAD alone; rebuild the dataset once on the selected release code and rerun the scientific gate. The 89 findings are source-quality issues to investigate and disclose, **not values to overwrite**.
 
 The documented canonical panel has **6,156 observations, 14 released periods (2022A–2026B), 30 districts and 17 crops**. Check current output rather than treating these as fixed constants. The validator checks natural-key uniqueness, non-negativity, source-release precedence, lineage fields, data dimensions and version identity. It does **not** prove every original workbook cell or every displayed UI number is independently audited.
 
@@ -59,7 +60,10 @@ See the maintained [UX verification matrix](../submission/UX_VERIFICATION.md), [
 
 ## Release status
 
-The audited changes are on `codex/final-excellence-2026` and were **not merged to main or deployed** when this audit was generated. Prior `main` deployment evidence must not be used to certify the feature-branch validator or other changes.
+The audited implementation is now integrated into `main` at `c761956`. Render
+and Vercel deployment identity still require external verification; prior
+production evidence must not be used to certify a later deployment without
+checking the deployed commit and dataset version.
 
 Before promoting a release:
 1. Run `make data && make scientific-validation` on the chosen release commit; retain the JSON output and investigate every failed/unresolved result.
@@ -76,7 +80,7 @@ See [Release checklist](../PRODUCTION_READINESS.md), [Current Status](../CURRENT
 | Criterion | Estimated readiness / 10 | Remaining evidence preventing a fully defensible 9–10 |
 |---|---:|---|
 | Problem understanding and relevance | **8.5** | User-tested district decision journey and explicit practical need |
-| Data use and methodology | **8.5** | Rebuild manifest on release commit, review published inconsistencies, finish exact metric lineage |
+| Data use and methodology | **8.5** | Rebuild manifest with the pipeline-source hash, review published inconsistencies, finish exact metric lineage |
 | Technical innovation | **8.0** | Demonstrate verified end-to-end deployment and native workflows |
 | Usability and design | **7.5** | Physical device testing, visual review, keyboard checks, translation approval |
 | Tangible practical impact | **6.5** | No independently measured pilot use or field outcomes |

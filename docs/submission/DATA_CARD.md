@@ -50,9 +50,11 @@ licence are the owner's to declare; this document does not make that declaration
 | Canonical crops | 17 |
 
 **Freshness note.** The pipeline has an idempotent content-addressed rebuild and
-the backend refuses an out-of-sync canonical database. Run `make data` followed
-by `make scientific-validation` on the release commit; the validation report
-must show no code/data identity mismatch before submission.
+the manifest now records a deterministic `pipeline_source_sha256` for the data
+transformation code. Git SHA remains historical provenance, but a docs-only
+commit no longer invalidates an otherwise identical dataset. Run `make data`
+followed by `make scientific-validation`; the validation report must show no
+pipeline-source identity mismatch before submission.
 
 ## Geographic units, periods and definitions
 
