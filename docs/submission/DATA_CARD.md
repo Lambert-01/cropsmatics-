@@ -40,7 +40,7 @@ licence are the owner's to declare; this document does not make that declaration
 | Fact | Value (from `data/processed/` at the time of writing) |
 |---|---|
 | Pipeline version | `0.2.0` |
-| Manifest build commit | `09e82e0` |
+| Local manifest build commit | `09e82e0` |
 | Manifest build timestamp | `2026-10-28T07:19:04+00:00` |
 | Dataset version | `0.2.0-5b51d2c390e4d101` |
 | Productivity panel rows | 6,156 |

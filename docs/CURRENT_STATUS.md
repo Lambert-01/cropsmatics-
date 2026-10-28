@@ -4,7 +4,7 @@ Reviewed: **2026-10-28**, after the production smoke-gate and final repair pass.
 Working branch: `main`.
 
 **Verdict: this is a strong release candidate with the production smoke gate
-passing.** The repository currently ends at `09e82e0`. Render readiness reports
+passing.** The repository currently ends at `4eb1847`. Render readiness reports
 the canonical database connected and the same dataset identity as the rebuilt
 local pipeline. Remaining work is external evidence: isolated PostGIS rehearsal,
 physical Android testing, manual language review, approved screenshots and the
@@ -143,7 +143,7 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The repository currently ends at `09e82e0`. Future code changes must repeat the
+The repository currently ends at `4eb1847`. Future code changes must repeat the
 deployed-SHA and production smoke checks before they are described as live.
 
 The public `/install/apk` route redirects to a GitHub Release APK of about 84 MB;
