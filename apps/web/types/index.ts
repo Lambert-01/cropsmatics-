@@ -1467,6 +1467,46 @@ export interface DatasetResponse {
   filter_options?: Record<string, string[]>;
 }
 
+export interface OriginalSourceInfo {
+  key: string;
+  release: string;
+  folder: string;
+  source_id: string;
+  source_workbook: string;
+  sheet_name: string;
+  title?: string | null;
+  used_range?: string | null;
+  rows: number;
+  columns: number;
+  csv_file?: string | null;
+  raw_path?: string | null;
+  source_format?: "csv" | "xlsx" | null;
+  has_extract: boolean;
+  mapped: boolean;
+  mapping_id?: string | null;
+  ingestion_stage?: string | null;
+  exclusion_reason?: string | null;
+  source_provenance?: string | null;
+}
+
+export interface OriginalSourceListResponse {
+  sources: OriginalSourceInfo[];
+  count: number;
+  filter_options: Record<string, string[]>;
+  available_extract_count: number;
+  inventory_only_count: number;
+}
+
+export interface OriginalSourceResponse {
+  source: OriginalSourceInfo;
+  columns: string[];
+  rows: string[][];
+  count: number;
+  offset: number;
+  limit: number;
+  search?: string | null;
+}
+
 /**
  * One entry of the backend report catalogue (`/reports/catalog`).
  *

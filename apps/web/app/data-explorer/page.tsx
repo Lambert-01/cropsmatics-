@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { ErrorState, TableSkeleton } from "@/components/ui/States";
 import { DataTable } from "@/features/data-explorer/DataTable";
+import { OriginalSasExplorer } from "@/features/data-explorer/OriginalSasExplorer";
 import { api } from "@/lib/api";
 
 export default function DataExplorerPage() {
@@ -18,6 +19,7 @@ export default function DataExplorerPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const originalView = searchParams.get("view") === "original";
 
   const datasets = useMemo(() => data?.datasets ?? [], [data]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -58,10 +60,41 @@ export default function DataExplorerPage() {
     <div className="space-y-5">
       <PageHeading
         title="Data Explorer"
-        subtitle="Exactly what Cropmatics uses — search, sort, page through and download each processed dataset."
+        subtitle="Inspect the analytical tables and the original NISR worksheet sources behind them."
       />
 
-      {error ? (
+      <nav className="flex flex-wrap gap-2" aria-label="Data explorer views" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!originalView}
+          className={!originalView ? "btn bg-forest-deep text-white" : "btn"}
+          onClick={() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("view");
+            router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+          }}
+        >
+          Processed datasets
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={originalView}
+          className={originalView ? "btn bg-forest-deep text-white" : "btn"}
+          onClick={() => {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("view", "original");
+            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+          }}
+        >
+          Original SAS sources
+        </button>
+      </nav>
+
+      {originalView ? (
+        <OriginalSasExplorer />
+      ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={() => refetch()} />
       ) : isLoading ? (
         <TableSkeleton rows={6} />

@@ -14,4 +14,5 @@ python-jose[cryptography]==3.3.0
 argon2-cffi==23.1.0
 python-multipart==0.0.12
 pandas==2.2.3
+openpyxl==3.1.5
 numpy==2.1.2

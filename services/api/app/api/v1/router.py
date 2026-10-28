@@ -24,6 +24,7 @@ from app.api.v1 import (
     meta,
     mobile,
     optimization,
+    original_data,
     productivity,
     reports,
     risk,
@@ -51,6 +52,7 @@ api_router.include_router(harvests.router)
 api_router.include_router(farms.router)
 api_router.include_router(facilities.router)
 api_router.include_router(optimization.router)
+api_router.include_router(original_data.router)
 api_router.include_router(risk.router)
 api_router.include_router(reports.router)
 api_router.include_router(scenarios.router)

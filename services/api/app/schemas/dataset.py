@@ -39,3 +39,43 @@ class DatasetResponse(BaseModel):
     # Complete distinct values for supported exact-match filters. The explorer
     # uses these to render select controls instead of raw text inputs.
     filter_options: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class OriginalSourceInfo(BaseModel):
+    key: str
+    release: str
+    folder: str
+    source_id: str
+    source_workbook: str
+    sheet_name: str
+    title: str | None = None
+    used_range: str | None = None
+    rows: int = 0
+    columns: int = 0
+    csv_file: str | None = None
+    raw_path: str | None = None
+    source_format: str | None = None
+    has_extract: bool = False
+    mapped: bool = False
+    mapping_id: str | None = None
+    ingestion_stage: str | None = None
+    exclusion_reason: str | None = None
+    source_provenance: str | None = None
+
+
+class OriginalSourceListResponse(BaseModel):
+    sources: list[OriginalSourceInfo] = Field(default_factory=list)
+    count: int = 0
+    filter_options: dict[str, list[str]] = Field(default_factory=dict)
+    available_extract_count: int = 0
+    inventory_only_count: int = 0
+
+
+class OriginalSourceResponse(BaseModel):
+    source: OriginalSourceInfo
+    columns: list[str] = Field(default_factory=list)
+    rows: list[list[str]] = Field(default_factory=list)
+    count: int = 0
+    offset: int = 0
+    limit: int = 100
+    search: str | None = None

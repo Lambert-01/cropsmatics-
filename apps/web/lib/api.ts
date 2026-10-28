@@ -12,6 +12,8 @@ import type {
   Crop,
   DatasetInfo,
   DatasetResponse,
+  OriginalSourceListResponse,
+  OriginalSourceResponse,
   DataVersionResponse,
   District,
   DistrictSummaryResponse,
@@ -380,6 +382,31 @@ export const api = {
     }
     return get<DatasetResponse>(`/meta/dataset/${key}`, params.toString());
   },
+  originalSources: (params?: {
+    release?: string;
+    sourceId?: string;
+    mapped?: boolean;
+    availability?: "full extract" | "inventory only";
+    search?: string;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.release) query.set("release", params.release);
+    if (params?.sourceId) query.set("source_id", params.sourceId);
+    if (params?.mapped !== undefined) query.set("mapped", String(params.mapped));
+    if (params?.availability) query.set("availability", params.availability);
+    if (params?.search) query.set("search", params.search);
+    return get<OriginalSourceListResponse>("/meta/original-sources", query.toString());
+  },
+  originalSource: (key: string, limit = 100, offset = 0, search = "") => {
+    const query = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (search) query.set("search", search);
+    return get<OriginalSourceResponse>(
+      `/meta/original-sources/${encodeURIComponent(key)}`,
+      query.toString(),
+    );
+  },
+  originalSourceDownloadHref: (key: string) =>
+    apiUrl(`/meta/original-sources/${encodeURIComponent(key)}/download`),
   districtSummary: (district: string, filters?: DashboardFilters) => {
     const params = new URLSearchParams({ district });
     if (filters) new URLSearchParams(filtersToApiQuery(filters)).forEach((v, k) => params.set(k, v));
