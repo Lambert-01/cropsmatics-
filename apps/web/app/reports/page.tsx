@@ -1,13 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Database, Download, FileJson, FileText, Table2 } from "lucide-react";
+import {
+  BarChart3,
+  Check,
+  ChevronRight,
+  Database,
+  Download,
+  FileDown,
+  FileJson,
+  FileText,
+  Filter,
+  Table2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { Card, CardBody, CardHeader, SourceNote } from "@/components/ui/Card";
 import { PageHeading } from "@/components/ui/PageHeading";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/States";
-import { api, reportUrl } from "@/lib/api";
+import { api, reportPdfUrl, reportUrl } from "@/lib/api";
 import { fmtNumber, periodLabel } from "@/lib/format";
 import type { DashboardFilters } from "@/lib/filters";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -53,23 +65,37 @@ function ReportCard({
   entry,
   filters,
   periodLabels,
+  selected,
+  onSelect,
 }: {
   entry: ReportCatalogEntry;
   filters: DashboardFilters;
   periodLabels: Map<string, string>;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const applies = entry.scope.length > 0;
   const summary = applies ? scopeSummary(entry, filters, periodLabels) : [];
   const formats = new Set(entry.formats);
 
   return (
-    <div className="card flex flex-col gap-3 p-4">
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`card flex min-h-44 w-full flex-col gap-3 p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-pop focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+        selected ? "border-primary/60 bg-primary/[0.04] shadow-pop" : ""
+      }`}
+    >
       <div className="flex items-start gap-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <FileText className="h-4 w-4" aria-hidden="true" />
+          <BarChart3 className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-forest-deep">{entry.title}</h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-sm font-semibold text-forest-deep">{entry.title}</h3>
+            {selected ? <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Selected" /> : null}
+          </div>
           <p className="mt-1 text-xs leading-relaxed text-slate-600">{entry.description}</p>
         </div>
       </div>
@@ -95,26 +121,11 @@ function ReportCard({
 
       <p className="text-[11px] leading-relaxed text-slate-500">{entry.coverage_note}</p>
 
-      <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
-        <a
-          href={reportUrl(entry.endpoint, applies ? filters : undefined, "csv")}
-          className="btn btn-primary text-xs"
-          download
-        >
-          <Download className="h-3.5 w-3.5" aria-hidden="true" /> CSV
-        </a>
-        {formats.has("json") ? (
-          <a
-            href={reportUrl(entry.endpoint, applies ? filters : undefined, "json")}
-            className="btn text-xs"
-            download
-          >
-            <FileJson className="h-3.5 w-3.5" aria-hidden="true" /> JSON
-          </a>
-        ) : null}
-        <code className="ml-auto max-w-full truncate text-[10px] text-slate-400">{entry.filename}</code>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-forest/10 pt-2 text-[11px] text-slate-500">
+        <span>{formats.has("pdf") ? "PDF + CSV" : "CSV export"}</span>
+        <span className="font-medium text-primary">Select report <span aria-hidden="true">→</span></span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -122,6 +133,7 @@ export default function ReportsPage() {
   const { filters } = useFilters();
   const { data: districts } = useDistricts();
   const { data: periodsData } = usePeriods();
+  const [selectedReportKey, setSelectedReportKey] = useState("district-scorecard");
 
   const catalog = useQuery({
     queryKey: ["report-catalog"],
@@ -155,6 +167,17 @@ export default function ReportsPage() {
     {},
   );
 
+  useEffect(() => {
+    if (!catalog.data?.reports.length) return;
+    if (!catalog.data.reports.some((entry) => entry.key === selectedReportKey)) {
+      setSelectedReportKey(catalog.data.reports[0].key);
+    }
+  }, [catalog.data, selectedReportKey]);
+
+  const selectedEntry = catalog.data?.reports.find((entry) => entry.key === selectedReportKey);
+  const selectedApplies = selectedEntry ? selectedEntry.scope.length > 0 : false;
+  const selectedNeedsCrop = selectedEntry?.key === "crop-profile" && !filters.crop;
+
   const district = filters.district;
   const districtEntry = (districts ?? []).find((d) => d.district === district);
 
@@ -162,17 +185,44 @@ export default function ReportsPage() {
     <div className="space-y-5">
       <PageHeading
         title="Reports"
-        subtitle="Canonical, period-aware exports. Every file is generated by Python from the same tables the interface reads, so a download always matches what is on screen."
+        subtitle="Build a clear, traceable brief from the same official data used across Cropmatics."
+        action={
+          <a href="/data-explorer" className="btn text-xs">
+            <Table2 className="h-3.5 w-3.5" aria-hidden="true" /> Explore data
+          </a>
+        }
       />
 
-      <AnalyticsFilterBar coverageLabel="EXPORTS FOLLOW THESE FILTERS" />
+      <section className="space-y-3">
+        <div className="flex items-start gap-3 px-1">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-white">
+              <Filter className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-forest-deep">1. Set the reporting scope</h2>
+              <p className="mt-1 text-xs text-slate-600">
+                Choose one period, crop or geography when the report supports it. Clear Period means all published periods.
+              </p>
+            </div>
+        </div>
+        <AnalyticsFilterBar coverageLabel="REPORTS USE THE ACTIVE SCOPE" />
+      </section>
 
       {catalog.isLoading ? (
         <TableSkeleton rows={6} />
       ) : catalog.error ? (
         <ErrorState message={(catalog.error as Error).message} onRetry={() => catalog.refetch()} />
       ) : (
-        Object.entries(groups).map(([group, entries]) => (
+        <section className="space-y-4" aria-labelledby="report-type-heading">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">2. Choose an output</p>
+              <h2 id="report-type-heading" className="mt-1 text-lg font-semibold text-forest-deep">Report type</h2>
+              <p className="mt-1 text-sm text-slate-600">Select a brief to preview its contents and download it as PDF or data.</p>
+            </div>
+            <span className="hidden text-xs text-slate-500 sm:block">{catalog.data?.reports.length ?? 0} available outputs</span>
+          </div>
+          {Object.entries(groups).map(([group, entries]) => (
           <section key={group} className="space-y-3" aria-label={`${group} reports`}>
             <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
               {group}
@@ -184,12 +234,80 @@ export default function ReportsPage() {
                   entry={entry}
                   filters={filters}
                   periodLabels={periodLabels}
+                  selected={selectedReportKey === entry.key}
+                  onSelect={() => setSelectedReportKey(entry.key)}
                 />
               ))}
             </div>
           </section>
-        ))
+          ))}
+        </section>
       )}
+
+      {selectedEntry ? (
+        <Card className="overflow-hidden">
+          <div className="border-b border-forest/10 bg-forest/[0.03] px-4 py-4 sm:px-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">3. Preview and download</p>
+                <h2 className="mt-1 text-lg font-semibold text-forest-deep">{selectedEntry.title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-slate-600">{selectedEntry.description}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedNeedsCrop ? (
+                  <span className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">Select a crop first</span>
+                ) : (
+                  <a
+                    href={reportPdfUrl(selectedEntry.key, selectedApplies ? filters : undefined)}
+                    className="btn btn-primary text-xs"
+                    download
+                  >
+                    <FileDown className="h-3.5 w-3.5" aria-hidden="true" /> Download PDF
+                  </a>
+                )}
+                {!selectedNeedsCrop ? (
+                  <>
+                    <a
+                      href={reportUrl(selectedEntry.endpoint, selectedApplies ? filters : undefined, "csv")}
+                      className="btn text-xs"
+                      download
+                    >
+                      <Download className="h-3.5 w-3.5" aria-hidden="true" /> CSV
+                    </a>
+                    {selectedEntry.formats.includes("json") ? (
+                      <a
+                        href={reportUrl(selectedEntry.endpoint, selectedApplies ? filters : undefined, "json")}
+                        className="btn text-xs"
+                        download
+                      >
+                        <FileJson className="h-3.5 w-3.5" aria-hidden="true" /> JSON
+                      </a>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <CardBody>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-forest/10 bg-surface px-3 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Active scope</p>
+                <p className="mt-1 text-sm font-semibold text-forest-deep">
+                  {selectedApplies ? scopeSummary(selectedEntry, filters, periodLabels).join(" · ") : "Complete dataset"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-forest/10 bg-surface px-3 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Coverage</p>
+                <p className="mt-1 text-sm font-semibold text-forest-deep">{selectedEntry.coverage_note}</p>
+              </div>
+              <div className="rounded-lg border border-forest/10 bg-surface px-3 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">PDF file</p>
+                <p className="mt-1 truncate font-mono text-xs text-slate-600">{selectedEntry.filename.replace(".csv", ".pdf")}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
 
       {/* District scorecard: a live preview of the exact rows the export contains. */}
       <Card>
@@ -201,26 +319,6 @@ export default function ReportsPage() {
                   filters.period ? periodLabels.get(filters.period) ?? filters.period : "all published periods"
                 }`
               : "Per-crop measures, benchmark and yield gap for one district"
-          }
-          action={
-            district ? (
-              <div className="flex items-center gap-2">
-                <a
-                  href={reportUrl("/reports/district-scorecard.csv", filters, "csv")}
-                  className="btn btn-primary text-xs"
-                  download
-                >
-                  <Download className="h-3.5 w-3.5" aria-hidden="true" /> Scorecard CSV
-                </a>
-                <a
-                  href={reportUrl("/reports/district-scorecard.csv", filters, "json")}
-                  className="btn text-xs"
-                  download
-                >
-                  <FileJson className="h-3.5 w-3.5" aria-hidden="true" /> JSON
-                </a>
-              </div>
-            ) : null
           }
         />
 

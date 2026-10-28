@@ -1523,7 +1523,7 @@ export interface ReportCatalogEntry {
   /** Full API path, e.g. `/reports/crop-productivity.csv`. */
   endpoint: string;
   filename: string;
-  formats: string[];
+  formats: ("csv" | "json" | "pdf")[];
   /** Which shared filters the report actually honours. Empty means none. */
   scope: string[];
   /** What the report covers, and what it deliberately does not. */

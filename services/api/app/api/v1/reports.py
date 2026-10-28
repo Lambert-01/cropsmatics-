@@ -22,19 +22,20 @@ Design rules:
 * **Geography is never mixed.** District reports read district rows only; the
   national context series stays at national level and is labelled as such.
   A national row is never written into a district export.
-* **CSV is the default.** JSON is available where a consumer needs it; there is
-  deliberately no decorative PDF.
+* **CSV is the default.** JSON is available where a consumer needs it; PDF is a
+  branded decision brief generated from the same rows, not a second calculation.
 """
 
 from __future__ import annotations
 
 import io
 import json
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.analytics.manual_projection import ProjectionError
 from app.repositories import dataset_repository as repo
@@ -48,6 +49,7 @@ from app.services import (
     meta_service,
     period_service,
     postharvest_service,
+    report_pdf_service,
 )
 from app.services.manual_projection_service import ProjectionUnavailable
 
@@ -356,7 +358,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Productivity",
         "endpoint": "/reports/crop-productivity.csv",
         "filename": "crop_productivity.csv",
-        "formats": ["csv", "json"],
+        "formats": ["csv", "json", "pdf"],
         "scope": list(_PERIOD_SCOPE),
         "coverage_note": (
             "District rows for every published period "
@@ -373,7 +375,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Productivity",
         "endpoint": "/reports/district-scorecard.csv",
         "filename": "district_scorecard.csv",
-        "formats": ["csv", "json"],
+        "formats": ["csv", "json", "pdf"],
         "scope": ["period", "crop", "province", "district", "benchmark"],
         "coverage_note": "District rows only; no cross-crop yield is ever averaged.",
     },
@@ -387,7 +389,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Productivity",
         "endpoint": "/reports/yield-gaps.csv",
         "filename": "yield_gaps.csv",
-        "formats": ["csv", "json"],
+        "formats": ["csv", "json", "pdf"],
         "scope": ["period", "crop", "province", "district", "benchmark"],
         "coverage_note": "Gap is 100 x (1 - yield / benchmark); higher is further below.",
     },
@@ -401,7 +403,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Productivity",
         "endpoint": "/reports/crop-profile.csv",
         "filename": "crop_profile.csv",
-        "formats": ["csv", "json"],
+        "formats": ["csv", "json", "pdf"],
         "scope": ["crop", "province", "district"],
         "coverage_note": "Requires a crop. Spans every published period by design.",
     },
@@ -415,7 +417,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Productivity",
         "endpoint": "/reports/national-trend.csv",
         "filename": "national_crop_trends.csv",
-        "formats": ["csv"],
+        "formats": ["csv", "pdf"],
         "scope": ["crop", "period"],
         "coverage_note": "National level. Aggregate rows are excluded.",
     },
@@ -429,7 +431,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Intelligence",
         "endpoint": "/reports/intervention-priority.csv",
         "filename": "intervention_priority.csv",
-        "formats": ["csv"],
+        "formats": ["csv", "pdf"],
         "scope": ["period", "crop", "province", "district", "benchmark"],
         "coverage_note": (
             "Planning ranking, not an observed outcome. Components without measured "
@@ -446,7 +448,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Intelligence",
         "endpoint": "/reports/post-harvest.csv",
         "filename": "post_harvest_use.csv",
-        "formats": ["csv"],
+        "formats": ["csv", "pdf"],
         "scope": [],
         "coverage_note": (
             "National crop-level release (2025 Season B). Not a district measure, "
@@ -463,7 +465,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Data and provenance",
         "endpoint": "/reports/data-coverage.csv",
         "filename": "data_coverage.csv",
-        "formats": ["csv"],
+        "formats": ["csv", "pdf"],
         "scope": [],
         "coverage_note": "The authoritative statement of what this build contains.",
     },
@@ -477,7 +479,7 @@ CATALOG: tuple[dict, ...] = (
         "group": "Data and provenance",
         "endpoint": "/reports/sources.csv",
         "filename": "data_sources.csv",
-        "formats": ["csv"],
+        "formats": ["csv", "pdf"],
         "scope": [],
         "coverage_note": "Includes sources that are registered but not loaded.",
     },
@@ -493,6 +495,76 @@ def catalog() -> dict:
     here — or go missing from the interface after being added.
     """
     return {"reports": [dict(entry) for entry in CATALOG]}
+
+
+def _national_trend_frame(
+    crop: str | None = None, period_code: str | None = None
+) -> pd.DataFrame:
+    """Load the national context series with the same exclusions as its CSV route."""
+    df = repo.national_crop_trends()
+    if "is_aggregate" in df.columns:
+        df = df[~df["is_aggregate"].astype("boolean").fillna(False).astype(bool)]
+    if crop and "canonical_crop_name" in df.columns:
+        df = df[df["canonical_crop_name"].astype(str).str.lower() == crop.lower()]
+    if period_code:
+        year = int(period_code[:4])
+        season = period_code[4:]
+        if "year" in df.columns:
+            df = df[df["year"] == year]
+        if "season" in df.columns:
+            df = df[df["season"].astype(str).str.upper() == season.upper()]
+    return df
+
+
+def _pdf_frame(report_key: str, f: AnalyticsFilters) -> pd.DataFrame:
+    """Resolve a catalogue key to the same Python report body used by exports."""
+    if report_key == "crop-productivity":
+        return to_long_format(_district_panel(f))
+    if report_key == "district-scorecard":
+        return _scorecard(f)
+    if report_key == "yield-gaps":
+        return _yield_gaps(f, f.limit)
+    if report_key == "crop-profile":
+        return _crop_profile(f)
+    if report_key == "national-trend":
+        return _national_trend_frame(f.crop, f.period_code)
+    if report_key == "intervention-priority":
+        result = analytics_service.priorities(limit=f.limit, f=f)
+        return pd.DataFrame(result["rows"])
+    if report_key == "post-harvest":
+        return pd.DataFrame(postharvest_service.summary()["crops"])
+    if report_key == "data-coverage":
+        return repo.data_coverage()
+    if report_key == "sources":
+        return pd.DataFrame(meta_service.sources())
+    raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown report key: {report_key}")
+
+
+@router.get("/export.pdf")
+def report_pdf(
+    report_key: str,
+    f: AnalyticsFilters = Depends(analytics_filters),
+) -> Response:
+    """Generate a branded PDF from a catalogue report and its active filters."""
+    entry = next((item for item in CATALOG if item["key"] == report_key), None)
+    if entry is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown report key: {report_key}")
+    frame = _pdf_frame(report_key, f)
+    generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    content = report_pdf_service.build_report_pdf(
+        report_key=report_key,
+        title=entry["title"],
+        coverage_note=entry["coverage_note"],
+        frame=frame,
+        filters=f,
+        generated_label=generated,
+    )
+    filename = entry["filename"].replace(".csv", ".pdf")
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --------------------------------------------------------------------------
@@ -545,20 +617,7 @@ def national_trend(
     period_code: str | None = None,
 ) -> StreamingResponse:
     """Published national crop series, unchanged from the pipeline's curation."""
-    df = repo.national_crop_trends()
-    if "is_aggregate" in df.columns:
-        # Aggregate rows are cross-crop totals; mixing them into a per-crop
-        # series would let a total masquerade as a crop observation.
-        df = df[~df["is_aggregate"].astype("boolean").fillna(False).astype(bool)]
-    if crop and "canonical_crop_name" in df.columns:
-        df = df[df["canonical_crop_name"].astype(str).str.lower() == crop.lower()]
-    if period_code:
-        year = int(period_code[:4])
-        season = period_code[4:]
-        if "year" in df.columns:
-            df = df[df["year"] == year]
-        if "season" in df.columns:
-            df = df[df["season"].astype(str).str.upper() == season.upper()]
+    df = _national_trend_frame(crop, period_code)
     columns = [
         "year",
         "season",

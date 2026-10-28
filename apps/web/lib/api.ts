@@ -578,3 +578,10 @@ export function reportUrl(
   if (format === "json") params.set("format", "json");
   return apiUrl(path, params.toString());
 }
+
+/** Build the shared server-generated PDF URL for a catalogue report. */
+export function reportPdfUrl(reportKey: string, filters?: DashboardFilters): string {
+  const params = new URLSearchParams(filters ? filtersToApiQuery(filters) : "");
+  params.set("report_key", reportKey);
+  return apiUrl("/reports/export.pdf", params.toString());
+}

@@ -37,7 +37,7 @@ def test_catalogue_entries_are_well_formed():
         for field in ("key", "title", "description", "group", "endpoint", "filename", "formats"):
             assert entry[field], f"{entry['key']} is missing {field}"
         assert entry["endpoint"].startswith("/reports/"), entry["key"]
-        assert set(entry["formats"]) <= {"csv", "json"}, entry["key"]
+        assert set(entry["formats"]) <= {"csv", "json", "pdf"}, entry["key"]
         assert entry["coverage_note"], f"{entry['key']} must state what it covers"
 
 
@@ -80,6 +80,21 @@ def test_json_format_is_opt_in_and_matches_the_csv_shape(client):
 def test_unknown_format_is_rejected(client):
     res = client.get("/api/v1/reports/district-scorecard.csv?format=pdf")
     assert res.status_code == 422
+
+
+def test_branded_pdf_export_is_available(client):
+    res = client.get(
+        "/api/v1/reports/export.pdf?report_key=district-scorecard&period_code=2026B&crop=Maize"
+    )
+    if res.status_code in {404, 503}:
+        pytest.skip("processed tables not built")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("application/pdf")
+    assert res.headers["content-disposition"].endswith(
+        'filename="district_scorecard.pdf"'
+    )
+    assert res.content.startswith(b"%PDF")
+    assert b"Cropmatics" in res.content
 
 
 def test_unpublished_period_is_rejected_not_answered(client):
