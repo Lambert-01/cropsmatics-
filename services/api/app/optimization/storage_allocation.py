@@ -83,7 +83,17 @@ def allocate(
     x = {}
     for s in sources:
         for f in usable:
-            if max_distance_km is not None and distances.get((s.id, f.id), 0.0) > max_distance_km:
+            distance_key = (s.id, f.id)
+            distance = distances.get(distance_key)
+            if distance is None:
+                if "distance_not_verified" not in notes:
+                    notes.append("distance_not_verified")
+                continue
+            if distance < 0:
+                if "invalid_distance" not in notes:
+                    notes.append("invalid_distance")
+                continue
+            if max_distance_km is not None and distance > max_distance_km:
                 continue
             if f.crops and s.crop not in f.crops:
                 continue
@@ -108,7 +118,8 @@ def allocate(
     unit_cost: dict[tuple[str, str], float] = {}
     for (sid, fid) in x:
         fac = next(f for f in usable if f.id == fid)
-        unit_cost[(sid, fid)] = ALPHA * distances.get((sid, fid), 0.0) + BETA * fac.storage_cost_per_kg
+        # Every decision variable has a verified, non-negative route distance.
+        unit_cost[(sid, fid)] = ALPHA * distances[(sid, fid)] + BETA * fac.storage_cost_per_kg
 
     penalty = max(unit_cost.values(), default=0.0) + UNASSIGNED_PENALTY
     solver.Minimize(sum(var * (unit_cost[key] - penalty) for key, var in x.items()))

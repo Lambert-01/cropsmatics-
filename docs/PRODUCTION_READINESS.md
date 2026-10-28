@@ -1,54 +1,47 @@
 # Release Checklist
 
-Use [Current Status](CURRENT_STATUS.md) for known defects. This is a checklist,
-not a dated list of assumed passes.
+Reviewed **2026-10-28**. This is evidence recorded for the current `main`
+revision, not a promise that an external device or human review happened.
 
-- [ ] Resolve release-blocking analytical, AI and synchronization defects.
-- [x] Rebuild analytical tables from the versioned inputs and verify a stable
-  content-addressed dataset version on a second build.
-- [x] Run web/mobile lint, TypeScript, tests and a production web build.
-- [x] Run API, script and ML unit suites; the local suites pass and skipped
-  database-backed cases are reported.
-- [ ] Run canonical integration and migration rehearsal against an isolated
-  PostGIS database. Skipped tests must be reported, not counted as passed.
-- [ ] Verify every required GitHub Actions job on the exact pushed commit.
-- [ ] Confirm Vercel and Render deploy the intended branch and commit.
-- [ ] Verify `/api/v1/health/readiness`, canonical version parity and required
-  endpoints using `python scripts/verify_production.py`.
-- [ ] Verify projection, filters, report downloads, expanded sources and error
-  states in a rendered browser, not just returned HTML. Local component/API
-  tests pass, but the current-commit browser matrix is still required.
-- [x] Run the automated accessibility audit and populated-data keyboard map
-  check; the ten key web routes have zero serious/critical axe violations.
-- [ ] Complete the manual keyboard/drawer journey, full UX matrix, screenshots
-  and native-language review.
-- [ ] Build an APK against the hosted API and record real-device offline,
-  restart, reconnect, idempotency and persistence tests.
-- [ ] Confirm no secrets, private operational records, unlicensed source data or
-  test-generated artifacts are included in release files.
-- [ ] Keep unavailable forecasts, prices and capacities explicitly unavailable.
+- [x] Rebuild analytical tables and reproduce a stable content-addressed dataset
+  version on a second build.
+- [x] Run API, script, ML, web and mobile automated suites; skipped database
+  cases remain reported as skipped.
+- [x] Run web typecheck, lint, production build and the local rendered browser
+  matrix.
+- [x] Verify the exact pushed `main` commit in GitHub Actions (`09e82e0`).
+- [x] Verify the deployed web/API surfaces and canonical dataset identity.
+- [x] Run `scripts/verify_production.py` against Render: **13/13 passed**.
+- [x] Keep forecasts, market prices, facility capacities and unsupported
+  statistics unavailable rather than fabricating them.
+- [x] Keep source precedence and the 89 productivity / 15 post-harvest quality
+  warnings documented.
+- [ ] Run canonical migration and ownership tests against an isolated PostGIS
+  database; never use production for this rehearsal.
+- [ ] Complete manual browser keyboard/drawer checks, approved screenshots and
+  native-speaker English/Kinyarwanda review.
+- [ ] Complete physical Android tests for map selection, Compare, Ask, offline
+  harvest registration, restart, reconnect and idempotent sync.
+- [ ] Confirm the team-owned screen recording and final submission declarations.
 
 Do not point integration tests or destructive migrations at production. Read
-[deployment](17_DEPLOYMENT.md), [database authority](P0_DATABASE_AUTHORITY.md)
-and [Current Status](CURRENT_STATUS.md) before operating on deployed services.
-A green build does not certify data methodology or UX.
+[deployment](17_DEPLOYMENT.md) and [Current Status](CURRENT_STATUS.md) before
+operating on deployed services. A green build does not certify data methodology
+or physical-device behaviour.
 
-Latest evidence (2026-10-24): the local Playwright suite passed 16/16 rendered
-dashboard/forecast checks at desktop and mobile-web sizes. The populated-data
-axe-core scan reported zero serious/critical violations on ten key routes, and
-the mobile-viewport map check found 30 labelled focusable district controls.
-The current release is pushed to `main`; Vercel reports the production
-deployment ready and Render reports the API deployment live. The post-deploy
-read-only gate currently fails
-readiness plus four canonical analytics checks because the external production
-database still reports dataset version `0.2.0-646a72d53cd349df`, while the
-deployed image expects the newer processed version `0.2.0-0e76c4d8f79ee5fc`.
-This is an intentional fail-closed state, not permission to fall back to stale
-or fabricated data. Run the approval-gated `Release database (canonical sync)`
-workflow from `main` after the required backup and isolated rehearsal, then
-rerun `scripts/verify_production.py` until it passes 13/13.
+## Current evidence
 
-The hosted signed APK submission was attempted with the hosted Render API but
-Expo rejected it because the account has exhausted its free Android-build quota
-for the month. The local debug APK remains available; a signed shareable APK
-requires the quota reset or an EAS plan upgrade.
+The local pipeline passed with zero errors and produced dataset version
+`0.2.0-5b51d2c390e4d101` at commit `09e82e0`. The production readiness response
+is HTTP 200 with database connected, canonical mode required and matching
+dataset identity. The read-only production gate passed all 13 required checks.
+
+The public install route is also verified: `/install/apk` redirects to the
+GitHub Release APK and the downloaded file is a valid Android package containing
+the hosted Render API URL. Download verification is not a substitute for
+installing and exercising the app on a physical device.
+
+Remote Groq/Gemini use is optional. The Ask Agent remains safe when a provider
+is unavailable because it falls back to deterministic, evidence-grounded
+answers. Do not describe the remote provider as active until its Render secret
+configuration and a live provider-backed response are verified.

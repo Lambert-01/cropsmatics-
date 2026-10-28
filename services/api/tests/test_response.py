@@ -88,6 +88,20 @@ def test_every_evidence_item_carries_its_provenance(client):
             assert item["method"], item
 
 
+def test_productivity_evidence_exposes_source_row_lineage(client):
+    _require_data(client)
+    structured = _ask(client, "What is the maize yield in Gisagara in 2026B?")['structured']
+    official = [item for item in structured["evidence"] if item["kind"] == "official"]
+    assert official
+    assert any(
+        item["source_workbook"]
+        and item["source_sheets"]
+        and item["metric_source_map"]
+        and item["source_row_min"]
+        for item in official
+    )
+
+
 def test_actions_reflect_the_resolved_entities(client):
     _require_data(client)
     structured = _ask(client, "Why is maize yield low in Gisagara?")["structured"]

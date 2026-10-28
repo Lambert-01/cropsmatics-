@@ -81,7 +81,9 @@ such as the productivity gap, and show the ranking changing. Say:
 > values remain unavailable rather than becoming invented zeros.
 
 Do not claim projected yield gains, budgets, farmer counts or storage
-capacity unless the page is displaying a verified value with a source.
+capacity unless the page is displaying a verified value with a source. Large
+harvests may require coordinated handling, but an unverified facility capacity
+is never treated as a capacity breach.
 
 **2:45-3:20 — Transparency and close**
 

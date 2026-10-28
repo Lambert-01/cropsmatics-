@@ -1,7 +1,7 @@
 # Data Card — Cropmatics Rwanda
 
-**Reviewed:** 2026-10-18. This card describes the current local evidence and
-does not certify that the same dataset version is deployed.
+**Reviewed:** 2026-10-28. The production readiness check reports the same
+canonical dataset identity as the rebuilt local pipeline.
 
 A reviewer-facing summary of what data the product uses, what it computes, and
 what it must **not** be used for. Detailed evidence is linked, not reproduced.
@@ -40,20 +40,17 @@ licence are the owner's to declare; this document does not make that declaration
 | Fact | Value (from `data/processed/` at the time of writing) |
 |---|---|
 | Pipeline version | `0.2.0` |
-| Manifest git sha | `ae29d28` |
-| Manifest build timestamp | `2026-10-14T07:40:57+00:00` |
+| Manifest build commit | `09e82e0` |
+| Manifest build timestamp | `2026-10-28T07:19:04+00:00` |
+| Dataset version | `0.2.0-5b51d2c390e4d101` |
 | Productivity panel rows | 6,156 |
 | Periods | 14 (`2022A`–`2026B`) |
 | Districts with district rows | 30 |
 | Canonical crops | 17 |
 
-**Freshness note.** The processed manifest was built at an earlier commit than the
-code in this session and the pipeline was **not** rebuilt here. These numbers are
-therefore observations of the current artefacts, not constants: they must be
-recomputed from the manifest, never hardcoded. A deploy must run the real
-migration and load path, and the canonical database must be proven in sync (the
-API already refuses to serve a mismatched dataset rather than answering with
-stale figures).
+**Freshness note.** The local pipeline was rebuilt and an idempotent second build
+reproduced the same content-addressed identity. Render readiness reports the
+same identity and refuses to serve an out-of-sync canonical database.
 
 ## Geographic units, periods and definitions
 

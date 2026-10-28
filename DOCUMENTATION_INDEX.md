@@ -7,28 +7,27 @@ under [Submission And Review](#submission-and-review).
 ## Product And Architecture
 
 - [Project overview](docs/01_PROJECT_OVERVIEW.md)
-- [Problem statement](docs/02_PROBLEM_STATEMENT.md)
-- [System architecture](docs/03_SYSTEM_ARCHITECTURE.md)
-- [Data architecture](docs/04_DATA_ARCHITECTURE.md)
-- [Dataset catalog](docs/05_DATASET_CATALOG.md)
+- [System architecture](README.md#architecture)
+- [Data architecture](docs/DATA_PROVENANCE.md)
+- [Dataset catalog](docs/data/SAS_COVERAGE_AUDIT.md)
 - [Database schema](docs/06_DATABASE_SCHEMA.md)
 - [API architecture](docs/07_API_ARCHITECTURE.md)
 - [Web application](docs/08_WEB_APPLICATION.md)
 - [Mobile application](docs/09_MOBILE_APPLICATION.md)
 - [Web data-to-UI matrix](docs/DATA_TO_UI_MATRIX.md)
-- [Mobile data-to-UI matrix](docs/MOBILE_DATA_TO_UI_MATRIX.md)
+- [Mobile data-to-UI matrix](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
 - [Mobile information architecture](docs/MOBILE_INFORMATION_ARCHITECTURE.md)
 
 ## Data And Methods
 
-- [Feature coverage](docs/FEATURE_DATA_COVERAGE.md)
+- [Feature coverage](docs/DATA_TO_UI_MATRIX.md)
 - [SAS worksheet coverage audit](docs/data/SAS_COVERAGE_AUDIT.md)
 - [SAS source precedence](docs/data/SAS_SOURCE_PRECEDENCE.md)
 - [Data provenance](docs/DATA_PROVENANCE.md)
-- [Production database authority](docs/P0_DATABASE_AUTHORITY.md)
-- [ML methodology](docs/10_ML_METHODOLOGY.md)
-- [Intervention engine](docs/11_INTERVENTION_ENGINE.md)
-- [Post-harvest risk](docs/12_POST_HARVEST_MODEL.md)
+- [Production database authority](docs/17_DEPLOYMENT.md)
+- [ML methodology](docs/forecasting/FORECAST_VALIDATION.md)
+- [Intervention engine](docs/13_OPTIMIZATION_ENGINE.md)
+- [Post-harvest risk](docs/MODEL_INTERPRETATION_POLICY.md)
 - [Storage optimization](docs/13_OPTIMIZATION_ENGINE.md)
 - [AI assistant](docs/14_AI_ASSISTANT.md)
 - [Forecast validation](docs/forecasting/FORECAST_VALIDATION.md)
@@ -42,7 +41,7 @@ under [Submission And Review](#submission-and-review).
 - [Release checklist](docs/PRODUCTION_READINESS.md)
 - [Security and privacy](docs/15_SECURITY_PRIVACY.md)
 - [Scripts](scripts/README.md)
-- [Infrastructure](infra/README.md)
+- [Infrastructure and deployment](docs/17_DEPLOYMENT.md)
 
 ## Submission And Review
 

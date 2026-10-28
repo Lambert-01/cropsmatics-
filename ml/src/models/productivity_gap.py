@@ -9,7 +9,7 @@ library only (no pandas/sklearn) so it is trivially unit-testable.
 Strategies:
     national_crop_median              median yield per crop
     national_crop_season_median       median yield per (crop, season)
-    top_quartile_comparable_districts mean of the top quartile per (crop, season)
+    top_quartile_comparable_districts median of the top quartile per (crop, season)
     multi_year_crop_baseline          mean of prior-season yields per crop
 """
 
@@ -83,7 +83,9 @@ def benchmark_yield(
             return None
         cut = _quartile(vals, 0.75)
         top = [v for v in vals if v >= cut]
-        return mean(top) if top else None
+        # Keep this definition aligned with the API analytics service: the
+        # benchmark is the median of the comparable top-quartile cohort.
+        return median(top) if top else None
 
     # multi_year_crop_baseline: mean of years strictly before the target year.
     ty = target.get("year")

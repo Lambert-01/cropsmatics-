@@ -7,7 +7,9 @@ Productivity gaps + post-harvest/storage coordination.
 NISR SAS core, provenance, survey-aware analysis, transparent integration.
 
 ## Technology Innovation
-Explainable ML, GIS, constrained optimization, offline-first mobile, grounded AI explanation.
+Validated statistical/ML pipelines, GIS, constrained optimization, offline-first
+mobile and grounded AI explanation. Forecasts remain withheld unless the
+chronological publication gate passes.
 
 ## Usability & Design
 Role-specific web/mobile UX, Kinyarwanda/English, maps, evidence panels.

@@ -60,6 +60,10 @@ class EvidenceItem(BaseModel):
     province: str | None = None
     crop: str | None = None
     source_id: str | None = None
+    source_workbook: str | None = None
+    source_sheets: str | None = None
+    metric_source_map: dict[str, str] | None = None
+    source_row_min: int | None = None
     #: Required when ``kind`` is DERIVED, so a computed figure is auditable.
     method: str | None = None
     note: str | None = None

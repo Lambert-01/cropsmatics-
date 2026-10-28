@@ -1,6 +1,6 @@
 # SAS Coverage Audit — 2022 through 2026 Season B
 
-**Generated:** 2026-10-18
+**Generated:** 2026-10-28 from the current `main` checkout (`09e82e0`)
 **Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `services/api/.venv/bin/python -m scripts.data.inventory_sas_workbooks` after `make install-api`)
 **Scope:** current local source archive and regenerated sheet inventory
 

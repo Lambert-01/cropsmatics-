@@ -41,3 +41,17 @@ def test_crop_compatibility():
         {("s1", "f1"): 1},
     )
     assert result.status == "INFEASIBLE"
+
+
+def test_unknown_distance_is_not_treated_as_zero():
+    _require_ortools()
+    result = allocate(
+        [Source("s1", 50.0, "Maize")],
+        [Facility("f1", 50.0)],
+        {},
+    )
+
+    assert result.status == "INFEASIBLE"
+    assert result.assignments == []
+    assert result.unassigned == [{"id": "s1", "reason": "no_compatible_facility"}]
+    assert "distance_not_verified" in result.notes

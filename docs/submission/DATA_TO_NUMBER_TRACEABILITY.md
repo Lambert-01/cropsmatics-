@@ -1,11 +1,11 @@
 # Data to Number Traceability
 
-Review note, 2026-10-17: this document mixes desired contracts with worked
-examples. Exact per-metric cell lineage and a resolver remain outstanding.
-National-median district filtering and historical plan evidence windows are now
-repaired; a peer-benchmark headline mismatch remains documented in
-[Current Status](../CURRENT_STATUS.md). Do not interpret
-the examples as proof of complete traceability across every route.
+Review note, 2026-10-28: productivity evidence now carries the processed-row
+workbook, sheet list, metric-to-table map and source row through the Ask Agent
+structured response. The resolver still does not expose a literal Excel cell
+address for every derived aggregate, so the remaining limitation is stated
+explicitly rather than implied away. Do not interpret the examples as proof of
+complete traceability across every route.
 
 Every displayed analytical number must be traceable from the UI to the exact
 source record without guessing which of several source ids supplied it. This
@@ -22,7 +22,7 @@ and a row/cell reference.
 
 The multi-period productivity panel (`data/processed/crop_productivity.csv`)
 carries: `source_id`, `source_release`, `source_workbook`, `source_sheets`,
-`source_title_raw`, `metric_source_map` (indicator → table), `source_row_min`,
+`source_title_raw`, `metric_source_map` (indicator -> table), `source_row_min`,
 `processing_script`, `processing_version`, `row_scope`, `farmer_scale`,
 `geography_level`, `period_code`, `canonical_crop_name`, `yield_kg_ha`,
 `production_mt`, `harvested_area_ha`.
@@ -30,9 +30,10 @@ carries: `source_id`, `source_release`, `source_workbook`, `source_sheets`,
 **Derived metric** — additionally identifies the transformation, its inputs, the
 comparison population and the algorithm/methodology version.
 
-**Compact by default.** Normal responses return compact evidence references; the
-full source detail is available through `/meta/dataset/{key}` and the source
-drawer, so an entire raw workbook is never attached to every response.
+**Compact by default.** Normal responses return compact evidence references,
+including the workbook/sheet/table lineage when the serving row has it. The full
+source detail is available through `/meta/dataset/{key}` and the source drawer,
+so an entire raw workbook is never attached to every response.
 
 ## Worked example 1 — a manual projection (verified this session)
 
@@ -107,8 +108,9 @@ published values are never rewritten to make it pass.
 ## Outstanding
 
 * `source_row_min` is a single minimum row and cannot always locate every metric
-  sourced from different tables in one sheet. A sidecar keyed by stable
-  observation + metric id is the recommended fix (brief §7) and is **not yet
-  implemented**.
+  sourced from different tables in one observation. A sidecar keyed by stable
+  observation + metric id is the recommended future improvement; the current
+  `metric_source_map` identifies the table for each metric and is exposed to
+  clients.
 * An authenticated/public-safe resolver that returns full source detail is
   **not yet implemented**; the explorer endpoint is the current path.

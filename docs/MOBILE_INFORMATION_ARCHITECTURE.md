@@ -82,7 +82,8 @@ Routes never contain a raw name. Crops use `crop_code` (`CROP-POT`) or a slug
 
 ## Data-to-UI matrix
 
-See `docs/MOBILE_DATA_TO_UI_MATRIX.md`.
+See `docs/DATA_TO_UI_MATRIX.md` for the maintained web/mobile data-to-UI
+contracts.
 
 ## Kinyarwanda
 

@@ -24,22 +24,19 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Ask questions grounded in retrieved analytical evidence | AI Assistant |
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
-**Status:** release-candidate code, not a completed production certification.
-The repository currently ends at `1054fa2`. Production deployment status must
-be checked against the deployed commit in Render and Vercel before submission;
-the current-status document separates repository evidence from live-environment
-evidence. The latest changes repair
-authenticated operational ownership, AI crop/period claim binding, peer
-benchmark headlines, transactional mobile sync state and the dataset explorer's
-JSON/CSV filter contract. Remaining limitations are documented in [current
-limitations and verification](docs/CURRENT_STATUS.md).
-A passing test suite does not mean that the canonical database, physical
-device, isolated PostGIS migration or signed APK has been verified.
+**Status:** release candidate with the production smoke gate passing.
+The repository currently ends at `09e82e0`. The deployed API reports the same
+canonical dataset identity as the rebuilt local pipeline
+(`0.2.0-5b51d2c390e4d101`) and `scripts/verify_production.py` passes all 13
+required endpoint checks. Remaining external evidence is documented in
+[current limitations and verification](docs/CURRENT_STATUS.md): isolated
+PostGIS rehearsal, physical Android testing, manual language review and
+owner-approved screenshots.
 
 For the NISR 2026 submission, the required public GitHub link, deployed app,
 README, runnable scripts and source/data disclosure are represented here. The
-maximum-three-minute screen recording is a submission artifact still to be
-recorded and committed; see [the webinar alignment checklist](docs/submission/NISR_WEBINAR_ALIGNMENT.md).
+maximum-three-minute screen recording remains a team-owned submission
+artifact; see [the webinar alignment checklist](docs/submission/NISR_WEBINAR_ALIGNMENT.md).
 
 ## Data And Interpretation
 

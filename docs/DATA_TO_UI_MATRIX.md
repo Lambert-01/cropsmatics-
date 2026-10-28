@@ -27,7 +27,8 @@ the legacy single-release extract, still used for the release it actually is
 (2025B), because that is the only table carrying the district factor columns.
 With no period selected, a period-aware widget reads the latest published
 district release and names it; a single-release layer reads the release that
-carries it and names that. See `FEATURE_DATA_COVERAGE.md`.
+carries it and names that. See `docs/data/SAS_COVERAGE_AUDIT.md` for the
+maintained coverage register.
 
 ## Matrix
 

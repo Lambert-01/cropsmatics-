@@ -1,6 +1,6 @@
 # UX Verification Matrix
 
-Status: **web automated checks PASS; physical and human-review checks remain open**. This file is deliberately honest about what has and
+Status: **web automated checks PASS; physical and human-review checks remain open**. Reviewed 2026-10-28. This file is deliberately honest about what has and
 has not been observed. A screenshot captured automatically is evidence *captured*,
 not owner-approved design; the `Reviewer` and `Approved` columns are reserved for
 a real human.
@@ -23,7 +23,7 @@ Three test classes are kept separate and never substituted for one another:
 A passing component test is **not** a browser pass, and a mobile-web screenshot is
 **not** a native pass.
 
-## Latest local audit, 2026-10-24
+## Latest local audit, 2026-10-28
 
 The latest follow-up observed the ordinary Planning calculation at 1440x900,
 1920x1080, 768x1024 and 390x844 without horizontal overflow or uncaught page
@@ -52,7 +52,7 @@ an accessible label. This is automated browser evidence, not a substitute for
 manual keyboard review, screenshots, language review or physical Android.
 
 Fresh mobile `npm ci` in an isolated directory passed typecheck, lint and Expo
-configuration in the earlier pass. The 2026-10-24 code pass has 354 passing
+configuration in the earlier pass. The 2026-10-28 code pass has 354 passing
 mobile tests in 29 files, a passing typecheck and a warning-free lint run after
 the Home/map and secondary-query reliability changes. Neither is a native-device
 check.
@@ -87,7 +87,7 @@ remain unverified. Attach portable evidence and obtain actual reviewer sign-off.
 | `/data-explorer` | 1440×900 | EN | multi-period dataset | filter + export | full filtered result downloads, not just the page | — | NOT RUN |
 | `/transparency` | 1440×900 | EN | warnings present | quality register | warnings discoverable, not hidden | rendered route and automated WCAG scan pass | PASS (automated) |
 | `/settings` | 1440×900 | EN | data and sources note | disclosure behavior explained | each panel opens on request | — | NOT RUN |
-| `/install` | 390×844 | EN | fresh visitor | download APK | real approved artifact | local APK exists; approved shareable artifact not verified | BLOCKED (signed artifact) |
+| `/install` | 390×844 | EN | fresh visitor | download APK | public artifact redirects and downloads | `/install/apk` redirects to the GitHub Release APK; physical installation not run | PASS (download) |
 | any | 768×1024 | RW | — | Kinyarwanda review | native-approved wording | — | BLOCKED (no reviewer) |
 
 Cross-cutting checks still outstanding: page-level overflow with multiple sources expanded,

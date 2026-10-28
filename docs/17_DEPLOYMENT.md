@@ -13,8 +13,8 @@ Targets:
 Environments: `local`, `staging`, `production`. Use HTTPS, backups, least
 privilege, migrations, health checks and rate limits everywhere.
 
-Read this with [`P0_DATABASE_AUTHORITY.md`](P0_DATABASE_AUTHORITY.md), which
-defines what "the database is the authority" means and how `CANONICAL_DATA_MODE`
+Read this with the [data card](submission/DATA_CARD.md), which defines the
+canonical source policy and how `CANONICAL_DATA_MODE`
 decides which layer answers a read.
 
 ## 1. What the repository proves, and what it cannot

@@ -7,6 +7,8 @@ data: a district a release did not tabulate simply produces no evidence item.
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 
 from app.ai.evidence import EvidenceItem, EvidenceKind
@@ -14,6 +16,31 @@ from app.analytics.productivity_gap import compute_gaps
 from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import analytics_service, period_service, productivity_service
 from app.services.analytics_service import frame_period_code, frame_source_id, productivity_frame
+
+
+def _lineage(row: pd.Series) -> dict:
+    """Carry the exact processed-row lineage into assistant evidence."""
+    mapping = row.get("metric_source_map")
+    if isinstance(mapping, str):
+        try:
+            mapping = json.loads(mapping)
+        except (TypeError, ValueError):
+            mapping = None
+    if not isinstance(mapping, dict):
+        mapping = None
+    row_min = row.get("source_row_min")
+    try:
+        row_min = int(row_min) if pd.notna(row_min) else None
+    except (TypeError, ValueError):
+        row_min = None
+    return {
+        "source_workbook": str(row["source_workbook"])
+        if pd.notna(row.get("source_workbook")) else None,
+        "source_sheets": str(row["source_sheets"])
+        if pd.notna(row.get("source_sheets")) else None,
+        "metric_source_map": mapping,
+        "source_row_min": row_min,
+    }
 
 
 def _selection(period_code: str | None, crop: str) -> pd.DataFrame:
@@ -76,6 +103,7 @@ def observations(*, period_code: str | None = None, crop: str, district: str | N
                     province=None if pd.isna(row.get("province")) else str(row.get("province")),
                     crop=str(row.get("canonical_crop_name") or crop),
                     source_id=source_id,
+                    **_lineage(row),
                 )
             )
     return items
@@ -113,6 +141,7 @@ def yield_gap(
                     district=name,
                     crop=crop,
                     source_id=source_id,
+                    **_lineage(row),
                     method="median of every published district for the crop in this period",
                 )
             )
@@ -129,6 +158,7 @@ def yield_gap(
                     district=name,
                     crop=crop,
                     source_id=source_id,
+                    **_lineage(row),
                     method="100 * (benchmark - observed) / benchmark",
                 )
             )
@@ -159,6 +189,7 @@ def district_ranking(
             district=str(row["district"]),
             crop=crop,
             source_id=source_id,
+            **_lineage(row),
             method="rank by yield gap index, descending",
             note=f"gap index {round(float(row['gap_index']), 2)}",
         )
@@ -192,6 +223,7 @@ def district_yield_ranking(
             district=str(row["district"]),
             crop=crop,
             source_id=source_id,
+            **_lineage(row),
             method="rank by observed yield, descending",
             note=f"observed yield rank {index + 1}",
         )
@@ -288,6 +320,7 @@ def legacy_observations(*, crop: str, district: str | None = None) -> list[Evide
             district=str(row["district"]),
             crop=str(row["canonical_crop_name"]),
             source_id=source_id,
+            **_lineage(row),
         )
         for _, row in frame.iterrows()
     ]

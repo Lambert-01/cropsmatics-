@@ -23,6 +23,10 @@ Default objective weights: `α = 1.0` (distance), `β = 1.0` (storage cost),
 - cold-chain flag;
 - maximum distance (`max_distance_km`).
 
+An input route without a verified distance is excluded from the solve and added
+to the result notes as `distance_not_verified`. It is never treated as `0 km`,
+because an unknown route must not look cheaper than a measured route.
+
 ## Capacity is never fabricated
 
 Facilities with `capacity_kg = None` are **excluded** from the solve and returned

@@ -1,17 +1,14 @@
 # Current Status
 
-Reviewed: **2026-10-26**, latest working-tree changes after the mobile and
-submission-readiness pass.
+Reviewed: **2026-10-28**, after the production smoke-gate and final repair pass.
 Working branch: `main`.
 
-**Verdict: this is a strong release candidate, but not yet a fully verified
-submission.** The repository currently ends at `1054fa2`. Production
-deployment status must be checked against the deployed commit in Render and
-Vercel before submission; this document separates repository evidence from
-live-environment evidence. Remaining work is UX/device/demo evidence rather
-than the earlier ownership, claim-binding, benchmark-KPI, sync-state or
-dataset-contract defects. The remaining verification work is listed below and
-in [UX verification](submission/UX_VERIFICATION.md).
+**Verdict: this is a strong release candidate with the production smoke gate
+passing.** The repository currently ends at `09e82e0`. Render readiness reports
+the canonical database connected and the same dataset identity as the rebuilt
+local pipeline. Remaining work is external evidence: isolated PostGIS rehearsal,
+physical Android testing, manual language review, approved screenshots and the
+team-owned recording. See [UX verification](submission/UX_VERIFICATION.md).
 
 ## Confirmed Improvements
 
@@ -101,7 +98,7 @@ Fresh checks against this increment:
 | Web Vitest | 445 passed in 31 files; exit 0 |
 | Mobile Vitest | 354 passed in 29 files; exit 0 (cache disabled because the sandbox cannot write `node_modules/.vite`) |
 | Ruff | Passed; exit 0 |
-| Web lint and production build | Passed; exit 0; 19 static pages generated |
+| Web lint and production build | Passed; exit 0; 20 static routes generated |
 | Mobile lint | Passed with no warnings or errors; exit 0 |
 | Mobile TypeScript after fresh npm ci | Passed; exit 0 |
 | Rendered Planning | Calculation passed at 1440x900, 1920x1080, 768x1024 and 390x844 without document overflow or uncaught page errors |
@@ -109,11 +106,11 @@ Fresh checks against this increment:
 | Expanded Dashboard sources | All four disclosures opened at all four viewports; no document overflow |
 | Old reproduction suite | Projection empty-history/season/cutoff/case and district-attribution cases now behave correctly |
 | New adversarial checks | Wrong crop and swapped periods rejected; peer KPI matches displayed row; every catalog filter accepted by JSON and CSV |
-| Data rebuild determinism | `check_idempotent_build.py` passed; dataset identity stayed `0.2.0-0e76c4d8f79ee5fc` across two builds |
+| Data rebuild determinism | `check_idempotent_build.py` passed; dataset identity stayed `0.2.0-5b51d2c390e4d101` across two builds |
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | Historical smoke check for Render `main` commit `2ef8219`; readiness, dashboard overview, input adoption, canonical trend and scoped Maize district metrics returned 200. This does not verify the current repository head `1054fa2`. |
+| Live Render deployment | Readiness returned 200 with database connected, canonical mode required and matching dataset identity; `scripts/verify_production.py` passed 13/13 required endpoint checks. |
 
 Focused checks in this pass:
 
@@ -146,15 +143,12 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The repository currently ends at `1054fa2`. Future code changes must repeat
-the deployed-SHA and production smoke checks before they are described as live.
+The repository currently ends at `09e82e0`. Future code changes must repeat the
+deployed-SHA and production smoke checks before they are described as live.
 
-Local debug and release APK files exist and were built against the hosted API.
-The Gradle release variant currently uses the debug keystore, so it is suitable
-for local installation but is not the final signed/shareable submission artifact.
-EAS account authentication works, but the signed remote build was rejected by
-the account's exhausted free-plan Android quota. Physical-device verification
-and the signed shareable artifact remain open.
+The public `/install/apk` route redirects to a GitHub Release APK of about 84 MB;
+the downloaded archive is valid and contains the hosted API URL. Physical-device
+installation, restart, reconnect and offline-sync verification remain open.
 
 ## Repository Hygiene
 

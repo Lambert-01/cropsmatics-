@@ -165,6 +165,10 @@ class EvidenceRef(BaseModel):
     district: str | None = None
     crop: str | None = None
     source_id: str | None = None
+    source_workbook: str | None = None
+    source_sheets: str | None = None
+    metric_source_map: dict[str, str] | None = None
+    source_row_min: int | None = None
     method: str | None = None
 
 
@@ -283,6 +287,10 @@ def _evidence(bundle: EvidenceBundle, limit: int) -> list[EvidenceRef]:
             district=item.district,
             crop=item.crop,
             source_id=item.source_id,
+            source_workbook=item.source_workbook,
+            source_sheets=item.source_sheets,
+            metric_source_map=item.metric_source_map,
+            source_row_min=item.source_row_min,
             method=item.method,
         )
         for item in bundle.items[:limit]

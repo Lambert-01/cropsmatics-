@@ -41,3 +41,16 @@ def test_infeasible_when_no_capacity():
     result = allocate([Source("s1", 10.0, "Maize")], [Facility("f1", None)], {})
     assert result.status == "INFEASIBLE"
     assert "f1" in result.capacity_not_verified
+
+
+def test_unknown_distance_is_not_treated_as_zero():
+    _require_ortools()
+    result = allocate(
+        [Source("s1", 50.0, "Maize")],
+        [Facility("f1", 50.0)],
+        {},
+    )
+
+    assert result.status == "INFEASIBLE"
+    assert result.assignments == []
+    assert "distance_not_verified" in result.notes

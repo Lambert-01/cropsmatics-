@@ -173,12 +173,12 @@ def score(
                 "Expected volume",
                 f"{expected_quantity_kg:.0f} kg",
                 0.1,
-                "Large volumes exceed single-facility handling capacity",
+                "Large volumes may require coordinated handling across facilities; capacity is not verified",
             )
             actions.append(
                 RiskAction(
                     "Split load across multiple facilities",
-                    "Single-site handling is the bottleneck at this volume",
+                    "Consider multiple facilities unless a verified single-site capacity is confirmed",
                     PRIORITY_MEDIUM,
                 )
             )

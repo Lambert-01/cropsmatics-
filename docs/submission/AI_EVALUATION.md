@@ -1,6 +1,6 @@
 # AI Evaluation
 
-Review update, 2026-10-18: the validator now binds crop and period mentions to
+Review update, 2026-10-28: the validator binds crop and period mentions to
 the value-bearing comparison segment. Wrong-crop and swapped-period cases are
 rejected, while the grounded positive corpus remains accepted. This is
 deterministic claim-validation evidence, not a credentialed provider-quality

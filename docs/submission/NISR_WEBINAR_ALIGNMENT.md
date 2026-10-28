@@ -1,7 +1,7 @@
 # NISR 2026 Submission Alignment
 
-Reviewed from the NISR 2026 Big Data Hackathon Preparatory Webinar supplied for
-this project. The webinar requires a public GitHub link, a deployed application
+Reviewed 2026-10-28 from the NISR 2026 Big Data Hackathon Preparatory Webinar
+supplied for this project. The webinar requires a public GitHub link, a deployed application
 link and documentation. The repository should include a README, runnable code,
 the data or an honest data link, and a screen recording of no more than three
 minutes.
@@ -10,8 +10,8 @@ minutes.
 
 | Webinar requirement | Repository state | Evidence or remaining action |
 |---|---|---|
-| Public GitHub repository | Verified | `main` contains `2ef8219`; GitHub Actions completed successfully for that commit. |
-| Public deployed application | Verified for the current release candidate | Render is live on `2ef8219`; Vercel reports a successful deployment and the API readiness, overview, input adoption, canonical trend and map smoke checks returned HTTP 200. |
+| Public GitHub repository | Verified | `main` contains `09e82e0`; the current GitHub Actions run completed successfully. |
+| Public deployed application | Verified by release smoke gate | Render readiness reports the canonical database connected and dataset version `0.2.0-5b51d2c390e4d101`; `scripts/verify_production.py` passed 13/13 required endpoint checks. Vercel serves the deployed dashboard. |
 | README explaining data, message and interaction | Present | README describes the NISR data, Python/API architecture, user workflows and hosted mobile build. |
 | Runnable scripts | Present | `scripts/data/run_all.py`, API/web/mobile commands and APK helpers are documented. |
 | Data file or source link | Present with provenance constraints | Official worksheet extracts, processed outputs and source registry are documented; do not publish restricted workbooks without permission. |

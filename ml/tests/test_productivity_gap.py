@@ -37,6 +37,18 @@ def test_top_quartile_benchmark():
     assert benchmark_yield(target, ROWS, "top_quartile_comparable_districts") == 3000.0
 
 
+def test_top_quartile_benchmark_uses_median_not_mean():
+    rows = [
+        {"canonical_crop_name": "Maize", "season": "B", "yield_kg_ha": value}
+        for value in [1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 5000.0, 10000.0]
+    ]
+    target = {"canonical_crop_name": "Maize", "season": "B"}
+
+    # Q3 is 5000, so the top cohort is [5000, 5000, 10000]. Its median is
+    # 5000; a mean implementation would incorrectly return 6666.67.
+    assert benchmark_yield(target, rows, "top_quartile_comparable_districts") == 5000.0
+
+
 def test_multi_year_baseline():
     target = {"canonical_crop_name": "Maize", "season": "B", "year": 2025, "yield_kg_ha": 1000.0}
     assert benchmark_yield(target, ROWS, "multi_year_crop_baseline") == 500.0
