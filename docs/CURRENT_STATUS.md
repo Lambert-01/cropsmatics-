@@ -1,15 +1,16 @@
 # Current Status
 
-Reviewed: **2026-10-28**, after the production smoke-gate and final repair pass.
+Reviewed: **2026-10-29**, after the production smoke-gate and final release pass.
 Working branch: `main`.
 
 **Verdict: this is a strong release candidate with the production smoke gate
-passing.** The tested functional release is `4eb1847`; the current `main` branch
-also contains the documentation-only release follow-up. Render readiness reports
-the canonical database connected and the same dataset identity as the rebuilt
-local pipeline. Remaining work is external evidence: isolated PostGIS rehearsal,
-physical Android testing, manual language review, approved screenshots and the
-team-owned recording. See [UX verification](submission/UX_VERIFICATION.md).
+passing.** The final `main` release is `9df9dab`; GitHub Actions run #120 passed,
+Render deploy `dep-dbh745mtlv9c73cnhleg` is live from that SHA, and the public
+read-only gate passed 13/13 required checks. Render readiness reports the
+canonical database connected and dataset version
+`0.2.0-5b51d2c390e4d101`. Remaining work is evidence rather than a broken release:
+isolated PostGIS rehearsal, physical Android testing, manual language review,
+approved screenshots and the team-owned recording. See [UX verification](submission/UX_VERIFICATION.md).
 
 ## Confirmed Improvements
 
@@ -111,7 +112,7 @@ Fresh checks against this increment:
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | Readiness returned 200 with database connected, canonical mode required and matching dataset identity; `scripts/verify_production.py` passed 13/13 required endpoint checks. |
+| Live Render deployment | Deploy `dep-dbh745mtlv9c73cnhleg` is live from `9df9dab`; readiness returned 200 with database connected, canonical mode required and matching dataset identity; `scripts/verify_production.py` passed 13/13 required endpoint checks. |
 
 Focused checks in this pass:
 
@@ -144,7 +145,7 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The functional release commit is `4eb1847`. Future code changes must repeat the
+The final release commit is `9df9dab`. Future code changes must repeat the
 deployed-SHA and production smoke checks before they are described as live.
 
 The public `/install/apk` route redirects to a GitHub Release APK of about 84 MB;

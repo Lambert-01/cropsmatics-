@@ -2,9 +2,9 @@
 
 **Team:** DataSprout (Lambert and Joyeuse)  
 **Competition:** NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity  
-**Reviewed:** 28 October 2026  
-**Audited implementation commit:** `78e760c` on `codex/final-excellence-2026` (based on main `9c1d01f`)
-**Integrated into main:** `c761956` (documentation consolidation and release integration)
+**Reviewed:** 29 October 2026
+**Audited implementation commit:** `9df9dab` on `main`
+**Integrated into main:** `9df9dab` (final release identity and documentation consolidation)
 **Scope:** Scientific release validation, software and usability evidence, deployment boundaries and competition readiness. This is an internal assessment, **not** an official NISR result.
 
 ## Executive decision
@@ -48,7 +48,7 @@ Source proof: [SAS coverage audit](../data/SAS_COVERAGE_AUDIT.md) · [Data Card]
 
 ## Engineering and interface evidence
 
-The development agent reported: **445 web tests** and **354 mobile tests** passed, plus API, script and ML suites; the prior repository report records **16/16 Playwright checks** and **zero serious/critical automated axe findings** on ten sampled routes. The scientific feature branch itself had no independent GitHub Actions run at audit time; the base `main` commit had passing CI. Do not merge the two claims.
+The local verification reported **445 web tests** and **354 mobile tests** passed, plus API, script and ML suites; the prior repository report records **16/16 Playwright checks** and **zero serious/critical automated axe findings** on ten sampled routes. GitHub Actions run [#120](https://github.com/Lambert-01/cropsmatics-/actions/runs/40777473473) completed successfully for the final `main` SHA `9df9dab`. These are automated checks, not a replacement for human/device review.
 
 Web dashboards, crop analytics, district maps, intervention rankings, planning calculations, provenance and error states have automated coverage. **Not yet accepted end-to-end:** full rendered browser review, export and share-link behavior under all scopes, keyboard/drawer flows and approval of all important screenshots.
 
@@ -60,15 +60,18 @@ See the maintained [UX verification matrix](../submission/UX_VERIFICATION.md), [
 
 ## Release status
 
-The audited implementation is now integrated into `main` at `c761956`. Render
-and Vercel deployment identity still require external verification; prior
-production evidence must not be used to certify a later deployment without
-checking the deployed commit and dataset version.
+The final implementation is on `main` at `9df9dab`. Render deploy
+`dep-dbh745mtlv9c73cnhleg` is live from that exact SHA. The read-only production
+gate passed **13/13 required checks**; readiness was HTTP 200 with the database
+connected, canonical mode required, 6,156 productivity rows and dataset version
+`0.2.0-5b51d2c390e4d101`. The Vercel dashboard and install routes responded HTTP
+200, but Vercel's public response does not expose its source SHA, so its commit
+identity cannot be independently proven from the public endpoint alone.
 
 Before promoting a release:
 1. Run `make data && make scientific-validation` on the chosen release commit; retain the JSON output and investigate every failed/unresolved result.
 2. Run database and migration/ownership checks on an **isolated PostGIS database**; never point destructive tests at production.
-3. Verify GitHub Actions, Vercel and Render commit identities and the live canonical dataset version.
+3. Retain the successful GitHub Actions run, Render deploy identity and live canonical dataset response as release evidence; Vercel source-SHA verification remains a dashboard-owner check.
 4. Execute read-only production smoke tests and verify actual browser interactions.
 5. Test the exact Android APK on a physical device and obtain needed manual accessibility/Kinyarwanda review.
 6. Verify source-use rights, AI-use disclosure, exact submission attachments and team sign-off.
@@ -97,4 +100,4 @@ The webinar-alignment record specifies a **maximum-three-minute submission recor
 
 The reported **89 yield source inconsistencies** remain disclosed; **exact multi-source cell lineage** remains incomplete; forecasts without adequate evidence remain withheld; absent markets/capacities are not invented; measured field impact is not established. These are honest boundaries, not grounds to fabricate better numbers.
 
-**Bottom line:** excellent progress toward a rigorous, judge-readable release. Close the data-build identity mismatch and device/production acceptance steps rather than generating more duplicate reports.
+**Bottom line:** this is a strong, deployed and judge-readable release candidate. The production code path is live and smoke-tested; the remaining evidence is the checked-in data rebuild/hash resolution, isolated PostGIS rehearsal, physical Android testing and human language/accessibility review.
