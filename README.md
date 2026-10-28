@@ -25,7 +25,8 @@ productivity, investigate intervention priorities and plan harvest logistics.
 | Register harvests offline | Expo mobile app with authenticated sync; physical-device verification remains |
 
 **Status:** release candidate with the production smoke gate passing.
-The repository currently ends at `4eb1847`. The deployed API reports the same
+The tested functional release is `4eb1847`; the current `main` branch also
+contains the documentation-only release follow-up. The deployed API reports the same
 canonical dataset identity as the rebuilt local pipeline
 (`0.2.0-5b51d2c390e4d101`) and `scripts/verify_production.py` passes all 13
 required endpoint checks. Remaining external evidence is documented in

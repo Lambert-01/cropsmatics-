@@ -1,7 +1,7 @@
 # SAS Coverage Audit — 2022 through 2026 Season B
 
 **Generated:** 2026-10-28 from the data-build checkout (`09e82e0`); the current
-submission revision is `4eb1847` and the processed data identity is unchanged.
+functional/data-build revision is `4eb1847` and the processed data identity is unchanged.
 **Machine-readable inventory:** `data/source_registry/sas_sheet_inventory.csv` (regenerate with `services/api/.venv/bin/python -m scripts.data.inventory_sas_workbooks` after `make install-api`)
 **Scope:** current local source archive and regenerated sheet inventory
 

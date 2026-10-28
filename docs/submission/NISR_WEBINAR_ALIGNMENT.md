@@ -10,7 +10,7 @@ minutes.
 
 | Webinar requirement | Repository state | Evidence or remaining action |
 |---|---|---|
-| Public GitHub repository | Verified | `main` contains `4eb1847`; all five current GitHub Actions jobs completed successfully. |
+| Public GitHub repository | Verified | Public `main` contains the tested functional release `4eb1847` plus the documentation-only follow-up; all five functional GitHub Actions jobs completed successfully. |
 | Public deployed application | Verified by release smoke gate | Render readiness reports the canonical database connected and dataset version `0.2.0-5b51d2c390e4d101`; `scripts/verify_production.py` passed 13/13 required endpoint checks. Vercel serves the deployed dashboard. |
 | README explaining data, message and interaction | Present | README describes the NISR data, Python/API architecture, user workflows and hosted mobile build. |
 | Runnable scripts | Present | `scripts/data/run_all.py`, API/web/mobile commands and APK helpers are documented. |

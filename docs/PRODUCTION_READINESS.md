@@ -9,7 +9,8 @@ revision, not a promise that an external device or human review happened.
   cases remain reported as skipped.
 - [x] Run web typecheck, lint, production build and the local rendered browser
   matrix.
-- [x] Verify the exact pushed `main` commit in GitHub Actions (`4eb1847`).
+- [x] Verify the tested functional release commit (`4eb1847`) in GitHub Actions;
+  the later `main` follow-up contains documentation-only changes.
 - [x] Verify the deployed web/API surfaces and canonical dataset identity.
 - [x] Run `scripts/verify_production.py` against Render: **13/13 passed**.
 - [x] Keep forecasts, market prices, facility capacities and unsupported
@@ -32,7 +33,7 @@ or physical-device behaviour.
 ## Current evidence
 
 The local pipeline passed with zero errors and produced dataset version
-`0.2.0-5b51d2c390e4d101` at commit `4eb1847`. The production readiness response
+`0.2.0-5b51d2c390e4d101` from the functional release commit `4eb1847`. The production readiness response
 is HTTP 200 with database connected, canonical mode required and matching
 dataset identity. The read-only production gate passed all 13 required checks.
 
