@@ -101,14 +101,22 @@ def _unsupported(intent: str, **evidence: object) -> GroundedAnswer:
     )
 
 
-def greeting() -> GroundedAnswer:
+def greeting(question: str | None = None) -> GroundedAnswer:
     """Respond to small talk without pretending it is an observation."""
-    return GroundedAnswer(
-        answer=(
+    if question and "are you" in question.lower():
+        answer = (
+            "I’m ready to help. I can explore Rwanda’s published crop productivity, "
+            "district gaps, trends, practices, post-harvest use and data coverage. "
+            "What would you like to investigate?"
+        )
+    else:
+        answer = (
             "Hello! I’m the Cropmatics Assistant. I can help you explore Rwanda’s "
             "published crop productivity, district gaps, trends, practices, "
             "post-harvest use and data coverage. What would you like to investigate?"
-        ),
+        )
+    return GroundedAnswer(
+        answer=answer,
         # This is a validated conversational response, not an agricultural claim.
         grounded=True,
         intent="greeting",
@@ -116,6 +124,113 @@ def greeting() -> GroundedAnswer:
         source="Cropmatics Assistant",
         coverage="conversational",
         answer_mode="conversational",
+    )
+
+
+def district_crop_observation(
+    district: str,
+    crop: str,
+    period_code: str | None = None,
+    metric: str | None = None,
+) -> GroundedAnswer:
+    """Report an explicitly requested district x crop published observation.
+
+    This is separate from ``district_crop_gap`` so production questions cannot be
+    silently answered with a yield or benchmark from the same row.
+    """
+    filters = AnalyticsFilters(period_code=period_code, district=district, crop=crop)
+    try:
+        frame = apply_filters(productivity_frame(filters), filters)
+    except Exception:
+        return _unsupported(
+            "district_crop_observation",
+            district=district,
+            crop=crop,
+            metric=metric,
+            period_code=period_code,
+        )
+
+    rows = frame[
+        (frame["district"] == district)
+        & (frame["canonical_crop_name"] == crop)
+    ]
+    if rows.empty:
+        return _unsupported(
+            "district_crop_observation",
+            district=district,
+            crop=crop,
+            metric=metric,
+            period_code=period_code,
+        )
+
+    row = rows.iloc[0]
+    resolved_period = frame_period_code(rows) or period_code or ""
+    values = {
+        "production_mt": row.get("production_mt"),
+        "harvested_area_ha": row.get("harvested_area_ha"),
+        "yield_kg_ha": row.get("yield_kg_ha"),
+    }
+    for key, value in values.items():
+        if value is not None and pd.isna(value):
+            values[key] = None
+        elif value is not None:
+            values[key] = float(value)
+
+    requested_value = values.get(metric) if metric else None
+    if metric and requested_value is None:
+        return _unsupported(
+            "district_crop_observation",
+            district=district,
+            crop=crop,
+            metric=metric,
+            period_code=resolved_period,
+        )
+    if not metric and not any(value is not None for value in values.values()):
+        return _unsupported(
+            "district_crop_observation",
+            district=district,
+            crop=crop,
+            metric=metric,
+            period_code=resolved_period,
+        )
+
+    labels = {
+        "production_mt": ("production", "metric tonnes"),
+        "harvested_area_ha": ("harvested area", "ha"),
+        "yield_kg_ha": ("yield", "kg/ha"),
+    }
+    parts: list[str] = []
+    selected = [metric] if metric else list(values)
+    for key in selected:
+        value = values.get(key)
+        if value is not None:
+            name, unit = labels[key]
+            parts.append(f"{name} of {value:,.0f} {unit}")
+
+    period_label = mobile_service.format_period(resolved_period) or "the published period"
+    answer = (
+        f"In {period_label}, the published {crop} observation for {district} reports "
+        f"{_list_phrase(parts)}. This is a district aggregate from the published "
+        "table, not a farm-level estimate."
+    )
+    return GroundedAnswer(
+        answer=answer,
+        grounded=True,
+        intent="district_crop_observation",
+        evidence={
+            "district": district,
+            "crop": crop,
+            "period_code": resolved_period,
+            "requested_metric": metric,
+            **values,
+        },
+        source=frame_source_id(rows) or "NISR_SAS_DISTRICT_CROP",
+        period=resolved_period or None,
+        coverage="district",
+        limitations=_limitations(
+            "one published district x crop observation",
+            "district aggregates are not farm-level estimates",
+        ),
     )
 
 
@@ -1377,6 +1492,17 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
                 {"label": "national crop median",
                  "value": evidence["benchmark_yield_kg_ha"], "unit": "kg/ha"}
             )
+    elif intent == "district_crop_observation":
+        for key, label, unit in (
+            ("production_mt", "production", "metric tonnes"),
+            ("harvested_area_ha", "harvested area", "ha"),
+            ("yield_kg_ha", "yield", "kg/ha"),
+        ):
+            requested = evidence.get("requested_metric")
+            if requested and key != requested:
+                continue
+            if evidence.get(key) is not None:
+                figures.append({"label": label, "value": evidence[key], "unit": unit})
     elif intent == "crop_national_context":
         for key, label, unit in (
             ("production_mt", "production", "metric tonnes"),
@@ -1465,7 +1591,18 @@ def key_figures(intent: str, evidence: dict) -> list[dict]:
 def answer(routed: RoutedRequest) -> GroundedAnswer:
     """Produce the deterministic grounded answer for a routed request."""
     if routed.intent == "greeting":
-        return greeting()
+        return greeting(routed.question)
+    if (
+        routed.intent == "district_crop_observation"
+        and routed.district
+        and routed.crop
+    ):
+        return district_crop_observation(
+            routed.district,
+            routed.crop,
+            routed.requested_period,
+            routed.metric,
+        )
     if routed.intent == "district_crop_gap" and routed.district and routed.crop:
         return district_crop_gap(routed.district, routed.crop, routed.requested_period)
     if routed.intent == "crop_national_context" and routed.crop:

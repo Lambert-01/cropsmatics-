@@ -146,7 +146,22 @@ OPERATION_TERMS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         _words("ibanze", "gutera inkunga"),
     ),
     "data_coverage": (
-        _words("coverage", "which periods", "data available", "periods covered", "how much data"),
+        _words(
+            "coverage",
+            "which periods",
+            "data available",
+            "periods covered",
+            "how much data",
+            "all season",
+            "all seasons",
+            "check season",
+            "check seasons",
+            "season coverage",
+            "season history",
+            "what seasons",
+            "show seasons",
+            "list seasons",
+        ),
         _words("amakuru aboneka", "ibihe"),
     ),
     "source_provenance": (

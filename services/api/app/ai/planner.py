@@ -56,6 +56,7 @@ OPERATION_TO_INTENT: dict[str, str] = {
 INTENTS: tuple[str, ...] = (
     "greeting",
     "district_crop_gap",
+    "district_crop_observation",
     "crop_national_context",
     "district_context",
     "district_comparison",
@@ -138,7 +139,9 @@ _FOLLOWUP_MARKERS: tuple[str, ...] = (
 # analytical routing.
 _GREETING_RE = re.compile(
     r"^\s*(?:h+i+|h+e+y+|h+e+l+o+|good\s+(?:morning|afternoon|evening)|"
-    r"how\s+are\s+you|thanks?|thank\s+you)"
+    r"how\s+are\s+you|are\s+you\s+(?:good|well|okay|ok|fine)|"
+    r"who\s+are\s+you|what\s+can\s+you\s+do|can\s+you\s+help(?:\s+me)?|"
+    r"help|thanks?|thank\s+you)"
     r"(?:[\s,]+(?:there|cropmatics|assistant|team))?[!?.,\s]*$",
     re.IGNORECASE,
 )
@@ -146,6 +149,22 @@ _GREETING_RE = re.compile(
 
 def _is_greeting(text: str) -> bool:
     return bool(_GREETING_RE.fullmatch(text or ""))
+
+
+def _explicit_metric(text: str) -> str | None:
+    """Resolve a metric only when the question names it explicitly."""
+    lowered = text.lower()
+    if ontology.contains_any(
+        lowered,
+        ("production", "produced", "output", "harvest output", "amount produced"),
+    ):
+        return "production_mt"
+    if ontology.contains_any(
+        lowered,
+        ("harvested area", "harvest area", "area harvested", "harvested hectares"),
+    ):
+        return "harvested_area_ha"
+    return None
 
 
 class QueryPlan(BaseModel):
@@ -313,6 +332,12 @@ def primary_intent(plan: QueryPlan) -> str:
         return "data_coverage"
 
     # The legacy precedence: crop + district, then district, then crop.
+    if (
+        plan.crops
+        and plan.districts
+        and plan.metric in {"production_mt", "harvested_area_ha"}
+    ):
+        return "district_crop_observation"
     if plan.crops and plan.districts:
         return "district_crop_gap"
 
@@ -432,6 +457,7 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
 
     operations = ontology.detect_operations(question)
     indicators = matched_indicators(lowered)
+    explicit_metric = _explicit_metric(lowered)
 
     # The one forecast question the platform answers: a query about the
     # *published* forecast. It is an operation, not an intent shortcut, so the
@@ -484,7 +510,7 @@ def plan(request: AIRequest, inherited: ConversationContext | None = None) -> Qu
         indicators=indicators,
         period_code=period_code,
         comparison_period_code=comparison_period,
-        metric=context.metric if context else None,
+        metric=explicit_metric or (context.metric if context else None),
         wants_comparison=wants_comparison,
         depth=depth,
         audience=audience,

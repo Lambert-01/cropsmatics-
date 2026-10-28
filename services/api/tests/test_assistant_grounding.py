@@ -62,6 +62,33 @@ def test_district_only_question_returns_district_context(client):
     assert answer["evidence"]["district"] == "Musanze"
 
 
+def test_small_talk_is_conversational(client):
+    answer = ask(client, "are you good")
+    assert answer["grounded"] is True
+    assert answer["intent"] == "greeting"
+    assert answer["answer_mode"] == "conversational"
+    assert "ready to help" in answer["answer"]
+
+
+def test_all_seasons_returns_published_coverage(client):
+    answer = ask(client, "check all season")
+    assert answer["grounded"] is True
+    assert answer["intent"] == "data_coverage"
+    assert "publishes 14 periods" in answer["answer"]
+
+
+def test_district_production_question_returns_requested_metric(client):
+    answer = ask(client, "tell me production of sorghum on gatsibo")
+    assert answer["grounded"] is True
+    assert answer["intent"] == "district_crop_observation"
+    assert answer["evidence"]["district"] == "Gatsibo"
+    assert answer["evidence"]["crop"] == "Sorghum"
+    assert answer["evidence"]["production_mt"] is not None
+    assert "production" in answer["answer"].lower()
+    assert "yield" not in answer["answer"].lower()
+    assert [figure["label"] for figure in answer["key_figures"]] == ["production"]
+
+
 def test_two_district_question_compares_both_districts(client):
     answer = ask(client, "Compare Ngoma and Gatsibo")
     assert answer["grounded"] is True

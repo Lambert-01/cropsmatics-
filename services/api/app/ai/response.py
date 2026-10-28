@@ -61,6 +61,7 @@ METRIC_LABELS: dict[str, str] = {
 INTENT_TITLES: dict[str, str] = {
     "greeting": "Cropmatics Assistant",
     "district_crop_gap": "District crop productivity",
+    "district_crop_observation": "District crop observation",
     "crop_national_context": "National crop context",
     "district_context": "District overview",
     "district_comparison": "District comparison",
@@ -85,6 +86,10 @@ INTENT_METHODOLOGY: dict[str, tuple[str, ...]] = {
     "district_crop_gap": (
         "the benchmark is the national crop median for the same period, not a target",
         "gap index = 100 * (national median yield - observed yield) / median yield",
+    ),
+    "district_crop_observation": (
+        "the requested metric is read from the published district x crop row",
+        "missing published values remain unavailable and are never replaced by another metric",
     ),
     "district_ranking": (
         "districts are ranked by gap index, descending",
@@ -361,6 +366,18 @@ def _key_findings(routed: RoutedRequest, reference: GroundedAnswer) -> list[str]
             findings.append(
                 f"{item.get('district')}: {item.get('yield_kg_ha'):,.0f} kg/ha observed yield"
             )
+    elif intent == "district_crop_observation":
+        for key, label, unit in (
+            ("production_mt", "production", "metric tonnes"),
+            ("harvested_area_ha", "harvested area", "ha"),
+            ("yield_kg_ha", "yield", "kg/ha"),
+        ):
+            requested = evidence.get("requested_metric")
+            if requested and key != requested:
+                continue
+            value = evidence.get(key)
+            if value is not None:
+                findings.append(f"{label}: {value:,.0f} {unit}")
     elif intent == "crop_comparison":
         for crop, values in (evidence.get("values") or {}).items():
             if values.get("production_mt") is not None:

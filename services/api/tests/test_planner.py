@@ -270,7 +270,19 @@ def test_metadata_questions_are_grounded(client):
 def test_greetings_use_a_conversational_intent():
     assert plan(AIRequest(question="helloo")).intent == "greeting"
     assert plan(AIRequest(question="Good morning, Cropmatics")).intent == "greeting"
+    assert plan(AIRequest(question="are you good")).intent == "greeting"
     assert plan(AIRequest(question="hello which districts have the largest gaps?")).intent != "greeting"
+
+
+def test_all_seasons_routes_to_data_coverage():
+    assert plan(AIRequest(question="check all season")).intent == "data_coverage"
+    assert plan(AIRequest(question="show me all seasons")).intent == "data_coverage"
+
+
+def test_explicit_district_production_routes_to_observation_not_gap():
+    resolved = plan(AIRequest(question="production of sorghum in Gatsibo"))
+    assert resolved.intent == "district_crop_observation"
+    assert resolved.metric == "production_mt"
 
 
 def test_kinyarwanda_comparison_is_understood(client):

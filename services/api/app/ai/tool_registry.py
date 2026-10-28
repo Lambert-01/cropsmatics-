@@ -294,6 +294,7 @@ INTENT_TOOLS: dict[str, tuple[str, ...]] = {
         "get_district_ranking",
         "get_yield_distribution",
     ),
+    "district_crop_observation": ("get_productivity_observations",),
     "crop_national_context": ("get_crop_context", "get_postharvest_profile", "get_crop_trend"),
     "district_context": ("get_district_context",),
     "district_comparison": ("get_district_comparison",),
