@@ -1,4 +1,4 @@
-# ML — Cropmatics Rwanda
+# ML — Cropmatics
 
 Modelling, evaluation, explainability and optimization code. Pure-standard-library
 modules (gap index, priority, risk, metrics) run anywhere; pandas/scikit-learn/

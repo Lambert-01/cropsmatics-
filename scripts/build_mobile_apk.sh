@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a Cropmatics Rwanda Android artifact.
+# Build a Cropmatics Android artifact.
 #
 # Subcommands (default: preview):
 #   release-apk   Signed, shareable internal APK via EAS (profile: release-apk).

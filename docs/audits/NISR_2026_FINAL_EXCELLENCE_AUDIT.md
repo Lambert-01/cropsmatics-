@@ -1,4 +1,4 @@
-# Cropmatics Rwanda — Consolidated NISR 2026 Readiness Audit
+# Cropmatics — Consolidated NISR 2026 Readiness Audit
 
 **Team:** DataSprout (Lambert and Joyeuse)  
 **Competition:** NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity  

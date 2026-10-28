@@ -1,4 +1,4 @@
-# Cropmatics Rwanda — developer commands
+# Cropmatics — developer commands
 # Usage: `make help`
 .DEFAULT_GOAL := help
 SHELL := /bin/bash

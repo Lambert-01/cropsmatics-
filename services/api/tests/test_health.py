@@ -19,5 +19,5 @@ def test_meta(client):
     resp = client.get("/api/v1/meta")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["project"] == "Cropmatics Rwanda"
+    assert body["project"] == "Cropmatics"
     assert "not official" in body["data_policy"]

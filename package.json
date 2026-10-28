@@ -1,8 +1,8 @@
 {
-  "name": "cropmatics-rwanda",
+  "name": "cropmatics",
   "version": "0.1.0",
   "private": true,
-  "description": "Cropmatics Rwanda — Crop Intelligence from Data to Action. An agricultural informatics and decision-intelligence platform.",
+  "description": "Cropmatics — Crop Intelligence from Data to Action. An agricultural informatics and decision-intelligence platform.",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20"

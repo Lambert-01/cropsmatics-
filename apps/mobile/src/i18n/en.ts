@@ -1,6 +1,6 @@
 export const en = {
   // ---- Brand ---------------------------------------------------------------
-  appName: "Cropmatics Rwanda",
+  appName: "Cropmatics",
   tagline: "Crop Intelligence from Data to Action",
   splashFooter: "Rwanda agricultural intelligence",
 
@@ -934,7 +934,7 @@ export const en = {
   // ---- Share ---------------------------------------------------------------
   shareCropAction: "Share",
   shareCropTitle: "Share crop summary",
-  shareCropHeading: "{crop} — Cropmatics Rwanda",
+  shareCropHeading: "{crop} — Cropmatics",
   shareCropSeries: "National series: {first} to {last}",
   shareCropMetric: "{metric}: {value}{unit} ({period})",
   shareCropSource: "Source: {source}",

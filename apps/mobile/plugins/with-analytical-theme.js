@@ -1,5 +1,5 @@
 /**
- * Cropmatics Rwanda — Android analytical theme.
+ * Cropmatics — Android analytical theme.
  *
  * Makes the native Android surface agree with the JS theme system in
  * `src/theme/`, in all three appearance modes (Light / Dark / System).

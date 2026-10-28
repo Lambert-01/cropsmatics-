@@ -12,7 +12,7 @@ class HealthOut(BaseModel):
 
 
 class MetaOut(BaseModel):
-    project: str = "Cropmatics Rwanda"
+    project: str = "Cropmatics"
     version: str = "0.1.0"
     data_policy: str = (
         "Official statistics and voluntary app data are kept separate. "

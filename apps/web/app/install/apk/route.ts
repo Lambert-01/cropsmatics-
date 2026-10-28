@@ -35,7 +35,7 @@ export function GET() {
     status: 307,
     headers: {
       "Cache-Control": "no-store",
-      "Content-Disposition": 'attachment; filename="cropmatics-rwanda.apk"',
+      "Content-Disposition": 'attachment; filename="cropmatics.apk"',
     },
   });
 }

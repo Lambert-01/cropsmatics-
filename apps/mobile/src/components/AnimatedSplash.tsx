@@ -129,7 +129,7 @@ export function AnimatedSplash({
     <Animated.View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="Cropmatics Rwanda"
+      accessibilityLabel="Cropmatics"
       style={[styles.overlay, { opacity: overlay }]}
     >
       {/* Soft radial glow behind the mark: depth without decoration. */}

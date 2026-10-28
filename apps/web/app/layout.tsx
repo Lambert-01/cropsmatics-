@@ -9,9 +9,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Cropmatics Rwanda",
+  title: "Cropmatics",
   description:
-    "Crop Intelligence from Data to Action. An agricultural informatics and decision-intelligence platform for Cropmatics Rwanda.",
+    "Crop Intelligence from Data to Action. An agricultural informatics and decision-intelligence platform for Cropmatics.",
   icons: {
     icon: [
       { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },

@@ -1,4 +1,4 @@
-# Cropmatics Rwanda
+# Cropmatics
 
 **Crop Intelligence from Data to Action.**
 

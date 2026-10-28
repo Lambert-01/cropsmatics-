@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 scripts/branding/build_brand_assets.py
-Deterministic brand-asset generation pipeline for Cropmatics Rwanda.
+Deterministic brand-asset generation pipeline for Cropmatics.
 Derived exclusively from canonical source: cropmaticlogo.png
 """
 
@@ -79,7 +79,7 @@ def create_centered_canvas(
 
 
 def create_horizontal_brand(mark: Image.Image, height: int = 120, on_dark: bool = False) -> Image.Image:
-    """Creates a horizontal lockup: [Mark] Cropmatics Rwanda."""
+    """Creates a horizontal lockup: [Mark] Cropmatics."""
     mark_h = int(height * 0.82)
     mark_w = int(mark.width * (mark_h / mark.height))
     resized_mark = mark.resize((mark_w, mark_h), Image.Resampling.LANCZOS)

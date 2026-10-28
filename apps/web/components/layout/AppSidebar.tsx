@@ -62,7 +62,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-white/10 ring-1 ring-white/15 overflow-hidden">
           <Image
             src="/branding/cropmatics-mark.png"
-            alt="Cropmatics Rwanda"
+            alt="Cropmatics"
             width={28}
             height={28}
             className="object-contain"
@@ -70,7 +70,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           />
         </span>
         <div className="leading-tight">
-          <p className="text-sm font-semibold text-white">Cropmatics Rwanda</p>
+          <p className="text-sm font-semibold text-white">Cropmatics</p>
           <p className="text-[11px] text-white/60">Crop Intelligence from Data to Action</p>
         </div>
       </div>

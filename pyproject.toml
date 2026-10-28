@@ -1,7 +1,7 @@
 [project]
-name = "cropmatics-rwanda"
+name = "cropmatics"
 version = "0.1.0"
-description = "Cropmatics Rwanda — agricultural decision-intelligence platform (NISR 2026 Track 1)."
+description = "Cropmatics — agricultural decision-intelligence platform (NISR 2026 Track 1)."
 requires-python = ">=3.11"
 readme = "README.md"
 

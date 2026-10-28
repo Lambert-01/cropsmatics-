@@ -1,4 +1,4 @@
-# Cropmatics Rwanda — Documentation
+# Cropmatics — Documentation
 
 **Start here:** [README](README.md) · [Web application](https://cropsmatics-web.vercel.app/dashboard) · [GitHub repository](https://github.com/Lambert-01/cropsmatics-)
 

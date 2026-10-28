@@ -1,6 +1,6 @@
-# Cropmatics Rwanda Data Layer
+# Cropmatics Data Layer
 
-This directory contains the authoritative data inputs, dictionaries and generated analytical outputs used by Cropmatics Rwanda.
+This directory contains the authoritative data inputs, dictionaries and generated analytical outputs used by Cropmatics.
 
 ## Directory layout
 

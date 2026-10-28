@@ -1,4 +1,4 @@
-# Data Card — Cropmatics Rwanda
+# Data Card — Cropmatics
 
 **Reviewed:** 2026-10-28. The checked-in panel is the current verified data
 artefact; the release gate requires rebuilding it on the release commit so the

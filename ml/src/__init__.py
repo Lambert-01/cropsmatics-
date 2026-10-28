@@ -1,4 +1,4 @@
-"""Cropmatics Rwanda ML package.
+"""Cropmatics ML package.
 
 Sub-packages: ``data``, ``features``, ``models``, ``evaluation``,
 ``explainability``, ``optimization``, ``utils``, ``pipelines``.

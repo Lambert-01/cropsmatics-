@@ -5,7 +5,7 @@ import type { Strings } from "./en";
  * before public release (see docs/09_MOBILE_APPLICATION.md).
  */
 export const rw: Strings = {
-  appName: "Cropmatics Rwanda",
+  appName: "Cropmatics",
   tagline: "Crop Intelligence from Data to Action",
   splashFooter: "Ubwenge bw'ubuhinzi bw'u Rwanda",
   home: "Ahabanza",
@@ -917,7 +917,7 @@ export const rw: Strings = {
   // ---- Share ---------------------------------------------------------------
   shareCropAction: "Sangira",
   shareCropTitle: "Sangira incamake y'igihingwa",
-  shareCropHeading: "{crop} — Cropmatics Rwanda",
+  shareCropHeading: "{crop} — Cropmatics",
   shareCropSeries: "Urugendo rw'igihugu: {first} kugeza {last}",
   shareCropMetric: "{metric}: {value}{unit} ({period})",
   shareCropSource: "Inkomoko: {source}",

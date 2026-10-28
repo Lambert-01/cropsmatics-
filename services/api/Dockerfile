@@ -1,4 +1,4 @@
-# Cropmatics Rwanda API image.
+# Cropmatics API image.
 #
 # Build context is the REPOSITORY ROOT, not services/api:
 #   docker build -f services/api/Dockerfile -t cropmatics-api .

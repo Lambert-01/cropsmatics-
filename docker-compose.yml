@@ -1,4 +1,4 @@
-# Local development services for Cropmatics Rwanda.
+# Local development services for Cropmatics.
 # `docker compose up -d db` starts a PostGIS database matching .env.example.
 services:
   db:

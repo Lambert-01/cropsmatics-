@@ -42,7 +42,7 @@ export function BrandMark({ size = "medium", variant = "mark-only" }: BrandMarkP
     return (
       <View
         accessibilityRole="image"
-        accessibilityLabel="Cropmatics Rwanda"
+        accessibilityLabel="Cropmatics"
         style={{ width: w, height: h, justifyContent: "center" }}
       >
         {!loadFailed ? (
@@ -78,7 +78,7 @@ export function BrandMark({ size = "medium", variant = "mark-only" }: BrandMarkP
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel="Cropmatics Rwanda logo mark"
+      accessibilityLabel="Cropmatics logo mark"
       style={{
         width: numericSize,
         height: numericSize,

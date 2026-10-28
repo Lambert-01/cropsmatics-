@@ -1,4 +1,4 @@
-"""Cropmatics Rwanda API entrypoint."""
+"""Cropmatics API entrypoint."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ app = FastAPI(
     title=f"{settings.project_name} API",
     version=settings.version,
     description=(
-        "Agricultural data and decision-intelligence API for Cropmatics Rwanda. "
+        "Agricultural data and decision-intelligence API for Cropmatics. "
         "It supports productivity gaps, intervention priorities, post-harvest risk "
         "and storage allocation. Model output describes associations and priorities "
         "for investigation, not proven causal effects."

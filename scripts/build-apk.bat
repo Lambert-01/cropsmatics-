@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 REM ============================================================================
-REM Cropmatics Rwanda - build a shareable Android APK on Windows.
+REM Cropmatics - build a shareable Android APK on Windows.
 REM
 REM Usage (from a terminal, or double-click this file):
 REM   scripts\build-apk.bat                 API = this PC's LAN IP (demo mode)

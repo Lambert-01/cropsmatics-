@@ -1,1 +1,1 @@
-"""Cropmatics Rwanda machine-learning workspace."""
+"""Cropmatics machine-learning workspace."""

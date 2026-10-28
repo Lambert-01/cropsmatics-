@@ -7,7 +7,7 @@ import { en, type Strings } from "./en";
  */
 export const fr: Strings = {
   ...en,
-  appName: "Cropmatics Rwanda",
+  appName: "Cropmatics",
   tagline: "L'intelligence agricole, des données à l'action",
   splashFooter: "Intelligence agricole du Rwanda",
   home: "Accueil",

@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     )
 
     # --- app ---
-    project_name: str = "Cropmatics Rwanda"
+    project_name: str = "Cropmatics"
     version: str = "0.1.0"
     environment: str = "development"
     log_level: str = "info"

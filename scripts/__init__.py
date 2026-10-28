@@ -1,1 +1,1 @@
-"""Cropmatics Rwanda data/build scripts."""
+"""Cropmatics data/build scripts."""

@@ -254,7 +254,7 @@ def _met_no_payload(payload: dict) -> dict:
 def _met_no_payload_for(latitude: float, longitude: float) -> dict:
     user_agent = os.getenv(
         "CROPMATICS_WEATHER_USER_AGENT",
-        "Cropmatics Rwanda/1.0 (https://cropsmatics-web.vercel.app)",
+        "Cropmatics/1.0 (https://cropsmatics-web.vercel.app)",
     )
     payload = _request_json(
         MET_NO_URL,

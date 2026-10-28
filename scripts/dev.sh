@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Cropmatics Rwanda — local development runner.
+# Cropmatics — local development runner.
 #
 # Starts the API, the web app and the Expo mobile app, with the database
 # migration/load steps in one place so a fresh clone can be brought up without

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Cropmatics Rwanda",
-    "slug": "cropmatics-rwanda",
+    "name": "Cropmatics",
+    "slug": "cropmatics",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/branding/app-icon-1024.png",

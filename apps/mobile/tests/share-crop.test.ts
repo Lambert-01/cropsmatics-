@@ -4,7 +4,7 @@ import { buildCropShareText } from "../src/utils/shareCrop";
 import type { CropShareInput } from "../src/utils/shareCrop";
 
 const T = {
-  heading: "{crop} — Cropmatics Rwanda",
+  heading: "{crop} — Cropmatics",
   series: "National series: {first} to {last}",
   metric: "{metric}: {value}{unit} ({period})",
   source: "Source: {source}",
@@ -25,7 +25,7 @@ const FULL: CropShareInput = {
 describe("buildCropShareText", () => {
   it("carries identity, axis bounds, the published figure and its source", () => {
     const text = buildCropShareText(FULL);
-    expect(text).toContain("Maize — Cropmatics Rwanda");
+    expect(text).toContain("Maize — Cropmatics");
     expect(text).toContain("National series: 2024A to 2025A");
     expect(text).toContain("Yield: 1.4 t/ha (2025 Season A)");
     expect(text).toContain("Source: NISR Season A 2025");

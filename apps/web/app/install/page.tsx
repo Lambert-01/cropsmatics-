@@ -93,7 +93,7 @@ export default function InstallPage() {
             <a
               className="btn btn-primary"
               href={apkUrl}
-              download="cropmatics-rwanda.apk"
+              download="cropmatics.apk"
               aria-label={`${t("install.download")} (${configuredApkUrl})`}
             >
               {t("install.download")}
