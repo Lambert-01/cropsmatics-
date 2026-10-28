@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STEPS = [
     "scripts.data.catalog_raw",
     "scripts.data.ingest_sas_tables",
+    "scripts.data.build_fertilizer_source",
     "scripts.data.build_crop_productivity",
     "scripts.data.ingest_market_prices",
     "scripts.data.validate_raw",

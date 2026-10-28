@@ -60,6 +60,8 @@ def get_dataset(
     use: str | None = Query(None),
     status_value: str | None = Query(None, alias="status"),
     commodity_name_raw: str | None = Query(None),
+    fertilizer_name: str | None = Query(None),
+    source_channel: str | None = Query(None),
     sort_by: str | None = Query(None, description="any column of the dataset"),
     sort_dir: str = Query("asc", pattern="^(asc|desc)$"),
 ) -> DatasetResponse:
@@ -95,6 +97,8 @@ def get_dataset(
             "use": use,
             "status": status_value,
             "commodity_name_raw": commodity_name_raw,
+            "fertilizer_name": fertilizer_name,
+            "source_channel": source_channel,
         },
     )
     try:

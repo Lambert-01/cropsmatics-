@@ -226,6 +226,7 @@ PROCESSED_FILES = {
     # --- multi-season canonical outputs (2024A-2026B) ---
     "crop_productivity": "crop_productivity.csv",
     "agricultural_practices": "agricultural_practice_observation.csv",
+    "fertilizer_source": "fertilizer_source.csv",
     "crop_postharvest_use_multi": "crop_postharvest_use_multi_period.csv",
     "market_prices": "market_price_observation.csv",
     "sources": "sources.csv",

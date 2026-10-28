@@ -87,6 +87,8 @@ DOMAIN_OUTPUTS: dict[str, str] = {
     "water_source": "agricultural_practice_observation.csv",
     "erosion_control": "agricultural_practice_observation.csv",
     "erosion_severity": "agricultural_practice_observation.csv",
+    "fertilizer_source_district": "agricultural_practice_observation.csv",
+    "fertilizer_source_type": "fertilizer_source.csv",
 }
 
 # Sheet names that are table-of-contents / cover pages in every SAS release.

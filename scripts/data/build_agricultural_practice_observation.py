@@ -8,10 +8,11 @@ Output: ``data/processed/agricultural_practice_observation.csv``, one row per
         period x geography x domain x indicator.
 
 This is the missing link described in ``docs/data/SAS_COVERAGE_AUDIT.md``: the
-practice, irrigation, water-source, erosion-control and erosion-severity sheets
-have been mapped and ingested with full lineage since the P2 expansion, but no
-processed dataset surfaced them, so every one of those sheets was honestly
-reported as ``mapped_not_exposed``. This builder materializes them.
+practice, irrigation, water-source, erosion-control, erosion-severity and
+district fertilizer-source sheets have been mapped and ingested with full
+lineage since the P2 expansion, but no processed dataset surfaced them, so
+every one of those sheets was honestly reported as ``mapped_not_exposed``.
+This builder materializes them.
 
 The file name is not chosen here - it is the contract already declared in
 ``inventory_sas_workbooks.DOMAIN_OUTPUTS`` (``agricultural_practice_observation.csv``)
@@ -22,8 +23,8 @@ Units are the published ones (``percent`` throughout) and are carried per row
 rather than assumed by the reader. Two vocabularies from the source are kept
 distinct on purpose:
 
-* ``domain`` is the reviewed mapping's domain (``practice``, ``irrigation``,
-  ``water_source``, ``erosion_control``, ``erosion_severity``);
+* ``domain`` is the reviewed mapping's domain, including district fertilizer
+  source shares;
 * ``indicator_code`` is the published indicator within that domain.
 
 They are never collapsed into one field, because "fertilizer use" and "drip
@@ -70,7 +71,14 @@ NATIONAL_GEOGRAPHY_CODE = "RW"
 # Only the domains this dataset owns. Productivity has its own canonical panel
 # (``crop_productivity.csv``) and must never be duplicated into this one.
 OWNED_DOMAINS = frozenset(
-    {"practice", "irrigation", "water_source", "erosion_control", "erosion_severity"}
+    {
+        "practice",
+        "irrigation",
+        "water_source",
+        "erosion_control",
+        "erosion_severity",
+        "fertilizer_source_district",
+    }
 )
 
 COLUMNS = [

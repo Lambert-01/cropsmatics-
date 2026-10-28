@@ -2,14 +2,17 @@
 
 This writer intentionally accepts a prepared DataFrame. CSV, JSON and PDF
 therefore share one filtered Python result and cannot introduce a second
-calculation path. The logo is drawn as vector artwork, so the API image needs
-no font, browser or document-rendering runtime.
+calculation path. The bundled Cropmatics logo is embedded directly in the PDF;
+the renderer stays dependency-free.
 """
 
 from __future__ import annotations
 
 import math
 import re
+import struct
+import zlib
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -24,6 +27,84 @@ INK = (0.141, 0.204, 0.278)
 MUTED = (0.40, 0.45, 0.52)
 LINE = (0.84, 0.89, 0.87)
 PALE_GREEN = (0.92, 0.97, 0.95)
+LOGO_PATH = Path(__file__).resolve().parents[1] / "assets" / "cropmatics-logo.png"
+
+
+def _paeth(a: int, b: int, c: int) -> int:
+    estimate = a + b - c
+    pa = abs(estimate - a)
+    pb = abs(estimate - b)
+    pc = abs(estimate - c)
+    return a if pa <= pb and pa <= pc else b if pb <= pc else c
+
+
+def _logo_rgb() -> tuple[int, int, bytes] | None:
+    """Read the bundled RGB PNG without adding a PDF/image dependency."""
+    if not LOGO_PATH.exists():
+        return None
+    payload = LOGO_PATH.read_bytes()
+    if payload[:8] != b"\x89PNG\r\n\x1a\n":
+        return None
+
+    position = 8
+    width = height = bit_depth = colour_type = None
+    compressed: list[bytes] = []
+    while position + 12 <= len(payload):
+        length = struct.unpack(">I", payload[position : position + 4])[0]
+        kind = payload[position + 4 : position + 8]
+        body = payload[position + 8 : position + 8 + length]
+        position += 12 + length
+        if kind == b"IHDR":
+            width, height, bit_depth, colour_type = struct.unpack(">IIBB", body[:10])
+        elif kind == b"IDAT":
+            compressed.append(body)
+        elif kind == b"IEND":
+            break
+
+    if not width or not height or bit_depth != 8 or colour_type != 2 or not compressed:
+        return None
+
+    stride = width * 3
+    decoded = zlib.decompress(b"".join(compressed))
+    rows: list[bytes] = []
+    offset = 0
+    previous = bytearray(stride)
+    for _ in range(height):
+        filter_type = decoded[offset]
+        offset += 1
+        current = bytearray(decoded[offset : offset + stride])
+        offset += stride
+        for index in range(stride):
+            left = current[index - 3] if index >= 3 else 0
+            up = previous[index]
+            upper_left = previous[index - 3] if index >= 3 else 0
+            if filter_type == 1:
+                current[index] = (current[index] + left) & 255
+            elif filter_type == 2:
+                current[index] = (current[index] + up) & 255
+            elif filter_type == 3:
+                current[index] = (current[index] + ((left + up) // 2)) & 255
+            elif filter_type == 4:
+                current[index] = (current[index] + _paeth(left, up, upper_left)) & 255
+            elif filter_type != 0:
+                return None
+        rows.append(bytes(current))
+        previous = current
+    return width, height, b"".join(rows)
+
+
+def _logo_object() -> bytes | None:
+    image = _logo_rgb()
+    if image is None:
+        return None
+    width, height, pixels = image
+    compressed = zlib.compress(pixels, 9)
+    header = (
+        f"<< /Type /XObject /Subtype /Image /Width {width} /Height {height} "
+        f"/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode "
+        f"/Length {len(compressed)} >>\nstream\n"
+    ).encode()
+    return header + compressed + b"\nendstream"
 
 
 def _text(value: Any) -> str:
@@ -59,12 +140,16 @@ def _period_label(filters: AnalyticsFilters) -> str:
     return "All published periods"
 
 
-def _scope_text(filters: AnalyticsFilters) -> str:
-    parts = [_period_label(filters), f"Crop: {filters.crop or 'All crops'}"]
+def _scope_text(filters: AnalyticsFilters, report_key: str | None = None) -> str:
+    parts = [_period_label(filters)]
+    if report_key not in {"water-source", "fertilizer-source", "fertilizer-access"}:
+        parts.append(f"Crop: {filters.crop or 'All crops'}")
     if filters.province:
         parts.append(f"Province: {filters.province}")
-    parts.append(f"District: {filters.district or 'All districts'}")
-    parts.append(f"Benchmark: {filters.benchmark_strategy.replace('_', ' ')}")
+    if report_key != "fertilizer-source":
+        parts.append(f"District: {filters.district or 'All districts'}")
+    if report_key not in {"water-source", "fertilizer-source", "fertilizer-access"}:
+        parts.append(f"Benchmark: {filters.benchmark_strategy.replace('_', ' ')}")
     return "  |  ".join(_text(part) for part in parts)
 
 
@@ -74,7 +159,9 @@ def _display_columns(frame: pd.DataFrame) -> list[str]:
         "canonical_crop_name", "indicator", "value", "unit",
         "yield_kg_ha", "benchmark_yield_kg_ha", "gap_index",
         "production_mt", "harvested_area_ha", "priority_score",
-        "source_id", "quality_flag",
+        "source_id", "quality_flag", "fertilizer_name", "source_channel",
+        "share_pct", "reported_total_pct", "source_sum_pct", "source_sum_check",
+        "geography_level",
     ]
     columns = [column for column in preferred if column in frame.columns]
     return (columns or list(frame.columns))[:8]
@@ -90,6 +177,10 @@ def _label(column: str) -> str:
         "gap_index": "Gap %", "production_mt": "Production mt",
         "harvested_area_ha": "Harvested area ha", "priority_score": "Priority score",
         "source_id": "Source", "quality_flag": "Quality",
+        "fertilizer_name": "Fertilizer type", "source_channel": "Source channel",
+        "share_pct": "Share %", "reported_total_pct": "Reported total %",
+        "source_sum_pct": "Source sum %", "source_sum_check": "Sum check",
+        "geography_level": "Geography",
     }
     return labels.get(column, re.sub(r"_+", " ", column).title())
 
@@ -151,11 +242,12 @@ def _page_commands(
     page_number: int,
     page_count: int,
     first_row: int,
+    has_logo: bool,
 ) -> bytes:
     commands = [
         "q",
         f"{FOREST[0]} {FOREST[1]} {FOREST[2]} rg {MARGIN} 758 54 28 re f",
-        "1 1 1 RG 2 w 47 764 m 56 777 l 64 766 l S",
+        "q 54 760 24 24 cm /Im1 Do Q" if has_logo else "1 1 1 RG 2 w 47 764 m 56 777 l 64 766 l S",
         _command_text(110, 771, 15, "CROPMATICS", FOREST),
         _command_text(110, 760, 6.5, "Crop intelligence from data to action", MUTED),
         "Q",
@@ -165,7 +257,9 @@ def _page_commands(
         f"{LINE[0]} {LINE[1]} {LINE[2]} RG 0.6 w {MARGIN} 660 511 33 re S",
         _command_text(MARGIN + 10, 682, 6.5, "REPORT SCOPE", MUTED),
     ]
-    scope_commands, _ = _wrapped_commands(MARGIN + 10, 671, 8, _scope_text(filters), 91, 10)
+    scope_commands, _ = _wrapped_commands(
+        MARGIN + 10, 671, 8, _scope_text(filters, report_key), 91, 10
+    )
     commands.extend(scope_commands)
 
     card_width = 127.75
@@ -242,11 +336,12 @@ def build_report_pdf(
     filters: AnalyticsFilters,
     generated_label: str,
 ) -> bytes:
-    """Build a valid, paginated PDF with a vector Cropmatics logo."""
+    """Build a valid, paginated PDF with the supplied Cropmatics logo."""
     columns = _display_columns(frame) if not frame.empty else []
     records = frame.to_dict(orient="records") if not frame.empty else []
     rows_per_page = 25
     chunks = [records[index : index + rows_per_page] for index in range(0, len(records), rows_per_page)] or [[]]
+    logo_object = _logo_object()
     streams = [
         _page_commands(
             report_key=report_key,
@@ -260,6 +355,7 @@ def build_report_pdf(
             page_number=index + 1,
             page_count=len(chunks),
             first_row=index * rows_per_page,
+            has_logo=bool(logo_object),
         )
         for index, chunk in enumerate(chunks)
     ]
@@ -269,13 +365,18 @@ def build_report_pdf(
         b"",  # filled after page references are known
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     ]
+    logo_id = None
+    if logo_object:
+        logo_id = len(objects) + 1
+        objects.append(logo_object)
     page_ids = []
     for stream in streams:
         page_id = len(objects) + 1
         content_id = page_id + 1
         page_ids.append(page_id)
+        xobject = f" /XObject << /Im1 {logo_id} 0 R >>" if logo_id else ""
         objects.extend([
-            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PAGE_WIDTH} {PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R >> >> /Contents {content_id} 0 R >>".encode(),
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PAGE_WIDTH} {PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R >>{xobject} >> /Contents {content_id} 0 R >>".encode(),
             b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
         ])
     objects[1] = (

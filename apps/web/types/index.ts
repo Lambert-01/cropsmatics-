@@ -678,8 +678,9 @@ export interface PostharvestHistoryResponse {
 
 /**
  * One district (or national) row of the multi-period practice panel
- * (2024A-2026B): agricultural practice, irrigation technique, water source and
- * erosion control/severity shares.
+ * The coverage is domain-specific: core practice, irrigation, water source and
+ * erosion rows cover 2024A-2026B; district fertilizer-source rows also cover
+ * 2022A-2026B.
  */
 export interface PracticeObservation {
   period_code: string;

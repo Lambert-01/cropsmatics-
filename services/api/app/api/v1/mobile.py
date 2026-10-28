@@ -35,8 +35,9 @@ def _indicator_limitations() -> list[str]:
     ]
     if multi:
         limitations.append(
-            f"multi-period SAS indicator domains cover {multi}; the legacy wide "
-            f"district tables still serve {legacy} only"
+            f"multi-period SAS indicator rows span {multi}; core practice, irrigation, "
+            f"water-source and erosion rows cover 2024A-2026B, district fertilizer-source "
+            f"rows cover 2022A-2026B, and legacy wide district tables still serve {legacy} only"
         )
     else:
         limitations.append(f"district-level indicators exist only for {legacy}")
