@@ -31,6 +31,7 @@ export function RwandaDistrictMap({
   onSelectDistrict,
   selectedDistrict,
   facilities = [],
+  showProgramDistricts = true,
   height = 460,
   title = "Rwanda Productivity & Risk Map",
 }: {
@@ -41,6 +42,8 @@ export function RwandaDistrictMap({
   onSelectDistrict?: (district: string) => void;
   selectedDistrict?: string | null;
   facilities?: FacilityItem[];
+  /** Enable the optional operational cold-chain overlay for map/storage views. */
+  showProgramDistricts?: boolean;
   height?: number;
   title?: string;
 }) {
@@ -168,8 +171,9 @@ export function RwandaDistrictMap({
           onMetric={onMetricChange}
           showLabels={showLabels}
           onToggleLabels={setLabelOverride}
-          showFacilities={showFacilities}
+          showFacilities={showProgramDistricts && showFacilities}
           onToggleFacilities={setShowFacilities}
+          showProgramDistricts={showProgramDistricts}
           cropSelected={Boolean(data?.crop)}
         />
         <details className="mt-2 text-[11px] text-slate-500">
@@ -234,7 +238,7 @@ export function RwandaDistrictMap({
             project={project}
             highlighted={shortfall}
           />
-          {showFacilities ? (
+          {showProgramDistricts && showFacilities ? (
             <FacilityDistrictMarkers features={collection.features} project={project} facilities={facilities} />
           ) : null}
         </DistrictChoropleth>
@@ -243,7 +247,7 @@ export function RwandaDistrictMap({
           <MapTooltip
             district={hovered.feature.properties.district}
             datum={datumByDistrict.get(hovered.feature.properties.district_code)}
-            facility={showFacilities ? facilityByDistrict.get(hovered.feature.properties.district_code) : undefined}
+            facility={showProgramDistricts && showFacilities ? facilityByDistrict.get(hovered.feature.properties.district_code) : undefined}
             metricLabel={data?.metric_label ?? metric}
             unit={data?.unit ?? null}
             crop={data?.crop ?? null}
@@ -276,7 +280,7 @@ export function RwandaDistrictMap({
         </SourceNote>
       ) : null}
 
-      {showFacilities ? (
+      {showProgramDistricts && showFacilities ? (
         <div className="border-t border-forest/10 px-4 py-3">
           <FacilityLayer facilities={facilities} />
         </div>

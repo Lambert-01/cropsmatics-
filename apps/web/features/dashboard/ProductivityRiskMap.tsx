@@ -5,7 +5,6 @@ import { useState } from "react";
 import { ErrorState, MapSkeleton } from "@/components/ui/States";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import type { MapMetricId } from "@/lib/constants";
-import { useFacilities } from "@/services/hooks/useAnalytics";
 import { useMapMetrics } from "@/services/hooks/useAnalytics";
 import type { DashboardFilters } from "@/lib/filters";
 
@@ -25,7 +24,6 @@ export function ProductivityRiskMap({
   const [metric, setMetric] = useState<MapMetricId>("production");
   const mapQuery = useMapMetrics(filters, metric);
   const { data, isLoading, isError, isFetching, refetch } = mapQuery;
-  const { data: facilities } = useFacilities();
 
   if (isError && !data) {
     return (
@@ -51,7 +49,9 @@ export function ProductivityRiskMap({
       onMetricChange={setMetric}
       onSelectDistrict={onSelectDistrict}
       selectedDistrict={selectedDistrict}
-      facilities={facilities?.facilities ?? []}
+      // Cold-chain program membership is operational context, not a productivity
+      // measure. Keep it on Maps/Storage so this page answers one question clearly.
+      showProgramDistricts={false}
       height={height}
     />
   </div>;

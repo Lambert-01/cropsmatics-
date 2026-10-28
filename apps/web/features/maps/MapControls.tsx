@@ -14,6 +14,7 @@ export function MapControls({
   onToggleLabels,
   showFacilities,
   onToggleFacilities,
+  showProgramDistricts = true,
   cropSelected,
 }: {
   metric: MapMetricId;
@@ -22,6 +23,7 @@ export function MapControls({
   onToggleLabels: (value: boolean) => void;
   showFacilities: boolean;
   onToggleFacilities: (value: boolean) => void;
+  showProgramDistricts?: boolean;
   cropSelected?: boolean;
 }) {
   return (
@@ -65,18 +67,20 @@ export function MapControls({
       >
         <Tags className="h-3.5 w-3.5" /> Labels
       </button>
-      <button
-        type="button"
-        className="btn mb-0.5"
-        aria-pressed={showFacilities}
-        onClick={() => onToggleFacilities(!showFacilities)}
-        // "Program districts", not "facilities": the source publishes no facility
-        // coordinates, so the layer can only ever assert programme membership.
-        aria-label="Highlight cold-chain program districts (districts, not facility locations)"
-        title="Highlights the districts in the cold-chain programme. No facility location or capacity is published, so no points are drawn."
-      >
-        <Layers className="h-3.5 w-3.5" /> Program districts
-      </button>
+      {showProgramDistricts ? (
+        <button
+          type="button"
+          className="btn mb-0.5"
+          aria-pressed={showFacilities}
+          onClick={() => onToggleFacilities(!showFacilities)}
+          // "Program districts", not "facilities": the source publishes no facility
+          // coordinates, so the layer can only ever assert programme membership.
+          aria-label="Highlight cold-chain program districts (districts, not facility locations)"
+          title="Highlights the districts in the cold-chain programme. No facility location or capacity is published, so no points are drawn."
+        >
+          <Layers className="h-3.5 w-3.5" /> Program districts
+        </button>
+      ) : null}
     </div>
   );
 }
