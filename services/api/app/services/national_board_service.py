@@ -14,7 +14,7 @@ Python side:
   reason - never a 0 % change and never a comparison across seasons.
 
 Nothing is imputed and nothing is summed across releases: the source is the
-published national crop trend table.
+published national rows in the canonical crop productivity panel.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ from __future__ import annotations
 import numpy as np
 
 from app.repositories import dataset_repository as repo
-from app.services import trend_service
 from app.services.trend_service import collapse_crop_breakdown
 
 METRIC_UNITS = {
@@ -136,18 +135,84 @@ def same_season_change(
     return base
 
 
-def national_totals(axis: list[str]) -> dict:
+def _canonical_national_rows():
+    """Return one authoritative national crop row per published period.
+
+    The old board read ``national_crop_trends.csv``, an older 108-row extract
+    that only covered four periods. The canonical productivity panel contains
+    national rows for all published releases. It also contains large/small
+    farmer breakdown rows for some releases, so only the published ``total``
+    row is eligible here. No district rows are summed to create a national
+    figure.
+    """
+    df = repo.crop_productivity().copy()
+    if "geography_level" not in df.columns:
+        # Keep a narrow compatibility path for older local fixtures. Production
+        # uses the canonical panel above; this fallback is useful for tests and
+        # older data packages that predate the national rows.
+        df = repo.national_crop_trends().copy()
+        if "is_aggregate" in df.columns:
+            df = df[~df["is_aggregate"].astype(bool)].copy()
+        return collapse_crop_breakdown(df)
+
+    df = df[df["geography_level"].astype(str).str.upper() == "NATIONAL"].copy()
+    if "row_scope" in df.columns:
+        scopes = df["row_scope"].astype(str).str.strip().str.lower()
+        if (scopes == "total").any():
+            df = df[scopes == "total"].copy()
+    if "is_synthetic" in df.columns:
+        df = df[~df["is_synthetic"].astype(bool)].copy()
+
+    # The canonical panel publishes yield in kg/ha; the board contract uses t/ha.
+    # This is a unit conversion, not a new estimate.
+    if "yield_kg_ha" in df.columns:
+        df["yield_mt_ha"] = df["yield_kg_ha"].map(
+            lambda value: None if _value(value) is None else float(value) / 1000
+        )
+    df["crop"] = df["canonical_crop_name"]
+    df["is_aggregate"] = False
+    return df
+
+
+def _source_ids(df) -> list[str]:
+    """Return the source identifiers represented by the served rows."""
+    if "source_id" not in df.columns:
+        return []
+    return sorted(
+        {str(value) for value in df["source_id"].dropna() if str(value).strip()}
+    )
+
+
+def _sum_published(values) -> float | None:
+    published = [_value(value) for value in values]
+    published = [value for value in published if value is not None]
+    return round(float(sum(published)), 4) if published else None
+
+
+def national_totals(df, axis: list[str]) -> dict:
     """The national total across the non-aggregate crops, on the shared axis.
 
-    Reuses the trend service's own no-crop aggregation so the home pulse and the
-    per-crop board can never disagree, and aligns it to the same period axis the
-    crops use. Yield is production over harvested area across the crops that
-    published both - never an average of per-crop yields.
+    Yield is production over harvested area across the crops that published both
+    values - never an average of per-crop yields.
     """
-    points = {point["period"]: point["values"] for point in trend_service.crop_trends()["points"]}
-    series = {
-        metric: [(points.get(code) or {}).get(metric) for code in axis] for metric in METRICS
-    }
+    series = {metric: [] for metric in METRICS}
+    for code in axis:
+        scoped = df[df["period_code"].astype(str) == code]
+        for metric in METRICS:
+            if metric == "yield_mt_ha":
+                paired = scoped.dropna(subset=["production_mt", "harvested_area_ha"])
+                paired = paired[paired["harvested_area_ha"] > 0]
+                area = _sum_published(paired["harvested_area_ha"].tolist())
+                production = _sum_published(paired["production_mt"].tolist())
+                value = (
+                    round(production / area, 4)
+                    if production is not None and area not in (None, 0)
+                    else None
+                )
+            else:
+                value = _sum_published(scoped[metric].tolist()) if metric in scoped else None
+            series[metric].append(value)
+
     return {
         "series": series,
         "changes": {
@@ -177,12 +242,7 @@ def board(
     combination with no published data yields an empty axis, never an
     interpolation.
     """
-    df = repo.national_crop_trends()
-    if "is_aggregate" in df.columns:
-        df = df[~df["is_aggregate"].astype(bool)].copy()
-    # A family row and its varieties share a canonical crop; use only the family
-    # total so a crop is never reported as the sum of itself and its breakdown.
-    df = collapse_crop_breakdown(df)
+    df = _canonical_national_rows()
 
     for column in ("year", "season", "canonical_crop_name"):
         if column not in df.columns:
@@ -249,10 +309,12 @@ def board(
             }
         )
 
+    served_rows = df[df["period_code"].astype(str).isin(axis)]
     return {
         "metric_units": METRIC_UNITS,
         "periods": axis,
         "period_labels": {code: _label(code) for code in axis},
         "crops": rows,
-        "national": national_totals(axis),
+        "national": national_totals(df, axis),
+        "source_ids": _source_ids(served_rows),
     }

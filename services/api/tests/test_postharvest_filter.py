@@ -44,6 +44,15 @@ def test_post_harvest_crop_filter_is_case_insensitive(client):
     assert {c["crop"].lower() for c in body["crops"]} == {"maize"}
 
 
+def test_legacy_postharvest_path_matches_canonical_path(client):
+    """Older deployed web bundles can use /postharvest during rollout."""
+    _require_data(client)
+    canonical = client.get("/api/v1/analytics/post-harvest", params={"crop": "Banana"})
+    legacy = client.get("/api/v1/analytics/postharvest", params={"crop": "Banana"})
+    assert canonical.status_code == legacy.status_code
+    assert canonical.json() == legacy.json()
+
+
 def test_post_harvest_unknown_crop_returns_404_with_helpful_detail(client):
     _require_data(client)
     res = client.get("/api/v1/analytics/post-harvest", params={"crop": "Totally Unknown Crop"})

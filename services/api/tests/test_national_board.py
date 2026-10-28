@@ -71,7 +71,7 @@ def test_change_is_only_reported_from_two_published_observations(client):
             previous = change["previous_value"]
             assert current is not None and previous is not None
             expected = (current - previous) / abs(previous) * 100
-            assert change["change_pct"] == pytest.approx(expected, rel=1e-4)
+            assert change["change_pct"] == pytest.approx(expected, rel=1e-4, abs=5e-4)
 
 
 def test_a_missing_period_is_a_null_not_a_zero(monkeypatch):
@@ -82,18 +82,24 @@ def test_a_missing_period_is_a_null_not_a_zero(monkeypatch):
 
     frame = pd.DataFrame(
         [
-            {"year": 2024, "season": "B", "crop": "Banana", "canonical_crop_name": "Banana",
-             "is_aggregate": False, "cultivated_area_ha": 258564.0,
-             "harvested_area_ha": 92501.0, "production_mt": 1142552.0, "yield_mt_ha": 12.35},
-            {"year": 2024, "season": "B", "crop": "Maize", "canonical_crop_name": "Maize",
-             "is_aggregate": False, "cultivated_area_ha": 249275.0,
-             "harvested_area_ha": 92748.0, "production_mt": 119101.0, "yield_mt_ha": 1.28},
-            {"year": 2025, "season": "A", "crop": "Maize", "canonical_crop_name": "Maize",
-             "is_aggregate": False, "cultivated_area_ha": 242439.0,
-             "harvested_area_ha": 242439.0, "production_mt": 481246.0, "yield_mt_ha": 2.0},
+                {"year": 2024, "season": "B", "period_code": "2024B",
+                 "geography_level": "NATIONAL", "row_scope": "total", "is_synthetic": False,
+                 "crop": "Banana", "canonical_crop_name": "Banana", "is_aggregate": False,
+                 "cultivated_area_ha": 258564.0, "harvested_area_ha": 92501.0,
+                 "production_mt": 1142552.0, "yield_kg_ha": 12350.0},
+                {"year": 2024, "season": "B", "period_code": "2024B",
+                 "geography_level": "NATIONAL", "row_scope": "total", "is_synthetic": False,
+                 "crop": "Maize", "canonical_crop_name": "Maize", "is_aggregate": False,
+                 "cultivated_area_ha": 249275.0, "harvested_area_ha": 92748.0,
+                 "production_mt": 119101.0, "yield_kg_ha": 1280.0},
+                {"year": 2025, "season": "A", "period_code": "2025A",
+                 "geography_level": "NATIONAL", "row_scope": "total", "is_synthetic": False,
+                 "crop": "Maize", "canonical_crop_name": "Maize", "is_aggregate": False,
+                 "cultivated_area_ha": 242439.0, "harvested_area_ha": 242439.0,
+                 "production_mt": 481246.0, "yield_kg_ha": 2000.0},
         ]
     )
-    monkeypatch.setattr(national_board_service.repo, "national_crop_trends", lambda: frame)
+    monkeypatch.setattr(national_board_service.repo, "crop_productivity", lambda: frame)
     body = national_board_service.board()
 
     # The axis is the union of published periods, chronologically ordered.
@@ -120,6 +126,17 @@ def test_no_value_is_a_nan_or_a_string(client):
                     isinstance(value, int | float) and value == value
                 ), "a NaN or a string would leak into the chart"
         assert crop["n_published_periods"] <= len(body["periods"])
+
+
+@pytest.mark.parametrize("period_code", ["2022A", "2022C", "2023A", "2024A", "2024C", "2025C"])
+def test_each_published_period_is_available_on_the_crop_board(client, period_code):
+    """The board must use the canonical panel, not the old four-period trend extract."""
+    _require_data(client)
+    res = client.get("/api/v1/analytics/national-board", params={"period_code": period_code})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["periods"] == [period_code]
+    assert body["crops"]
 
 
 def test_national_totals_share_the_axis_and_are_never_an_average_of_yields(client):

@@ -331,7 +331,9 @@ def national_board(
     return NationalBoardResponse(
         **result,
         provenance=Provenance(
-            source_id="NISR_SAS_2024_2026_NATIONAL_TRENDS",
+            source_id=",".join(result.get("source_ids") or [
+                "NISR_SAS_CANONICAL_CROP_PRODUCTIVITY"
+            ]),
             source_period="-".join([result["periods"][0], result["periods"][-1]])
             if result["periods"]
             else None,
@@ -453,6 +455,7 @@ def input_adoption() -> TrendResponse:
 
 
 @router.get("/post-harvest", response_model=PostHarvestResponse)
+@router.get("/postharvest", response_model=PostHarvestResponse, include_in_schema=False)
 def post_harvest(
     f: AnalyticsFilters = Depends(analytics_filters),
 ) -> PostHarvestResponse:
