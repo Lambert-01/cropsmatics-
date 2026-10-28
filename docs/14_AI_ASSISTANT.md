@@ -28,7 +28,7 @@ grounding-validation rejection:
 ```dotenv
 AI_ENABLED=true
 AI_PROVIDER=groq
-AI_MODEL=llama-3.1-8b-instant
+AI_MODEL=openai/gpt-oss-20b
 AI_BASE_URL=https://api.groq.com/openai/v1
 AI_API_KEY=<backend secret>
 GEMINI_ENABLED=false
@@ -48,7 +48,7 @@ canonical names above or configure these aliases:
 ```text
 AI_ENABLED=true
 AI_PROVIDER=groq
-GROQ_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=openai/gpt-oss-20b
 GROQ_BASE_URL=https://api.groq.com/openai/v1
 GROQ_API_KEY=<replacement Groq secret>
 ```

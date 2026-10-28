@@ -121,8 +121,12 @@ class GeminiProvider(RemoteProvider):
         body = await self._post_json(
             f"{self.config.base_url}/models/{self.config.model}:generateContent",
             payload,
-            headers={"Content-Type": "application/json"},
-            params={"key": str(self.config.api_key)},
+            # Gemini documents x-goog-api-key for native generateContent. A
+            # header keeps the secret out of request URLs and provider logs.
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": str(self.config.api_key),
+            },
         )
 
         candidates = body.get("candidates") or []

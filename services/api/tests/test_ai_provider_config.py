@@ -86,6 +86,12 @@ def test_groq_aliases_configure_the_groq_provider():
     assert config.api_key == "gsk-test"
 
 
+def test_groq_key_only_uses_a_current_default_model():
+    config = load_config({"AI_ENABLED": "true", "GROQ_API_KEY": "gsk-test"})
+    assert config.provider == "groq"
+    assert config.model == "openai/gpt-oss-20b"
+
+
 def test_gemini_is_an_explicit_secondary_provider():
     config = load_gemini_config(
         {
@@ -269,7 +275,8 @@ async def test_gemini_path_translates_messages_and_function_calls(monkeypatch):
 
     request = client.requests[0]
     assert request["url"].endswith("/models/gemini-test:generateContent")
-    assert request["params"] == {"key": "gemini-test-key"}
+    assert request["params"] is None
+    assert request["headers"]["x-goog-api-key"] == "gemini-test-key"
     assert request["json"]["systemInstruction"]["parts"]
     assert request["json"]["contents"][0]["role"] == "user"
     assert request["json"]["tools"][0]["function_declarations"][0]["name"] == "get_crop_trend"

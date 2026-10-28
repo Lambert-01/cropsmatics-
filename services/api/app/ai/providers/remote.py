@@ -135,7 +135,11 @@ def load_config(environ: dict[str, str] | None = None) -> RemoteConfig:
         provider = "groq" if _first(env, "GROQ_API_KEY", "GROQ_MODEL") else "openai_compatible"
 
     if provider == "groq":
-        default_model = "llama-3.1-8b-instant"
+        # Groq retired the former Llama 3.1 Instant model in August 2026.
+        # Keep the default on a currently supported production model so a
+        # deployment with only GROQ_API_KEY configured does not start returning
+        # provider 404s.
+        default_model = "openai/gpt-oss-20b"
         default_base = "https://api.groq.com/openai/v1"
         model_names = ("AI_MODEL", "GROQ_MODEL", "OPENAI_MODEL")
         base_names = ("AI_BASE_URL", "GROQ_BASE_URL", "OPENAI_BASE_URL")
