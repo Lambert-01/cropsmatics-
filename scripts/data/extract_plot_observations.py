@@ -23,6 +23,7 @@ potentially sensitive records are not exposed by default.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import re
 import sys
@@ -73,6 +74,8 @@ OUTPUT_COLUMNS = [
     "processing_version",
     "is_synthetic",
 ]
+
+SUPPORTED_SUFFIXES = {".csv", ".tsv", ".xlsx", ".xls", ".dta", ".sav"}
 
 _MISSING = {"", "-", "—", "na", "n/a", "nan", "none", "null", "."}
 
@@ -367,28 +370,42 @@ def _read_file(path: Path) -> list[tuple[str, pd.DataFrame]]:
     return []
 
 
-def build(raw_dir: Path = RAW_SAS_MICRODATA_DIR, output: Path = PROCESSED_DIR / "field_crop_observations.csv") -> pd.DataFrame:
+def supported_paths(raw_dir: Path) -> list[Path]:
+    """Return deterministic supported input files under an optional source directory."""
+    if not raw_dir.exists():
+        return []
+    return sorted(
+        path
+        for path in raw_dir.rglob("*")
+        if path.is_file() and path.suffix.lower() in SUPPORTED_SUFFIXES
+    )
+
+
+def build(
+    raw_dir: Path = RAW_SAS_MICRODATA_DIR,
+    output: Path = PROCESSED_DIR / "field_crop_observations.csv",
+) -> pd.DataFrame:
     """Extract every supported local microdata file into one deterministic CSV."""
     output_rows: list[pd.DataFrame] = []
-    if raw_dir.exists():
-        paths = sorted(
-            path
-            for path in raw_dir.rglob("*")
-            if path.is_file() and path.suffix.lower() in {".csv", ".tsv", ".xlsx", ".xls", ".dta", ".sav"}
+    paths = supported_paths(raw_dir)
+    if not paths:
+        log(
+            "no supported plot microdata files found under "
+            f"{raw_dir}; created an empty optional output"
         )
-        for path in paths:
-            period = infer_period(path)
-            source_id = infer_source_id(path, period)
-            for sheet, frame in _read_file(path):
-                extracted = extract_frame(
-                    frame,
-                    source_file=_source_relative(path),
-                    source_table=sheet or None,
-                    period_code=period,
-                    source_id=source_id,
-                )
-                if not extracted.empty:
-                    output_rows.append(extracted)
+    for path in paths:
+        period = infer_period(path)
+        source_id = infer_source_id(path, period)
+        for sheet, frame in _read_file(path):
+            extracted = extract_frame(
+                frame,
+                source_file=_source_relative(path),
+                source_table=sheet or None,
+                period_code=period,
+                source_id=source_id,
+            )
+            if not extracted.empty:
+                output_rows.append(extracted)
 
     result = pd.concat(output_rows, ignore_index=True) if output_rows else pd.DataFrame(columns=OUTPUT_COLUMNS)
     if not result.empty:
@@ -399,15 +416,47 @@ def build(raw_dir: Path = RAW_SAS_MICRODATA_DIR, output: Path = PROCESSED_DIR / 
         ).reset_index(drop=True)
     output.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(output, index=False)
-    log(f"built {output.relative_to(DATA_DIR.parent)}: {len(result)} plot observations")
+    try:
+        display_output = output.resolve().relative_to(DATA_DIR.parent.resolve()).as_posix()
+    except ValueError:
+        display_output = str(output)
+    log(f"built {display_output}: {len(result)} plot observations")
     if not result.empty and not result["geometry_available"].any():
         log("plot geometry: none supplied; no field locations were inferred")
     return result
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Extract approved NISR/AHS plot area and production observations."
+    )
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=RAW_SAS_MICRODATA_DIR,
+        help="directory containing approved microdata exports",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=PROCESSED_DIR / "field_crop_observations.csv",
+        help="processed CSV output path",
+    )
+    parser.add_argument(
+        "--require-data",
+        action="store_true",
+        help="fail when no supported input file or plot record is found",
+    )
+    args = parser.parse_args(argv)
     try:
-        build()
+        result = build(raw_dir=args.input_dir, output=args.output)
+        if args.require_data and result.empty:
+            print(
+                "plot microdata extraction found no records; provide an approved "
+                "CSV, TSV, XLSX, XLS, DTA or SAV export",
+                file=sys.stderr,
+            )
+            return 2
     except (OSError, ValueError, ImportError) as error:
         print(f"plot microdata extraction failed: {error}", file=sys.stderr)
         return 1

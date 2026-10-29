@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.data.extract_plot_observations import extract_frame, infer_period
+from scripts.data.extract_plot_observations import extract_frame, infer_period, main
 
 
 def test_extracts_plot_area_and_production_without_inventing_geometry():
@@ -65,3 +65,9 @@ def test_extracts_hectares_and_sums_multiple_crop_harvest_columns():
 def test_period_inference_does_not_guess_a_season():
     assert infer_period(Path("SAS_2025_annual/production.csv")) == "2025"
     assert infer_period(Path("SAS_2025/season_c/production.csv")) == "2025C"
+
+
+def test_strict_cli_reports_missing_microdata(tmp_path):
+    output = tmp_path / "field_crop_observations.csv"
+    assert main(["--input-dir", str(tmp_path / "empty"), "--output", str(output), "--require-data"]) == 2
+    assert output.exists()

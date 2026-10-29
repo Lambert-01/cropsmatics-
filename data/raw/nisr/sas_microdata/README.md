@@ -15,6 +15,19 @@ The data build reads this directory with
 `scripts/data/extract_plot_observations.py` and writes
 `data/processed/field_crop_observations.csv`.
 
+Run the optional extractor directly when checking an export:
+
+```bash
+python scripts/data/extract_plot_observations.py \
+  --input-dir data/raw/nisr/sas_microdata \
+  --output data/processed/field_crop_observations.csv \
+  --require-data
+```
+
+`--require-data` returns exit code `2` when the directory has no supported
+file or no usable plot records. The normal `run_all.py` pipeline does not fail
+for an empty directory because plot microdata is optional and restricted.
+
 The extractor preserves plot area and production, derives yield only when both
 values are present, and copies latitude/longitude or geometry only when those
 fields exist in the source. It never creates a field point from a district
