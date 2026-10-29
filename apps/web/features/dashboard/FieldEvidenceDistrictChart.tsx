@@ -232,26 +232,26 @@ export function FieldEvidenceDistrictChart({
                   return (
                     <div
                       key={cropName}
-                      className="rounded-lg border border-forest/10 bg-slate-50/70 px-3 py-2 dark:border-white/10 dark:bg-slate-900/70"
+                      className="rounded-lg border border-forest/10 bg-slate-50/70 px-3 py-2 dark:border-primary/25 dark:bg-surface"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="truncate text-xs font-semibold text-forest-deep dark:text-white">
                           {cropName}
                         </p>
-                        <span className="shrink-0 text-[11px] font-semibold text-primary dark:text-emerald-300">
+                        <span className="shrink-0 text-[11px] font-semibold text-primary dark:text-amber">
                           {fmtNumber(crop.plot_crop_records)} plots
                         </span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-forest/10 dark:bg-white/10">
                         <div
-                          className="h-full rounded-full bg-primary dark:bg-emerald-300"
+                          className="h-full rounded-full bg-primary dark:bg-amber"
                           style={{ width: `${width}%` }}
                         />
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-slate-200">
-                        <span>{fmtNumber(crop.area_ha, 1)} ha</span>
-                        <span>{fmtNumber(crop.production_kg, 0)} kg</span>
-                        <span>{crop.periods.join(", ")}</span>
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600 dark:text-blue-200">
+                        <span className="font-semibold dark:text-yellow-300">{fmtNumber(crop.area_ha, 1)} ha</span>
+                        <span className="font-semibold dark:text-yellow-300">{fmtNumber(crop.production_kg, 0)} kg</span>
+                        <span className="dark:text-blue-200">{crop.periods.join(", ")}</span>
                       </div>
                     </div>
                   );
