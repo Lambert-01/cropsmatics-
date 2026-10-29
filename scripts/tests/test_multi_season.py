@@ -92,13 +92,13 @@ def test_title_anomalies_are_documented_not_silent():
 
 def test_source_catalog_hashes_every_raw_file(interim_dir):
     catalog = pd.read_csv(require(interim_dir / "source_catalog.csv"))
-    assert len(catalog) > 200, "expected the SAS extraction plus the legacy pack"
+    assert len(catalog) > 200, "expected the SAS extraction plus compatibility extracts"
     assert not catalog["relative_path"].duplicated().any()
     assert (catalog["bytes"] > 0).all()
     assert catalog["sha256"].str.len().eq(64).all()
 
     families = set(catalog["dataset_family"])
-    assert {"SAS", "LEGACY_PACK", "MINAGRI_ADDON"} <= families
+    assert {"SAS", "DERIVED_COMPATIBILITY_EXTRACTS", "MINAGRI_ADDON"} <= families
 
     # Every extracted SAS table CSV is catalogued with the period(s) it covers.
     root = interim_dir.parents[1]

@@ -379,6 +379,11 @@ def crop_productivity() -> pd.DataFrame:
     )
 
 
+def field_crop_observations() -> pd.DataFrame:
+    """Optional approved plot-level area/production evidence."""
+    return _load("field_crop_observations.csv")
+
+
 def factors_dataset() -> pd.DataFrame:
     """District input/practice factor table (canonical observations)."""
     return _observation_read("district_factors", "district_productivity_factors.csv")

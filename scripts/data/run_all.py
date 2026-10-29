@@ -40,6 +40,7 @@ STEPS = [
     "scripts.data.validate_raw",
     "scripts.data.normalize_geography",
     "scripts.data.normalize_crops",
+    "scripts.data.extract_plot_observations",
     "scripts.data.build_district_crop_dataset",
     "scripts.data.build_factor_dataset",
     "scripts.data.build_irrigation",

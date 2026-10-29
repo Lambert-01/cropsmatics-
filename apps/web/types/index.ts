@@ -550,6 +550,32 @@ export interface MapMetricsResponse {
   provenance: Provenance;
 }
 
+export interface FieldAllocationRow {
+  period_code?: string | null;
+  district?: string | null;
+  district_code?: string | null;
+  province?: string | null;
+  crop?: string | null;
+  n_plots: number;
+  area_ha?: number | null;
+  production_kg?: number | null;
+  yield_kg_ha?: number | null;
+  n_with_geometry: number;
+  geometry_available: boolean;
+  source_ids: string[];
+}
+
+export interface FieldObservationsResponse {
+  available: boolean;
+  message: string;
+  rows: FieldAllocationRow[];
+  count: number;
+  n_plot_records: number;
+  geometry_available: boolean;
+  n_records_with_geometry: number;
+  provenance: Provenance;
+}
+
 export interface TrendPoint {
   period: string;
   year?: number | null;

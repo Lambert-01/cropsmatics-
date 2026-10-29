@@ -71,6 +71,10 @@ ml/artifacts/*
 ml/reports/*
 !ml/reports/.gitkeep
 data/**/*.tmp
+# Approved plot microdata is access-controlled and must remain local unless its
+# licence explicitly permits redistribution. Keep the directory guide tracked.
+data/raw/nisr/sas_microdata/*
+!data/raw/nisr/sas_microdata/README.md
 
 # ---- Local dev runner (scripts/dev.sh) ----
 .dev-run/

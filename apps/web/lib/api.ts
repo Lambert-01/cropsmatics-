@@ -18,6 +18,7 @@ import type {
   District,
   DistrictSummaryResponse,
   FacilitiesResponse,
+  FieldObservationsResponse,
   FactorsResponse,
   FertilizerSourceResponse,
   ForecastStatusResponse,
@@ -232,6 +233,8 @@ export const api = {
     filters: DashboardFilters,
     metric: string,
   ) => get<MapMetricsResponse>("/maps/district-metrics", `${filtersToApiQuery(filters)}&metric=${metric}`),
+  fieldObservations: (filters: DashboardFilters) =>
+    get<FieldObservationsResponse>("/maps/field-observations", filtersToApiQuery(filters)),
   weightedPriorityMap: (filters: DashboardFilters, weights: Record<string, number>) =>
     post<MapMetricsResponse>("/maps/district-metrics", weights, filtersToApiQuery(filters)),
   /**

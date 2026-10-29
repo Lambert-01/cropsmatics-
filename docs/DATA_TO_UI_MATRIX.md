@@ -38,6 +38,7 @@ maintained coverage register.
 | Overview scope line | period axis (C) | `dashboard_service.overview` | `GET /dashboard/overview` | `components/ui/States.ScopeNotice` |
 | Published-period timeline | period axis (C) | `dashboard_service.overview` | `GET /dashboard/overview` | `features/dashboard/PeriodTimeline` |
 | Productivity/Risk map | P+01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/RwandaDistrictMap`, `DistrictChoropleth` |
+| Field evidence and allocation | optional `field_crop_observations.csv` | `field_service.field_observations` | `GET /maps/field-observations` | `features/maps/FieldEvidencePanel` |
 | Map tooltip | P+01+02 | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapTooltip` |
 | Map legend | P+01+02 (min/max) | `map_service.district_metrics` | `GET /maps/district-metrics` | `features/maps/MapLegend` |
 | Map metric switch | — | — | query param `metric` | `features/maps/MapControls` |

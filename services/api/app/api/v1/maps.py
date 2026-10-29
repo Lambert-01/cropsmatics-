@@ -10,6 +10,7 @@ from app.analytics import intervention_priority as ip
 from app.schemas.analytics import WeightsIn
 from app.schemas.common import Provenance
 from app.schemas.dashboard import MapMetricsResponse
+from app.schemas.field import FieldObservationsResponse
 from app.schemas.filters import AnalyticsFilters, analytics_filters
 from app.services import analytics_service, map_service
 
@@ -25,6 +26,16 @@ MapMetric = Literal[
     "irrigation",
     "erosion",
 ]
+
+
+@router.get("/field-observations", response_model=FieldObservationsResponse)
+def field_observations(
+    f: AnalyticsFilters = Depends(analytics_filters),
+) -> FieldObservationsResponse:
+    """Privacy-aware plot area/production evidence for allocation analysis."""
+    from app.services import field_service
+
+    return FieldObservationsResponse(**field_service.field_observations(f))
 
 
 @router.get("/district-metrics", response_model=MapMetricsResponse)

@@ -256,6 +256,16 @@ export function useMapMetrics(filters: DashboardFilters, metric: string, enabled
   });
 }
 
+export function useFieldObservations(filters: DashboardFilters, enabled = true) {
+  return useQuery({
+    queryKey: ["field-observations", scopeKey(filters)],
+    queryFn: () => api.fieldObservations(filters),
+    placeholderData: keepPreviousData,
+    staleTime: FIVE_MIN,
+    enabled,
+  });
+}
+
 export function useWeightedPriorityMap(filters: DashboardFilters) {
   return useMutation({
     mutationFn: (weights: Record<string, number>) => api.weightedPriorityMap(filters, weights),

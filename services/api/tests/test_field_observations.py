@@ -1,0 +1,73 @@
+"""Privacy and aggregation contract for the plot evidence map endpoint."""
+
+from __future__ import annotations
+
+import pandas as pd
+
+
+def _frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "period_code": "2024B",
+                "district": "Gatsibo",
+                "district_code": "RW-02",
+                "province": "Eastern",
+                "canonical_crop_name": "Maize",
+                "crop_raw": "Maize",
+                "area_ha": 1.0,
+                "production_kg": 2500,
+                "geometry_available": False,
+                "source_id": "NISR_SAS_MICRODATA_2024B",
+                "field_observation_id": "one",
+            },
+            {
+                "period_code": "2024B",
+                "district": "Gatsibo",
+                "district_code": "RW-02",
+                "province": "Eastern",
+                "canonical_crop_name": "Maize",
+                "crop_raw": "Maize",
+                "area_ha": 2.0,
+                "production_kg": 3000,
+                "geometry_available": False,
+                "source_id": "NISR_SAS_MICRODATA_2024B",
+                "field_observation_id": "two",
+            },
+        ]
+    )
+
+
+def test_plot_endpoint_aggregates_and_does_not_expose_plot_ids(client, monkeypatch):
+    from app.repositories import dataset_repository as repo
+
+    monkeypatch.setattr(repo, "field_crop_observations", lambda: _frame())
+    response = client.get(
+        "/api/v1/maps/field-observations",
+        params={"period_code": "2024B", "crop": "Maize"},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["available"] is True
+    assert body["n_plot_records"] == 2
+    assert body["count"] == 1
+    assert body["rows"][0]["n_plots"] == 2
+    assert body["rows"][0]["area_ha"] == 3
+    assert body["rows"][0]["production_kg"] == 5500
+    assert body["rows"][0]["yield_kg_ha"] == 5500 / 3
+    assert "field_observation_id" not in body["rows"][0]
+    assert body["geometry_available"] is False
+
+
+def test_plot_endpoint_reports_unavailable_when_no_microdata_is_loaded(client, monkeypatch):
+    from app.repositories import dataset_repository as repo
+
+    monkeypatch.setattr(repo, "field_crop_observations", lambda: pd.DataFrame())
+    response = client.get("/api/v1/maps/field-observations")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["rows"] == []
+    assert "microdata" in body["message"].lower()

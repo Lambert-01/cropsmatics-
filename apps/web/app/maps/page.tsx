@@ -7,9 +7,10 @@ import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { ErrorState, MapSkeleton, UpdatingPill } from "@/components/ui/States";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
+import { FieldEvidencePanel } from "@/features/maps/FieldEvidencePanel";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
 import type { MapMetricId } from "@/lib/constants";
-import { useFacilities, useMapMetrics, useProductivity } from "@/services/hooks/useAnalytics";
+import { useFacilities, useFieldObservations, useMapMetrics, useProductivity } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
 export default function MapsPage() {
@@ -18,6 +19,7 @@ export default function MapsPage() {
   const mapMetrics = useMapMetrics(filters, metric);
   const facilities = useFacilities();
   const productivity = useProductivity(filters);
+  const fieldObservations = useFieldObservations(filters);
 
   return (
     <div className="space-y-5">
@@ -61,6 +63,14 @@ export default function MapsPage() {
           />
         </div>
       )}
+
+      <FieldEvidencePanel
+        data={fieldObservations.data}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+        onSelectDistrict={(district) => setFilters({ district })}
+      />
 
       <DistrictRankingTable
         rows={productivity.data?.rows ?? []}

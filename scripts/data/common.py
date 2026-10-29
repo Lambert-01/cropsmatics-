@@ -224,6 +224,10 @@ PROCESSED_FILES = {
     "dashboard_overview": "dashboard_overview.csv",
     "data_coverage": "data_coverage.csv",
     "data_sources": "data_sources.csv",
+    # Optional, access-controlled NISR/AHS plot-level evidence. This output is
+    # empty when no approved microdata drop is present and is never treated as
+    # the canonical district productivity panel.
+    "field_crop_observations": "field_crop_observations.csv",
     # --- multi-season canonical outputs (2024A-2026B) ---
     "crop_productivity": "crop_productivity.csv",
     "agricultural_practices": "agricultural_practice_observation.csv",

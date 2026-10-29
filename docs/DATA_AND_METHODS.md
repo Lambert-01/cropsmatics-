@@ -169,6 +169,28 @@ different yields. Blank cells remain unavailable and are not converted to zero.
 - The intervention ranking is decision support for investigation. It is not a
   binding allocation, budget, causal estimate or promised yield gain.
 
+## Optional plot-level field evidence
+
+Cropmatics includes an opt-in extractor for approved NISR Seasonal Agricultural
+Survey or Agriculture Household Survey microdata. Place an authorised export in
+`data/raw/nisr/sas_microdata/` and run `make data`. The extractor writes
+`data/processed/field_crop_observations.csv` with plot area, crop, production,
+district, period and provenance. Yield is derived only when production and area
+are both present: `production_kg / area_ha`.
+
+The Maps page exposes this evidence through `/api/v1/maps/field-observations`,
+aggregated by period, district and crop. Plot IDs and farmer/household IDs are
+not returned by that endpoint. The extractor copies coordinates or geometry only
+when they are present in the approved source. It never assigns a field to a
+district centroid and never treats a district polygon as an individual field.
+
+NISR methodology describes GPS-based plot measurement, but a public microdata
+download must not be assumed to include the original field geometry. Exact
+clickable field allocation therefore requires an approved geometry file or new
+farmer-consented GPS boundary collection. Without that, Cropmatics shows the
+plot area and production evidence as a privacy-safe district allocation view and
+labels field boundaries as unavailable.
+
 ## Provenance and rights
 
 Analytical responses carry source, period, method, scope and limitations. The
