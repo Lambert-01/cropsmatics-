@@ -45,7 +45,7 @@ export function Tabs({
               "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition",
               selected
                 ? "bg-primary text-white"
-                : "border border-forest/15 bg-white text-slate-600 hover:bg-forest/5",
+                : "border border-forest/15 bg-white text-slate-600 hover:bg-forest/5 dark:border-white/15 dark:bg-surface dark:text-slate-200 dark:hover:bg-white/5",
             )}
           >
             {item.label}

@@ -174,13 +174,6 @@ export default function ProductivityPage() {
 
       {districtMode && cropSelected ? (
         <>
-          <Tabs
-            items={PRODUCTIVITY_VIEWS.map((item) => ({ ...item }))}
-            active={view}
-            onChange={(next) => setView(next as ProductivityView)}
-            ariaLabel="Productivity analysis views"
-          />
-
           {/* The workspace: the map and the ranking answer the same question, so
               they sit side by side and share one selection. */}
           <div className="grid gap-5 xl:grid-cols-[2fr_1fr]">
@@ -199,6 +192,30 @@ export default function ProductivityPage() {
               selectedDistrict={filters.district}
             />
           </div>
+
+          <section className="card p-3 sm:p-4" aria-labelledby="productivity-evidence-heading">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+                  After the map
+                </p>
+                <h2 id="productivity-evidence-heading" className="mt-1 text-base font-semibold text-forest-deep">
+                  Explain the productivity difference
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500">
+                  Move from the district comparison to practice change, period-to-period movement,
+                  or the evidence behind the result. Each view keeps the selected crop and district.
+                </p>
+              </div>
+              <Tabs
+                className="shrink-0"
+                items={PRODUCTIVITY_VIEWS.map((item) => ({ ...item }))}
+                active={view}
+                onChange={(next) => setView(next as ProductivityView)}
+                ariaLabel="Productivity evidence views"
+              />
+            </div>
+          </section>
 
           {view === "comparison" ? (
             /* Two answers to "who is furthest below, and by how much" share one

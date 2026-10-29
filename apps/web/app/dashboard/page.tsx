@@ -4,7 +4,6 @@ import { ArrowRight, X } from "lucide-react";
 import Link from "next/link";
 
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
-import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
 import { PageHero } from "@/components/layout/PageHero";
 import { ProvenanceCard } from "@/components/ProvenanceCard";
 import {
@@ -20,9 +19,7 @@ import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
-import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
-import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { FieldEvidenceDistrictChart } from "@/features/dashboard/FieldEvidenceDistrictChart";
 import {
   useCanonicalTrend,
@@ -30,7 +27,6 @@ import {
   useInputAdoption,
   useOverview,
   usePriorities,
-  useTrends,
   useFieldObservations,
   useWeatherContext,
 } from "@/services/hooks/useAnalytics";
@@ -65,19 +61,11 @@ export default function DashboardPage() {
   const overview = useOverview(filters);
   const districtMode = overview.data?.coverage_level === "district";
   const priorities = usePriorities(filters, 16, districtMode);
-  const compareCrops = (filters.compare ?? "")
-    .split(",")
-    .map((crop) => crop.trim())
-    .filter(Boolean);
-  const compareKey = compareCrops.length >= 2 && compareCrops.length <= 5
-    ? compareCrops.join(",")
-    : undefined;
-  const comparisonTrend = useTrends(undefined, compareKey, Boolean(compareKey));
   // The trend reads the canonical multi-period panel (2022A-2026B): one period
   // axis, no release mixing, and a period the release did not tabulate is a gap
-  // in the line. A valid compare selection switches to the national
-  // area/production comparison endpoint; raw cross-crop yield is never shown.
-  const canonicalTrend = useCanonicalTrend(filters.crop, filters.district, !compareKey);
+  // in the line. Crop comparison belongs to the Productivity workspace, where
+  // its area/production scale and limitations are explained in context.
+  const canonicalTrend = useCanonicalTrend(filters.crop, filters.district);
   // The national adoption trend stays on the landing page: it is a national
   // context series (not district estimates) and does not need a district.
   const inputAdoption = useInputAdoption();
@@ -117,11 +105,6 @@ export default function DashboardPage() {
           onChange={(patch) => setFilters(patch)}
         />
       ) : null}
-
-      <div className="flex flex-wrap items-center gap-2 px-1">
-        <CompareCropsControl />
-        <CropEntryPoint crop={filters.crop} />
-      </div>
 
       {filters.district ? (
         <div className="flex items-center gap-2">
@@ -200,53 +183,31 @@ export default function DashboardPage() {
               benchmarkStrategy={priorities.data?.provenance?.benchmark_strategy ?? null}
               period={priorities.data?.provenance?.source_period ?? null}
             />
-            {compareKey ? (
-              <YieldTrendChart
-                data={comparisonTrend.data}
-                isLoading={comparisonTrend.isLoading}
-                isFetching={comparisonTrend.isFetching}
-                hasError={comparisonTrend.isError}
-                errorMessage={(comparisonTrend.error as Error)?.message}
-                onRetry={() => comparisonTrend.refetch()}
-              />
-            ) : (
-              <CanonicalTrendChart
-                data={canonicalTrend.data}
-                isLoading={canonicalTrend.isLoading}
-                isFetching={canonicalTrend.isFetching}
-                hasError={canonicalTrend.isError}
-                errorMessage={(canonicalTrend.error as Error)?.message}
-                onRetry={() => canonicalTrend.refetch()}
-                crop={filters.crop}
-                district={filters.district}
-              />
-            )}
+            <CanonicalTrendChart
+              data={canonicalTrend.data}
+              isLoading={canonicalTrend.isLoading}
+              isFetching={canonicalTrend.isFetching}
+              hasError={canonicalTrend.isError}
+              errorMessage={(canonicalTrend.error as Error)?.message}
+              onRetry={() => canonicalTrend.refetch()}
+              crop={filters.crop}
+              district={filters.district}
+            />
           </div>
         </>
       ) : (
         <>
           <div className="grid gap-4 xl:grid-cols-3">
-            {compareKey ? (
-              <YieldTrendChart
-                data={comparisonTrend.data}
-                isLoading={comparisonTrend.isLoading}
-                isFetching={comparisonTrend.isFetching}
-                hasError={comparisonTrend.isError}
-                errorMessage={(comparisonTrend.error as Error)?.message}
-                onRetry={() => comparisonTrend.refetch()}
-              />
-            ) : (
-              <CanonicalTrendChart
-                data={canonicalTrend.data}
-                isLoading={canonicalTrend.isLoading}
-                isFetching={canonicalTrend.isFetching}
-                hasError={canonicalTrend.isError}
-                errorMessage={(canonicalTrend.error as Error)?.message}
-                onRetry={() => canonicalTrend.refetch()}
-                crop={filters.crop}
-                district={filters.district}
-              />
-            )}
+            <CanonicalTrendChart
+              data={canonicalTrend.data}
+              isLoading={canonicalTrend.isLoading}
+              isFetching={canonicalTrend.isFetching}
+              hasError={canonicalTrend.isError}
+              errorMessage={(canonicalTrend.error as Error)?.message}
+              onRetry={() => canonicalTrend.refetch()}
+              crop={filters.crop}
+              district={filters.district}
+            />
             <InputAdoptionChart
               data={inputAdoption.data}
               isLoading={inputAdoption.isLoading}
