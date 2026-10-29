@@ -176,7 +176,10 @@ Survey or Agriculture Household Survey microdata. Place an authorised export in
 `data/raw/nisr/sas_microdata/` and run `make data`. The extractor writes
 `data/processed/field_crop_observations.csv` with plot area, crop, production,
 district, period and provenance. Yield is derived only when production and area
-are both present: `production_kg / area_ha`.
+are both present: `production_kg / area_ha`. The current local AHS 2024 crop
+production export contains explicit plot-crop records for Seasons A, B and C;
+the extractor maps its NISR questionnaire codes and preserves sample scope.
+These are not nationally weighted estimates.
 
 The Maps page exposes this evidence through `/api/v1/maps/field-observations`,
 aggregated by period, district and crop. Plot IDs and farmer/household IDs are

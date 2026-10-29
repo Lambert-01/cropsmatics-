@@ -31,19 +31,19 @@ export function FieldEvidencePanel({
     <Card>
       <CardHeader
         title="Field evidence and allocation"
-        subtitle="Plot area and production aggregated to a privacy-safe district view"
+        subtitle="NISR/AHS plot-crop sample aggregated to a privacy-safe district view"
         action={<MapPinned className="h-4 w-4 text-primary" aria-hidden="true" />}
       />
       <div className="px-4 pb-4 pt-3">
         {!data?.available || data.rows.length === 0 ? (
           <EmptyState
-            title="No approved plot microdata is loaded"
+            title="No approved plot or crop microdata is loaded"
             hint={data?.message ?? "Add an authorised NISR or AHS export to the microdata input folder."}
           />
         ) : (
           <>
             <div className="mb-3 grid gap-2 sm:grid-cols-3">
-              <Stat label="Plot records" value={fmtNumber(data.n_plot_records)} />
+              <Stat label="Plot-crop records" value={fmtNumber(data.n_plot_records)} />
               <Stat label="Area represented" value={`${fmtNumber(data.rows.reduce((sum, row) => sum + (row.area_ha ?? 0), 0), 1)} ha`} />
               <Stat label="Boundaries" value={data.geometry_available ? `${fmtNumber(data.n_records_with_geometry)} available` : "Not supplied"} />
             </div>

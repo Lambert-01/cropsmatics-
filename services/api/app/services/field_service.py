@@ -30,9 +30,10 @@ def field_observations(f: AnalyticsFilters) -> dict:
     provenance_base = {
         "source_id": None,
         "source_period": f.period_key(),
-        "method": "optional approved plot microdata, aggregated by period, district and crop",
+        "method": "approved NISR/AHS plot-crop sample, aggregated by period, district and crop",
         "limitations": [
-            "plot evidence is a separate research layer and does not replace official SAS estimates",
+            "plot-crop sample evidence is a separate research layer and does not replace official SAS estimates",
+            "sample records are not expanded to national totals or weighted estimates here",
             "plot identifiers and farmer/household identifiers are not exposed by this endpoint",
             "exact field boundaries are shown only when approved geometry exists in the source",
         ],
@@ -41,7 +42,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
         return {
             "available": False,
             "message": (
-                "No approved plot-level microdata is loaded for this deployment. "
+                "No approved plot or crop microdata is loaded for this deployment. "
                 "District maps remain available; add an authorised NISR/AHS export "
                 "under data/raw/nisr/sas_microdata/ and rebuild the data image."
             ),
@@ -60,7 +61,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
         provenance_base["source_id"] = ",".join(_source_ids(frame)) or None
         return {
             "available": False,
-            "message": "No plot-level records match the selected period, crop or geography.",
+            "message": "No plot or crop records match the selected period, crop or geography.",
             "rows": [],
             "count": 0,
             "n_plot_records": 0,
@@ -88,6 +89,15 @@ def field_observations(f: AnalyticsFilters) -> dict:
         production = group["_production"].sum(min_count=1)
         area_value = float(area) if pd.notna(area) else None
         production_value = float(production) if pd.notna(production) else None
+        if {"plot_id", "farmer_or_household_id"}.issubset(group.columns):
+            plot_keys = group[["farmer_or_household_id", "plot_id"]].dropna()
+            plot_keys = plot_keys.astype(str).drop_duplicates()
+            n_plots = int(len(plot_keys)) if len(plot_keys) else int(len(group))
+        elif "plot_id" in group:
+            plot_ids = group["plot_id"].dropna().astype(str).unique()
+            n_plots = int(len(plot_ids)) if len(plot_ids) else int(len(group))
+        else:
+            n_plots = int(len(group))
         rows.append(
             {
                 "period_code": _nullable(values.get("period_code")),
@@ -95,7 +105,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
                 "district_code": _nullable(values.get("district_code")),
                 "province": _nullable(values.get("province")),
                 "crop": _nullable(values.get("_crop")),
-                "n_plots": int(len(group)),
+                "n_plots": n_plots,
                 "area_ha": area_value,
                 "production_kg": production_value,
                 "yield_kg_ha": (

@@ -84,6 +84,84 @@ SUPPORTED_SUFFIXES = {".csv", ".tsv", ".xlsx", ".xls", ".dta", ".sav"}
 
 _MISSING = {"", "-", "—", "na", "n/a", "nan", "none", "null", "."}
 
+# The public AHS export keeps the NISR questionnaire codes instead of the
+# display names used by the dashboard.  These mappings are deliberately kept
+# here, beside the extraction rule, so a numeric code can never be mistaken
+# for a crop or district name.
+_NISR_PROVINCES = {
+    1: "Kigali City",
+    2: "Southern",
+    3: "Western",
+    4: "Northern",
+    5: "Eastern",
+}
+
+_NISR_DISTRICTS = {
+    11: ("Nyarugenge", "RW-KG-NYA"),
+    12: ("Gasabo", "RW-KG-GAS"),
+    13: ("Kicukiro", "RW-KG-KIC"),
+    21: ("Gisagara", "RW-SO-GIS"),
+    22: ("Huye", "RW-SO-HUY"),
+    23: ("Kamonyi", "RW-SO-KAM"),
+    24: ("Muhanga", "RW-SO-MUH"),
+    25: ("Nyanza", "RW-SO-NYA"),
+    26: ("Nyamagabe", "RW-SO-NYG"),
+    27: ("Nyaruguru", "RW-SO-NYR"),
+    28: ("Ruhango", "RW-SO-RUH"),
+    31: ("Karongi", "RW-WE-KAR"),
+    32: ("Ngororero", "RW-WE-NGO"),
+    33: ("Nyabihu", "RW-WE-NYB"),
+    34: ("Nyamasheke", "RW-WE-NYS"),
+    35: ("Rubavu", "RW-WE-RUB"),
+    36: ("Rusizi", "RW-WE-RUS"),
+    37: ("Rutsiro", "RW-WE-RUT"),
+    41: ("Burera", "RW-NO-BUR"),
+    42: ("Gakenke", "RW-NO-GAK"),
+    43: ("Gicumbi", "RW-NO-GIC"),
+    44: ("Musanze", "RW-NO-MUS"),
+    45: ("Rulindo", "RW-NO-RUL"),
+    51: ("Bugesera", "RW-EA-BUG"),
+    52: ("Gatsibo", "RW-EA-GAT"),
+    53: ("Kayonza", "RW-EA-KAY"),
+    54: ("Kirehe", "RW-EA-KIR"),
+    55: ("Ngoma", "RW-EA-NGO"),
+    56: ("Nyagatare", "RW-EA-NYG"),
+    57: ("Rwamagana", "RW-EA-RWA"),
+}
+
+# AHS has detailed crop codes, while Cropmatics' official productivity panel
+# publishes the canonical groups below.  The grouping is intentionally
+# conservative: detail that cannot be joined to a canonical group remains
+# unresolved rather than being silently renamed to a different crop.
+_NISR_CROP_GROUPS = {
+    **{code: name for code, name in {
+        101: "Maize",
+        102: "Paddy rice",
+        103: "Sorghum",
+        104: "Wheat",
+        105: "Other cereals",
+        110: "Irish potato",
+        111: "Sweet potato",
+        112: "Yams & Taro",
+        113: "Yams & Taro",
+        114: "Yams & Taro",
+        122: "Soybean",
+        123: "Groundnut",
+        305: "Cassava",
+    }.items()},
+    106: "Beans",
+    107: "Beans",
+    108: "Beans",
+    109: "Beans",
+    130: "Beans",
+    **{code: "Vegetables" for code in (115, 116, 117, 118, 119, 120, 121, 125, 126, 127, 128, 129, 131, 132, 133, 134, 135, 136, 137, 139)},
+    **{code: "Other crops" for code in (124, 138, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 201, 202, 203, 205, 206, 207, 304, 306, 307, 308, 309, 310, 311)},
+    **{code: "Fruits" for code in range(401, 420)},
+    **{code: "Banana" for code in (301, 302, 303)},
+    **{code: "Fodder crops" for code in range(501, 511)},
+    204: "Fodder crops",
+}
+
 
 def normalize_column(value: object) -> str:
     """Make a source header comparable without changing its meaning."""
@@ -127,6 +205,28 @@ def _first_column(columns: dict[str, str], aliases: Iterable[str]) -> str | None
     return None
 
 
+def _indexed_columns(columns: dict[str, str], base: str) -> dict[int, str]:
+    """Find repeated questionnaire fields such as ``s3_q4_1`` by slot."""
+    prefix = normalize_column(base)
+    result: dict[int, str] = {}
+    for normalized, original in columns.items():
+        match = re.fullmatch(rf"{re.escape(prefix)}(\d+)", normalized)
+        if match:
+            result[int(match.group(1))] = original
+    return result
+
+
+def _indexed_columns_with_suffix(columns: dict[str, str], base: str, suffix: str) -> dict[int, str]:
+    """Find repeated fields whose slot has a suffix, e.g. crop share ``1a``."""
+    prefix = normalize_column(base)
+    result: dict[int, str] = {}
+    for normalized, original in columns.items():
+        match = re.fullmatch(rf"{re.escape(prefix)}(\d+){re.escape(normalize_column(suffix))}", normalized)
+        if match:
+            result[int(match.group(1))] = original
+    return result
+
+
 def _matching_columns(
     columns: dict[str, str], *, exact: Iterable[str] = (), contains: Iterable[str] = ()
 ) -> list[str]:
@@ -155,7 +255,7 @@ def infer_period(path: Path) -> str | None:
 def infer_source_id(path: Path, period_code: str | None) -> str:
     text = str(path).lower()
     if "ahs" in text or "agriculture_household" in text:
-        prefix = "NISR_RAHS_MICRODATA"
+        prefix = "NISR_AHS_MICRODATA"
     else:
         prefix = "NISR_SAS_MICRODATA"
     return f"{prefix}_{period_code}" if period_code else prefix
@@ -179,6 +279,77 @@ def _district_dictionary() -> dict[str, str]:
     if not {"district", "district_code"}.issubset(frame.columns):
         return {}
     return {str(row.district).strip().lower(): str(row.district_code).strip() for row in frame.itertuples()}
+
+
+def _integer_code(value: object) -> int | None:
+    number = _number(value)
+    if number is None or not number.is_integer():
+        return None
+    return int(number)
+
+
+def _province_name(value: object) -> str | None:
+    text = _text(value)
+    if text is not None and _integer_code(text) is None:
+        return text
+    code = _integer_code(value)
+    return _NISR_PROVINCES.get(code, text)
+
+
+def _district_name_and_code(value: object, districts: dict[str, str]) -> tuple[str | None, str | None]:
+    text = _text(value)
+    code_number = _integer_code(value)
+    if code_number in _NISR_DISTRICTS:
+        name, code = _NISR_DISTRICTS[code_number]
+        return name, code
+    if text is None:
+        return None, None
+    normalized = text.lower()
+    if normalized in districts:
+        return text, districts[normalized]
+    return text, None
+
+
+def _canonical_crop(value: object, crops: dict[str, str]) -> str | None:
+    text = _text(value)
+    if text is None:
+        return None
+    code = _integer_code(text)
+    if code in _NISR_CROP_GROUPS:
+        return _NISR_CROP_GROUPS[code]
+    normalized = text.lower()
+    if normalized in crops:
+        return crops[normalized]
+    aliases = {
+        "bush bean": "Beans",
+        "climbing bean": "Beans",
+        "pea": "Beans",
+        "taro": "Yams & Taro",
+        "yams": "Yams & Taro",
+        "cassava": "Cassava",
+        "cooking banana": "Banana",
+        "dessert banana": "Banana",
+        "banana for beer": "Banana",
+        "napia grass": "Fodder crops",
+    }
+    return aliases.get(normalized)
+
+
+def _row_period(value: object, base_period: str | None) -> str | None:
+    """Resolve an explicit AHS season without guessing from row order."""
+    text = _text(value)
+    if text is None:
+        return base_period
+    direct = re.search(r"(20\d{2})\s*(?:season\s*)?([abc])", text, flags=re.IGNORECASE)
+    if direct:
+        return f"{direct.group(1)}{direct.group(2).upper()}"
+    season = re.fullmatch(r"(?:season\s*)?([abc])", text, flags=re.IGNORECASE)
+    if season and base_period and base_period[:4].isdigit():
+        return f"{base_period[:4]}{season.group(1).upper()}"
+    season_number = _integer_code(value)
+    if season_number in {1, 2, 3} and base_period and base_period[:4].isdigit():
+        return f"{base_period[:4]}{('A', 'B', 'C')[season_number - 1]}"
+    return base_period
 
 
 def _area_column(columns: dict[str, str]) -> tuple[str | None, str | None]:
@@ -259,6 +430,9 @@ def extract_frame(
     columns = _column_map(frame)
     area_column, area_unit = _area_column(columns)
     production_columns = _production_columns(columns)
+    crop_slots = _indexed_columns(columns, "s3_q4_")
+    production_slots = _indexed_columns(columns, "s3_q20_")
+    crop_share_slots = _indexed_columns_with_suffix(columns, "s3_q4_", "a")
     crop_column = _first_column(
         columns,
         ("canonical_crop_name", "crop", "crop name", "cropcategory", "s2q4"),
@@ -266,10 +440,13 @@ def extract_frame(
     district_column = _first_column(columns, ("district", "district name & code", "s1q2"))
     district_code_column = _first_column(columns, ("district_code", "district code"))
     province_column = _first_column(columns, ("province", "s1q1"))
-    segment_column = _first_column(columns, ("segment_id", "segment id", "idquest", "s1q4"))
+    period_column = _first_column(columns, ("period_code", "period", "season"))
+    segment_column = _first_column(
+        columns, ("segment_id", "segment id", "idquest", "cluster_id", "clust", "s1q4")
+    )
     farmer_column = _first_column(
         columns,
-        ("farmer_id", "farmer id", "household_id", "household id", "lsf_id", "s1q6"),
+        ("farmer_id", "farmer id", "household_id", "household id", "hhid", "lsf_id", "s1q6"),
     )
     plot_column = _first_column(columns, ("plot_id", "plot no", "plot number", "s2q1"))
     latitude_column = _first_column(columns, ("latitude", "lat", "gps latitude", "gps_latitude"))
@@ -279,81 +456,124 @@ def extract_frame(
     districts = _district_dictionary()
     resolved_period = period_code or infer_period(Path(source_file))
     resolved_source = source_id or infer_source_id(Path(source_file), resolved_period)
-    source_unit = _production_unit(production_columns)
-    year = int(resolved_period[:4]) if resolved_period and resolved_period[:4].isdigit() else None
-    season = resolved_period[4:] if resolved_period and len(resolved_period) == 5 else None
     rows: list[dict] = []
 
     for index, (_, row) in enumerate(frame.iterrows(), start=2):
-        crop_raw = _text(_row_value(row, crop_column))
-        district = _text(_row_value(row, district_column))
+        row_period = _row_period(_row_value(row, period_column), resolved_period)
+        year = int(row_period[:4]) if row_period and row_period[:4].isdigit() else None
+        season = row_period[4:] if row_period and len(row_period) == 5 else None
+
+        district, inferred_district_code = _district_name_and_code(
+            _row_value(row, district_column), districts
+        )
         area_value = _number(_row_value(row, area_column))
         if area_value is not None and area_unit == "sqm":
             area_value /= 10_000
-
-        production_parts = [_number(_row_value(row, column)) for column in production_columns]
-        production_parts = [value for value in production_parts if value is not None]
-        production_original = sum(production_parts) if production_parts else None
-        production_kg = production_original
-        if production_kg is not None and source_unit == "mt":
-            production_kg *= 1_000
 
         latitude = _number(_row_value(row, latitude_column))
         longitude = _number(_row_value(row, longitude_column))
         geometry = _text(_row_value(row, geometry_column))
         geometry_available = bool(geometry or (latitude is not None and longitude is not None))
-        if not any(value is not None for value in (crop_raw, district, area_value, production_kg)):
-            continue
-
         plot_id = _text(_row_value(row, plot_column))
-        stable_key = "|".join(
-            str(value or "")
-            for value in (resolved_source, source_file, source_table, index, plot_id, crop_raw)
-        )
-        observation_id = hashlib.sha256(stable_key.encode("utf-8")).hexdigest()[:24]
-        canonical_crop = crops.get(crop_raw.lower()) if crop_raw else None
         district_code = _text(_row_value(row, district_code_column))
-        if district_code is None and district:
-            district_code = districts.get(district.lower())
+        if district_code is None:
+            district_code = inferred_district_code
 
-        rows.append(
-            {
-                "field_observation_id": observation_id,
-                "period_code": resolved_period,
-                "year": year,
-                "season": season,
-                "source_id": resolved_source,
-                "source_file": source_file,
-                "source_table": source_table,
-                "source_row": index,
-                "district": district,
-                "district_code": district_code,
-                "province": _text(_row_value(row, province_column)),
-                "segment_id": _text(_row_value(row, segment_column)),
-                "farmer_or_household_id": _text(_row_value(row, farmer_column)),
-                "plot_id": plot_id,
-                "crop_raw": crop_raw,
-                "canonical_crop_name": canonical_crop,
-                "area_ha": area_value,
-                "production_kg": production_kg,
-                "production_unit_original": source_unit,
-                "production_original": production_original,
-                "yield_kg_ha": (
-                    production_kg / area_value
-                    if production_kg is not None and area_value and area_value > 0
-                    else None
-                ),
-                "latitude": latitude,
-                "longitude": longitude,
-                "geometry_wkt": geometry,
-                "geometry_available": geometry_available,
-                "access_level": "restricted_microdata",
-                "record_scope": "plot",
-                "processing_script": "extract_plot_observations.py",
-                "processing_version": PIPELINE_VERSION,
-                "is_synthetic": False,
-            }
-        )
+        province = _province_name(_row_value(row, province_column))
+        segment_id = _text(_row_value(row, segment_column))
+        farmer_or_household_id = _text(_row_value(row, farmer_column))
+
+        # AHS stores up to seven crop records in one plot row.  Emit one
+        # observation per crop slot, using the matching harvest column.  When
+        # the source does not publish a crop share, a shared plot area is used
+        # only for a single-crop row; multi-crop rows keep area unavailable
+        # instead of duplicating the plot area.
+        if crop_slots:
+            active_slots = [
+                slot for slot, column in sorted(crop_slots.items())
+                if _text(_row_value(row, column)) is not None
+            ]
+            entries = []
+            for slot in active_slots:
+                crop_raw = _text(_row_value(row, crop_slots[slot]))
+                share = _number(_row_value(row, crop_share_slots.get(slot)))
+                crop_area = None
+                if share is not None and area_value is not None and 0 <= share <= 100:
+                    crop_area = area_value * share / 100
+                elif len(active_slots) == 1:
+                    crop_area = area_value
+                production_column = production_slots.get(slot)
+                production_original = _number(_row_value(row, production_column))
+                entries.append((slot, crop_raw, crop_area, production_original, "kg"))
+            if not entries and crop_column:
+                entries = [(None, _text(_row_value(row, crop_column)), area_value, None, "kg")]
+            record_scope = "plot_crop"
+        else:
+            crop_raw = _text(_row_value(row, crop_column))
+            production_parts = [_number(_row_value(row, column)) for column in production_columns]
+            production_parts = [value for value in production_parts if value is not None]
+            production_original = sum(production_parts) if production_parts else None
+            entries = [(None, crop_raw, area_value, production_original, _production_unit(production_columns))]
+            record_scope = "plot"
+
+        for slot, crop_raw, crop_area, production_original, source_unit in entries:
+            production_kg = production_original
+            if production_kg is not None and source_unit == "mt":
+                production_kg *= 1_000
+            if not any(value is not None for value in (crop_raw, district, crop_area, production_kg)):
+                continue
+
+            stable_key = "|".join(
+                str(value or "")
+                for value in (
+                    resolved_source,
+                    source_file,
+                    source_table,
+                    index,
+                    slot,
+                    plot_id,
+                    crop_raw,
+                )
+            )
+            observation_id = hashlib.sha256(stable_key.encode("utf-8")).hexdigest()[:24]
+            rows.append(
+                {
+                    "field_observation_id": observation_id,
+                    "period_code": row_period,
+                    "year": year,
+                    "season": season,
+                    "source_id": resolved_source,
+                    "source_file": source_file,
+                    "source_table": source_table,
+                    "source_row": index,
+                    "district": district,
+                    "district_code": district_code,
+                    "province": province,
+                    "segment_id": segment_id,
+                    "farmer_or_household_id": farmer_or_household_id,
+                    "plot_id": plot_id,
+                    "crop_raw": crop_raw,
+                    "canonical_crop_name": _canonical_crop(crop_raw, crops),
+                    "area_ha": crop_area,
+                    "production_kg": production_kg,
+                    "production_unit_original": source_unit,
+                    "production_original": production_original,
+                    "yield_kg_ha": (
+                        production_kg / crop_area
+                        if production_kg is not None and crop_area and crop_area > 0
+                        else None
+                    ),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "geometry_wkt": geometry,
+                    "geometry_available": geometry_available,
+                    "access_level": "restricted_microdata",
+                    "record_scope": record_scope,
+                    "processing_script": "extract_plot_observations.py",
+                    "processing_version": PIPELINE_VERSION,
+                    "is_synthetic": False,
+                }
+            )
     return pd.DataFrame(rows, columns=OUTPUT_COLUMNS)
 
 
@@ -369,7 +589,11 @@ def _read_file(path: Path) -> list[tuple[str, pd.DataFrame]]:
         sheets = pd.read_excel(path, sheet_name=None)
         return [(str(sheet), frame) for sheet, frame in sheets.items()]
     if suffix == ".dta":
-        return [("", pd.read_stata(path))]
+        # NISR/AHS codebooks can reuse a label (for example "Other season")
+        # for several values. Preserve the numeric questionnaire codes and
+        # resolve them explicitly above instead of constructing categoricals
+        # with non-unique labels.
+        return [("", pd.read_stata(path, convert_categoricals=False))]
     if suffix == ".sav":
         return [("", pd.read_spss(path))]
     return []

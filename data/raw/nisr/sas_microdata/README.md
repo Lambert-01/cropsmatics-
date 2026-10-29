@@ -33,6 +33,14 @@ values are present, and copies latitude/longitude or geometry only when those
 fields exist in the source. It never creates a field point from a district
 centroid.
 
+The local development checkout may contain the NISR Agriculture Household
+Survey 2024 crop-production export under `2024/ahs/`. Its `s2q2` field is plot
+area in square metres; `s3_q4_1` through `s3_q4_7` are crop slots; and the
+matching `s3_q20_1` through `s3_q20_7` fields are harvest in kilograms. The
+explicit `Season` field supplies 2024A, 2024B and 2024C. This produces plot-crop
+sample evidence, not a nationally weighted estimate, and the public API still
+returns only district/crop aggregates.
+
 Microdata is treated as restricted respondent-level evidence. Do not commit
 identifiable records, exact field coordinates or files whose terms do not allow
 redistribution. The public API aggregates records by period, district and crop;

@@ -62,6 +62,43 @@ def test_extracts_hectares_and_sums_multiple_crop_harvest_columns():
     assert row["longitude"] == 30.4
 
 
+def test_extracts_ahs_wide_crop_slots_and_nisr_codes():
+    frame = pd.DataFrame(
+        [
+            {
+                "hhid": 123,
+                "province": 5,
+                "district": 52,
+                "Season": 2,
+                "s2q1": 7,
+                "s2q2": 10_000,
+                "s3_q4_1": 101,
+                "s3_q4_1a": 75,
+                "s3_q20_1": 2_500,
+                "s3_q4_2": 106,
+                "s3_q4_2a": 25,
+                "s3_q20_2": 500,
+            }
+        ]
+    )
+
+    result = extract_frame(
+        frame,
+        source_file="data/raw/nisr/sas_microdata/2024/ahs/AHS2024_crop_production.dta",
+    )
+
+    assert len(result) == 2
+    assert set(result["period_code"]) == {"2024B"}
+    assert set(result["district"]) == {"Gatsibo"}
+    assert set(result["district_code"]) == {"RW-EA-GAT"}
+    maize = result.loc[result["canonical_crop_name"] == "Maize"].iloc[0]
+    beans = result.loc[result["canonical_crop_name"] == "Beans"].iloc[0]
+    assert maize["area_ha"] == 0.75
+    assert beans["area_ha"] == 0.25
+    assert maize["production_kg"] == 2_500
+    assert beans["production_kg"] == 500
+
+
 def test_period_inference_does_not_guess_a_season():
     assert infer_period(Path("SAS_2025_annual/production.csv")) == "2025"
     assert infer_period(Path("SAS_2025/season_c/production.csv")) == "2025C"
