@@ -36,6 +36,16 @@ class FieldDistrictSummary(BaseModel):
     production_kg: float | None = None
 
 
+class FieldCropSummary(BaseModel):
+    """One crop represented in a selected district sample scope."""
+
+    crop: str | None = None
+    periods: list[str] = Field(default_factory=list)
+    plot_crop_records: int = 0
+    area_ha: float | None = None
+    production_kg: float | None = None
+
+
 class FieldObservationsResponse(BaseModel):
     """Aggregated plot evidence for the maps allocation workspace."""
 
@@ -43,6 +53,7 @@ class FieldObservationsResponse(BaseModel):
     message: str
     rows: list[FieldAllocationRow] = Field(default_factory=list)
     district_summaries: list[FieldDistrictSummary] = Field(default_factory=list)
+    crop_summaries: list[FieldCropSummary] = Field(default_factory=list)
     count: int = 0
     n_plot_records: int = 0
     area_ha_total: float | None = None

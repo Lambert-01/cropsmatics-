@@ -575,11 +575,20 @@ export interface FieldDistrictSummary {
   production_kg?: number | null;
 }
 
+export interface FieldCropSummary {
+  crop?: string | null;
+  periods: string[];
+  plot_crop_records: number;
+  area_ha?: number | null;
+  production_kg?: number | null;
+}
+
 export interface FieldObservationsResponse {
   available: boolean;
   message: string;
   rows: FieldAllocationRow[];
   district_summaries: FieldDistrictSummary[];
+  crop_summaries: FieldCropSummary[];
   count: number;
   n_plot_records: number;
   area_ha_total?: number | null;

@@ -25,6 +25,7 @@ import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
+import { DistrictCropEvidencePanel } from "@/features/maps/DistrictCropEvidencePanel";
 import { FieldEvidenceDistrictChart } from "@/features/dashboard/FieldEvidenceDistrictChart";
 import {
   useCanonicalTrend,
@@ -84,8 +85,15 @@ export default function DashboardPage() {
   const inputAdoption = useInputAdoption();
   const fertilizerSource = useFertilizerSource(filters);
   const weather = useWeatherContext(filters.district);
-  const fieldObservations = useFieldObservations(filters);
   const [showMap, setShowMap] = useState(false);
+  const fieldObservations = useFieldObservations(filters);
+  // The map may be coloured by a selected crop, but the district detail rail
+  // deliberately removes that crop filter so a click can reveal every crop in
+  // the selected district's sample.
+  const districtFieldObservations = useFieldObservations(
+    { ...filters, crop: undefined },
+    showMap && Boolean(filters.district),
+  );
 
   return (
     <div className="space-y-5">
@@ -323,14 +331,24 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="min-h-0 overflow-y-auto p-3 sm:p-4">
-              <ProductivityRiskMap
-                filters={filters}
-                selectedDistrict={filters.district}
-                onSelectDistrict={(district) =>
-                  setFilters({ district: filters.district === district ? undefined : district })
-                }
-                height={Math.min(600, typeof window === "undefined" ? 560 : Math.max(420, window.innerHeight - 230))}
-              />
+              <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)]">
+                <ProductivityRiskMap
+                  filters={filters}
+                  selectedDistrict={filters.district}
+                  onSelectDistrict={(district) =>
+                    setFilters({ district: filters.district === district ? undefined : district })
+                  }
+                  height={Math.min(600, typeof window === "undefined" ? 560 : Math.max(420, window.innerHeight - 230))}
+                />
+                <DistrictCropEvidencePanel
+                  district={filters.district}
+                  data={districtFieldObservations.data}
+                  isLoading={districtFieldObservations.isLoading}
+                  isFetching={districtFieldObservations.isFetching}
+                  isError={districtFieldObservations.isError}
+                  onRetry={() => void districtFieldObservations.refetch()}
+                />
+              </div>
             </div>
           </div>
         </div>

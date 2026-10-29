@@ -51,8 +51,16 @@ export function FieldEvidenceDistrictChart({
   }, [filters.crop]);
 
   const selectedMetric = METRICS.find((option) => option.id === metric) ?? METRICS[0];
+  const hasCurrentScope = Boolean(
+    data?.rows.some(
+      (row) =>
+        (!filters.district || row.district === filters.district) &&
+        (!filters.crop || row.crop === filters.crop),
+    ),
+  );
+  const scopedData = hasCurrentScope ? data : undefined;
   const rows = useMemo(() => {
-    return (data?.district_summaries ?? [])
+    return (scopedData?.district_summaries ?? [])
       .filter((row) => typeof row[metric] === "number" && Number.isFinite(row[metric] as number))
       .map((row) => ({
         ...row,
@@ -61,7 +69,7 @@ export function FieldEvidenceDistrictChart({
       }))
       .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
       .slice(0, 12);
-  }, [data?.district_summaries, metric]);
+  }, [scopedData?.district_summaries, metric]);
 
   if (isLoading && !data) return <ChartSkeleton />;
   if (isError && !data) {
@@ -99,17 +107,17 @@ export function FieldEvidenceDistrictChart({
           </button>
         ))}
       </div>
-      {data?.available && data.rows.length > 0 ? (
+      {scopedData?.available && scopedData.rows.length > 0 ? (
         <>
           <div className="grid gap-2 px-4 pt-3 sm:grid-cols-3">
-            <SummaryStat label="Plot-crop records" value={fmtNumber(data.n_plot_records)} />
-            <SummaryStat label="Area represented" value={`${fmtNumber(data.area_ha_total, 1)} ha`} />
-            <SummaryStat label="Production represented" value={`${fmtNumber(data.production_kg_total, 0)} kg`} />
+            <SummaryStat label="Plot-crop records" value={fmtNumber(scopedData.n_plot_records)} />
+            <SummaryStat label="Area represented" value={`${fmtNumber(scopedData.area_ha_total, 1)} ha`} />
+            <SummaryStat label="Production represented" value={`${fmtNumber(scopedData.production_kg_total, 0)} kg`} />
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pt-3 text-xs text-slate-500 dark:text-slate-300">
-            <span>Sample periods: {data.available_periods.join(", ") || "not published"}</span>
-            <span>{data.count} district/crop rows in this scope</span>
-            <span>{data.geometry_available ? `${fmtNumber(data.n_records_with_geometry)} geometries` : "Exact boundaries not supplied"}</span>
+            <span>Sample periods: {scopedData.available_periods.join(", ") || "not published"}</span>
+            <span>{scopedData.count} district/crop rows in this scope</span>
+            <span>{scopedData.geometry_available ? `${fmtNumber(scopedData.n_records_with_geometry)} geometries` : "Exact boundaries not supplied"}</span>
           </div>
         </>
       ) : null}

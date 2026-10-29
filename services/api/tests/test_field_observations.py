@@ -67,6 +67,15 @@ def test_plot_endpoint_aggregates_and_does_not_expose_plot_ids(client, monkeypat
             "production_kg": 5500.0,
         }
     ]
+    assert body["crop_summaries"] == [
+        {
+            "crop": "Maize",
+            "periods": ["2024B"],
+            "plot_crop_records": 2,
+            "area_ha": 3.0,
+            "production_kg": 5500.0,
+        }
+    ]
     assert "field_observation_id" not in body["rows"][0]
     assert body["geometry_available"] is False
 
@@ -123,3 +132,4 @@ def test_plot_endpoint_preserves_counts_from_public_aggregate(client, monkeypatc
     assert body["rows"][0]["n_plots"] == 226
     assert body["district_summaries"][0]["crop_count"] == 1
     assert body["district_summaries"][0]["plot_crop_records"] == 226
+    assert body["crop_summaries"][0]["crop"] == "Maize"

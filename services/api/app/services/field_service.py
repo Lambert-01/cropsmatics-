@@ -44,6 +44,26 @@ def _district_summaries(working: pd.DataFrame) -> list[dict]:
     return summaries
 
 
+def _crop_summaries(working: pd.DataFrame) -> list[dict]:
+    """Build one crop row per selected district scope across its periods."""
+
+    summaries: list[dict] = []
+    for crop, group in working.groupby("_crop", dropna=False, sort=True):
+        area = group["_area"].sum(min_count=1)
+        production = group["_production"].sum(min_count=1)
+        periods = sorted({str(value) for value in group["period_code"].dropna()})
+        summaries.append(
+            {
+                "crop": _nullable(crop),
+                "periods": periods,
+                "plot_crop_records": int(group["_record_count"].sum()),
+                "area_ha": float(area) if pd.notna(area) else None,
+                "production_kg": float(production) if pd.notna(production) else None,
+            }
+        )
+    return summaries
+
+
 def field_observations(f: AnalyticsFilters) -> dict:
     try:
         frame = repo.field_crop_observations()
@@ -71,6 +91,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
             ),
             "rows": [],
             "district_summaries": [],
+            "crop_summaries": [],
             "count": 0,
             "n_plot_records": 0,
             "area_ha_total": None,
@@ -95,6 +116,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
             "message": "No plot or crop records match the selected period, crop or geography.",
             "rows": [],
             "district_summaries": [],
+            "crop_summaries": [],
             "count": 0,
             "n_plot_records": 0,
             "area_ha_total": None,
@@ -187,6 +209,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
         ),
         "rows": rows,
         "district_summaries": _district_summaries(working),
+        "crop_summaries": _crop_summaries(working),
         "count": len(rows),
         "n_plot_records": int(working["_record_count"].sum()),
         "area_ha_total": area_total,
