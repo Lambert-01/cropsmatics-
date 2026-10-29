@@ -16,3 +16,5 @@ python-multipart==0.0.12
 pandas==2.2.3
 openpyxl==3.1.5
 numpy==2.1.2
+# The storage-allocation API endpoint uses OR-Tools at runtime.
+ortools==9.11.4210

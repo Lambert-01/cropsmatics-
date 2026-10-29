@@ -9,6 +9,14 @@ def _require_ortools():
     pytest.importorskip("ortools")
 
 
+def _request_payload() -> dict:
+    return {
+        "sources": [{"id": "s1", "quantity_kg": 100.0, "crop": "Maize"}],
+        "facilities": [{"id": "f1", "capacity_kg": 100.0, "storage_cost_per_kg": 1.0}],
+        "distances": {"s1|f1": 1.0},
+    }
+
+
 def test_allocate_respects_capacity():
     _require_ortools()
     sources = [Source("s1", 100.0, "Maize"), Source("s2", 100.0, "Maize")]
@@ -54,3 +62,28 @@ def test_unknown_distance_is_not_treated_as_zero():
     assert result.status == "INFEASIBLE"
     assert result.assignments == []
     assert "distance_not_verified" in result.notes
+
+
+def test_storage_allocation_endpoint_supports_browser_cors(client):
+    _require_ortools()
+    origin = "http://localhost:3000"
+
+    preflight = client.options(
+        "/api/v1/optimization/storage-allocation",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin
+
+    response = client.post(
+        "/api/v1/optimization/storage-allocation",
+        json=_request_payload(),
+        headers={"Origin": origin},
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+    assert response.json()["status"] == "OPTIMAL"

@@ -60,8 +60,6 @@ def allocate(
     max_distance_km: float | None = None,
 ) -> AllocationResult:
     """Solve the transportation problem. Returns assignments + diagnostics."""
-    from ortools.linear_solver import pywraplp
-
     notes: list[str] = []
     usable = [f for f in facilities if f.capacity_kg is not None and f.capacity_kg > 0]
     unverified = list(capacity_not_verified or [])
@@ -70,6 +68,19 @@ def allocate(
         notes.append(f"capacity_not_verified: {sorted(set(unverified))}")
 
     unverified = sorted(set(unverified))
+    try:
+        from ortools.linear_solver import pywraplp
+    except ImportError:
+        notes.append("solver_not_installed")
+        return AllocationResult(
+            [],
+            [{"id": s.id, "reason": "solver_unavailable"} for s in sources],
+            0.0,
+            "SOLVER_UNAVAILABLE",
+            notes,
+            unverified,
+        )
+
     if not usable:
         return AllocationResult(
             [], [{"id": s.id, "reason": "no_usable_facility"} for s in sources],
