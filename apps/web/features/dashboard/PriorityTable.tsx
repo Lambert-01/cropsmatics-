@@ -35,6 +35,7 @@ export function PriorityTable({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const top = rows.slice(0, limit);
+  const expandedRow = expandedId ? top.find((row) => row.id === expandedId) : undefined;
 
   const columns: Column<PriorityRow | (PriorityRow & { __expanded: true })>[] = [
     {
@@ -177,9 +178,9 @@ export function PriorityTable({
           />
         </div>
       )}
-      {expandedId ? (
+      {expandedRow ? (
         <ExpandedDetails
-          row={top.find((r) => r.id === expandedId)!}
+          row={expandedRow}
           benchmarkStrategy={benchmarkStrategy}
           period={period}
         />
