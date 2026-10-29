@@ -87,12 +87,12 @@ test.describe("Overview", () => {
 
   test("keeps the current workspace mounted while a filter response is pending", async ({ page }) => {
     await page.goto("/dashboard?period=2025B&district=Bugesera&defaults=none");
-    const mapHeading = page.getByRole("heading", { name: "Rwanda Productivity & Risk Map", exact: true });
-    await expect(mapHeading).toBeVisible({ timeout: 20_000 });
+    const fieldEvidenceHeading = page.getByRole("heading", { name: "Field evidence by district", exact: true });
+    await expect(fieldEvidenceHeading).toBeVisible({ timeout: 20_000 });
 
     // A slow overview response used to make `overview.data` temporarily
     // undefined. The page then treated the request as national coverage and
-    // replaced the map/table workspace with a different chart grid.
+    // replaced the district field-evidence workspace with a different chart grid.
     await page.route("**/dashboard/overview?**", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       await route.continue();
@@ -110,7 +110,7 @@ test.describe("Overview", () => {
     // The assertion has to land during the artificial delay, not after the
     // response settles. A layout swap would fail here even if the final page
     // eventually rendered successfully.
-    await expect(mapHeading).toBeVisible({ timeout: 400 });
+    await expect(fieldEvidenceHeading).toBeVisible({ timeout: 400 });
     await response;
   });
 

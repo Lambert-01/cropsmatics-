@@ -33,7 +33,7 @@ export function RwandaDistrictMap({
   facilities = [],
   showProgramDistricts = true,
   height = 460,
-  title = "Rwanda Productivity & Risk Map",
+  title = "Rwanda district evidence map",
 }: {
   data?: MapMetricsResponse;
   metric: MapMetricId;

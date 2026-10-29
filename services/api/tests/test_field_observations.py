@@ -133,3 +133,21 @@ def test_plot_endpoint_preserves_counts_from_public_aggregate(client, monkeypatc
     assert body["district_summaries"][0]["crop_count"] == 1
     assert body["district_summaries"][0]["plot_crop_records"] == 226
     assert body["crop_summaries"][0]["crop"] == "Maize"
+
+
+def test_plot_endpoint_reports_periods_after_the_active_filter(client, monkeypatch):
+    from app.repositories import dataset_repository as repo
+
+    frame = pd.concat(
+        [_frame(), _frame().assign(period_code="2024A")],
+        ignore_index=True,
+    )
+    monkeypatch.setattr(repo, "field_crop_observations", lambda: frame)
+
+    response = client.get(
+        "/api/v1/maps/field-observations",
+        params={"period_code": "2024B", "district": "Gatsibo"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["available_periods"] == ["2024B"]

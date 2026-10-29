@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowRight, MapPinned, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 import { AnalyticsFilterBar } from "@/components/filters/AnalyticsFilterBar";
 import { CompareCropsControl } from "@/components/filters/CompareCropsControl";
@@ -21,11 +20,9 @@ import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
 import { PriorityTable } from "@/features/dashboard/PriorityTable";
-import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
-import { DistrictCropEvidencePanel } from "@/features/maps/DistrictCropEvidencePanel";
 import { FieldEvidenceDistrictChart } from "@/features/dashboard/FieldEvidenceDistrictChart";
 import {
   useCanonicalTrend,
@@ -48,8 +45,9 @@ import { useFilters } from "@/services/hooks/useFilters";
  *    one control; a second period selector in the filter bar would be a control
  *    that can disagree with the first.
  * 2. **Headline** - at most four KPIs, one scope and one period.
- * 3. **Where to look** - a short priority answer and an optional map launcher.
- *    The map opens on demand so spatial detail does not crowd the landing page.
+ * 3. **Where to look** - a short priority answer and a focused field-evidence
+ *    section. District crop detail opens inside that section, not as a second
+ *    map workspace on the landing page.
  * 4. **Evidence** - the canonical multi-period trend and the ranked comparison.
  * 5. **Where to go deeper** - the gap distribution, adoption/practice detail,
  *    district x crop matrix and model diagnostics are *answers*, but to
@@ -85,14 +83,13 @@ export default function DashboardPage() {
   const inputAdoption = useInputAdoption();
   const fertilizerSource = useFertilizerSource(filters);
   const weather = useWeatherContext(filters.district);
-  const [showMap, setShowMap] = useState(false);
   const fieldObservations = useFieldObservations(filters);
-  // The map may be coloured by a selected crop, but the district detail rail
-  // deliberately removes that crop filter so a click can reveal every crop in
-  // the selected district's sample.
+  // The field chart may be filtered to one crop, but the selected-district
+  // detail deliberately removes that crop filter so it can reveal every crop
+  // represented in the district sample.
   const districtFieldObservations = useFieldObservations(
     { ...filters, crop: undefined },
-    showMap && Boolean(filters.district),
+    Boolean(filters.district),
   );
 
   return (
@@ -168,28 +165,6 @@ export default function DashboardPage() {
           secondaryKpis={overview.data.secondary_kpis}
         />
       ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-forest/10 bg-white px-4 py-3 shadow-sm dark:border-white/10 dark:bg-slate-900">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <MapPinned className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-forest-deep dark:text-white">Rwanda productivity map</p>
-            <p className="text-xs text-slate-500 dark:text-slate-300">
-              Open the district map when you need spatial detail; the Overview stays focused on findings.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowMap(true)}
-          className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:bg-primary/90"
-        >
-          <MapPinned className="h-4 w-4" aria-hidden="true" />
-          Open map
-        </button>
-      </div>
 
       {districtMode ? (
         <>
@@ -293,66 +268,13 @@ export default function DashboardPage() {
           isError={fieldObservations.isError}
           onRetry={() => void fieldObservations.refetch()}
           onSelectDistrict={(district) => setFilters({ district })}
+          districtData={districtFieldObservations.data}
+          districtDataLoading={districtFieldObservations.isLoading}
+          districtDataFetching={districtFieldObservations.isFetching}
+          districtDataError={districtFieldObservations.isError}
+          onDistrictDataRetry={() => void districtFieldObservations.refetch()}
         />
       </div>
-
-      {showMap ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dashboard-map-title"
-          tabIndex={-1}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setShowMap(false);
-          }}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setShowMap(false);
-          }}
-        >
-          <div className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-background shadow-2xl dark:bg-slate-950">
-            <div className="flex items-center justify-between gap-3 border-b border-forest/10 px-4 py-3 dark:border-white/10">
-              <div>
-                <h2 id="dashboard-map-title" className="text-base font-semibold text-forest-deep dark:text-white">
-                  Rwanda productivity map
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-300">
-                  {filters.crop ? `${filters.crop} · ` : "All crops · "}
-                  {filters.period ?? "published selection"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowMap(false)}
-                aria-label="Close map"
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-forest-deep dark:hover:bg-slate-800 dark:hover:text-white"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="min-h-0 overflow-y-auto p-3 sm:p-4">
-              <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)]">
-                <ProductivityRiskMap
-                  filters={filters}
-                  selectedDistrict={filters.district}
-                  onSelectDistrict={(district) =>
-                    setFilters({ district: filters.district === district ? undefined : district })
-                  }
-                  height={Math.min(600, typeof window === "undefined" ? 560 : Math.max(420, window.innerHeight - 230))}
-                />
-                <DistrictCropEvidencePanel
-                  district={filters.district}
-                  data={districtFieldObservations.data}
-                  isLoading={districtFieldObservations.isLoading}
-                  isFetching={districtFieldObservations.isFetching}
-                  isError={districtFieldObservations.isError}
-                  onRetry={() => void districtFieldObservations.refetch()}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Fertilizer source shares are national context, so keep this panel
           available even when a district is selected. The card itself carries

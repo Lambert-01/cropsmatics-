@@ -219,7 +219,10 @@ def field_observations(f: AnalyticsFilters) -> dict:
             if production_total is not None and area_total and area_total > 0
             else None
         ),
-        "available_periods": available_periods,
+        # Successful responses describe the periods in the filtered result,
+        # so a selected year/season is visible in the field-evidence section
+        # instead of appearing to ignore the page scope.
+        "available_periods": periods,
         "geometry_available": n_geometry > 0,
         "n_records_with_geometry": n_geometry,
         "provenance": provenance_base,
