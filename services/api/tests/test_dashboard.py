@@ -258,6 +258,21 @@ def test_input_adoption_trend(client):
     assert p2024a["values"]["irrigation_pct"] is None
 
 
+def test_fertilizer_source_context(client):
+    _require_data(client)
+    response = client.get("/api/v1/analytics/fertilizer-source?period_code=2025B")
+    if response.status_code == 503:
+        pytest.skip("fertilizer source table not built; run `make data`")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["period_code"] == "2025B"
+    assert body["n_fertilizer_types"] > 0
+    assert body["channels"]
+    assert body["dominant_channel"]
+    assert "NISR_SAS_2025_ANNUAL" in body["provenance"]["source_id"]
+    assert any("national context only" in note for note in body["provenance"]["limitations"])
+
+
 def test_map_metric(client):
     _require_data(client)
     body = client.get("/api/v1/maps/district-metrics?metric=gap&crop=Maize").json()

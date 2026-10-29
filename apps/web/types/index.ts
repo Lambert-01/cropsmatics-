@@ -567,6 +567,24 @@ export interface TrendResponse {
   provenance: Provenance;
 }
 
+export interface FertilizerSourceChannel {
+  source_channel: string;
+  label: string;
+  mean_share_pct: number;
+  n_fertilizer_types: number;
+}
+
+export interface FertilizerSourceResponse {
+  period_code?: string | null;
+  period?: string | null;
+  n_fertilizer_types: number;
+  channels: FertilizerSourceChannel[];
+  dominant_channel?: string | null;
+  dominant_share_pct?: number | null;
+  note?: string | null;
+  provenance: Provenance;
+}
+
 export interface FactorMetric {
   factor: string;
   label: string;

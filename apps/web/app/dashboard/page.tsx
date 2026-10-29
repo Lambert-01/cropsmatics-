@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/States";
 import { CanonicalTrendChart } from "@/features/dashboard/CanonicalTrendChart";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
+import { FertilizerSourceCard } from "@/features/dashboard/FertilizerSourceCard";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { InsightPanel } from "@/features/dashboard/InsightPanel";
 import { PeriodScopeControl } from "@/features/dashboard/PeriodScopeControl";
@@ -25,6 +26,7 @@ import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import {
   useCanonicalTrend,
+  useFertilizerSource,
   useInputAdoption,
   useOverview,
   usePriorities,
@@ -77,6 +79,7 @@ export default function DashboardPage() {
   // The national adoption trend stays on the landing page: it is a national
   // context series (not district estimates) and does not need a district.
   const inputAdoption = useInputAdoption();
+  const fertilizerSource = useFertilizerSource(filters);
   const weather = useWeatherContext(filters.district);
 
   return (
@@ -222,7 +225,7 @@ export default function DashboardPage() {
         </>
       ) : (
         <>
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-3">
             {compareKey ? (
               <YieldTrendChart
                 data={comparisonTrend.data}
@@ -251,6 +254,14 @@ export default function DashboardPage() {
               hasError={inputAdoption.isError}
               errorMessage={(inputAdoption.error as Error)?.message}
               onRetry={() => inputAdoption.refetch()}
+            />
+            <FertilizerSourceCard
+              data={fertilizerSource.data}
+              isLoading={fertilizerSource.isLoading}
+              isFetching={fertilizerSource.isFetching}
+              hasError={fertilizerSource.isError}
+              errorMessage={(fertilizerSource.error as Error)?.message}
+              onRetry={() => fertilizerSource.refetch()}
             />
           </div>
         </>

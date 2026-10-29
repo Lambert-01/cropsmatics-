@@ -19,6 +19,7 @@ import type {
   DistrictSummaryResponse,
   FacilitiesResponse,
   FactorsResponse,
+  FertilizerSourceResponse,
   ForecastStatusResponse,
   HeatmapResponse,
   MapMetricsResponse,
@@ -267,6 +268,8 @@ export const api = {
     return get<CanonicalTrendResponse>("/analytics/canonical-trend", params.toString());
   },
   inputAdoption: () => get<TrendResponse>("/analytics/input-adoption"),
+  fertilizerSource: (filters?: DashboardFilters) =>
+    get<FertilizerSourceResponse>("/analytics/fertilizer-source", filtersToApiQuery(filters ?? {})),
   // The backend only applies `crop` here (national crop-level dataset);
   // district/province travel along as explicit no-ops so the page can state
   // that the dataset does not support district granularity.

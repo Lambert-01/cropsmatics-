@@ -297,6 +297,17 @@ export function useInputAdoption() {
   });
 }
 
+/** National fertilizer supply-channel context for the selected period. */
+export function useFertilizerSource(filters: DashboardFilters = {}) {
+  const periodKey = filters.period ?? `${filters.year ?? ""}${filters.season ?? ""}`;
+  return useQuery({
+    queryKey: ["fertilizer-source", periodKey],
+    queryFn: () => api.fertilizerSource(filters),
+    placeholderData: keepPreviousData,
+    staleTime: FIVE_MIN,
+  });
+}
+
 /**
  * National crop-level post-harvest shares. Only `crop` has an effect on the
  * API; district/province are deliberately sent as no-ops — the endpoint never

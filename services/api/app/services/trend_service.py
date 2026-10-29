@@ -9,6 +9,7 @@ from __future__ import annotations
 import pandas as pd
 
 from app.repositories import dataset_repository as repo
+from app.services import period_service
 
 TREND_UNITS = {
     "cultivated_area_ha": "ha",
@@ -26,6 +27,15 @@ INPUT_UNITS = {
     "anti_erosion_pct": "% of households",
     "agroforestry_pct": "% of households",
     "mechanization_pct": "% of farmers",
+}
+
+FERTILIZER_SOURCE_LABELS = {
+    "government": "Government",
+    "agro_dealers": "Agro-dealers",
+    "ngos_companies": "NGOs / companies",
+    "market": "Market",
+    "agriculture_cooperative": "Agriculture cooperative",
+    "other": "Other source",
 }
 
 
@@ -166,6 +176,88 @@ def input_adoption() -> dict:
             "values": values,
         })
     return {"kind": "input_adoption", "crop": None, "metric_units": INPUT_UNITS, "points": points}
+
+
+def fertilizer_source_snapshot(period_code: str | None = None) -> dict:
+    """Summarise national fertilizer supply channels for one published period.
+
+    The source table reports a percentage for each fertilizer type and channel,
+    not tonnes or prices. The dashboard therefore shows the mean reported share
+    across listed fertilizer types. The published ``National`` roll-up is
+    excluded from that mean so it cannot be counted alongside its components.
+    """
+    frame = repo.fertilizer_source()
+    if frame.empty:
+        return {
+            "period_code": period_code,
+            "period": period_service.label(period_code) if period_code else None,
+            "n_fertilizer_types": 0,
+            "channels": [],
+            "dominant_channel": None,
+            "dominant_share_pct": None,
+            "note": "No fertilizer source observations are available in this deployment.",
+        }
+
+    available = sorted(
+        {str(value) for value in frame["period_code"].dropna().unique()},
+        key=period_service.parse,
+    )
+    selected = period_code or (available[-1] if available else None)
+    if selected:
+        frame = frame[frame["period_code"].astype(str) == selected].copy()
+
+    if frame.empty:
+        return {
+            "period_code": selected,
+            "period": period_service.label(selected) if selected else None,
+            "n_fertilizer_types": 0,
+            "channels": [],
+            "dominant_channel": None,
+            "dominant_share_pct": None,
+            "note": "No fertilizer source observations are published for this period.",
+        }
+
+    frame["fertilizer_name"] = frame["fertilizer_name"].astype(str).str.strip()
+    frame = frame[frame["fertilizer_name"].str.lower() != "national"]
+    frame["share_pct"] = pd.to_numeric(frame["share_pct"], errors="coerce")
+    frame = frame[
+        frame["source_channel"].isin(FERTILIZER_SOURCE_LABELS)
+        & frame["share_pct"].notna()
+    ]
+
+    summary = (
+        frame.groupby("source_channel", as_index=False)
+        .agg(
+            mean_share_pct=("share_pct", "mean"),
+            n_fertilizer_types=("fertilizer_name", "nunique"),
+        )
+    )
+    summary["label"] = summary["source_channel"].map(FERTILIZER_SOURCE_LABELS)
+    summary = summary.sort_values(
+        ["mean_share_pct", "source_channel"], ascending=[False, True]
+    )
+    channels = [
+        {
+            "source_channel": str(row.source_channel),
+            "label": str(row.label),
+            "mean_share_pct": round(float(row.mean_share_pct), 2),
+            "n_fertilizer_types": int(row.n_fertilizer_types),
+        }
+        for row in summary.itertuples(index=False)
+    ]
+    dominant = channels[0] if channels else None
+    return {
+        "period_code": selected,
+        "period": period_service.label(selected) if selected else None,
+        "n_fertilizer_types": int(frame["fertilizer_name"].nunique()),
+        "channels": channels,
+        "dominant_channel": dominant["label"] if dominant else None,
+        "dominant_share_pct": dominant["mean_share_pct"] if dominant else None,
+        "note": (
+            "Mean reported share across listed fertilizer types; the published "
+            "National roll-up is excluded to avoid double counting."
+        ),
+    }
 
 
 def available_national_periods() -> list[str]:

@@ -292,6 +292,24 @@ class TrendResponse(BaseModel):
     provenance: Provenance
 
 
+class FertilizerSourceChannel(BaseModel):
+    source_channel: str
+    label: str
+    mean_share_pct: float
+    n_fertilizer_types: int
+
+
+class FertilizerSourceResponse(BaseModel):
+    period_code: str | None = None
+    period: str | None = None
+    n_fertilizer_types: int = 0
+    channels: list[FertilizerSourceChannel] = Field(default_factory=list)
+    dominant_channel: str | None = None
+    dominant_share_pct: float | None = None
+    note: str | None = None
+    provenance: Provenance
+
+
 # --- factors ---------------------------------------------------------------
 
 

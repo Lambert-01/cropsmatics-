@@ -9,6 +9,7 @@ import { PageHero } from "@/components/layout/PageHero";
 import { CoverageNotice, ErrorState, KpiRowSkeleton } from "@/components/ui/States";
 import { Tabs } from "@/components/ui/Tabs";
 import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
+import { FertilizerSourceCard } from "@/features/dashboard/FertilizerSourceCard";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { PracticeIndicatorsPanel } from "@/features/dashboard/PracticeIndicatorsPanel";
 import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
@@ -23,6 +24,7 @@ import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
 import {
   useFactors,
+  useFertilizerSource,
   useInputAdoption,
   useOverview,
   usePracticeIndicators,
@@ -68,6 +70,7 @@ export default function ProductivityPage() {
   );
   const trends = useTrends(filters.crop, filters.compare, !districtMode);
   const inputs = useInputAdoption();
+  const fertilizerSource = useFertilizerSource(filters);
   // District-scoped practice indicators. The full panel is 9,468 rows, so the
   // request waits for a district and pages one district's ~306 rows; an
   // unfiltered read is one arbitrary page, never a national picture.
@@ -114,9 +117,17 @@ export default function ProductivityPage() {
             primaryKpis={overview.data.primary_kpis}
             secondaryKpis={overview.data.secondary_kpis}
           />
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-3">
             <YieldTrendChart data={trends.data} isLoading={trends.isLoading} crop={filters.crop} />
             <InputAdoptionChart data={inputs.data} isLoading={inputs.isLoading} />
+            <FertilizerSourceCard
+              data={fertilizerSource.data}
+              isLoading={fertilizerSource.isLoading}
+              isFetching={fertilizerSource.isFetching}
+              hasError={fertilizerSource.isError}
+              errorMessage={(fertilizerSource.error as Error)?.message}
+              onRetry={() => fertilizerSource.refetch()}
+            />
           </div>
           <ProvenanceCard provenance={overview.data.provenance} />
         </>

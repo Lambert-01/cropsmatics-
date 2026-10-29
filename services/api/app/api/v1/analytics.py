@@ -22,6 +22,7 @@ from app.schemas.analytics import (
 from app.schemas.common import Provenance
 from app.schemas.dashboard import (
     FactorsResponse,
+    FertilizerSourceResponse,
     HeatmapResponse,
     NationalBoardResponse,
     PostHarvestResponse,
@@ -449,6 +450,29 @@ def input_adoption() -> TrendResponse:
             limitations=[
                 "national adoption percentages, not district values",
                 "some series start later than others and are returned as null",
+            ],
+        ),
+    )
+
+
+@router.get("/fertilizer-source", response_model=FertilizerSourceResponse)
+def fertilizer_source(f: AnalyticsFilters = Depends(analytics_filters)) -> FertilizerSourceResponse:
+    """National fertilizer supply-channel context for the selected period."""
+    result = trend_service.fertilizer_source_snapshot(f.period_key())
+    return FertilizerSourceResponse(
+        **result,
+        provenance=Provenance(
+            source_id="NISR_SAS_2022_ANNUAL,NISR_SAS_2023_ANNUAL,NISR_SAS_2024_ANNUAL,NISR_SAS_2025_ANNUAL,NISR_SAS_2026A,NISR_SAS_2026B",
+            source_period=result.get("period_code"),
+            method=(
+                "mean reported supply-channel share across fertilizer types for "
+                "the selected national period; the published National roll-up "
+                "is excluded from the mean"
+            ),
+            limitations=[
+                "national context only; not a district or crop measure",
+                "shares describe reported source channels, not fertilizer quantity, price or availability",
+                "this association does not establish fertilizer effectiveness or causality for yield",
             ],
         ),
     )
