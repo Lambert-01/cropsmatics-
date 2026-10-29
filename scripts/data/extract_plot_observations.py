@@ -33,6 +33,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+# Allow both `python -m scripts.data.extract_plot_observations` and direct
+# execution from the repository root or any working directory.
+if __package__ in {None, ""}:  # pragma: no cover - exercised by the CLI smoke test
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from scripts.data.common import (
     DATA_DIR,
     DICTS_DIR,
