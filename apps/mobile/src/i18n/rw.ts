@@ -36,6 +36,8 @@ export const rw: Strings = {
   fieldEvidenceNoMatch: "Nta makuru y'umurima ahuye n'ibyo wahisemo.",
   fieldEvidenceCoverage: "Ibihe bifite icyegeranyo",
   fieldEvidenceNoBoundaries: "Imipaka nyayo y'imirima ntiyatanzwe.",
+  fieldEvidenceDistrictChart: "Icyegeranyo cy'uturere",
+  fieldEvidenceChartHint: "Uturere dufite amakuru menshi mu byo wahisemo",
   registerHarvest: "Andika isarura",
   harvestHistory: "Amateka y'isarura",
   riskAnalysis: "Isesengura ry'ibyago",

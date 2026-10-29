@@ -57,6 +57,8 @@ export const en = {
   fieldEvidenceNoMatch: "No field sample matches this selection.",
   fieldEvidenceCoverage: "Sample coverage",
   fieldEvidenceNoBoundaries: "Exact field boundaries are not supplied.",
+  fieldEvidenceDistrictChart: "District sample coverage",
+  fieldEvidenceChartHint: "Top districts in the current selection",
 
   // ---- Explore -------------------------------------------------------------
   exploreTitle: "Explore",

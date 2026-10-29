@@ -21,6 +21,29 @@ def _nullable(value):
     return None if pd.isna(value) else value
 
 
+def _district_summaries(working: pd.DataFrame) -> list[dict]:
+    """Build chart-ready district totals after all requested filters apply."""
+
+    group_columns = ["district", "district_code", "province"]
+    summaries: list[dict] = []
+    for key, group in working.groupby(group_columns, dropna=False, sort=True):
+        values = dict(zip(group_columns, key, strict=True))
+        area = group["_area"].sum(min_count=1)
+        production = group["_production"].sum(min_count=1)
+        summaries.append(
+            {
+                "district": _nullable(values.get("district")),
+                "district_code": _nullable(values.get("district_code")),
+                "province": _nullable(values.get("province")),
+                "crop_count": int(group["_crop"].dropna().nunique()),
+                "plot_crop_records": int(group["_record_count"].sum()),
+                "area_ha": float(area) if pd.notna(area) else None,
+                "production_kg": float(production) if pd.notna(production) else None,
+            }
+        )
+    return summaries
+
+
 def field_observations(f: AnalyticsFilters) -> dict:
     try:
         frame = repo.field_crop_observations()
@@ -47,6 +70,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
                 "under data/raw/nisr/sas_microdata/ and rebuild the data image."
             ),
             "rows": [],
+            "district_summaries": [],
             "count": 0,
             "n_plot_records": 0,
             "area_ha_total": None,
@@ -70,6 +94,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
             "available": False,
             "message": "No plot or crop records match the selected period, crop or geography.",
             "rows": [],
+            "district_summaries": [],
             "count": 0,
             "n_plot_records": 0,
             "area_ha_total": None,
@@ -161,6 +186,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
             "Exact field boundaries are unavailable unless the source supplies approved geometry."
         ),
         "rows": rows,
+        "district_summaries": _district_summaries(working),
         "count": len(rows),
         "n_plot_records": int(working["_record_count"].sum()),
         "area_ha_total": area_total,

@@ -56,6 +56,17 @@ def test_plot_endpoint_aggregates_and_does_not_expose_plot_ids(client, monkeypat
     assert body["rows"][0]["area_ha"] == 3
     assert body["rows"][0]["production_kg"] == 5500
     assert body["rows"][0]["yield_kg_ha"] == 5500 / 3
+    assert body["district_summaries"] == [
+        {
+            "district": "Gatsibo",
+            "district_code": "RW-02",
+            "province": "Eastern",
+            "crop_count": 1,
+            "plot_crop_records": 2,
+            "area_ha": 3.0,
+            "production_kg": 5500.0,
+        }
+    ]
     assert "field_observation_id" not in body["rows"][0]
     assert body["geometry_available"] is False
 
@@ -110,3 +121,5 @@ def test_plot_endpoint_preserves_counts_from_public_aggregate(client, monkeypatc
     assert body["yield_kg_ha_total"] == 53750 / 32.5
     assert body["available_periods"] == ["2024B"]
     assert body["rows"][0]["n_plots"] == 226
+    assert body["district_summaries"][0]["crop_count"] == 1
+    assert body["district_summaries"][0]["plot_crop_records"] == 226

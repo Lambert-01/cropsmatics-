@@ -24,12 +24,25 @@ class FieldAllocationRow(BaseModel):
     source_ids: list[str] = Field(default_factory=list)
 
 
+class FieldDistrictSummary(BaseModel):
+    """District-level sample totals used by the filtered comparison chart."""
+
+    district: str | None = None
+    district_code: str | None = None
+    province: str | None = None
+    crop_count: int = 0
+    plot_crop_records: int = 0
+    area_ha: float | None = None
+    production_kg: float | None = None
+
+
 class FieldObservationsResponse(BaseModel):
     """Aggregated plot evidence for the maps allocation workspace."""
 
     available: bool = False
     message: str
     rows: list[FieldAllocationRow] = Field(default_factory=list)
+    district_summaries: list[FieldDistrictSummary] = Field(default_factory=list)
     count: int = 0
     n_plot_records: int = 0
     area_ha_total: float | None = None

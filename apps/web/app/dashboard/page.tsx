@@ -25,6 +25,7 @@ import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
 import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
+import { FieldEvidenceDistrictChart } from "@/features/dashboard/FieldEvidenceDistrictChart";
 import {
   useCanonicalTrend,
   useFertilizerSource,
@@ -262,13 +263,24 @@ export default function DashboardPage() {
         </>
       )}
 
-      <FieldEvidenceSummary
-        data={fieldObservations.data}
-        filters={filters}
-        isLoading={fieldObservations.isLoading}
-        isError={fieldObservations.isError}
-        onRetry={() => void fieldObservations.refetch()}
-      />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <FieldEvidenceSummary
+          data={fieldObservations.data}
+          filters={filters}
+          isLoading={fieldObservations.isLoading}
+          isError={fieldObservations.isError}
+          onRetry={() => void fieldObservations.refetch()}
+        />
+        <FieldEvidenceDistrictChart
+          data={fieldObservations.data}
+          filters={filters}
+          isLoading={fieldObservations.isLoading}
+          isFetching={fieldObservations.isFetching}
+          isError={fieldObservations.isError}
+          onRetry={() => void fieldObservations.refetch()}
+          onSelectDistrict={(district) => setFilters({ district })}
+        />
+      </div>
 
       {/* Fertilizer source shares are national context, so keep this panel
           available even when a district is selected. The card itself carries

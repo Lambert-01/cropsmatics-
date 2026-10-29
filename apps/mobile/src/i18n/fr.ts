@@ -58,6 +58,8 @@ export const fr: Strings = {
   fieldEvidenceNoMatch: "Aucun échantillon de terrain ne correspond à cette sélection.",
   fieldEvidenceCoverage: "Couverture de l'échantillon",
   fieldEvidenceNoBoundaries: "Les limites exactes des parcelles ne sont pas disponibles.",
+  fieldEvidenceDistrictChart: "Couverture de l'échantillon par district",
+  fieldEvidenceChartHint: "Principaux districts pour la sélection actuelle",
   exploreTitle: "Explorer",
   exploreSubtitle: "Rechercher des cultures, districts et indicateurs.",
   searchPlaceholder: "Rechercher des cultures, districts et indicateurs…",

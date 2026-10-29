@@ -565,10 +565,21 @@ export interface FieldAllocationRow {
   source_ids: string[];
 }
 
+export interface FieldDistrictSummary {
+  district?: string | null;
+  district_code?: string | null;
+  province?: string | null;
+  crop_count: number;
+  plot_crop_records: number;
+  area_ha?: number | null;
+  production_kg?: number | null;
+}
+
 export interface FieldObservationsResponse {
   available: boolean;
   message: string;
   rows: FieldAllocationRow[];
+  district_summaries: FieldDistrictSummary[];
   count: number;
   n_plot_records: number;
   area_ha_total?: number | null;

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { strings } from "../i18n";
@@ -27,6 +28,15 @@ export function FieldEvidenceCard({
   const { colors, typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const t = strings(useAppStore((state) => state.language));
+  const districtRows = useMemo(
+    () =>
+      (data?.district_summaries ?? [])
+        .filter((row) => row.district && row.plot_crop_records > 0)
+        .sort((a, b) => b.plot_crop_records - a.plot_crop_records || (a.district ?? "").localeCompare(b.district ?? ""))
+        .slice(0, 5),
+    [data?.district_summaries],
+  );
+  const largestDistrictSample = districtRows[0]?.plot_crop_records ?? 0;
 
   if (isLoading && !data) {
     return (
@@ -91,6 +101,26 @@ export function FieldEvidenceCard({
             <Stat label={t.fieldEvidenceArea} value={`${formatValue(data?.area_ha_total ?? null, 1)} ha`} />
             <Stat label={t.fieldEvidenceProduction} value={`${formatValue(data?.production_kg_total ?? null, 0)} kg`} />
           </View>
+          {districtRows.length > 1 ? (
+            <View style={styles.districtChart}>
+              <Text style={styles.chartTitle}>{t.fieldEvidenceDistrictChart}</Text>
+              <Text style={typography.micro}>{t.fieldEvidenceChartHint}</Text>
+              {districtRows.map((row) => (
+                <View key={`${row.district_code ?? row.district}`} style={styles.barRow}>
+                  <Text numberOfLines={1} style={styles.barLabel}>{row.district}</Text>
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { width: `${Math.max(8, (row.plot_crop_records / largestDistrictSample) * 100)}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.barValue}>{formatValue(row.plot_crop_records)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <Text style={typography.micro}>
             {t.fieldEvidenceCoverage}: {coverage} · {t.fieldEvidenceNoBoundaries}
           </Text>
@@ -157,4 +187,20 @@ const makeStyles = (colors: Palette) =>
     statValue: { fontSize: 16, fontWeight: "800", color: colors.kpiValue },
     statLabel: { marginTop: 2, fontSize: 10, lineHeight: 13, color: colors.slate500 },
     empty: { gap: 3, paddingVertical: 2 },
+    districtChart: {
+      gap: 5,
+      paddingTop: spacing.xs,
+    },
+    chartTitle: { fontSize: 12, fontWeight: "800", color: colors.kpiValue },
+    barRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    barLabel: { width: 78, fontSize: 10, color: colors.slate500 },
+    barTrack: {
+      flex: 1,
+      height: 8,
+      overflow: "hidden",
+      borderRadius: 99,
+      backgroundColor: colors.mintSoft,
+    },
+    barFill: { height: "100%", borderRadius: 99, backgroundColor: colors.primaryStrong },
+    barValue: { width: 38, textAlign: "right", fontSize: 10, fontWeight: "700", color: colors.kpiValue },
   });
