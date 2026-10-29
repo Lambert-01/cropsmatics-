@@ -111,7 +111,6 @@ export default function DistrictDetailScreen() {
   });
   const fieldEvidence = useFieldObservations({
     periodCode: activePeriod,
-    crop,
     district: profile.data?.district,
     enabled: Boolean(profile.data),
   });
@@ -216,6 +215,7 @@ export default function DistrictDetailScreen() {
         isLoading={fieldEvidence.isLoading}
         isError={fieldEvidence.isError}
         onRetry={() => void fieldEvidence.refetch()}
+        showCropList
         onOpenMap={() =>
           router.push({
             pathname: "/maps",

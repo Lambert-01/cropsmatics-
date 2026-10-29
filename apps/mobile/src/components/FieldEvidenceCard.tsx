@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { strings } from "../i18n";
 import { useAppStore } from "../store/useAppStore";
@@ -18,12 +18,14 @@ export function FieldEvidenceCard({
   isError,
   onRetry,
   onOpenMap,
+  showCropList = false,
 }: {
   data?: FieldObservationsResponse;
   isLoading: boolean;
   isError: boolean;
   onRetry?: () => void;
   onOpenMap: () => void;
+  showCropList?: boolean;
 }) {
   const { colors, typography } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -121,6 +123,21 @@ export function FieldEvidenceCard({
               ))}
             </View>
           ) : null}
+          {showCropList && (data?.crop_summaries?.length ?? 0) > 1 ? (
+            <View style={styles.cropList}>
+              <Text style={styles.chartTitle}>{t.fieldEvidenceCrops}</Text>
+              <ScrollView nestedScrollEnabled style={styles.cropScroll}>
+                {data?.crop_summaries.map((crop) => (
+                  <View key={crop.crop} style={styles.cropRow}>
+                    <Text numberOfLines={1} style={styles.cropName}>{crop.crop ?? "—"}</Text>
+                    <Text style={styles.cropMeta}>
+                      {formatValue(crop.plot_crop_records)} · {formatValue(crop.area_ha, 1)} ha
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
           <Text style={typography.micro}>
             {t.fieldEvidenceCoverage}: {coverage} · {t.fieldEvidenceNoBoundaries}
           </Text>
@@ -203,4 +220,17 @@ const makeStyles = (colors: Palette) =>
     },
     barFill: { height: "100%", borderRadius: 99, backgroundColor: colors.primaryStrong },
     barValue: { width: 38, textAlign: "right", fontSize: 10, fontWeight: "700", color: colors.kpiValue },
+    cropList: { gap: 5, paddingTop: spacing.xs },
+    cropScroll: { maxHeight: 170 },
+    cropRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      paddingVertical: 5,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    cropName: { flex: 1, fontSize: 11, fontWeight: "700", color: colors.kpiValue },
+    cropMeta: { fontSize: 10, color: colors.slate500 },
   });

@@ -38,6 +38,7 @@ export const rw: Strings = {
   fieldEvidenceNoBoundaries: "Imipaka nyayo y'imirima ntiyatanzwe.",
   fieldEvidenceDistrictChart: "Icyegeranyo cy'uturere",
   fieldEvidenceChartHint: "Uturere dufite amakuru menshi mu byo wahisemo",
+  fieldEvidenceCrops: "Ibihingwa bigaragara muri aka karere",
   registerHarvest: "Andika isarura",
   harvestHistory: "Amateka y'isarura",
   riskAnalysis: "Isesengura ry'ibyago",

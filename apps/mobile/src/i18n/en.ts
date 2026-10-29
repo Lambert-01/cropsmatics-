@@ -59,6 +59,7 @@ export const en = {
   fieldEvidenceNoBoundaries: "Exact field boundaries are not supplied.",
   fieldEvidenceDistrictChart: "District sample coverage",
   fieldEvidenceChartHint: "Top districts in the current selection",
+  fieldEvidenceCrops: "Crops represented in this district",
 
   // ---- Explore -------------------------------------------------------------
   exploreTitle: "Explore",

@@ -60,6 +60,7 @@ export const fr: Strings = {
   fieldEvidenceNoBoundaries: "Les limites exactes des parcelles ne sont pas disponibles.",
   fieldEvidenceDistrictChart: "Couverture de l'échantillon par district",
   fieldEvidenceChartHint: "Principaux districts pour la sélection actuelle",
+  fieldEvidenceCrops: "Cultures représentées dans ce district",
   exploreTitle: "Explorer",
   exploreSubtitle: "Rechercher des cultures, districts et indicateurs.",
   searchPlaceholder: "Rechercher des cultures, districts et indicateurs…",
