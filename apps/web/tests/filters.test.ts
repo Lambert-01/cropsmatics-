@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULTS_NONE,
   DEFAULT_BENCHMARK,
+  BENCHMARK_OPTIONS,
+  benchmarkDescription,
   filtersToApiQuery,
   filtersToQuery,
   isHistoryScope,
@@ -35,6 +37,16 @@ describe("parseFilters", () => {
     expect(filters.benchmark).toBe(DEFAULT_BENCHMARK);
     expect(filters.year).toBeUndefined();
     expect(filters.district).toBeUndefined();
+  });
+});
+
+describe("benchmark guidance", () => {
+  it("keeps every backend strategy visible with a user-facing explanation", () => {
+    expect(BENCHMARK_OPTIONS).toHaveLength(4);
+    for (const option of BENCHMARK_OPTIONS) {
+      expect(option.description.length).toBeGreaterThan(20);
+      expect(benchmarkDescription(option.value)).toBe(option.description);
+    }
   });
 });
 

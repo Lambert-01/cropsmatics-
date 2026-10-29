@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = ROOT / "data"
 PROCESSED_DIR = DATA_DIR / "processed"
-RAW_PACK = DATA_DIR / "raw" / "cropmatics_real_data_2024_2026"
+RAW_PACK = DATA_DIR / "raw" / "derived_source_extracts_2024_2026"
 ARTIFACTS_DIR = ROOT / "ml" / "artifacts"
 REPORTS_DIR = ROOT / "ml" / "reports"
 DICTS_DIR = DATA_DIR / "dictionaries"

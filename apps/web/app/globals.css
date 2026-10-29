@@ -156,6 +156,53 @@ body {
     @apply bg-surface;
   }
 
+  /* Priority ranking rows carry the decision values users need to scan first.
+     Keep their ink bright in dark mode, including the utility classes nested
+     inside cells and badges. */
+  html.dark .priority-ranking-table .rt-th {
+    color: #fef3c7 !important;
+    background-color: rgba(245, 158, 11, 0.14) !important;
+    border-color: rgba(253, 230, 138, 0.24) !important;
+  }
+  html.dark .priority-ranking-table .rt-unit {
+    color: #fde68a !important;
+  }
+  html.dark .priority-ranking-table .rt-td {
+    color: #f8fafc !important;
+    border-color: rgba(253, 230, 138, 0.16) !important;
+  }
+  html.dark .priority-ranking-table .rt-td .text-primary {
+    color: #86efac !important;
+  }
+  html.dark .priority-ranking-table .rt-td [class~="text-slate-400"] {
+    color: #fcd34d !important;
+  }
+  html.dark .priority-ranking-table .rt-td [class~="text-amber-800"],
+  html.dark .priority-ranking-table .rt-td [class~="text-blue-800"],
+  html.dark .priority-ranking-table .rt-td [class~="text-green-800"] {
+    color: #fef3c7 !important;
+  }
+  html.dark .priority-ranking-table .btn {
+    color: #fef3c7 !important;
+    border-color: rgba(253, 230, 138, 0.32) !important;
+  }
+  html.dark .priority-ranking-table tbody tr:nth-child(even) {
+    background-color: rgba(245, 158, 11, 0.05);
+  }
+  html.dark .priority-ranking-table tbody tr:hover {
+    background-color: rgba(250, 204, 21, 0.12);
+  }
+  html.dark .priority-ranking-card .priority-ranking-details {
+    border-color: rgba(253, 230, 138, 0.2) !important;
+    background-color: rgba(245, 158, 11, 0.06) !important;
+  }
+  html.dark .priority-ranking-card .priority-ranking-details dt {
+    color: #fde68a !important;
+  }
+  html.dark .priority-ranking-card .priority-ranking-details dd {
+    color: #f8fafc !important;
+  }
+
   /* Data Explorer is deliberately data-dense. Keep its dark-mode tables
      brighter than surrounding metadata so headers, values and row numbers do
      not disappear into the dark surface. The soft yellow is an accent for

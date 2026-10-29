@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-RAW = ROOT / "data" / "raw" / "cropmatics_real_data_2024_2026"
+RAW = ROOT / "data" / "raw" / "derived_source_extracts_2024_2026"
 MINAGRI = ROOT / "data" / "raw" / "external" / "minagri"
 PROCESSED = ROOT / "data" / "processed"
 INTERIM = ROOT / "data" / "interim"

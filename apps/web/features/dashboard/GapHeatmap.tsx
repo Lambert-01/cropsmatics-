@@ -75,7 +75,7 @@ export function GapHeatmap({
       )}
       <SourceNote>
         Values are Python-computed district × crop gap indices. A positive value means the
-        observed yield is below that crop's benchmark; blank observations are omitted.
+        observed yield is below that crop&apos;s benchmark; blank observations are omitted.
       </SourceNote>
     </Card>
   );

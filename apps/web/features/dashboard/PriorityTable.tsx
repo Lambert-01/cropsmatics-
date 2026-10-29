@@ -155,7 +155,7 @@ export function PriorityTable({
   );
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="priority-ranking-card overflow-hidden">
       <CardHeader
         title="Priority district / crop observations"
         subtitle="Transparent weighted score — higher means stronger case for investigation first"
@@ -168,6 +168,7 @@ export function PriorityTable({
       ) : (
         <div className="thin-scroll mt-3 max-h-[26rem] overflow-auto">
           <ResponsiveTable
+            className="priority-ranking-table"
             columns={columns}
             rows={rowsWithDetails}
             rowKey={(row) => ("__expanded" in row ? `${row.id}-details` : row.id)}
@@ -219,7 +220,7 @@ function ExpandedDetails({
     { label: "Period", value: period ? periodLabel(period) : "—" },
   ];
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-forest/10 bg-forest/[0.03] px-4 py-3 text-xs sm:grid-cols-3">
+    <dl className="priority-ranking-details grid grid-cols-2 gap-x-4 gap-y-2 border-t border-forest/10 bg-forest/[0.03] px-4 py-3 text-xs sm:grid-cols-3">
       {items.map((item) => (
         <Fragment key={item.label}>
           <dt className="font-medium text-slate-500">{item.label}</dt>

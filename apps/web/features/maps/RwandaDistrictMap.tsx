@@ -15,7 +15,7 @@ import { MapTooltip } from "@/features/maps/MapTooltip";
 import { buildProjection, type GeoCollection, type GeoFeature } from "@/features/maps/geo";
 import { cn } from "@/lib/cn";
 import { METRIC_SEMANTICS, type MapMetricId } from "@/lib/constants";
-import { periodLabel } from "@/lib/format";
+import { benchmarkLabel, periodLabel } from "@/lib/format";
 import { unavailableSummary } from "@/lib/priority";
 import type { FacilityItem, MapMetricsResponse } from "@/types";
 
@@ -151,6 +151,8 @@ export function RwandaDistrictMap({
         data.available_period,
       )} to see it on the map.`
     : "Yield is a crop-specific measure. Pick a crop in the filters above, then choose the Yield metric.";
+  const benchmarkStrategy = data?.provenance?.benchmark_strategy ?? null;
+  const benchmarkAffectsLayer = metric === "gap" || metric === "priority";
 
   return (
     <Card>
@@ -184,6 +186,14 @@ export function RwandaDistrictMap({
             {METRIC_SEMANTICS[metric].note}. Hatched districts have a yield gap of at least{" "}
             {SHORTFALL_GAP}% against this crop&apos;s benchmark (yield-shortfall overlay).
           </p>
+          {benchmarkStrategy ? (
+            <p className="mt-1 leading-relaxed">
+              <span className="font-semibold text-slate-600">Benchmark:</span>{" "}
+              {benchmarkAffectsLayer
+                ? `${benchmarkLabel(benchmarkStrategy)} is applied to this layer.`
+                : `This ${METRIC_SEMANTICS[metric].note.toLowerCase()} layer is observed data; changing the benchmark will affect the Productivity gap and Intervention priority layers, not this value.`}
+            </p>
+          ) : null}
           {data?.components_unavailable?.length ? (
             <p className="mt-1 leading-relaxed">
               <span className="font-semibold text-amber-800">Not in this score:</span>{" "}

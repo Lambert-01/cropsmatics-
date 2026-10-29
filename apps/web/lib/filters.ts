@@ -76,13 +76,38 @@ export function splitPeriod(
 }
 
 export const BENCHMARK_OPTIONS = [
-  { value: "national_crop_median", label: "National crop median" },
-  { value: "national_crop_season_median", label: "National crop-season median" },
-  { value: "top_quartile_comparable_districts", label: "Top-quartile comparable districts" },
-  { value: "agro_ecological_peer_group", label: "Agro-ecological peer group" },
+  {
+    value: "national_crop_median",
+    label: "National crop median",
+    description: "Typical yield for this crop across the published comparison rows.",
+  },
+  {
+    value: "national_crop_season_median",
+    label: "National crop-season median",
+    description: "Typical yield for this crop in the selected season.",
+  },
+  {
+    value: "top_quartile_comparable_districts",
+    label: "Top-quartile comparable districts",
+    description: "Median yield among the strongest 25% of districts for this crop and season.",
+  },
+  {
+    value: "agro_ecological_peer_group",
+    label: "Agro-ecological peer group",
+    description: "Typical yield among districts in the same crop, season and agro-ecological zone.",
+  },
 ] as const;
 
 export const DEFAULT_BENCHMARK = "national_crop_median";
+
+export type BenchmarkStrategy = (typeof BENCHMARK_OPTIONS)[number]["value"];
+
+export function benchmarkDescription(strategy: string | null | undefined): string {
+  return (
+    BENCHMARK_OPTIONS.find((option) => option.value === strategy)?.description ??
+    "Comparison baseline used to calculate the productivity gap."
+  );
+}
 
 /** Read the explicit scope from the URL, ignoring anything unrecognised. */
 export function parseView(raw: string | null | undefined): ScopeView | undefined {

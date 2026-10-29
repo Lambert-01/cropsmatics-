@@ -4,13 +4,16 @@ Reviewed: **2026-10-29**, after the production smoke-gate and final release pass
 Working branch: `main`.
 
 **Verdict: this is a strong release candidate with the production smoke gate
-passing.** The final `main` release is `9df9dab`; GitHub Actions run #120 passed,
-Render deploy `dep-dbh745mtlv9c73cnhleg` is live from that SHA, and the public
-read-only gate passed 13/13 required checks. Render readiness reports the
-canonical database connected and dataset version
-`0.2.0-5b51d2c390e4d101`. Remaining work is evidence rather than a broken release:
-isolated PostGIS rehearsal, physical Android testing, manual language review,
-approved screenshots and the team-owned recording. See [UX verification](submission/UX_VERIFICATION.md).
+passing.** The latest remote `main` commit is `61f72fb`. A read-only smoke run on
+2026-10-29 returned readiness HTTP 200 and passed 13/13 required checks against
+Render, with canonical dataset version `0.2.0-dd69a79f2481b9e0`. The public
+endpoint does not prove the Render source SHA, so the deployment dashboard must
+be checked before submission. Remaining work is evidence rather than a broken
+release: isolated PostGIS rehearsal, physical Android testing, manual language
+review, approved screenshots and the team-owned recording. The current working
+tree also contains a dashboard fertilizer-visibility patch and README/doc edits
+that must be committed and deployed before they can be demonstrated. See [UX
+verification](submission/UX_VERIFICATION.md).
 
 ## Confirmed Improvements
 
@@ -108,11 +111,11 @@ Fresh checks against this increment:
 | Expanded Dashboard sources | All four disclosures opened at all four viewports; no document overflow |
 | Old reproduction suite | Projection empty-history/season/cutoff/case and district-attribution cases now behave correctly |
 | New adversarial checks | Wrong crop and swapped periods rejected; peer KPI matches displayed row; every catalog filter accepted by JSON and CSV |
-| Data rebuild determinism | `check_idempotent_build.py` passed; dataset identity stayed `0.2.0-5b51d2c390e4d101` across two builds |
+| Data rebuild determinism | `check_idempotent_build.py` passed; the current content-addressed identity is `0.2.0-dd69a79f2481b9e0` |
 | APK helper syntax | `bash -n scripts/build-apk.sh scripts/build_mobile_apk.sh` passed; EAS/device execution remains external |
 | Rendered Playwright matrix | 16 passed across 1440x900 desktop and 360x740 mobile-web; deterministic file-backed API, dashboard scope changes/reset, forecast withholding/retry and overflow checks passed |
 | Populated-data accessibility | axe-core reported zero serious/critical WCAG 2A/2AA violations on ten key web routes; 390x844 map check found 30 labelled focusable district buttons |
-| Live Render deployment | Deploy `dep-dbh745mtlv9c73cnhleg` is live from `9df9dab`; readiness returned 200 with database connected, canonical mode required and matching dataset identity; `scripts/verify_production.py` passed 13/13 required endpoint checks. |
+| Live Render API | Readiness returned 200 with database connected, canonical mode required and dataset identity `0.2.0-dd69a79f2481b9e0`; `scripts/verify_production.py` passed 13/13 required endpoint checks on 2026-10-29. Render source-SHA identity still requires dashboard confirmation. |
 
 Focused checks in this pass:
 
@@ -145,8 +148,8 @@ production API smoke test. The source-expansion run waited for every request to
 settle before counting/opening all four disclosures. Screenshots and raw results
 are temporary audit artifacts, not approved submission designs.
 
-The final release commit is `9df9dab`. Future code changes must repeat the
-deployed-SHA and production smoke checks before they are described as live.
+The latest remote release commit is `61f72fb`. Future code changes must repeat
+the deployed-SHA and production smoke checks before they are described as live.
 
 The public `/install/apk` route redirects to a GitHub Release APK of about 84 MB;
 the downloaded archive is valid and contains the hosted API URL. Physical-device

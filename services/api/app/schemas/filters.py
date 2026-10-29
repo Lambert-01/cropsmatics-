@@ -18,11 +18,20 @@ Pandas filtering leaks into router files.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import pandas as pd
 from fastapi import HTTPException, Query
 
 from app.services import period_service
+
+
+BenchmarkStrategy = Literal[
+    "national_crop_median",
+    "national_crop_season_median",
+    "top_quartile_comparable_districts",
+    "agro_ecological_peer_group",
+]
 
 
 @dataclass(frozen=True)
@@ -58,7 +67,7 @@ def analytics_filters(
     crop: str | None = Query(None, description="canonical crop name, e.g. Maize"),
     province: str | None = Query(None),
     district: str | None = Query(None),
-    benchmark_strategy: str = Query(
+    benchmark_strategy: BenchmarkStrategy = Query(
         "national_crop_median",
         description=(
             "national_crop_median | national_crop_season_median | "

@@ -17,9 +17,10 @@ if str(ROOT) not in sys.path:
 
 DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
-RAW_PACK = RAW_DIR / "cropmatics_real_data_2024_2026"
-# Legacy alias: the original 2025B pack. Kept one release cycle so parity tests
-# can compare new multi-period outputs against the already-live values.
+RAW_PACK = RAW_DIR / "derived_source_extracts_2024_2026"
+# Legacy alias: the original 2025B compatibility extracts. Kept one release
+# cycle so parity tests can compare new multi-period outputs against the
+# already-live values.
 RAW_LEGACY_DIR = RAW_PACK
 # Official third-party / ministry add-on packages that are committed as raw
 # sources but live outside the primary NISR pack.

@@ -9,8 +9,8 @@ revision, not a promise that an external device or human review happened.
   cases remain reported as skipped.
 - [x] Run web typecheck, lint, production build and the local rendered browser
   matrix.
-- [x] Verify final `main` commit `9df9dab` in GitHub Actions; run #120 completed
-  successfully.
+- [ ] Verify the current submission commit in GitHub Actions after the final
+  working-tree changes are committed.
 - [x] Verify the deployed web/API surfaces and canonical dataset identity.
 - [x] Run `scripts/verify_production.py` against Render: **13/13 passed**.
 - [x] Keep forecasts, market prices, facility capacities and unsupported
@@ -32,14 +32,15 @@ or physical-device behaviour.
 
 ## Current evidence
 
-The local pipeline passed with zero errors and produced dataset version
-`0.2.0-5b51d2c390e4d101`. The production readiness response
-is HTTP 200 with database connected, canonical mode required and matching
-dataset identity. The read-only production gate passed all 13 required checks.
+The local pipeline manifest produces content-addressed dataset version
+`0.2.0-dd69a79f2481b9e0`. On 2026-10-29 the production readiness response was
+HTTP 200 with database connected, canonical mode required and matching dataset
+identity. The read-only production gate passed all 13 required checks.
 
-Render deploy `dep-dbh745mtlv9c73cnhleg` is live from `9df9dab`. The public
-Vercel dashboard and install routes respond HTTP 200; Vercel does not expose its
-source SHA in public headers, so that identity remains a dashboard-owner check.
+The latest verified Vercel deployment serves the web build for `61f72fb`; the
+public Render endpoint does not expose its source SHA, so that identity remains
+a dashboard-owner check. The current local fertilizer-visibility patch and
+README/doc edits are not live until committed and deployed.
 
 The public install route is also verified: `/install/apk` redirects to the
 GitHub Release APK and the downloaded file is a valid Android package containing

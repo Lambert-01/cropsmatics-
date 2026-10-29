@@ -3,8 +3,13 @@
 **Team:** DataSprout (Lambert and Joyeuse)  
 **Competition:** NISR 2026 Big Data Hackathon — Track 1: Agricultural Productivity  
 **Reviewed:** 29 October 2026
-**Audited implementation commit:** `9df9dab` on `main`
-**Integrated into main:** `9df9dab` (final release identity and documentation consolidation)
+**Audited implementation commit:** `9df9dab` on `main` (historical audit)
+**Integrated into main:** `9df9dab` (historical release identity and documentation consolidation)
+
+> For the current release identity, use [Current Status](../CURRENT_STATUS.md)
+> and [Production Readiness](../PRODUCTION_READINESS.md). This audit preserves
+> the evidence recorded for the earlier release and should not be read as proof
+> that later working-tree changes are deployed.
 **Scope:** Scientific release validation, software and usability evidence, deployment boundaries and competition readiness. This is an internal assessment, **not** an official NISR result.
 
 ## Executive decision

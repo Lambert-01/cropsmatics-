@@ -1,6 +1,6 @@
 # Data Card — Cropmatics
 
-**Reviewed:** 2026-10-28. The checked-in panel is the current verified data
+**Reviewed:** 2026-10-29. The checked-in panel is the current verified data
 artefact; the release gate requires rebuilding it on the release commit so the
 manifest, code and submitted report share one identity.
 
@@ -41,9 +41,9 @@ licence are the owner's to declare; this document does not make that declaration
 | Fact | Value (from `data/processed/` at the time of writing) |
 |---|---|
 | Pipeline version | `0.2.0` |
-| Local manifest build commit | `09e82e0` |
-| Manifest build timestamp | `2026-10-28T07:19:04+00:00` |
-| Dataset version | `0.2.0-5b51d2c390e4d101` |
+| Local manifest build commit | `7b29e792abf39b6ba4e0426cd25fdaa502188be9` |
+| Manifest build timestamp | `2026-10-28T23:37:51+00:00` |
+| Dataset version | `0.2.0-dd69a79f2481b9e0` |
 | Productivity panel rows | 6,156 |
 | Periods | 14 (`2022A`–`2026B`) |
 | Districts with district rows | 30 |

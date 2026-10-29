@@ -3,8 +3,15 @@
 import { Check, ChevronDown, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { DEFAULTS_NONE, SCOPE_HISTORY, scopeSummaryText } from "@/lib/filters";
+import {
+  BENCHMARK_OPTIONS,
+  DEFAULTS_NONE,
+  SCOPE_HISTORY,
+  benchmarkDescription,
+  scopeSummaryText,
+} from "@/lib/filters";
 import { cn } from "@/lib/cn";
+import { benchmarkLabel } from "@/lib/format";
 import { ErrorState } from "@/components/ui/States";
 import { useCrops, useDistricts, usePeriods } from "@/services/hooks/useReference";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -59,6 +66,7 @@ function FilterSelect({
   options,
   disabled,
   disabledReason,
+  description,
   className,
 }: {
   label: string;
@@ -67,6 +75,7 @@ function FilterSelect({
   options: { value: string; label: string }[];
   disabled?: boolean;
   disabledReason?: string;
+  description?: string;
   className?: string;
 }) {
   return (
@@ -100,6 +109,9 @@ function FilterSelect({
           aria-hidden="true"
         />
       </div>
+      {description ? (
+        <p className="mt-1 max-w-sm text-[11px] leading-relaxed text-slate-500">{description}</p>
+      ) : null}
     </label>
   );
 }
@@ -419,7 +431,7 @@ export function AnalyticsFilterBar({
     if (filters.district)
       chips.push({ key: "district", label: "District", value: filters.district });
     if (filters.benchmark && filters.benchmark !== "national_crop_median")
-      chips.push({ key: "benchmark", label: "Benchmark", value: filters.benchmark });
+      chips.push({ key: "benchmark", label: "Benchmark", value: benchmarkLabel(filters.benchmark) });
     return chips;
   }, [filters, periods]);
 
@@ -550,15 +562,8 @@ export function AnalyticsFilterBar({
           label="Benchmark"
           value={filters.benchmark ?? "national_crop_median"}
           onChange={(v) => set({ benchmark: v })}
-          options={[
-            { value: "national_crop_median", label: "National crop median" },
-            { value: "national_crop_season_median", label: "National crop-season median" },
-            {
-              value: "top_quartile_comparable_districts",
-              label: "Top-quartile comparable districts",
-            },
-            { value: "agro_ecological_peer_group", label: "Agro-ecological peer group" },
-          ]}
+          description={benchmarkDescription(filters.benchmark)}
+          options={BENCHMARK_OPTIONS.map(({ value, label }) => ({ value, label }))}
           className={idsPrefix === "m" ? "flex-1" : undefined}
         />
       ) : null}
@@ -730,6 +735,27 @@ export function AnalyticsFilterBar({
           <span aria-hidden="true">ⓘ</span>
           {datasetNote}
         </p>
+      ) : null}
+      {has("benchmark") ? (
+        <details className="px-1 text-[11px] text-slate-500">
+          <summary className="cursor-pointer font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+            What does the benchmark change?
+          </summary>
+          <div className="mt-1 max-w-3xl leading-relaxed">
+            <p>
+              It is the comparison baseline for yield gaps. It changes benchmark yield, gap
+              percentage, gap rankings and intervention priority scores.
+            </p>
+            <p className="mt-1">
+              It does not change observed yield, production, harvested area, practice shares or
+              national trend values. {benchmarkLabel(filters.benchmark)} is currently selected.
+            </p>
+            <p className="mt-1 text-slate-400">
+              The national crop median and crop-season median can be identical when one season is
+              selected because they then use the same published rows.
+            </p>
+          </div>
+        </details>
       ) : null}
     </section>
   );

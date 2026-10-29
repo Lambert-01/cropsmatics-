@@ -255,17 +255,23 @@ export default function DashboardPage() {
               errorMessage={(inputAdoption.error as Error)?.message}
               onRetry={() => inputAdoption.refetch()}
             />
-            <FertilizerSourceCard
-              data={fertilizerSource.data}
-              isLoading={fertilizerSource.isLoading}
-              isFetching={fertilizerSource.isFetching}
-              hasError={fertilizerSource.isError}
-              errorMessage={(fertilizerSource.error as Error)?.message}
-              onRetry={() => fertilizerSource.refetch()}
-            />
           </div>
         </>
       )}
+
+      {/* Fertilizer source shares are national context, so keep this panel
+          available even when a district is selected. The card itself carries
+          the national-only badge; it must never look like a district estimate. */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        <FertilizerSourceCard
+          data={fertilizerSource.data}
+          isLoading={fertilizerSource.isLoading}
+          isFetching={fertilizerSource.isFetching}
+          hasError={fertilizerSource.isError}
+          errorMessage={(fertilizerSource.error as Error)?.message}
+          onRetry={() => fertilizerSource.refetch()}
+        />
+      </div>
 
       <ExploreFurther districtMode={districtMode} />
 

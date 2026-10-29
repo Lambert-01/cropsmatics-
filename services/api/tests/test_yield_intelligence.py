@@ -42,6 +42,40 @@ def _kpi(body: dict, kpi_id: str) -> dict:
     return next(k for k in body["kpis"] if k["id"] == kpi_id)
 
 
+def test_unknown_benchmark_strategy_is_rejected_before_analytics(client):
+    response = client.get(
+        "/api/v1/analytics/productivity",
+        params={"crop": "Maize", "benchmark_strategy": "made_up_baseline"},
+    )
+    assert response.status_code == 422
+
+
+def test_selected_benchmark_changes_gap_output_and_is_disclosed(client):
+    _require_data(client)
+    median = _productivity(
+        client,
+        crop="Maize",
+        period_code="2026B",
+        benchmark_strategy="national_crop_median",
+    )
+    top_quartile = _productivity(
+        client,
+        crop="Maize",
+        period_code="2026B",
+        benchmark_strategy="top_quartile_comparable_districts",
+    )
+    assert median["provenance"]["benchmark_strategy"] == "national_crop_median"
+    assert top_quartile["provenance"]["benchmark_strategy"] == (
+        "top_quartile_comparable_districts"
+    )
+    median_row = next(row for row in median["rows"] if row["district"] == "Bugesera")
+    top_row = next(row for row in top_quartile["rows"] if row["district"] == "Bugesera")
+    assert top_row["benchmark_yield_kg_ha"] != pytest.approx(
+        median_row["benchmark_yield_kg_ha"], abs=0.01
+    )
+    assert top_row["gap_index"] != pytest.approx(median_row["gap_index"], abs=0.01)
+
+
 # --- the four headline KPIs ---------------------------------------------------
 
 

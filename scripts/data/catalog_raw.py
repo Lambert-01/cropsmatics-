@@ -63,7 +63,12 @@ PROVIDER_RULES: tuple[tuple[str, str, str, str], ...] = (
     ("data/raw/markets/nisr_sas", "NISR", "SAS_MARKET_PRICES", "PUBLIC"),
     ("data/raw/markets", "UNSPECIFIED", "MARKET_PRICES", "PUBLIC"),
     ("data/raw/external/minagri", "MINAGRI", "MINAGRI_ADDON", "PUBLIC"),
-    ("data/raw/cropmatics_real_data_2024_2026", "CROPMATICS", "LEGACY_PACK", "PUBLIC"),
+    (
+        "data/raw/derived_source_extracts_2024_2026",
+        "NISR_MINAGRI",
+        "DERIVED_COMPATIBILITY_EXTRACTS",
+        "PUBLIC",
+    ),
     ("data/external/chirps", "CHC_UCSB", "CHIRPS", "PUBLIC"),
 )
 

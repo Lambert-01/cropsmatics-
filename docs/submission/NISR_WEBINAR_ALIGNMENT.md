@@ -1,6 +1,7 @@
 # NISR 2026 Submission Alignment
 
-Reviewed 2026-10-28 from the NISR 2026 Big Data Hackathon Preparatory Webinar
+Reviewed 2026-10-29 against the NISR 2026 Big Data Hackathon requirements and
+the supplied preparatory webinar
 supplied for this project. The webinar requires a public GitHub link, a deployed application
 link and documentation. The repository should include a README, runnable code,
 the data or an honest data link, and a screen recording of no more than three
@@ -10,8 +11,8 @@ minutes.
 
 | Webinar requirement | Repository state | Evidence or remaining action |
 |---|---|---|
-| Public GitHub repository | Verified | Public `main` contains final release `9df9dab`; GitHub Actions run #120 completed successfully. |
-| Public deployed application | Verified by release smoke gate | Render readiness reports the canonical database connected and dataset version `0.2.0-5b51d2c390e4d101`; `scripts/verify_production.py` passed 13/13 required endpoint checks. Vercel serves the deployed dashboard. |
+| Public GitHub repository | Present, final commit still required | Remote `main` is at `61f72fb`; the current dashboard fertilizer-visibility patch and README/doc edits remain in the local working tree and must be committed before submitting the link. |
+| Public deployed application | Verified by read-only smoke gate | On 2026-10-29 Render readiness was HTTP 200 and `scripts/verify_production.py` passed 13/13 required endpoint checks with canonical dataset version `0.2.0-dd69a79f2481b9e0`. Vercel serves the current web deployment, but the local fertilizer-visibility patch is not live until deployed. |
 | README explaining data, message and interaction | Present | README describes the NISR data, Python/API architecture, user workflows and hosted mobile build. |
 | Runnable scripts | Present | `scripts/data/run_all.py`, API/web/mobile commands and APK helpers are documented. |
 | Data file or source link | Present with provenance constraints | Official worksheet extracts, processed outputs and source registry are documented; do not publish restricted workbooks without permission. |
