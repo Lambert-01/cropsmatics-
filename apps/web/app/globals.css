@@ -201,8 +201,8 @@ html.dark .reports-workspace .table-base thead th {
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 html.dark .reports-workspace .table-base tbody td,
-html.dark .reports-workspace .table-base tbody td.text-slate-700,
-html.dark .reports-workspace .table-base tbody td.text-slate-600 {
+html.dark .reports-workspace .table-base tbody td[class~="text-slate-700"],
+html.dark .reports-workspace .table-base tbody td[class~="text-slate-600"] {
   color: #e2e8f0 !important;
   border-color: rgba(255, 255, 255, 0.09) !important;
 }
@@ -629,7 +629,7 @@ html.dark .transparency-model-row {
 }
 html.dark .transparency-stat-value,
 html.dark .transparency-step p,
-html.dark .transparency-model-row .text-forest {
+html.dark .transparency-model-row [class~="text-forest"] {
   color: #f8fafc;
 }
 html.dark .status-chip-success {
