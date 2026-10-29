@@ -156,6 +156,39 @@ body {
     @apply bg-surface;
   }
 
+  /* Data Explorer is deliberately data-dense. Keep its dark-mode tables
+     brighter than surrounding metadata so headers, values and row numbers do
+     not disappear into the dark surface. The soft yellow is an accent for
+     orientation, not a warning state. */
+  html.dark .data-explorer-workspace .responsive-table .rt-th,
+  html.dark .data-explorer-workspace .data-explorer-source-table thead th {
+    color: #fef3c7 !important;
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(253, 230, 138, 0.24) !important;
+  }
+  html.dark .data-explorer-workspace .responsive-table .rt-unit {
+    color: #fde68a !important;
+  }
+  html.dark .data-explorer-workspace .responsive-table .rt-td,
+  html.dark .data-explorer-workspace .data-explorer-source-table tbody td {
+    color: #f8fafc !important;
+    border-color: rgba(253, 230, 138, 0.16) !important;
+  }
+  html.dark .data-explorer-workspace .responsive-table .rt-sticky-col {
+    background-color: rgb(var(--c-surface)) !important;
+  }
+  html.dark .data-explorer-workspace .responsive-table tbody tr:nth-child(even),
+  html.dark .data-explorer-workspace .data-explorer-source-table tbody tr:nth-child(even) {
+    background-color: rgba(245, 158, 11, 0.06) !important;
+  }
+  html.dark .data-explorer-workspace .responsive-table tbody tr:hover,
+  html.dark .data-explorer-workspace .data-explorer-source-table tbody tr:hover {
+    background-color: rgba(250, 204, 21, 0.13) !important;
+  }
+  html.dark .data-explorer-workspace .data-explorer-source-table tbody td:first-child {
+    color: #fcd34d !important;
+  }
+
 /* Reports contains dense provenance and scorecard tables. Keep their ink
    explicit so nested utility classes cannot leave dark text on a dark surface. */
 html.dark .reports-workspace .table-base,

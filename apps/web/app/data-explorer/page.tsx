@@ -57,7 +57,7 @@ export default function DataExplorerPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="data-explorer-workspace space-y-5">
       <PageHeading
         title="Data Explorer"
         subtitle="Inspect the analytical tables and the original NISR worksheet sources behind them."

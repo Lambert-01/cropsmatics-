@@ -302,7 +302,7 @@ export function OriginalSasExplorer() {
                 ) : (
                   <>
                     <div className="thin-scroll max-h-[38rem] overflow-auto rounded-lg border border-forest/10">
-                      <table className="min-w-full border-collapse text-left text-xs">
+                      <table className="data-explorer-source-table min-w-full border-collapse text-left text-xs">
                         <thead className="sticky top-0 z-10 bg-forest-deep text-white">
                           <tr>
                             <th className="w-12 border-r border-white/15 px-2 py-2 text-center font-semibold">#</th>
