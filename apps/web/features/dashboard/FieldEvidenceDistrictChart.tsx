@@ -213,7 +213,7 @@ export function FieldEvidenceDistrictChart({
                   onRetry={onDistrictDataRetry}
                 />
               </div>
-            ) : districtDataLoading && !currentDistrictData ? (
+            ) : (districtDataLoading || districtDataFetching) && !currentDistrictData ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Loading crop details">
                 {Array.from({ length: 6 }, (_, index) => (
                   <div
