@@ -208,17 +208,23 @@ export default function DashboardPage() {
               crop={filters.crop}
               district={filters.district}
             />
-            <InputAdoptionChart
-              data={inputAdoption.data}
-              isLoading={inputAdoption.isLoading}
-              isFetching={inputAdoption.isFetching}
-              hasError={inputAdoption.isError}
-              errorMessage={(inputAdoption.error as Error)?.message}
-              onRetry={() => inputAdoption.refetch()}
-            />
           </div>
         </>
       )}
+
+      {/* National practice adoption is context, not a district estimate. Keep
+          this panel outside the coverage-layout switch so selecting a district
+          cannot unmount a chart that has already loaded. */}
+      <div className="max-w-3xl">
+        <InputAdoptionChart
+          data={inputAdoption.data}
+          isLoading={inputAdoption.isLoading}
+          isFetching={inputAdoption.isFetching}
+          hasError={inputAdoption.isError}
+          errorMessage={(inputAdoption.error as Error)?.message}
+          onRetry={() => inputAdoption.refetch()}
+        />
+      </div>
 
       <div className="max-w-5xl">
         <FieldEvidenceDistrictChart
