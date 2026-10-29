@@ -76,6 +76,19 @@ def field_observations(f: AnalyticsFilters) -> dict:
     working["_crop"] = working["canonical_crop_name"]
     working["_area"] = pd.to_numeric(working.get("area_ha"), errors="coerce")
     working["_production"] = pd.to_numeric(working.get("production_kg"), errors="coerce")
+    if "n_plot_records" in working.columns:
+        working["_record_count"] = pd.to_numeric(
+            working["n_plot_records"], errors="coerce"
+        ).fillna(1)
+    else:
+        working["_record_count"] = 1
+    if "n_plots" in working.columns:
+        working["_plot_count"] = pd.to_numeric(working["n_plots"], errors="coerce").fillna(1)
+    else:
+        working["_plot_count"] = 1
+    working["_is_aggregate"] = working.get(
+        "record_scope", pd.Series("", index=working.index)
+    ).astype(str).eq("aggregated_plot_crop")
     geometry = working.get("geometry_available", pd.Series(False, index=working.index))
     working["_geometry"] = geometry.fillna(False).astype(str).str.lower().isin(
         {"true", "1", "yes"}
@@ -89,7 +102,9 @@ def field_observations(f: AnalyticsFilters) -> dict:
         production = group["_production"].sum(min_count=1)
         area_value = float(area) if pd.notna(area) else None
         production_value = float(production) if pd.notna(production) else None
-        if {"plot_id", "farmer_or_household_id"}.issubset(group.columns):
+        if bool(group["_is_aggregate"].any()):
+            n_plots = int(group["_plot_count"].sum())
+        elif {"plot_id", "farmer_or_household_id"}.issubset(group.columns):
             plot_keys = group[["farmer_or_household_id", "plot_id"]].dropna()
             plot_keys = plot_keys.astype(str).drop_duplicates()
             n_plots = int(len(plot_keys)) if len(plot_keys) else int(len(group))
@@ -132,7 +147,7 @@ def field_observations(f: AnalyticsFilters) -> dict:
         ),
         "rows": rows,
         "count": len(rows),
-        "n_plot_records": len(filtered),
+        "n_plot_records": int(working["_record_count"].sum()),
         "geometry_available": n_geometry > 0,
         "n_records_with_geometry": n_geometry,
         "provenance": provenance_base,

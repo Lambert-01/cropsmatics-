@@ -35,6 +35,7 @@ COPY scripts /app/scripts
 COPY data/raw /app/data/raw
 COPY data/dictionaries /app/data/dictionaries
 COPY data/source_registry /app/data/source_registry
+COPY data/deployment /app/data/deployment
 # Weather context resolves district centroids from the canonical boundary file.
 # Copy only this web asset; the rest of the frontend is intentionally excluded
 # from the API image by .dockerignore.
@@ -43,6 +44,7 @@ COPY apps/web/public/geodata /app/apps/web/public/geodata
 # --- Build the processed analytical tables ---------------------------------
 # Fails the build if validation fails, so a broken image is never published.
 RUN python scripts/data/run_all.py \
+    && if [ -f data/deployment/field_crop_observations.csv ]; then cp data/deployment/field_crop_observations.csv data/processed/field_crop_observations.csv; fi \
     && test -f data/processed/training_district_crop.csv \
     && test -f data/processed/manifest.json
 

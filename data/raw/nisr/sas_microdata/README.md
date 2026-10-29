@@ -45,3 +45,9 @@ Microdata is treated as restricted respondent-level evidence. Do not commit
 identifiable records, exact field coordinates or files whose terms do not allow
 redistribution. The public API aggregates records by period, district and crop;
 it does not expose plot IDs or farmer/household IDs.
+
+For the hosted API image, run
+`scripts/data/build_field_deployment_artifact.py` after the local extractor.
+It writes `data/deployment/field_crop_observations.csv`, a privacy-safe
+period/district/crop aggregate. The raw respondent export and the detailed
+processed file remain local and are not committed.

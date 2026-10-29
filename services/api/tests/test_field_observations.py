@@ -71,3 +71,38 @@ def test_plot_endpoint_reports_unavailable_when_no_microdata_is_loaded(client, m
     assert body["available"] is False
     assert body["rows"] == []
     assert "microdata" in body["message"].lower()
+
+
+def test_plot_endpoint_preserves_counts_from_public_aggregate(client, monkeypatch):
+    from app.repositories import dataset_repository as repo
+
+    aggregate = pd.DataFrame(
+        [
+            {
+                "period_code": "2024B",
+                "district": "Gatsibo",
+                "district_code": "RW-EA-GAT",
+                "province": "Eastern",
+                "canonical_crop_name": "Maize",
+                "area_ha": 32.5,
+                "production_kg": 53_750,
+                "geometry_available": False,
+                "source_id": "NISR_AHS_MICRODATA_2024",
+                "record_scope": "aggregated_plot_crop",
+                "n_plot_records": 226,
+                "n_plots": 226,
+            }
+        ]
+    )
+    monkeypatch.setattr(repo, "field_crop_observations", lambda: aggregate)
+
+    response = client.get(
+        "/api/v1/maps/field-observations",
+        params={"period_code": "2024B", "district": "Gatsibo", "crop": "Maize"},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["available"] is True
+    assert body["n_plot_records"] == 226
+    assert body["rows"][0]["n_plots"] == 226
