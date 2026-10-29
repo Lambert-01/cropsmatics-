@@ -12,9 +12,9 @@ import type { FieldObservationsResponse } from "@/types";
 /**
  * A compact entry point for the privacy-safe AHS sample.
  *
- * The map owns the row-level table. This card gives every analytical workspace
- * the same filtered sample totals and a direct route to the full map view,
- * without copying a second table or calculating totals in React.
+ * The dashboard owns the district comparison chart. This card gives every
+ * analytical workspace the same filtered sample totals and a direct route to
+ * that chart, without copying a row-level table or calculating totals in React.
  */
 export function FieldEvidenceSummary({
   data,
@@ -29,7 +29,7 @@ export function FieldEvidenceSummary({
   isError: boolean;
   onRetry: () => void;
 }) {
-  const href = `/maps${filtersToQuery(filters) ? `?${filtersToQuery(filters)}` : ""}`;
+  const href = `/dashboard${filtersToQuery(filters) ? `?${filtersToQuery(filters)}` : ""}`;
   const periods = data?.available_periods?.join(", ") || "not published";
 
   if (isError && !data) {
@@ -54,7 +54,7 @@ export function FieldEvidenceSummary({
             href={href}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
           >
-            Open map <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            Open chart <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         }
       />

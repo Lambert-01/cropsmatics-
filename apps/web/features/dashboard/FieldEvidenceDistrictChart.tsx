@@ -78,7 +78,7 @@ export function FieldEvidenceDistrictChart({
   return (
     <Card className="overflow-hidden">
       <CardHeader
-        title={filters.crop ? `${filters.crop} sample by district` : "Crop coverage by district"}
+        title={filters.crop ? `${filters.crop} field sample by district` : "Field evidence by district"}
         subtitle="Click a bar to apply that district filter"
         action={<UpdatingPill active={isFetching && Boolean(data)} />}
       />
@@ -99,6 +99,20 @@ export function FieldEvidenceDistrictChart({
           </button>
         ))}
       </div>
+      {data?.available && data.rows.length > 0 ? (
+        <>
+          <div className="grid gap-2 px-4 pt-3 sm:grid-cols-3">
+            <SummaryStat label="Plot-crop records" value={fmtNumber(data.n_plot_records)} />
+            <SummaryStat label="Area represented" value={`${fmtNumber(data.area_ha_total, 1)} ha`} />
+            <SummaryStat label="Production represented" value={`${fmtNumber(data.production_kg_total, 0)} kg`} />
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pt-3 text-xs text-slate-500 dark:text-slate-300">
+            <span>Sample periods: {data.available_periods.join(", ") || "not published"}</span>
+            <span>{data.count} district/crop rows in this scope</span>
+            <span>{data.geometry_available ? `${fmtNumber(data.n_records_with_geometry)} geometries` : "Exact boundaries not supplied"}</span>
+          </div>
+        </>
+      ) : null}
       {rows.length === 0 ? (
         <div className="p-4">
           <EmptyState
@@ -157,5 +171,14 @@ export function FieldEvidenceDistrictChart({
         {" "}These are sample records, not national estimates; exact field boundaries are not supplied.
       </SourceNote>
     </Card>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-forest/10 bg-slate-50 px-3 py-2 dark:bg-slate-900/60">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-300">{label}</p>
+      <p className="mt-1 font-semibold text-forest dark:text-white">{value}</p>
+    </div>
   );
 }
