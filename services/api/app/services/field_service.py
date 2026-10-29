@@ -49,12 +49,19 @@ def field_observations(f: AnalyticsFilters) -> dict:
             "rows": [],
             "count": 0,
             "n_plot_records": 0,
+            "area_ha_total": None,
+            "production_kg_total": None,
+            "yield_kg_ha_total": None,
+            "available_periods": [],
             "geometry_available": False,
             "n_records_with_geometry": 0,
             "provenance": provenance_base,
         }
 
     filtered = apply_filters(frame, f, crop_column="canonical_crop_name")
+    available_periods = sorted(
+        {str(value) for value in frame.get("period_code", pd.Series(dtype=object)).dropna()}
+    )
     if f.crop and filtered.empty and "crop_raw" in frame.columns:
         filtered = frame[frame["crop_raw"].astype(str).str.lower() == f.crop.lower()]
     if filtered.empty:
@@ -65,6 +72,10 @@ def field_observations(f: AnalyticsFilters) -> dict:
             "rows": [],
             "count": 0,
             "n_plot_records": 0,
+            "area_ha_total": None,
+            "production_kg_total": None,
+            "yield_kg_ha_total": None,
+            "available_periods": available_periods,
             "geometry_available": False,
             "n_records_with_geometry": 0,
             "provenance": provenance_base,
@@ -139,6 +150,10 @@ def field_observations(f: AnalyticsFilters) -> dict:
     periods = sorted({str(value) for value in filtered.get("period_code", pd.Series(dtype=object)).dropna()})
     provenance_base["source_period"] = f.period_key() or (periods[0] if len(periods) == 1 else ",".join(periods)) or None
     n_geometry = int(working["_geometry"].sum())
+    total_area = working["_area"].sum(min_count=1)
+    total_production = working["_production"].sum(min_count=1)
+    area_total = float(total_area) if pd.notna(total_area) else None
+    production_total = float(total_production) if pd.notna(total_production) else None
     return {
         "available": True,
         "message": (
@@ -148,6 +163,14 @@ def field_observations(f: AnalyticsFilters) -> dict:
         "rows": rows,
         "count": len(rows),
         "n_plot_records": int(working["_record_count"].sum()),
+        "area_ha_total": area_total,
+        "production_kg_total": production_total,
+        "yield_kg_ha_total": (
+            production_total / area_total
+            if production_total is not None and area_total and area_total > 0
+            else None
+        ),
+        "available_periods": available_periods,
         "geometry_available": n_geometry > 0,
         "n_records_with_geometry": n_geometry,
         "provenance": provenance_base,

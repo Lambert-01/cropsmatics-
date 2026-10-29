@@ -8,7 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { analyticsApi, cropsApi, districtsApi, metaApi } from "../services/api";
+import { analyticsApi, cropsApi, districtsApi, mapsApi, metaApi } from "../services/api";
 import type { ForecastScope } from "../types";
 
 /**
@@ -90,6 +90,25 @@ export function useAllCrops() {
 
 export function useAllDistricts() {
   return useQuery({ queryKey: ["districts"], queryFn: districtsApi.list });
+}
+
+export function useFieldObservations(params?: {
+  periodCode?: string | null;
+  crop?: string | null;
+  district?: string | null;
+  province?: string | null;
+  enabled?: boolean;
+}) {
+  const periodCode = params?.periodCode ?? null;
+  const crop = params?.crop ?? null;
+  const district = params?.district ?? null;
+  const province = params?.province ?? null;
+  return useQuery({
+    queryKey: ["field-observations", periodCode, crop, district, province],
+    queryFn: () => mapsApi.fieldObservations({ periodCode: periodCode ?? undefined, crop: crop ?? undefined, district: district ?? undefined, province: province ?? undefined }),
+    enabled: params?.enabled ?? true,
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 /** The published period dimension. Period selectors are built from this. */

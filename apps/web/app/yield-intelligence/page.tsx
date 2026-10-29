@@ -18,6 +18,7 @@ import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTab
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { AIExplainPanel } from "@/features/yield-intelligence/AIExplainPanel";
 import { DistrictYieldDrawer } from "@/features/yield-intelligence/DistrictYieldDrawer";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import { ForecastPanel } from "@/features/yield-intelligence/ForecastPanel";
 import { ManualProjectionWorkspace } from "@/features/yield-intelligence/ManualProjectionWorkspace";
 import { SimulationLab } from "@/features/yield-intelligence/SimulationLab";
@@ -33,6 +34,7 @@ import { YIELD_WORKSPACES, resolveWorkspace } from "@/lib/yield-workspaces";
 import { splitPeriod } from "@/lib/filters";
 import {
   useFactors,
+  useFieldObservations,
   useMapMetrics,
   useProductivity,
   useProductivityTrend,
@@ -101,6 +103,7 @@ export default function YieldIntelligencePage() {
 
   const mapMetrics = useMapMetrics(filters, mapMetric, Boolean(crop));
   const factors = useFactors(filters, Boolean(crop));
+  const fieldObservations = useFieldObservations(filters);
 
   const periodText = useMemo(
     () => (periodCode ? periodLabel(periodCode) : (productivity.data?.period ?? null)),
@@ -159,6 +162,14 @@ export default function YieldIntelligencePage() {
       />
 
       <AnalyticsFilterBar />
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+      />
 
       {!crop ? (
         <Card>

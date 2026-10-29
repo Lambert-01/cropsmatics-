@@ -6,12 +6,13 @@ import { PageHero } from "@/components/layout/PageHero";
 import { DataBadge } from "@/components/ui/DataBadge";
 import { EmptyState, ErrorState, MapSkeleton } from "@/components/ui/States";
 import { RwandaDistrictMap } from "@/features/maps/RwandaDistrictMap";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import { ColdChainProgramPanel } from "@/features/storage/ColdChainProgramPanel";
 import { FacilityStatus } from "@/features/storage/FacilityStatus";
 import { NationalInfrastructureSummary } from "@/features/storage/NationalInfrastructureSummary";
 import { OptimizationDemo } from "@/features/storage/OptimizationDemo";
 import type { MapMetricId } from "@/lib/constants";
-import { useFacilities, useMapMetrics, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
+import { useFacilities, useFieldObservations, useMapMetrics, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 
 export default function StoragePage() {
@@ -25,6 +26,7 @@ export default function StoragePage() {
   const allFacilities = useFacilities();
   const facilities = useFacilities(filters.district);
   const infrastructure = useStorageInfrastructure();
+  const fieldObservations = useFieldObservations(filters);
 
   const programDistricts = useMemo(
     () =>
@@ -49,6 +51,14 @@ export default function StoragePage() {
           rather than inventing a number, and excludes such facilities from optimization.
         </p>
       </div>
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+      />
 
       {/* 1. Official national context -------------------------------------- */}
       <section aria-labelledby="official-context" className="space-y-5">

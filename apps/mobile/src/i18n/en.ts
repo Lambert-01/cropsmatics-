@@ -48,6 +48,15 @@ export const en = {
   scopeNational: "National",
   viewAllCrops: "View all crops",
   openMap: "Open map",
+  fieldEvidenceTitle: "Field evidence",
+  fieldEvidenceSubtitle: "NISR/AHS plot-crop sample for this selection",
+  fieldEvidenceRecords: "Plot-crop records",
+  fieldEvidenceArea: "Area represented",
+  fieldEvidenceProduction: "Production represented",
+  fieldEvidenceOpenMap: "Open field map",
+  fieldEvidenceNoMatch: "No field sample matches this selection.",
+  fieldEvidenceCoverage: "Sample coverage",
+  fieldEvidenceNoBoundaries: "Exact field boundaries are not supplied.",
 
   // ---- Explore -------------------------------------------------------------
   exploreTitle: "Explore",

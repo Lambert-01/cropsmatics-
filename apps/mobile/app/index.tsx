@@ -18,6 +18,7 @@ import { AppHeader } from "../src/components/AppHeader";
 import { BottomNav } from "../src/components/BottomNav";
 import { HorizontalBarChart, Sparkline, TimeSeriesChart } from "../src/components/charts";
 import { CropBoardRow } from "../src/components/CropBoardRow";
+import { FieldEvidenceCard } from "../src/components/FieldEvidenceCard";
 import {
   ChangeIndicator,
   DataSection,
@@ -38,7 +39,7 @@ import {
 } from "../src/components/ui";
 import { SingleSelectSheet } from "../src/components/terminal/SingleSelectSheet";
 import { features } from "../src/config/features";
-import { useAllCrops, useAllDistricts, useNationalBoard, usePeriods } from "../src/hooks/queries";
+import { useAllCrops, useAllDistricts, useFieldObservations, useNationalBoard, usePeriods } from "../src/hooks/queries";
 import { useNationalInsights } from "../src/hooks/useNationalInsights";
 import { useSavedCrops } from "../src/hooks/useSavedCrops";
 import { strings } from "../src/i18n";
@@ -358,17 +359,23 @@ export default function HomeScreen() {
     () => (districts.data ?? []).find((district) => district.district_code === districtCode) ?? null,
     [districtCode, districts.data],
   );
+  const fieldEvidence = useFieldObservations({
+    periodCode,
+    crop: cropFilter,
+    district: selectedDistrict?.district,
+  });
   const metricUnits = board.data?.metric_units ?? {};
 
   const refreshing =
-    home.isFetching || board.isFetching || crops.isFetching || districts.isFetching || periodsQuery.isFetching;
+    home.isFetching || board.isFetching || crops.isFetching || districts.isFetching || periodsQuery.isFetching || fieldEvidence.isFetching;
   const onRefresh = useCallback(() => {
     void home.refetch();
     void board.refetch();
     void crops.refetch();
     void districts.refetch();
     void periodsQuery.refetch();
-  }, [home, board, crops, districts, periodsQuery]);
+    void fieldEvidence.refetch();
+  }, [home, board, crops, districts, periodsQuery, fieldEvidence]);
 
   const totals = board.data?.national ?? null;
 
@@ -1138,6 +1145,23 @@ export default function HomeScreen() {
                 <EmptyState title={t.noDataAvailable} message={gapLayer.data?.message ?? undefined} />
               )}
             </DataSection>
+
+            <FieldEvidenceCard
+              data={fieldEvidence.data}
+              isLoading={fieldEvidence.isLoading}
+              isError={fieldEvidence.isError}
+              onRetry={() => void fieldEvidence.refetch()}
+              onOpenMap={() =>
+                router.push({
+                  pathname: "/maps",
+                  params: {
+                    period: periodCode ?? undefined,
+                    crop: cropFilter ?? undefined,
+                    district: selectedDistrict?.district ?? undefined,
+                  },
+                })
+              }
+            />
 
             {/* ---- What the data say -------------------------------------- */}
             {insights.length ? (

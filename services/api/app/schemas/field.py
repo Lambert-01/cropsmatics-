@@ -32,6 +32,10 @@ class FieldObservationsResponse(BaseModel):
     rows: list[FieldAllocationRow] = Field(default_factory=list)
     count: int = 0
     n_plot_records: int = 0
+    area_ha_total: float | None = None
+    production_kg_total: float | None = None
+    yield_kg_ha_total: float | None = None
+    available_periods: list[str] = Field(default_factory=list)
     geometry_available: bool = False
     n_records_with_geometry: int = 0
     provenance: Provenance

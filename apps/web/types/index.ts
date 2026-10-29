@@ -571,6 +571,10 @@ export interface FieldObservationsResponse {
   rows: FieldAllocationRow[];
   count: number;
   n_plot_records: number;
+  area_ha_total?: number | null;
+  production_kg_total?: number | null;
+  yield_kg_ha_total?: number | null;
+  available_periods: string[];
   geometry_available: boolean;
   n_records_with_geometry: number;
   provenance: Provenance;

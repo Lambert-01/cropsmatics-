@@ -105,4 +105,8 @@ def test_plot_endpoint_preserves_counts_from_public_aggregate(client, monkeypatc
     body = response.json()
     assert body["available"] is True
     assert body["n_plot_records"] == 226
+    assert body["area_ha_total"] == 32.5
+    assert body["production_kg_total"] == 53750
+    assert body["yield_kg_ha_total"] == 53750 / 32.5
+    assert body["available_periods"] == ["2024B"]
     assert body["rows"][0]["n_plots"] == 226

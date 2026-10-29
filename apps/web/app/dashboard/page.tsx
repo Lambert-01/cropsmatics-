@@ -24,6 +24,7 @@ import { ProductivityRiskMap } from "@/features/dashboard/ProductivityRiskMap";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { WeatherContextCard } from "@/features/dashboard/WeatherContextCard";
 import { CropEntryPoint } from "@/features/crops/CropEntryPoint";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import {
   useCanonicalTrend,
   useFertilizerSource,
@@ -31,6 +32,7 @@ import {
   useOverview,
   usePriorities,
   useTrends,
+  useFieldObservations,
   useWeatherContext,
 } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
@@ -81,6 +83,7 @@ export default function DashboardPage() {
   const inputAdoption = useInputAdoption();
   const fertilizerSource = useFertilizerSource(filters);
   const weather = useWeatherContext(filters.district);
+  const fieldObservations = useFieldObservations(filters);
 
   return (
     <div className="space-y-5">
@@ -258,6 +261,14 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+      />
 
       {/* Fertilizer source shares are national context, so keep this panel
           available even when a district is selected. The card itself carries

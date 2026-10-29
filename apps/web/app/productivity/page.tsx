@@ -22,10 +22,12 @@ import { GapAdvancedMatrix } from "@/features/productivity/GapAdvancedMatrix";
 import { GapDumbbell } from "@/features/productivity/GapDumbbell";
 import { GapRankedBars } from "@/features/productivity/GapRankedBars";
 import { ModelPerformancePanel } from "@/features/productivity/ModelPerformancePanel";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import {
   useFactors,
   useFertilizerSource,
   useInputAdoption,
+  useFieldObservations,
   useOverview,
   usePracticeIndicators,
   useProductivity,
@@ -71,6 +73,7 @@ export default function ProductivityPage() {
   const trends = useTrends(filters.crop, filters.compare, !districtMode);
   const inputs = useInputAdoption();
   const fertilizerSource = useFertilizerSource(filters);
+  const fieldObservations = useFieldObservations(filters);
   // District-scoped practice indicators. The full panel is 9,468 rows, so the
   // request waits for a district and pages one district's ~306 rows; an
   // unfiltered read is one arbitrary page, never a national picture.
@@ -132,6 +135,14 @@ export default function ProductivityPage() {
           <ProvenanceCard provenance={overview.data.provenance} />
         </>
       ) : null}
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+      />
 
       {districtMode && !cropSelected ? (
         <div className="card p-5">

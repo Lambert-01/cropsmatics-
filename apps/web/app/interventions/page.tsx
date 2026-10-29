@@ -11,12 +11,13 @@ import { DashboardKpis } from "@/features/dashboard/DashboardKpis";
 import { InputAdoptionChart } from "@/features/dashboard/InputAdoptionChart";
 import { YieldTrendChart } from "@/features/dashboard/YieldTrendChart";
 import { DistrictExplorer } from "@/features/interventions/DistrictExplorer";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import { PrioritiesWorkspace } from "@/features/interventions/PrioritiesWorkspace";
 import { PriorityScenarioLab } from "@/features/interventions/PriorityScenarioLab";
 import { PredictionsWorkspace } from "@/features/interventions/PredictionsWorkspace";
 import { SensitivityLab } from "@/features/interventions/SensitivityLab";
 import type { DashboardFilters } from "@/lib/filters";
-import { useInputAdoption, useOverview, useTrends } from "@/services/hooks/useAnalytics";
+import { useFieldObservations, useInputAdoption, useOverview, useTrends } from "@/services/hooks/useAnalytics";
 import { useFilters } from "@/services/hooks/useFilters";
 import type { OverviewResponse } from "@/types";
 
@@ -44,6 +45,7 @@ const INTERVENTION_TABS = [
 export default function InterventionsPage() {
   const { filters } = useFilters();
   const overview = useOverview(filters);
+  const fieldObservations = useFieldObservations(filters);
   const districtMode = overview.data?.coverage_level === "district";
   const [tab, setTab] = useState<string>("priorities");
 
@@ -56,6 +58,14 @@ export default function InterventionsPage() {
 
       <AnalyticsFilterBar
         supported={["year", "season", "crop", "province", "district", "benchmark"]}
+      />
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
       />
 
       {overview.error ? (

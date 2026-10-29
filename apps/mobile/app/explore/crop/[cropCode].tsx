@@ -5,6 +5,7 @@ import { Share, View } from "react-native";
 
 import { FactorAssociation } from "../../../src/components/analytics/FactorAssociation";
 import { StackedShareBar } from "../../../src/components/charts";
+import { FieldEvidenceCard } from "../../../src/components/FieldEvidenceCard";
 import {
   CoverageBadge,
   DataSection,
@@ -19,7 +20,7 @@ import { EmptyState, ErrorState, LoadingSkeleton } from "../../../src/components
 import { nationalMetrics, type DistrictMetricId, type NationalMetricId } from "../../../src/constants/analytical";
 import { PANEL_UNITS } from "../../../src/constants/metrics";
 import { getSavedItem, removeSavedItem, saveItem } from "../../../src/database";
-import { useNationalBoard, usePeriods } from "../../../src/hooks/queries";
+import { useFieldObservations, useNationalBoard, usePeriods } from "../../../src/hooks/queries";
 import { strings } from "../../../src/i18n";
 import { analyticsApi, cropsApi, mapsApi, postHarvestApi } from "../../../src/services/api";
 import { useAppStore } from "../../../src/store/useAppStore";
@@ -182,6 +183,12 @@ export default function CropTerminalScreen() {
   const districtChange = changeFromApi(districtSeries.data?.change);
   const selectedDistrictName =
     districtOptions.find((option) => option.id === districtKey)?.label ?? null;
+  const fieldEvidence = useFieldObservations({
+    periodCode: activePeriod,
+    crop: name,
+    district: selectedDistrictName,
+    enabled: Boolean(name),
+  });
 
   // --- post-harvest composition ----------------------------------------------
   const postHarvest = useQuery({
@@ -303,6 +310,23 @@ export default function CropTerminalScreen() {
           source={board.data?.provenance?.source_id ?? null}
         />
       </View>
+
+      <FieldEvidenceCard
+        data={fieldEvidence.data}
+        isLoading={fieldEvidence.isLoading}
+        isError={fieldEvidence.isError}
+        onRetry={() => void fieldEvidence.refetch()}
+        onOpenMap={() =>
+          router.push({
+            pathname: "/maps",
+            params: {
+              crop: name ?? slug,
+              district: selectedDistrictName ?? undefined,
+              period: activePeriod ?? undefined,
+            },
+          })
+        }
+      />
 
       {/* ---- National series: the main analytical surface ------------------ */}
       <CropTrendPanel

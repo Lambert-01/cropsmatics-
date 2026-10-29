@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { FactorAssociation } from "../../../src/components/analytics/FactorAssociation";
 import { HorizontalBarChart, TimeSeriesChart } from "../../../src/components/charts";
+import { FieldEvidenceCard } from "../../../src/components/FieldEvidenceCard";
 import {
   ChangeIndicator,
   CoverageBadge,
@@ -19,7 +20,7 @@ import { ScreenLayout } from "../../../src/components/ScreenLayout";
 import { EmptyState, ErrorState, FilterChip, LoadingSkeleton } from "../../../src/components/ui";
 import { PANEL_UNITS } from "../../../src/constants/metrics";
 import { getSavedItem, removeSavedItem, saveItem } from "../../../src/database";
-import { usePeriods } from "../../../src/hooks/queries";
+import { useFieldObservations, usePeriods } from "../../../src/hooks/queries";
 import { strings } from "../../../src/i18n";
 import { analyticsApi, districtsApi, mapsApi } from "../../../src/services/api";
 import type { MetricValue } from "../../../src/services/api/districts";
@@ -107,6 +108,12 @@ export default function DistrictDetailScreen() {
     queryKey: ["district-crop-factors", crop],
     queryFn: () => analyticsApi.factors({ crop: crop as string }),
     enabled: Boolean(crop),
+  });
+  const fieldEvidence = useFieldObservations({
+    periodCode: activePeriod,
+    crop,
+    district: profile.data?.district,
+    enabled: Boolean(profile.data),
   });
 
   const benchmark = useMemo(() => {
@@ -203,6 +210,23 @@ export default function DistrictDetailScreen() {
         <FilterChip label={t.inputs} selected={tab === "inputs"} onPress={() => setTab("inputs")} />
         <FilterChip label={t.soilErosion} selected={tab === "land"} onPress={() => setTab("land")} />
       </View>
+
+      <FieldEvidenceCard
+        data={fieldEvidence.data}
+        isLoading={fieldEvidence.isLoading}
+        isError={fieldEvidence.isError}
+        onRetry={() => void fieldEvidence.refetch()}
+        onOpenMap={() =>
+          router.push({
+            pathname: "/maps",
+            params: {
+              district: data.district,
+              period: activePeriod ?? undefined,
+              crop: crop ?? undefined,
+            },
+          })
+        }
+      />
 
       {tab === "production" ? (
         <>

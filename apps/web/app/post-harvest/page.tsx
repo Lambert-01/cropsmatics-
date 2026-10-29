@@ -11,10 +11,11 @@ import { RiskClassificationTable } from "@/features/postharvest/RiskClassificati
 import { StorageVsSoldChart } from "@/features/postharvest/StorageVsSoldChart";
 import { UseCompositionChart } from "@/features/postharvest/UseCompositionChart";
 import { UseHistoryPanel } from "@/features/postharvest/UseHistoryPanel";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import { NationalInfrastructureSummary } from "@/features/storage/NationalInfrastructureSummary";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import { useFilters } from "@/services/hooks/useFilters";
-import { usePostHarvest, usePostharvestHistory, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
+import { useFieldObservations, usePostHarvest, usePostharvestHistory, useStorageInfrastructure } from "@/services/hooks/useAnalytics";
 
 /**
  * The first screenful: which crop leads each share.
@@ -32,6 +33,7 @@ export default function PostHarvestPage() {
   const postHarvest = usePostHarvest(filters);
   const history = usePostharvestHistory();
   const infrastructure = useStorageInfrastructure();
+  const fieldObservations = useFieldObservations(filters);
   const crops = postHarvest.data?.crops ?? [];
   const headlines = postHarvest.data?.headlines ?? [];
 
@@ -45,6 +47,14 @@ export default function PostHarvestPage() {
       <AnalyticsFilterBar
         supported={"crop"}
         datasetNote="National crop-level dataset (2025-B): year, season and district filters do not apply to this data."
+      />
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={filters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
       />
 
       {postHarvest.error ? (

@@ -1,4 +1,4 @@
-import type { DistrictMetricsResponse } from "../../types";
+import type { DistrictMetricsResponse, FieldObservationsResponse } from "../../types";
 import { qs, request } from "./client";
 
 export type MapMetric =
@@ -10,6 +10,20 @@ export type MapMetric =
   | "erosion";
 
 export const mapsApi = {
+  fieldObservations: (params?: {
+    periodCode?: string;
+    crop?: string;
+    district?: string;
+    province?: string;
+  }) =>
+    request<FieldObservationsResponse>(
+      `/maps/field-observations${qs({
+        period_code: params?.periodCode,
+        crop: params?.crop,
+        district: params?.district,
+        province: params?.province,
+      })}`,
+    ),
   /**
    * District choropleth values. The period is passed as ``period_code``
    * (``2026B``); the previous ``period`` name was ignored by the API.

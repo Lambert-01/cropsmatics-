@@ -42,9 +42,10 @@ export function FieldEvidencePanel({
           />
         ) : (
           <>
-            <div className="mb-3 grid gap-2 sm:grid-cols-3">
+            <div className="mb-3 grid gap-2 sm:grid-cols-4">
               <Stat label="Plot-crop records" value={fmtNumber(data.n_plot_records)} />
-              <Stat label="Area represented" value={`${fmtNumber(data.rows.reduce((sum, row) => sum + (row.area_ha ?? 0), 0), 1)} ha`} />
+              <Stat label="Area represented" value={`${fmtNumber(data.area_ha_total, 1)} ha`} />
+              <Stat label="Production represented" value={`${fmtNumber(data.production_kg_total, 0)} kg`} />
               <Stat label="Boundaries" value={data.geometry_available ? `${fmtNumber(data.n_records_with_geometry)} available` : "Not supplied"} />
             </div>
             <div className="overflow-x-auto rounded-lg border border-forest/10">

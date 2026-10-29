@@ -20,10 +20,12 @@ import { CropTrendChart, type CropTrendMetric } from "@/features/crops/CropTrend
 import { DistrictRankingTable } from "@/features/productivity/DistrictRankingTable";
 import { FactorAssociationChart } from "@/features/productivity/FactorAssociationChart";
 import { GapRankedBars } from "@/features/productivity/GapRankedBars";
+import { FieldEvidenceSummary } from "@/features/maps/FieldEvidenceSummary";
 import { splitPeriod } from "@/lib/filters";
 import { useCrops } from "@/services/hooks/useReference";
 import {
   useFactors,
+  useFieldObservations,
   usePostHarvest,
   useProductivity,
   useProductivityTrend,
@@ -105,6 +107,7 @@ export default function CropIntelligencePage() {
   }, [compareDistrictName, filters.district]);
   const factors = useFactors(effectiveFilters, Boolean(cropName));
   const postHarvest = usePostHarvest(effectiveFilters);
+  const fieldObservations = useFieldObservations(effectiveFilters);
   const benchmarkStrategy =
     productivity.data?.provenance?.benchmark_strategy ?? filters.benchmark ?? null;
 
@@ -208,6 +211,14 @@ export default function CropIntelligencePage() {
           secondaryKpis={productivity.data.secondary_kpis}
         />
       ) : null}
+
+      <FieldEvidenceSummary
+        data={fieldObservations.data}
+        filters={effectiveFilters}
+        isLoading={fieldObservations.isLoading}
+        isError={fieldObservations.isError}
+        onRetry={() => void fieldObservations.refetch()}
+      />
 
       <div className="card flex flex-wrap items-center gap-3 px-4 py-2.5">
         <TrendCompareControl
