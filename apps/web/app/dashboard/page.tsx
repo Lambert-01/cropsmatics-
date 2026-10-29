@@ -226,7 +226,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="max-w-5xl">
+      <div className="w-full">
         <FieldEvidenceDistrictChart
           data={fieldObservations.data}
           filters={filters}
