@@ -6,6 +6,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -43,6 +44,9 @@ export function InputAdoptionChart({
   hasError,
   errorMessage,
   onRetry,
+  selectedPeriod,
+  selectedCrop,
+  selectedDistrict,
 }: {
   data?: TrendResponse;
   isLoading?: boolean;
@@ -51,6 +55,11 @@ export function InputAdoptionChart({
   hasError?: boolean;
   errorMessage?: string;
   onRetry?: () => void;
+  /** The shared period selection is highlighted without truncating the history axis. */
+  selectedPeriod?: string;
+  /** These are displayed to make the national-only scope explicit. */
+  selectedCrop?: string;
+  selectedDistrict?: string;
 }) {
   const motion = useChartMotion();
 
@@ -78,6 +87,10 @@ export function InputAdoptionChart({
 
   const shown = SERIES.filter((spec) => visible.includes(spec.key));
   const hidden = SERIES.filter((spec) => published.includes(spec.key) && !visible.includes(spec.key));
+  const selectedPeriodLabel = selectedPeriod ? periodLabel(selectedPeriod) : null;
+  const hasSelectedPeriod = Boolean(
+    selectedPeriodLabel && points.some((point) => point.period === selectedPeriodLabel),
+  );
 
   // National adoption is a multi-period national series, so it is never re-keyed
   // by a period selection. Once loaded it must stay on screen through any
@@ -114,6 +127,12 @@ export function InputAdoptionChart({
           </div>
         }
       />
+      <div className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
+        National context · {selectedPeriodLabel && hasSelectedPeriod
+          ? `${selectedPeriodLabel} highlighted; the full published history remains visible.`
+          : "select a period to highlight it on the history axis."}
+        {selectedCrop || selectedDistrict ? " Crop and district selections affect the other dashboard panels, not this national series." : ""}
+      </div>
       {points.length === 0 ? (
         <div className="p-4">
           <EmptyState
@@ -169,6 +188,14 @@ export function InputAdoptionChart({
                 />
                 <Tooltip {...TOOLTIP_STYLE} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
+                {hasSelectedPeriod ? (
+                  <ReferenceLine
+                    x={selectedPeriodLabel ?? undefined}
+                    stroke={CHART.forest}
+                    strokeDasharray="4 4"
+                    label={{ value: "Selected", position: "insideTopRight", fill: CHART.forest, fontSize: 10 }}
+                  />
+                ) : null}
                 {shown.map((s) => (
                   <Line
                     {...motion}

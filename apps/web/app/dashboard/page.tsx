@@ -192,6 +192,7 @@ export default function DashboardPage() {
               onRetry={() => canonicalTrend.refetch()}
               crop={filters.crop}
               district={filters.district}
+              selectedPeriod={filters.period}
             />
           </div>
         </>
@@ -207,6 +208,7 @@ export default function DashboardPage() {
               onRetry={() => canonicalTrend.refetch()}
               crop={filters.crop}
               district={filters.district}
+              selectedPeriod={filters.period}
             />
           </div>
         </>
@@ -223,6 +225,9 @@ export default function DashboardPage() {
           hasError={inputAdoption.isError}
           errorMessage={(inputAdoption.error as Error)?.message}
           onRetry={() => inputAdoption.refetch()}
+          selectedPeriod={filters.period}
+          selectedCrop={filters.crop}
+          selectedDistrict={filters.district}
         />
       </div>
 

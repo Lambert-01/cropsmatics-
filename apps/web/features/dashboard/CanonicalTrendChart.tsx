@@ -8,6 +8,7 @@ import {
   Legend,
   Line,
   ResponsiveContainer,
+  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -17,7 +18,7 @@ import { Card, CardHeader, SourceNote } from "@/components/ui/Card";
 import { ChartSkeleton, EmptyState, ErrorState, UpdatingPill } from "@/components/ui/States";
 import { AXIS_PROPS, CHART, TOOLTIP_STYLE, useChartMotion } from "@/features/dashboard/chartTheme";
 import { chartDisplayState, isUpdating as showUpdating } from "@/lib/chartState";
-import { fmtCompact, fmtNumber } from "@/lib/format";
+import { fmtCompact, fmtNumber, periodLabel } from "@/lib/format";
 import type { CanonicalTrendResponse } from "@/types";
 
 const KG_PER_TONNE = 1000;
@@ -41,6 +42,7 @@ export function CanonicalTrendChart({
   onRetry,
   crop,
   district,
+  selectedPeriod,
 }: {
   data?: CanonicalTrendResponse;
   isLoading?: boolean;
@@ -51,9 +53,12 @@ export function CanonicalTrendChart({
   onRetry?: () => void;
   crop?: string;
   district?: string;
+  /** The period selection marks the full history axis; it does not hide other releases. */
+  selectedPeriod?: string;
 }) {
   const motion = useChartMotion();
   const scope = district && crop ? `${crop} · ${district}` : crop ? `${crop} national` : "National totals";
+  const selectedPeriodLabel = selectedPeriod ? periodLabel(selectedPeriod) : null;
   const updating = showUpdating({ hasData: (data?.periods?.length ?? 0) > 0, isFetching });
 
   const points = useMemo(() => {
@@ -99,6 +104,16 @@ export function CanonicalTrendChart({
   }
 
   const isWeightedYield = !crop;
+  const hasSelectedPeriod = Boolean(
+    selectedPeriodLabel && points.some((point) => point.period === selectedPeriodLabel),
+  );
+  const scopeNote = district && !crop
+    ? "District selection needs a crop for this trend; showing national totals."
+    : district && crop
+      ? `Crop and district filters applied: ${crop} · ${district}.`
+      : crop
+        ? `Crop filter applied: ${crop} national series.`
+        : "All-crops national series. Benchmark and province filters apply to other panels, not this observed trend.";
 
   return (
     <Card>
@@ -111,6 +126,11 @@ export function CanonicalTrendChart({
         }
         action={<UpdatingPill active={updating} />}
       />
+      <div className="px-4 pt-2 text-[11px] leading-relaxed text-slate-500">
+        {scopeNote} {selectedPeriodLabel && hasSelectedPeriod
+          ? `${selectedPeriodLabel} is highlighted; the full published history remains visible.`
+          : "Select a period to highlight it on the history axis."}
+      </div>
       {points.length === 0 ? (
         <div className="p-4">
           <EmptyState
@@ -141,6 +161,14 @@ export function CanonicalTrendChart({
               />
               <Tooltip {...TOOLTIP_STYLE} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
+              {hasSelectedPeriod ? (
+                <ReferenceLine
+                  x={selectedPeriodLabel ?? undefined}
+                  stroke={CHART.forest}
+                  strokeDasharray="4 4"
+                  label={{ value: "Selected", position: "insideTopRight", fill: CHART.forest, fontSize: 10 }}
+                />
+              ) : null}
               <Bar
                 {...motion}
                 yAxisId="left"
