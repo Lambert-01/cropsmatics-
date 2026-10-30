@@ -6,7 +6,7 @@ Track 1: Agricultural Productivity.
 
 ## Current verified state
 
-- GitHub `main` is at `a27235c` and the [latest CI run](https://github.com/Lambert-01/cropsmatics-/actions/runs/41034291511)
+- GitHub `main` is at `bafdacb` and the [latest CI run](https://github.com/Lambert-01/cropsmatics-/actions/runs/41034785842)
   is green across Web, Mobile, API/canonical integration, ML and Data Pipeline.
 - The release fix registers the restricted `NISR_AHS_MICRODATA_2024` source and
   corrects the API Ruff import-order failure.
@@ -67,7 +67,7 @@ grounded fallback remains available when a remote provider is unavailable.
 
 ## Before submission
 
-1. Redeploy Render and confirm it reports `a27235c` (or the exact deployed
+1. Redeploy Render and confirm it reports `bafdacb` (or the exact deployed
    commit selected by the owner), then rerun the production smoke gate.
 2. Confirm the Vercel deployment contains the fertilizer card in both
    national and district Dashboard views.
