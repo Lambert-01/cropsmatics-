@@ -236,6 +236,15 @@ still needs physical-device
 verification. Do not use the local-backend development profile for an APK
 intended for remote users.
 
+## Demo Videos
+
+The web-dashboard and mobile-app recordings are available in the shared
+[Google Drive demo folder](https://drive.google.com/drive/folders/1Mr0XbSWsq0B1BI4xcghQ9eQG1IY6zxMN?usp=sharing).
+The folder may continue processing the uploads while they are being added.
+GitHub also stores the original recordings as a fallback:
+[mobile app demo](demo/mobile-app-demo.mp4) and
+[web dashboard demo](demo/web-dashboard-demo.mp4).
+
 ## Quality checks
 
 ```bash
