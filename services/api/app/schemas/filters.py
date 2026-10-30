@@ -25,7 +25,6 @@ from fastapi import HTTPException, Query
 
 from app.services import period_service
 
-
 BenchmarkStrategy = Literal[
     "national_crop_median",
     "national_crop_season_median",

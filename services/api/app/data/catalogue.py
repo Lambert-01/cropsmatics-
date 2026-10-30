@@ -403,6 +403,13 @@ SOURCES: tuple[SourceDef, ...] = (
         "public page + downloadable Excel/PDF",
     ),
     SourceDef(
+        "NISR_AHS_MICRODATA_2024",
+        "NISR",
+        "NISR Agriculture Household Survey 2024 authorised plot-crop export",
+        None,
+        "restricted authorised export; not redistributed",
+    ),
+    SourceDef(
         "NISR_SAS_2025_ANNUAL",
         "NISR",
         "NISR SAS 2025 Annual Tables",
