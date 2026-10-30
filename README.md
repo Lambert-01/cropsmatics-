@@ -167,7 +167,7 @@ Dataset-version checks prevent silent reads from an out-of-sync deployment.
 | `scripts/data` | Deterministic extraction, validation, build and database load |
 | `ml` | Statistical models, validation and optimization |
 | `data` | Sources, dictionaries, registries and generated outputs |
-| `docs` | Architecture, methods, operations and submission evidence |
+| `docs` | Core architecture, data methods, user guide and current project status |
 
 ## Local Setup
 
@@ -258,9 +258,18 @@ Entrypoints: `services/api/app/main.py`, `apps/web/app/page.tsx`,
 `apps/mobile/app/index.tsx`, and `scripts/data/run_all.py`.
 Check `/api/v1/health/readiness` for current backend/database readiness.
 
-## Documentation And Data Rights
+## Documentation Index
 
-The five maintained Markdown files are this README plus [Data and Methods](docs/DATA_AND_METHODS.md),
-[Architecture](docs/ARCHITECTURE.md), [User Guide](docs/USER_GUIDE.md) and
-[Project Status](docs/PROJECT_STATUS.md). This repository does not grant
-additional redistribution rights over third-party datasets.
+This is the complete maintained documentation set. Historical audits, submission
+drafts and temporary deployment notes are intentionally not tracked.
+
+| Document | Purpose |
+|---|---|
+| `README.md` | Project overview, architecture flow, setup, quality checks, team and data rights |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Runtime and data-request architecture, boundaries and guardrails |
+| [`docs/DATA_AND_METHODS.md`](docs/DATA_AND_METHODS.md) | Official sources, processing, formulas, coverage, limitations and provenance |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Web and mobile workflows and how to read unavailable data |
+| [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) | Current verified state, known limitations and release checklist |
+
+This repository does not grant additional redistribution rights over
+third-party datasets.

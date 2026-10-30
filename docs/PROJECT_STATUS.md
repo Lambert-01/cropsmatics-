@@ -1,23 +1,26 @@
 # Cropmatics Project Status
 
-Reviewed 2026-10-29. This is a release candidate for the [NISR 2026 Big Data
+Reviewed 2026-10-30. This is a release candidate for the [NISR 2026 Big Data
 Hackathon](https://statistics.gov.rw/about/hackathon/2026-hackathon-competition),
 Track 1: Agricultural Productivity.
 
 ## Current verified state
 
-- Latest remote `main`: `61f72fb`.
-- Production Render readiness: HTTP 200.
-- Read-only production smoke gate: 13/13 required endpoints passed.
-- Canonical dataset: `0.2.0-dd69a79f2481b9e0`.
+- Latest local `main` revision before this documentation cleanup: `b8d60a4`.
+- Vercel production includes the dashboard field-evidence width fix from
+  `b8d60a4`.
+- Render production includes the storage-optimizer runtime and CORS fix from
+  `4325d92`; the hosted POST returned HTTP 200 with solver status `OPTIMAL`.
 - Canonical data: 14 periods, 30 districts and up to 17 crops.
 - Web typecheck and lint: passed.
-- Web tests: 445 passed.
-- Next.js production build with the Render API URL: passed, 20 routes.
+- Web tests: 446 passed in the latest local run.
+- Next.js production build with the Render API URL: passed.
+- Storage optimization tests: 5 passed; targeted API lint passed.
 
-The current working tree also contains a dashboard fertilizer-visibility fix,
-README changes and this documentation cleanup. They are not live until they are
-committed, pushed and redeployed.
+This status page records verified checks rather than claiming that every
+external release gate has been rerun. Re-run the production smoke gate and
+confirm the newest GitHub Actions, Vercel and Render deployments after any
+data, dependency or deployment change.
 
 ## NISR fit
 
@@ -57,8 +60,8 @@ grounded fallback remains available when a remote provider is unavailable.
 
 ## Before submission
 
-1. Commit and push the current working tree.
-2. Confirm the new Vercel deployment contains the fertilizer card in both
+1. Push the documentation cleanup and confirm the resulting deployments.
+2. Confirm the Vercel deployment contains the fertilizer card in both
    national and district Dashboard views.
 3. Confirm the matching GitHub Actions run and Render deployment.
 4. Test the APK on a physical Android device, including Maps, Compare, Ask,
