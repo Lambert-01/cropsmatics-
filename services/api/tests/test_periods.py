@@ -261,21 +261,31 @@ def test_heatmap_honours_the_period_filter(client):
     assert body["provenance"]["source_period"] == "2026B"
 
 
-def test_factor_analysis_says_when_a_period_has_no_factor_data(client):
+def test_factor_analysis_uses_period_matched_practice_data(client):
     _require_periods(client)
     current = client.get("/api/v1/analytics/factors", params={"crop": "Maize"}).json()
     assert current["factors"]
     assert current["note"] is None
+    assert current["provenance"]["source_period"].replace("-", "") == "2026B"
+    assert any(factor["correlation"] is not None for factor in current["factors"])
 
     other = client.get(
         "/api/v1/analytics/factors", params={"crop": "Maize", "period_code": "2024A"}
     ).json()
-    # Explained, never presented as "no association measured": the district
-    # factor table is a single release, so every factor reports no observations.
-    assert other["note"] and "2024A" in other["note"]
-    assert other["factors"], "the factor list still describes what would be measured"
-    assert all(factor["n_observations"] == 0 for factor in other["factors"])
-    assert all(factor["correlation"] is None for factor in other["factors"])
+    assert other["note"] is None
+    assert other["provenance"]["source_period"] == "2024A"
+    assert any(factor["n_observations"] >= 3 for factor in other["factors"])
+    assert any(factor["correlation"] is not None for factor in other["factors"])
+
+
+def test_factor_analysis_explains_a_single_district_selection(client):
+    _require_periods(client)
+    body = client.get(
+        "/api/v1/analytics/factors",
+        params={"crop": "Maize", "period_code": "2026B", "district": "Bugesera"},
+    ).json()
+    assert body["note"] and "multiple districts" in body["note"]
+    assert all(factor["correlation"] is None for factor in body["factors"])
 
 
 def test_irrigation_and_erosion_explain_single_release_periods(client):

@@ -20,7 +20,7 @@ from app.schemas.filters import AnalyticsFilters, apply_filters
 from app.services import period_service
 
 # MVP proxies for priority components that official 2025B tables do not carry.
-# Documented so the weighting is never a black box (docs/11_INTERVENTION_ENGINE.md).
+# Documented so the weighting is never a black box (docs/DATA_AND_METHODS.md).
 _PERISHABILITY = {"high": 1.0, "medium": 0.5, "low": 0.2}
 
 # Columns that only the 2025B joined training table carries. When a frame comes
@@ -87,6 +87,21 @@ FACTOR_LABELS = {
     "agricultural_land_000ha": "Agricultural land area",
 }
 
+# The long-form practice panel is period-aware. These are the reviewed
+# indicator codes that are comparable with the legacy factor names above.
+# Keeping this mapping explicit prevents a similarly named fertilizer-source or
+# irrigation indicator from being mistaken for farmer adoption.
+PRACTICE_FACTOR_INDICATORS = {
+    "improved_seed_farmers_pct": "improved_seed_farmers",
+    "organic_fertilizer_farmers_pct": "organic_fertilizer_farmers",
+    "inorganic_fertilizer_farmers_pct": "inorganic_fertilizer_farmers",
+    "pesticide_farmers_pct": "pesticide_farmers",
+    "erosion_protection_farmers_pct": "erosion_protection_farmers",
+    "mechanization_farmers_pct": "mechanization_farmers",
+    "irrigation_farmers_pct": "irrigation_farmers",
+    "agroforestry_farmers_pct": "agroforestry_farmers",
+}
+
 # --- component availability policy (v2) -------------------------------------
 #
 # The priority score is a weighted sum over five components. Three of them come
@@ -103,7 +118,7 @@ FACTOR_LABELS = {
 # unavailable or undetermined - and an unavailable component is reported as
 # ``null``, never as ``0`` or ``0.5``.
 #
-# See docs/11_INTERVENTION_ENGINE.md for the worked example and the alternative
+# See docs/DATA_AND_METHODS.md for the worked example and the alternative
 # (join the 2025B survey in as a labelled reference period) that was rejected.
 COMPONENT_ORDER: tuple[str, ...] = (
     "gap_index",
@@ -1107,14 +1122,104 @@ def single_release_note(f: AnalyticsFilters, dataset: str, what: str) -> str | N
 
 def factor_associations(f: AnalyticsFilters) -> dict:
     if not f.crop:
-        return {"crop": None, "district": f.district, "factors": []}
-    df = apply_filters(repo.training_dataset(), f)
-    df = valid_yield(df)
+        return {
+            "crop": None,
+            "district": f.district,
+            "factors": [],
+            "note": "Select a crop before estimating practice associations.",
+        }
+
+    # Practice factors used to come only from the 2025B joined training table.
+    # That made a current 2026B selection look empty even though the reviewed
+    # long-form practice panel contains matching observations for that period.
+    # Join the selected crop and period to the period-matched practice rows so
+    # the chart never labels one release with another release's correlation.
+    period_code = resolved_period(f)
+    if not period_code:
+        return {
+            "crop": f.crop,
+            "district": f.district,
+            "factors": [],
+            "note": "No published period is available for this selection.",
+        }
+
+    scoped_filters = dc_replace(
+        f,
+        period_code=period_code,
+        year=None,
+        season=None,
+    )
+    yields = apply_filters(repo.crop_productivity(), scoped_filters)
+    if "geography_level" in yields.columns:
+        yields = yields[yields["geography_level"].astype(str).str.upper() == "DISTRICT"]
+    yields = valid_yield(yields)
+
+    try:
+        practices = repo.agricultural_practice_observation()
+    except Exception as exc:  # noqa: BLE001 - return an honest UI state
+        yield_source_ids = {
+            str(value)
+            for value in yields.get("source_id", pd.Series(dtype=object)).dropna()
+        }
+        return {
+            "crop": f.crop,
+            "district": f.district,
+            "factors": [],
+            "period_code": period_code,
+            "source_id": ",".join(sorted(yield_source_ids)) or None,
+            "source_period": period_code,
+            "note": f"The period-matched practice dataset could not be loaded: {exc}",
+        }
+
+    practices = practices[
+        (practices["domain"].astype(str) == "practice")
+        & (practices["period_code"].astype(str) == period_code)
+        & (practices["geography_level"].astype(str).str.upper() == "DISTRICT")
+    ].copy()
+    if f.province and "province" in practices.columns:
+        practices = practices[
+            practices["province"].astype(str).str.lower() == f.province.lower()
+        ]
+    if f.district and "district" in practices.columns:
+        practices = practices[
+            practices["district"].astype(str).str.lower() == f.district.lower()
+        ]
+
+    note: str | None = None
+    if f.district:
+        note = (
+            "A Pearson association needs variation across multiple districts. "
+            "The current district filter is retained, so this selection will "
+            "usually have fewer than three matched observations; clear District "
+            "to estimate the Rwanda-wide association."
+        )
+
+    join_key = (
+        "district_code"
+        if "district_code" in yields and "district_code" in practices
+        else "district"
+    )
+    source_ids = set(
+        str(value) for value in yields.get("source_id", pd.Series(dtype=object)).dropna()
+    )
+    source_ids.update(
+        str(value) for value in practices.get("source_id", pd.Series(dtype=object)).dropna()
+    )
+    yield_cols = [join_key, "yield_kg_ha"]
+    if join_key != "district" and "district" in yields:
+        yield_cols.append("district")
+    yields = yields[yield_cols].drop_duplicates(subset=[join_key])
 
     results = []
-    for col in _factor_cols(df):
-        sub = df[["yield_kg_ha", col]].dropna()
-        corr = sub["yield_kg_ha"].corr(sub[col]) if len(sub) >= 3 else None
+    for col, indicator in PRACTICE_FACTOR_INDICATORS.items():
+        factor_rows = practices[practices["indicator_code"].astype(str) == indicator]
+        factor_rows = factor_rows[[join_key, "value"]].drop_duplicates(subset=[join_key])
+        sub = yields.merge(factor_rows, on=join_key, how="inner").dropna(
+            subset=["yield_kg_ha", "value"]
+        )
+        # The long-form table calls the factor value ``value``; the public
+        # response keeps the stable legacy factor name used by the clients.
+        corr = sub["yield_kg_ha"].corr(sub["value"]) if len(sub) >= 3 else None
         if corr is not None and pd.isna(corr):
             corr = None
         n = int(len(sub))
@@ -1146,6 +1251,10 @@ def factor_associations(f: AnalyticsFilters) -> dict:
         "crop": f.crop,
         "district": f.district,
         "factors": results[: f.limit],
+        "period_code": period_code,
+        "source_id": ",".join(sorted(source_ids)) or None,
+        "source_period": period_code,
+        "note": note,
     }
 
 

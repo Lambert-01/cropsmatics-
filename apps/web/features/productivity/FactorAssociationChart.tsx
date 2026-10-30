@@ -47,7 +47,7 @@ export function FactorAssociationChart({
     <Card>
       <CardHeader
         title="Factors Associated with Yield"
-        subtitle="Pearson correlation between district practice adoption and yield"
+        subtitle="Pearson correlation across matched districts in the selected period"
       />
       <div className="flex items-start gap-2 px-4 pt-2 text-[11px] text-slate-500">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden="true" />
@@ -57,7 +57,10 @@ export function FactorAssociationChart({
         <div className="p-4">
           <EmptyState
             title="No factor association could be estimated."
-            hint="This needs at least three matched observations for the selection."
+            hint={
+              data?.note ??
+              "This needs at least three matched district observations with variation in the selected practice."
+            }
           />
         </div>
       ) : (

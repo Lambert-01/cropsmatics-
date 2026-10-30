@@ -208,7 +208,7 @@ SOURCE_IDS = {
     "cold_chain_network_summary": "MINAGRI_ACES_COLDCHAIN_2026_NETWORK",
 }
 
-# Canonical processed output names (docs/DATA_TO_UI_MATRIX.md references these).
+# Canonical processed output names (the README and data-methods guide reference these).
 PROCESSED_FILES = {
     "district_crop_productivity": "district_crop_productivity.csv",
     "district_factors": "district_productivity_factors.csv",

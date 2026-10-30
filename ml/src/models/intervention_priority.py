@@ -4,7 +4,7 @@
             - wc*cost_constraint
 
 All inputs are normalized to [0, 1] before weighting. Weights and components are
-returned with every result. Decision support only. See docs/11_INTERVENTION_ENGINE.md.
+returned with every result. Decision support only. See docs/DATA_AND_METHODS.md.
 
 Methodology 2.0.0 parity
 ------------------------

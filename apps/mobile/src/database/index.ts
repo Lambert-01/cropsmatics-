@@ -461,7 +461,7 @@ export function markFailed(clientUuid: string, entity?: OutboxItem["entity"]): v
   });
 }
 
-/** Conflict is recorded rather than resolved silently (see docs/17_DEPLOYMENT.md). */
+/** Conflict is recorded rather than resolved silently (see README.md). */
 export function markConflict(clientUuid: string, entity?: OutboxItem["entity"]): void {
   const database = getDb();
   database.withTransactionSync(() => {

@@ -5,7 +5,7 @@
 
 Every input is normalized to [0, 1] before weighting. Weights and all component
 values are returned so the ranking is fully auditable. This is decision support,
-not a binding decision. See docs/11_INTERVENTION_ENGINE.md.
+not a binding decision. See docs/DATA_AND_METHODS.md.
 
 Methodology 2.0.0 — what changed and why
 ----------------------------------------

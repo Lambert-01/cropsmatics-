@@ -5,7 +5,7 @@
 # created from it (or explicitly synced to it); adding this file does NOT change
 # an existing service that was configured by hand in the dashboard. Confirm the
 # Pre-Deploy Command, the Start Command, the health path and the environment in
-# the dashboard against docs/17_DEPLOYMENT.md §5.
+# the dashboard against the deployment instructions in README.md.
 #
 # The three things this blueprint exists to state, because none of them is
 # provable from application code:

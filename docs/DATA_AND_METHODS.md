@@ -142,6 +142,17 @@ reproducible development and pipeline work.
   gap in the series.
 - Factor results describe association, not causation.
 
+### Practice associations
+
+The Factors Associated with Yield chart joins the selected crop's district
+yield to the period-matched district practice observations using the canonical
+district code. It estimates Pearson correlation across matched districts for
+the selected period; it does not combine releases or apply a 2025B factor value
+to another period. A district filter can leave too little cross-district
+variation, so the chart reports that limitation instead of drawing a number.
+At least three matched observations are required, and a published indicator
+with no rows remains unavailable.
+
 ## Fertilizer data
 
 Cropmatics exposes two separate fertilizer measures:

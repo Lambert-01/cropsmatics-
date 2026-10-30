@@ -164,18 +164,20 @@ def factors(f: AnalyticsFilters = Depends(analytics_filters)) -> FactorsResponse
         crop=result["crop"],
         district=result["district"],
         factors=result["factors"],
-        note=analytics_service.single_release_note(
-            f, "district_factors", "district input/practice factor data"
-        ),
+        note=result.get("note"),
         provenance=Provenance(
-            source_id="NISR_SAS_2025B_DISTRICT_FACTORS",
-            source_period="2025-B",
-            method="Crop-specific Pearson correlation between district factor adoption and yield; a crop selection is required",
+            source_id=result.get("source_id"),
+            source_period=result.get("source_period"),
+            method=(
+                "Crop-specific Pearson correlation between period-matched district "
+                "practice adoption and observed yield; a crop selection is required"
+            ),
             limitations=[
                 "aggregate (ecological) association; not a causal effect",
                 "confounding between practices is expected",
                 "district-level correlation can differ from farm-level",
                 "small samples are explicitly flagged",
+                "district filtering can leave too little cross-district variation",
             ],
         ),
     )
