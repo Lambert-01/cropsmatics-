@@ -6,16 +6,21 @@ Track 1: Agricultural Productivity.
 
 ## Current verified state
 
-- Latest local `main` revision before this documentation cleanup: `b8d60a4`.
-- Vercel production includes the dashboard field-evidence width fix from
-  `b8d60a4`.
-- Render production includes the storage-optimizer runtime and CORS fix from
-  `4325d92`; the hosted POST returned HTTP 200 with solver status `OPTIMAL`.
+- GitHub `main` is at `a27235c` and the [latest CI run](https://github.com/Lambert-01/cropsmatics-/actions/runs/41034291511)
+  is green across Web, Mobile, API/canonical integration, ML and Data Pipeline.
+- The release fix registers the restricted `NISR_AHS_MICRODATA_2024` source and
+  corrects the API Ruff import-order failure.
+- Vercel routes and the Render API are reachable. Render currently serves the
+  older build commit `792aef1`; redeploy confirmation is still required before
+  claiming production commit parity with `main`.
 - Canonical data: 14 periods, 30 districts and up to 17 crops.
 - Web typecheck and lint: passed.
-- Web tests: 446 passed in the latest local run.
+- Web tests: 446 passed; mobile tests: 354 passed.
 - Next.js production build with the Render API URL: passed.
-- Storage optimization tests: 5 passed; targeted API lint passed.
+- API, data-pipeline and ML tests: passed; the API suite retains its existing
+  database-environment skips where no isolated local PostGIS service exists.
+- Scientific validation: 12 passed, 0 failed, 1 unresolved published-source
+  finding; official yield values remain preserved.
 
 This status page records verified checks rather than claiming that every
 external release gate has been rerun. Re-run the production smoke gate and
@@ -47,8 +52,10 @@ The two-person DataSprout team is:
   budgets, farmer counts or promised yield gains.
 - Physical Android testing, native-speaker Kinyarwanda review and final human
   visual review still require owner evidence.
-- The final screen recording is a team submission artifact and is not stored in
-  this repository yet.
+- The read-only production smoke gate passed 13/13 endpoints, but the live
+  Render commit must be rechecked after its redeploy.
+- Eligibility-card images remain publicly visible in the repository; confirm
+  that NISR accepts this evidence arrangement before submission.
 
 ## AI disclosure
 
@@ -60,7 +67,8 @@ grounded fallback remains available when a remote provider is unavailable.
 
 ## Before submission
 
-1. Push the documentation cleanup and confirm the resulting deployments.
+1. Redeploy Render and confirm it reports `a27235c` (or the exact deployed
+   commit selected by the owner), then rerun the production smoke gate.
 2. Confirm the Vercel deployment contains the fertilizer card in both
    national and district Dashboard views.
 3. Confirm the matching GitHub Actions run and Render deployment.
